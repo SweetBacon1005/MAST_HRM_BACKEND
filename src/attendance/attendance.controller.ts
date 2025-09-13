@@ -1,40 +1,40 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AttendanceService } from './attendance.service';
 import {
   AttendanceCalculationDto,
-  WorkShiftDto,
   PenaltyCalculationDto,
+  WorkShiftDto,
 } from './dto/attendance-calculation.dto';
-import {
-  CreateLeaveRequestDto,
-  RemoteWorkRequestDto,
-} from './dto/leave-management.dto';
 import {
   AttendanceDashboardDto,
   AttendanceReportDto,
   PenaltyReportDto,
 } from './dto/dashboard.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
+import {
+  CreateLeaveRequestDto,
+  RemoteWorkRequestDto,
+} from './dto/leave-management.dto';
 
 @ApiTags('Attendance Management')
 @ApiBearerAuth()

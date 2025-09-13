@@ -1,5 +1,11 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsDateString, IsInt, IsString, IsArray } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsArray,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class AttendanceDashboardDto {
   @ApiPropertyOptional({ description: 'Ngày bắt đầu (YYYY-MM-DD)' })
@@ -22,7 +28,10 @@ export class AttendanceDashboardDto {
   @IsInt()
   team_id?: number;
 
-  @ApiPropertyOptional({ description: 'Loại thống kê', enum: ['daily', 'weekly', 'monthly', 'yearly'] })
+  @ApiPropertyOptional({
+    description: 'Loại thống kê',
+    enum: ['daily', 'weekly', 'monthly', 'yearly'],
+  })
   @IsOptional()
   @IsString()
   period_type?: string;
@@ -44,12 +53,18 @@ export class AttendanceReportDto {
   @IsArray()
   user_ids?: number[];
 
-  @ApiPropertyOptional({ description: 'Loại báo cáo', enum: ['summary', 'detailed', 'penalty', 'leave'] })
+  @ApiPropertyOptional({
+    description: 'Loại báo cáo',
+    enum: ['summary', 'detailed', 'penalty', 'leave'],
+  })
   @IsOptional()
   @IsString()
   report_type?: string;
 
-  @ApiPropertyOptional({ description: 'Định dạng xuất', enum: ['json', 'excel', 'pdf'] })
+  @ApiPropertyOptional({
+    description: 'Định dạng xuất',
+    enum: ['json', 'excel', 'pdf'],
+  })
   @IsOptional()
   @IsString()
   export_format?: string;
@@ -71,7 +86,10 @@ export class PenaltyReportDto {
   @IsInt()
   min_penalty_amount?: number;
 
-  @ApiPropertyOptional({ description: 'Loại vi phạm', enum: ['late', 'early', 'absent', 'all'] })
+  @ApiPropertyOptional({
+    description: 'Loại vi phạm',
+    enum: ['late', 'early', 'absent', 'all'],
+  })
   @IsOptional()
   @IsString()
   violation_type?: string;

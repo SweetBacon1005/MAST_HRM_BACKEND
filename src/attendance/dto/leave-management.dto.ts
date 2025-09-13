@@ -1,5 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsNumber, IsString, IsDateString, IsInt, IsBoolean } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateLeaveRequestDto {
   @ApiProperty({ description: 'ID người dùng' })
@@ -7,7 +15,11 @@ export class CreateLeaveRequestDto {
   @IsNumber()
   user_id: number;
 
-  @ApiProperty({ description: 'Loại nghỉ phép', enum: [1, 2, 3, 4, 5], enumName: 'LeaveType' })
+  @ApiProperty({
+    description: 'Loại nghỉ phép',
+    enum: [1, 2, 3, 4, 5],
+    enumName: 'LeaveType',
+  })
   @IsNotEmpty()
   @IsInt()
   leave_type: number; // 1: có lương, 2: không lương, 3: phép năm, 4: ốm đau, 5: việc riêng
@@ -37,7 +49,9 @@ export class CreateLeaveRequestDto {
   @IsBoolean()
   is_half_day?: boolean;
 
-  @ApiPropertyOptional({ description: 'Buổi nghỉ (morning/afternoon) nếu nghỉ nửa ngày' })
+  @ApiPropertyOptional({
+    description: 'Buổi nghỉ (morning/afternoon) nếu nghỉ nửa ngày',
+  })
   @IsOptional()
   @IsString()
   half_day_period?: string;

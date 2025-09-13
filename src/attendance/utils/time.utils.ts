@@ -22,7 +22,10 @@ export function hoursMinutesToMinutes(timeString: string): number {
 /**
  * Tính khoảng cách thời gian giữa 2 thời điểm (phút)
  */
-export function calculateTimeDifference(startTime: Date, endTime: Date): number {
+export function calculateTimeDifference(
+  startTime: Date,
+  endTime: Date,
+): number {
   return Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
 }
 
@@ -157,7 +160,7 @@ export function isValidTimeFormat(timeString: string): boolean {
 export function isValidDateFormat(dateString: string): boolean {
   const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
   if (!dateRegex.test(dateString)) return false;
-  
+
   const date = new Date(dateString);
   return date.toISOString().split('T')[0] === dateString;
 }
@@ -165,9 +168,13 @@ export function isValidDateFormat(dateString: string): boolean {
 /**
  * Tính tuổi công việc (số tháng)
  */
-export function calculateWorkingMonths(startDate: Date, endDate?: Date): number {
+export function calculateWorkingMonths(
+  startDate: Date,
+  endDate?: Date,
+): number {
   const end = endDate || new Date();
-  const monthsDiff = (end.getFullYear() - startDate.getFullYear()) * 12 + 
-                     (end.getMonth() - startDate.getMonth());
+  const monthsDiff =
+    (end.getFullYear() - startDate.getFullYear()) * 12 +
+    (end.getMonth() - startDate.getMonth());
   return Math.max(0, monthsDiff);
 }

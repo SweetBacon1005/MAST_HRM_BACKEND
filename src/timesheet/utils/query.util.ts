@@ -44,7 +44,10 @@ export class QueryUtil {
   /**
    * Tạo pagination options
    */
-  static pagination(page: number = 1, limit: number = 20): {
+  static pagination(
+    page: number = 1,
+    limit: number = 20,
+  ): {
     skip: number;
     take: number;
   } {
