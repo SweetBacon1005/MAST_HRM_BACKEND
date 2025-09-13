@@ -37,7 +37,7 @@ export default tseslint.config(
     rules: {
       // Hết lỗi "Delete ␍" (CRLF trên Windows)
       'linebreak-style': 'off',
-      'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      'prettier/prettier': 'off',
 
       // Giảm phiền TS rules
       '@typescript-eslint/no-explicit-any': 'off',

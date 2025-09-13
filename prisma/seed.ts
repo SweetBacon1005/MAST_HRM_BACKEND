@@ -1,0 +1,131 @@
+import { PrismaClient } from '@prisma/client';
+
+// Import all seed functions
+import { seedBasicData } from './seeds/basic-data.seed';
+import { seedSkillsAndCertificates } from './seeds/skills-certificates.seed';
+import { seedOrganization } from './seeds/organization.seed';
+import { seedUsers } from './seeds/users.seed';
+import { seedProjects } from './seeds/projects.seed';
+import { seedUserRelations } from './seeds/user-relations.seed';
+import { seedMiscData } from './seeds/misc-data.seed';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('🌱 Bắt đầu seed database...');
+  console.log('📦 Sử dụng cấu trúc seed modular...\n');
+
+  try {
+    // 1. Seed basic data (roles, permissions, levels, positions, offices, languages)
+    const basicData = await seedBasicData(prisma);
+    console.log('✅ Basic data seeded successfully!\n');
+
+    // 2. Seed skills and certificates
+    const skillsData = await seedSkillsAndCertificates(prisma);
+    console.log('✅ Skills and certificates seeded successfully!\n');
+
+    // 3. Seed organization structure (divisions, teams, groups)
+    const orgData = await seedOrganization(prisma);
+    console.log('✅ Organization data seeded successfully!\n');
+
+    // 4. Seed users and user information
+    const usersData = await seedUsers(prisma, basicData);
+    console.log('✅ Users data seeded successfully!\n');
+
+    // 5. Seed projects, customers, and stages
+    const projectsData = await seedProjects(prisma);
+    console.log('✅ Projects data seeded successfully!\n');
+
+    // 6. Seed user relationships (divisions, allocations, timesheets, reports)
+    await seedUserRelations(prisma, {
+      ...usersData,
+      ...basicData,
+      ...projectsData,
+    });
+    console.log('✅ User relationships seeded successfully!\n');
+
+    // 7. Seed miscellaneous data (education, experience, holidays, children, etc.)
+    await seedMiscData(prisma, {
+      ...usersData,
+      ...skillsData,
+      ...basicData,
+      ...orgData,
+    });
+    console.log('✅ Miscellaneous data seeded successfully!\n');
+
+    // Summary
+    console.log('🎉 =================================');
+    console.log('✅ SEED DATABASE HOÀN THÀNH!');
+    console.log('🎉 =================================\n');
+
+    console.log('📊 Tổng quan dữ liệu đã tạo:');
+    console.log(`- ${basicData.permissions.length} permissions`);
+    console.log(`- ${basicData.roles.length} roles`);
+    console.log(`- ${basicData.groupRoles.length} group roles`);
+    console.log(`- ${basicData.levels.length} levels`);
+    console.log(`- ${basicData.positions.length} positions`);
+    console.log(`- ${basicData.offices.length} offices`);
+    console.log(`- ${basicData.languages.length} languages`);
+    console.log(`- ${skillsData.skills.length} skills`);
+    console.log(
+      `- ${skillsData.certificateCategories.length} certificate categories`,
+    );
+    console.log(`- ${skillsData.certificates.length} certificates`);
+    console.log(`- ${orgData.divisions.length} divisions`);
+    console.log(`- ${orgData.teams.length} teams`);
+    console.log(`- ${orgData.groups.length} groups`);
+    console.log(`- ${usersData.users.length} users`);
+    console.log(`- ${projectsData.customers.length} customers`);
+    console.log(`- ${projectsData.projects.length} projects`);
+    console.log(`- ${projectsData.stages.length} stages`);
+    console.log('- Education records, work experience, holidays');
+    console.log('- Children, user skills, overtime history');
+    console.log('- Time sheets, daily reports, project allocations');
+    console.log('- User divisions, group assignments\n');
+
+    console.log('🔑 Thông tin đăng nhập:');
+    console.log('Admin: admin@company.com / 123456');
+    console.log('HR Manager: hr.manager@company.com / 123456');
+    console.log('Developers: john.doe@company.com / 123456');
+    console.log('            jane.smith@company.com / 123456');
+    console.log('            mike.johnson@company.com / 123456');
+    console.log('            sarah.wilson@company.com / 123456');
+    console.log('            david.brown@company.com / 123456');
+    console.log('            lisa.davis@company.com / 123456\n');
+
+    console.log('🎯 Dữ liệu mẫu bao gồm:');
+    console.log('✓ Hệ thống phân quyền hoàn chỉnh');
+    console.log('✓ Cơ cấu tổ chức (divisions, teams, offices)');
+    console.log('✓ Thông tin nhân viên đầy đủ');
+    console.log('✓ Dự án và phân bổ nhân sự');
+    console.log('✓ Chấm công và báo cáo hàng ngày');
+    console.log('✓ Kỹ năng và chứng chỉ');
+    console.log('✓ Học vấn và kinh nghiệm làm việc');
+    console.log('✓ Ngày nghỉ lễ và thông tin gia đình');
+    console.log('✓ Lịch sử tăng ca và nhóm làm việc\n');
+
+    console.log('📁 Cấu trúc seed files:');
+    console.log('├── prisma/seed.ts (main file)');
+    console.log('└── prisma/seeds/');
+    console.log('    ├── basic-data.seed.ts');
+    console.log('    ├── skills-certificates.seed.ts');
+    console.log('    ├── organization.seed.ts');
+    console.log('    ├── users.seed.ts');
+    console.log('    ├── projects.seed.ts');
+    console.log('    ├── user-relations.seed.ts');
+    console.log('    └── misc-data.seed.ts');
+  } catch (error) {
+    console.error('❌ Lỗi khi seed database:', error);
+    throw error;
+  }
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error('❌ Lỗi khi seed database:', e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
