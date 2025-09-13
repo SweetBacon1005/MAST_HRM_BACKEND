@@ -11,7 +11,7 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db push --accept-data-loss && prisma generate && tsx prisma/seed.ts",
-    "build": "nest build && prisma db push --accept-data-loss && prisma generate",
+    "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
