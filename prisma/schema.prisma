@@ -1358,6 +1358,7 @@ model users {
     approved_by_user       day_offs[]               @relation("approved_by_user")
     working_times          working_times[]
     project_role_user      project_role_user[]
+    time_sheets            time_sheets[]
 }
 
 model users_unpaid_leave {
@@ -1612,6 +1613,7 @@ model holidays {
 model time_sheets {
     id                  Int                   @id @default(autoincrement())
     user_id             Int
+    user                users                 @relation(fields: [user_id], references: [id])
     work_date           DateTime?             @db.Date // Ngày làm việc
     checkin             DateTime?             @db.DateTime() // Thời gian check in
     checkout            DateTime?             @db.DateTime() // Thời gian check out

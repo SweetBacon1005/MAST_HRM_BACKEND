@@ -11,6 +11,18 @@ import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
 import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
 import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
+import {
+  ChildrenPaginationDto,
+  EducationPaginationDto,
+  ExperiencePaginationDto,
+  CertificatePaginationDto,
+  UserSkillPaginationDto,
+  ReferencePaginationDto,
+} from './dto/pagination-queries.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -170,6 +182,43 @@ export class UserProfileService {
     });
   }
 
+  async getChildrenPaginated(
+    userId: number,
+    paginationDto: ChildrenPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    // Thêm filter theo tên con
+    if (paginationDto.name) {
+      where.name = {
+        contains: paginationDto.name,
+        mode: 'insensitive',
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.children.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+      }),
+      this.prisma.children.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async updateChild(childId: number, updateDto: UpdateChildDto) {
     const child = await this.prisma.children.findFirst({
       where: { id: childId, deleted_at: undefined },
@@ -236,6 +285,51 @@ export class UserProfileService {
       },
       orderBy: { start_date: 'desc' },
     });
+  }
+
+  async getEducationsPaginated(
+    userId: number,
+    paginationDto: EducationPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    // Thêm filter theo tên trường
+    if (paginationDto.school_name) {
+      where.school_name = {
+        contains: paginationDto.school_name,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo bằng cấp
+    if (paginationDto.degree) {
+      where.degree = {
+        contains: paginationDto.degree,
+        mode: 'insensitive',
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.education.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { start_date: 'desc' },
+      }),
+      this.prisma.education.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async updateEducation(educationId: number, updateDto: UpdateEducationDto) {
@@ -600,5 +694,252 @@ export class UserProfileService {
         user_information: newInfo,
       };
     }
+  }
+
+  // === PAGINATION METHODS ===
+
+  async getExperiencesPaginated(
+    userId: number,
+    paginationDto: ExperiencePaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    // Thêm filter theo tên công ty
+    if (paginationDto.company_name) {
+      where.company_name = {
+        contains: paginationDto.company_name,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo vị trí
+    if (paginationDto.position) {
+      where.position = {
+        contains: paginationDto.position,
+        mode: 'insensitive',
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.experience.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { start_date: 'desc' },
+      }),
+      this.prisma.experience.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getUserCertificatesPaginated(
+    userId: number,
+    paginationDto: CertificatePaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    // Thêm filter theo certificate_id
+    if (paginationDto.certificate_id) {
+      where.certificate_id = paginationDto.certificate_id;
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.user_certificates.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          certificate: true,
+        },
+      }),
+      this.prisma.user_certificates.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getUserSkillsPaginated(
+    userId: number,
+    paginationDto: UserSkillPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    // Thêm filter theo skill_id
+    if (paginationDto.skill_id) {
+      where.skill_id = paginationDto.skill_id;
+    }
+
+    // Thêm filter theo level range
+    if (paginationDto.min_level) {
+      where.level = {
+        gte: paginationDto.min_level,
+      };
+    }
+    if (paginationDto.max_level) {
+      where.level = {
+        ...where.level,
+        lte: paginationDto.max_level,
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.user_skills.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          skill: true,
+        },
+      }),
+      this.prisma.user_skills.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getPositionsPaginated(paginationDto: ReferencePaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = { deleted_at: null };
+
+    // Thêm filter theo search
+    if (paginationDto.search) {
+      where.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.positions.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+      }),
+      this.prisma.positions.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getOfficesPaginated(paginationDto: ReferencePaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = { deleted_at: null };
+
+    // Thêm filter theo search
+    if (paginationDto.search) {
+      where.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.offices.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+      }),
+      this.prisma.offices.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getRolesPaginated(paginationDto: ReferencePaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = { deleted_at: null };
+
+    // Thêm filter theo search
+    if (paginationDto.search) {
+      where.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.roles.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+      }),
+      this.prisma.roles.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 }

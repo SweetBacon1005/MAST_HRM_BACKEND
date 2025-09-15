@@ -18,6 +18,16 @@ import {
   LeaveBalanceDto,
   RemoteWorkRequestDto,
 } from './dto/leave-management.dto';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
+import {
+  WorkShiftPaginationDto,
+  LeaveRequestPaginationDto,
+  AttendanceReportPaginationDto,
+  PenaltyRulePaginationDto,
+} from './dto/pagination-queries.dto';
 
 @Injectable()
 export class AttendanceService {
@@ -252,6 +262,42 @@ export class AttendanceService {
       where: { deleted_at: null },
       orderBy: { type: 'asc' },
     });
+  }
+
+  async getAllWorkShiftsPaginated(paginationDto: WorkShiftPaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = { deleted_at: null };
+
+    // Thêm filter theo shift_name
+    if (paginationDto.shift_name) {
+      where.name = {
+        contains: paginationDto.shift_name,
+        mode: 'insensitive',
+      };
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.schedule_works.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { type: 'asc' },
+      }),
+      this.prisma.schedule_works.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async updateWorkShift(id: number, workShiftDto: Partial<WorkShiftDto>) {

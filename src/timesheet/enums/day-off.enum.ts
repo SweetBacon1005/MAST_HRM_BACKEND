@@ -2,11 +2,11 @@
  * Loại nghỉ phép
  */
 export enum DayOffType {
-  PAID_LEAVE = 1,        // Nghỉ phép có lương
-  UNPAID_LEAVE = 2,      // Nghỉ phép không lương
-  SICK_LEAVE = 3,        // Nghỉ ốm
-  MATERNITY_LEAVE = 4,   // Nghỉ thai sản
-  PERSONAL_LEAVE = 5,    // Nghỉ việc riêng
+  PAID_LEAVE = 1, // Nghỉ phép có lương
+  UNPAID_LEAVE = 2, // Nghỉ phép không lương
+  SICK_LEAVE = 3, // Nghỉ ốm
+  MATERNITY_LEAVE = 4, // Nghỉ thai sản
+  PERSONAL_LEAVE = 5, // Nghỉ việc riêng
   COMPENSATORY_LEAVE = 6, // Nghỉ bù
 }
 
@@ -14,18 +14,18 @@ export enum DayOffType {
  * Thời gian nghỉ phép
  */
 export enum DayOffDuration {
-  FULL_DAY = 1,          // Cả ngày
-  MORNING = 2,           // Buổi sáng
-  AFTERNOON = 3,         // Buổi chiều
+  FULL_DAY = 1, // Cả ngày
+  MORNING = 2, // Buổi sáng
+  AFTERNOON = 3, // Buổi chiều
 }
 
 /**
  * Trạng thái đơn nghỉ phép
  */
 export enum DayOffStatus {
-  PENDING = 1,           // Chờ duyệt
-  APPROVED = 2,          // Đã duyệt
-  REJECTED = 3,          // Từ chối
+  PENDING = 1, // Chờ duyệt
+  APPROVED = 2, // Đã duyệt
+  REJECTED = 3, // Từ chối
 }
 
 /**

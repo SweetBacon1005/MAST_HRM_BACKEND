@@ -36,6 +36,13 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import {
+  TimesheetPaginationDto,
+  DayOffRequestPaginationDto,
+  OvertimeRequestPaginationDto,
+  HolidayPaginationDto,
+  AttendanceLogPaginationDto,
+} from './dto/pagination-queries.dto';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
@@ -66,6 +73,19 @@ export class TimesheetController {
     @Query('end_date') endDate?: string,
   ) {
     return this.timesheetService.findAllTimesheets(userId, startDate, endDate);
+  }
+
+  @Get('my-timesheets/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi có phân trang' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  findMyTimesheetsPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: TimesheetPaginationDto,
+  ) {
+    return this.timesheetService.findMyTimesheetsPaginated(
+      userId,
+      paginationDto,
+    );
   }
 
   @Get(':id')
@@ -142,6 +162,21 @@ export class TimesheetController {
     return this.timesheetService.findAllDayOffRequests(userId);
   }
 
+  @Get('day-off-requests/my/paginated')
+  @ApiOperation({
+    summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  findMyDayOffRequestsPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: DayOffRequestPaginationDto,
+  ) {
+    return this.timesheetService.findMyDayOffRequestsPaginated(
+      userId,
+      paginationDto,
+    );
+  }
+
   @Patch('day-off-requests/:id/status')
   @ApiOperation({ summary: 'Cập nhật trạng thái đơn nghỉ phép' })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
@@ -153,7 +188,12 @@ export class TimesheetController {
     @GetCurrentUser('id') approverId: number,
     @Body('rejected_reason') rejectedReason?: string,
   ) {
-    return this.timesheetService.updateDayOffRequestStatus(id, status, approverId, rejectedReason);
+    return this.timesheetService.updateDayOffRequestStatus(
+      id,
+      status,
+      approverId,
+      rejectedReason,
+    );
   }
 
   @Get('day-off-info/:date')
@@ -184,6 +224,21 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   findMyOvertimeRequests(@GetCurrentUser('id') userId: number) {
     return this.timesheetService.findAllOvertimeRequests(userId);
+  }
+
+  @Get('overtime-requests/my/paginated')
+  @ApiOperation({
+    summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  findMyOvertimeRequestsPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: OvertimeRequestPaginationDto,
+  ) {
+    return this.timesheetService.findMyOvertimeRequestsPaginated(
+      userId,
+      paginationDto,
+    );
   }
 
   // === SCHEDULE MANAGEMENT ===
@@ -224,6 +279,13 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   findAllHolidays(@Query('year', ParseIntPipe) year?: number) {
     return this.timesheetService.findAllHolidays(year);
+  }
+
+  @Get('holidays/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách ngày lễ có phân trang' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  findAllHolidaysPaginated(@Query() paginationDto: HolidayPaginationDto) {
+    return this.timesheetService.findAllHolidaysPaginated(paginationDto);
   }
 
   @Patch('holidays/:id')
@@ -332,7 +394,26 @@ export class TimesheetController {
     @GetCurrentUser('roles') userRoles: string[],
     @Query() queryDto: AttendanceLogQueryDto,
   ) {
-    return this.timesheetService.getAttendanceLogs(currentUserId, queryDto, userRoles);
+    return this.timesheetService.getAttendanceLogs(
+      currentUserId,
+      queryDto,
+      userRoles,
+    );
+  }
+
+  @Get('attendance-logs/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  getAttendanceLogsPaginated(
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: AttendanceLogPaginationDto,
+  ) {
+    return this.timesheetService.getAttendanceLogsPaginated(
+      currentUserId,
+      paginationDto,
+      userRoles,
+    );
   }
 
   @Get('attendance-logs/my')
@@ -457,7 +538,9 @@ export class TimesheetController {
   }
 
   @Post('bulk-lock')
-  @ApiOperation({ summary: 'Khóa hàng loạt timesheet theo kỳ lương (Admin only)' })
+  @ApiOperation({
+    summary: 'Khóa hàng loạt timesheet theo kỳ lương (Admin only)',
+  })
   @ApiResponse({ status: 200, description: 'Khóa thành công' })
   @Roles('admin', 'hr')
   bulkLockTimesheets(
@@ -466,6 +549,11 @@ export class TimesheetController {
     @GetCurrentUser('id') lockerId: number,
     @Body('user_ids') userIds?: number[],
   ) {
-    return this.timesheetService.bulkLockTimesheets(startDate, endDate, lockerId, userIds);
+    return this.timesheetService.bulkLockTimesheets(
+      startDate,
+      endDate,
+      lockerId,
+      userIds,
+    );
   }
 }

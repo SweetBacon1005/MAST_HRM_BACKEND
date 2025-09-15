@@ -6,7 +6,10 @@ export class CreateUserCertificateDto {
   @IsInt()
   user_id: number;
 
-  @ApiProperty({ description: 'Tên chứng chỉ', example: 'AWS Certified Developer' })
+  @ApiProperty({
+    description: 'Tên chứng chỉ',
+    example: 'AWS Certified Developer',
+  })
   @IsString()
   name: string;
 

@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsDateString, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsDateString,
+  IsString,
+} from 'class-validator';
 
 export class CreateDayOffRequestDto {
   @ApiProperty({
@@ -44,7 +51,8 @@ export class CreateDayOffRequestDto {
   total: number;
 
   @ApiProperty({
-    description: 'Loại nghỉ phép (1: có lương, 2: không lương, 3: ốm đau, 4: thai sản, 5: việc riêng, 6: nghỉ bù)',
+    description:
+      'Loại nghỉ phép (1: có lương, 2: không lương, 3: ốm đau, 4: thai sản, 5: việc riêng, 6: nghỉ bù)',
     example: 1,
     enum: [1, 2, 3, 4, 5, 6],
   })

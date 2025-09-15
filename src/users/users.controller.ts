@@ -18,6 +18,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('users')
@@ -49,6 +50,16 @@ export class UsersController {
   })
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('paginated')
+  @ApiOperation({ summary: 'Lấy danh sách users có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách users có phân trang',
+  })
+  findAllPaginated(@Query() paginationDto: UsersPaginationDto) {
+    return this.usersService.findAllPaginated(paginationDto);
   }
 
   @Get(':id')

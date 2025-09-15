@@ -26,32 +26,38 @@ async function createApp() {
     // CORS
     app.enableCors();
 
-    // Swagger Configuration
-    const config = new DocumentBuilder()
-      .setTitle('MAST HRM API')
-      .setDescription('API documentation cho hệ thống MAST HRM')
-      .setVersion('1.0')
-      .addBearerAuth(
-        {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          name: 'JWT',
-          description: 'Enter JWT token',
-          in: 'header',
-        },
-        'JWT-auth',
-      )
-      .addTag('auth', 'Authentication endpoints')
-      .addTag('users', 'User management endpoints')
-      .build();
+    // Swagger Configuration - Only in development
+    if (process.env.NODE_ENV !== 'production') {
+      const config = new DocumentBuilder()
+        .setTitle('MAST HRM API')
+        .setDescription('API documentation cho hệ thống MAST HRM')
+        .setVersion('1.0')
+        .addBearerAuth(
+          {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            name: 'JWT',
+            description: 'Enter JWT token',
+            in: 'header',
+          },
+          'JWT-auth',
+        )
+        .addTag('auth', 'Authentication endpoints')
+        .addTag('users', 'User management endpoints')
+        .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api', app, document, {
-      swaggerOptions: {
-        persistAuthorization: true,
-      },
-    });
+      const document = SwaggerModule.createDocument(app, config);
+      SwaggerModule.setup('api', app, document, {
+        swaggerOptions: {
+          persistAuthorization: true,
+        },
+      });
+      
+      console.log('Swagger documentation available at /api');
+    } else {
+      console.log('Swagger disabled in production environment');
+    }
 
     await app.init();
   }

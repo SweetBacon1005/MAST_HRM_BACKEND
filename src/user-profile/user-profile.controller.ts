@@ -31,6 +31,14 @@ import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { UpdateAvatarDto } from './dto/upload-avatar.dto';
+import {
+  ChildrenPaginationDto,
+  EducationPaginationDto,
+  ExperiencePaginationDto,
+  CertificatePaginationDto,
+  UserSkillPaginationDto,
+  ReferencePaginationDto,
+} from './dto/pagination-queries.dto';
 
 @ApiTags('user-profile')
 @Controller('user-profile')
@@ -91,6 +99,22 @@ export class UserProfileController {
     return await this.userProfileService.getChildren(userId);
   }
 
+  @Get('children/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách con cái có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách con cái có phân trang',
+  })
+  async getChildrenPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: ChildrenPaginationDto,
+  ) {
+    return await this.userProfileService.getChildrenPaginated(
+      userId,
+      paginationDto,
+    );
+  }
+
   @Patch('children/:id')
   @ApiOperation({ summary: 'Cập nhật thông tin con' })
   @ApiParam({ name: 'id', description: 'ID của con' })
@@ -139,6 +163,22 @@ export class UserProfileController {
   })
   async getEducations(@GetCurrentUser('id') userId: number) {
     return await this.userProfileService.getEducations(userId);
+  }
+
+  @Get('education/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách học vấn có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách học vấn có phân trang',
+  })
+  async getEducationsPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: EducationPaginationDto,
+  ) {
+    return await this.userProfileService.getEducationsPaginated(
+      userId,
+      paginationDto,
+    );
   }
 
   @Patch('education/:id')
@@ -194,6 +234,22 @@ export class UserProfileController {
     return await this.userProfileService.getExperiences(userId);
   }
 
+  @Get('experience/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách kinh nghiệm có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách kinh nghiệm có phân trang',
+  })
+  async getExperiencesPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: ExperiencePaginationDto,
+  ) {
+    return await this.userProfileService.getExperiencesPaginated(
+      userId,
+      paginationDto,
+    );
+  }
+
   @Patch('experience/:id')
   @ApiOperation({ summary: 'Cập nhật thông tin kinh nghiệm' })
   @ApiParam({ name: 'id', description: 'ID của kinh nghiệm' })
@@ -245,6 +301,22 @@ export class UserProfileController {
   })
   async getUserCertificates(@GetCurrentUser('id') userId: number) {
     return await this.userProfileService.getUserCertificates(userId);
+  }
+
+  @Get('certificates/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách chứng chỉ có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách chứng chỉ có phân trang',
+  })
+  async getUserCertificatesPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: CertificatePaginationDto,
+  ) {
+    return await this.userProfileService.getUserCertificatesPaginated(
+      userId,
+      paginationDto,
+    );
   }
 
   @Patch('certificates/:id')
@@ -302,6 +374,22 @@ export class UserProfileController {
     return await this.userProfileService.getUserSkills(userId);
   }
 
+  @Get('skills/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách kỹ năng có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách kỹ năng có phân trang',
+  })
+  async getUserSkillsPaginated(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: UserSkillPaginationDto,
+  ) {
+    return await this.userProfileService.getUserSkillsPaginated(
+      userId,
+      paginationDto,
+    );
+  }
+
   @Patch('skills/:id')
   @ApiOperation({ summary: 'Cập nhật kỹ năng' })
   @ApiParam({ name: 'id', description: 'ID của user skill' })
@@ -352,6 +440,16 @@ export class UserProfileController {
   })
   async getPositions() {
     return await this.userProfileService.getPositions();
+  }
+
+  @Get('references/positions/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách vị trí có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách vị trí có phân trang',
+  })
+  async getPositionsPaginated(@Query() paginationDto: ReferencePaginationDto) {
+    return await this.userProfileService.getPositionsPaginated(paginationDto);
   }
 
   @Get('references/offices')

@@ -9,12 +9,14 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 1. Quản lý Timesheet
 
 #### POST /timesheet
+
 - **Mô tả**: Tạo timesheet mới
 - **Auth**: Cần đăng nhập
 - **Body**: CreateTimesheetDto
 - **Response**: Thông tin timesheet đã tạo
 
 #### GET /timesheet/my-timesheets
+
 - **Mô tả**: Lấy danh sách timesheet của người dùng hiện tại
 - **Auth**: Cần đăng nhập
 - **Query params**:
@@ -23,12 +25,14 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Danh sách timesheet
 
 #### GET /timesheet/:id
+
 - **Mô tả**: Lấy chi tiết timesheet theo ID
 - **Auth**: Cần đăng nhập
 - **Params**: `id` - ID timesheet
 - **Response**: Chi tiết timesheet
 
 #### PATCH /timesheet/:id
+
 - **Mô tả**: Cập nhật timesheet
 - **Auth**: Cần đăng nhập
 - **Params**: `id` - ID timesheet
@@ -36,6 +40,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Timesheet đã cập nhật
 
 #### DELETE /timesheet/:id
+
 - **Mô tả**: Xóa timesheet (soft delete)
 - **Auth**: Cần đăng nhập
 - **Params**: `id` - ID timesheet
@@ -44,6 +49,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 2. Check-in/Check-out
 
 #### POST /timesheet/checkin
+
 - **Mô tả**: Check-in vào ca làm việc
 - **Auth**: Cần đăng nhập
 - **Body**: CheckinDto
@@ -53,6 +59,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Thông tin check-in
 
 #### POST /timesheet/checkout
+
 - **Mô tả**: Check-out khỏi ca làm việc
 - **Auth**: Cần đăng nhập
 - **Body**: CheckoutDto
@@ -61,6 +68,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Thông tin check-out
 
 #### GET /timesheet/attendance/today
+
 - **Mô tả**: Lấy thông tin chấm công hôm nay
 - **Auth**: Cần đăng nhập
 - **Response**: Thông tin chấm công hôm nay
@@ -68,6 +76,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 3. Đơn xin nghỉ phép
 
 #### POST /timesheet/day-off-requests
+
 - **Mô tả**: Tạo đơn xin nghỉ phép
 - **Auth**: Cần đăng nhập
 - **Body**: CreateDayOffRequestDto
@@ -80,11 +89,13 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Đơn nghỉ phép đã tạo
 
 #### GET /timesheet/day-off-requests/my
+
 - **Mô tả**: Lấy danh sách đơn nghỉ phép của tôi
 - **Auth**: Cần đăng nhập
 - **Response**: Danh sách đơn nghỉ phép
 
 #### PATCH /timesheet/day-off-requests/:id/status
+
 - **Mô tả**: Cập nhật trạng thái đơn nghỉ phép
 - **Auth**: Cần quyền manager/admin
 - **Params**: `id` - ID đơn nghỉ phép
@@ -94,6 +105,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 4. Đơn xin làm thêm giờ
 
 #### POST /timesheet/overtime-requests
+
 - **Mô tả**: Tạo đơn xin làm thêm giờ
 - **Auth**: Cần đăng nhập
 - **Body**: CreateOvertimeRequestDto
@@ -108,6 +120,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Đơn làm thêm giờ đã tạo
 
 #### GET /timesheet/overtime-requests/my
+
 - **Mô tả**: Lấy danh sách đơn làm thêm giờ của tôi
 - **Auth**: Cần đăng nhập
 - **Response**: Danh sách đơn làm thêm giờ
@@ -115,6 +128,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 5. Lịch làm việc
 
 #### GET /timesheet/schedule/personal
+
 - **Mô tả**: Xem lịch làm việc cá nhân
 - **Auth**: Cần đăng nhập
 - **Query params**: GetScheduleDto
@@ -125,6 +139,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Lịch làm việc cá nhân
 
 #### GET /timesheet/schedule/team/:teamId
+
 - **Mô tả**: Xem lịch làm việc của team
 - **Auth**: Cần quyền manager/team_leader/admin
 - **Params**: `teamId` - ID team
@@ -134,6 +149,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 6. Quản lý ngày lễ
 
 #### POST /timesheet/holidays
+
 - **Mô tả**: Tạo ngày lễ mới
 - **Auth**: Cần quyền admin/hr
 - **Body**: CreateHolidayDto
@@ -146,6 +162,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Ngày lễ đã tạo
 
 #### GET /timesheet/holidays
+
 - **Mô tả**: Lấy danh sách ngày lễ
 - **Auth**: Cần đăng nhập
 - **Query params**:
@@ -153,6 +170,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Danh sách ngày lễ
 
 #### PATCH /timesheet/holidays/:id
+
 - **Mô tả**: Cập nhật ngày lễ
 - **Auth**: Cần quyền admin/hr
 - **Params**: `id` - ID ngày lễ
@@ -160,6 +178,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Ngày lễ đã cập nhật
 
 #### DELETE /timesheet/holidays/:id
+
 - **Mô tả**: Xóa ngày lễ
 - **Auth**: Cần quyền admin/hr
 - **Params**: `id` - ID ngày lễ
@@ -168,6 +187,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 7. Thông báo
 
 #### GET /timesheet/notifications/my
+
 - **Mô tả**: Lấy thông báo timesheet của tôi
 - **Auth**: Cần đăng nhập
 - **Response**: Danh sách thông báo
@@ -175,6 +195,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ### 8. Báo cáo & Thống kê
 
 #### GET /timesheet/reports/timesheet
+
 - **Mô tả**: Báo cáo timesheet
 - **Auth**: Cần quyền manager/admin/hr
 - **Query params**: TimesheetReportDto
@@ -186,6 +207,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Báo cáo timesheet
 
 #### GET /timesheet/reports/working-time
+
 - **Mô tả**: Báo cáo giờ làm việc
 - **Auth**: Cần quyền manager/admin/hr
 - **Query params**: WorkingTimeReportDto
@@ -195,6 +217,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Báo cáo giờ làm việc
 
 #### GET /timesheet/statistics/attendance
+
 - **Mô tả**: Thống kê chấm công
 - **Auth**: Cần đăng nhập
 - **Query params**:
@@ -204,6 +227,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 - **Response**: Thống kê chấm công
 
 #### GET /timesheet/statistics/my-attendance
+
 - **Mô tả**: Thống kê chấm công cá nhân
 - **Auth**: Cần đăng nhập
 - **Query params**:
@@ -214,6 +238,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ## DTOs
 
 ### CreateTimesheetDto
+
 ```typescript
 {
   user_id: number;
@@ -241,6 +266,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ```
 
 ### CheckinDto
+
 ```typescript
 {
   checkin: string;
@@ -250,6 +276,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ```
 
 ### CheckoutDto
+
 ```typescript
 {
   checkout: string;
@@ -258,6 +285,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ```
 
 ### CreateDayOffRequestDto
+
 ```typescript
 {
   user_id: number;
@@ -270,6 +298,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ```
 
 ### CreateOvertimeRequestDto
+
 ```typescript
 {
   user_id: number;
@@ -284,6 +313,7 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ```
 
 ### CreateHolidayDto
+
 ```typescript
 {
   name: string;
@@ -298,26 +328,31 @@ Module Timesheet cung cấp các API để quản lý chấm công, lịch làm 
 ## Mã trạng thái
 
 ### Trạng thái đơn nghỉ phép
+
 - 1: Chờ duyệt
 - 2: Đã duyệt
 - 3: Từ chối
 
 ### Loại nghỉ phép
+
 - 1: Nghỉ phép có lương
 - 2: Nghỉ phép không lương
 - 3: Nghỉ ốm đau
 
 ### Trạng thái timesheet
+
 - 1: Chờ duyệt
 - 2: Đã duyệt
 - 3: Từ chối
 
 ### Loại ngày lễ
+
 - 1: Lễ quốc gia
 - 2: Lễ công ty
 - 3: Nghỉ bù
 
 ## Lưu ý
+
 - Tất cả các endpoint đều yêu cầu Bearer Token
 - Thời gian được truyền dưới dạng ISO string
 - Một số endpoint yêu cầu quyền đặc biệt (manager, admin, hr)

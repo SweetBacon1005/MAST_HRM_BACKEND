@@ -3,6 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import {
   AttendanceLogQueryDto,
@@ -15,6 +19,13 @@ import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
 import { GetScheduleDto } from './dto/get-schedule.dto';
+import {
+  AttendanceLogPaginationDto,
+  DayOffRequestPaginationDto,
+  HolidayPaginationDto,
+  OvertimeRequestPaginationDto,
+  TimesheetPaginationDto,
+} from './dto/pagination-queries.dto';
 import {
   TimesheetReportDto,
   WorkingTimeReportDto,
@@ -96,6 +107,53 @@ export class TimesheetService {
       where,
       orderBy: { work_date: 'desc' }, // Sắp xếp theo work_date thay vì checkin
     });
+  }
+
+  async findMyTimesheetsPaginated(
+    userId: number,
+    paginationDto: TimesheetPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = QueryUtil.onlyActive({ user_id: userId });
+
+    // Thêm filter theo ngày
+    if (paginationDto.start_date && paginationDto.end_date) {
+      Object.assign(
+        where,
+        QueryUtil.workDateRange(
+          paginationDto.start_date,
+          paginationDto.end_date,
+        ),
+      );
+    }
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.time_sheets.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { work_date: 'desc' },
+        include: {
+          user: {
+            select: { name: true, email: true },
+          },
+        },
+      }),
+      this.prisma.time_sheets.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async findTimesheetById(id: number) {
@@ -489,6 +547,47 @@ export class TimesheetService {
     });
   }
 
+  async findMyDayOffRequestsPaginated(
+    userId: number,
+    paginationDto: DayOffRequestPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = QueryUtil.onlyActive({ user_id: userId });
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Thêm filter theo leave_type
+    if (paginationDto.leave_type) {
+      where.leave_type = paginationDto.leave_type;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.day_offs.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: {
+            select: { name: true, email: true },
+          },
+        },
+      }),
+      this.prisma.day_offs.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async updateDayOffRequestStatus(
     id: number,
     status: number,
@@ -746,6 +845,50 @@ export class TimesheetService {
     });
   }
 
+  async findMyOvertimeRequestsPaginated(
+    userId: number,
+    paginationDto: OvertimeRequestPaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = QueryUtil.onlyActive({ user_id: userId });
+
+    // Thêm filter theo status
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
+    // Thêm filter theo ngày
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.overtime_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.over_times_history.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: {
+            select: { name: true, email: true },
+          },
+        },
+      }),
+      this.prisma.over_times_history.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   // === HOLIDAYS MANAGEMENT ===
 
   async createHoliday(createHolidayDto: CreateHolidayDto) {
@@ -799,6 +942,64 @@ export class TimesheetService {
       where,
       orderBy: { start_date: 'asc' },
     });
+  }
+
+  async findAllHolidaysPaginated(paginationDto: HolidayPaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = QueryUtil.onlyActive({});
+
+    if (paginationDto.year) {
+      // Lấy tất cả holiday giao cắt với năm X (kể cả kỳ lễ kéo dài qua năm)
+      const yearStart = new Date(`${paginationDto.year}-01-01`);
+      const yearEnd = new Date(`${paginationDto.year}-12-31`);
+
+      where.OR = [
+        // Holiday bắt đầu trong năm
+        {
+          start_date: {
+            gte: yearStart,
+            lte: yearEnd,
+          },
+        },
+        // Holiday kết thúc trong năm
+        {
+          end_date: {
+            gte: yearStart,
+            lte: yearEnd,
+          },
+        },
+        // Holiday bao trùm cả năm
+        {
+          AND: [
+            { start_date: { lte: yearStart } },
+            { end_date: { gte: yearEnd } },
+          ],
+        },
+      ];
+    }
+
+    // Thêm filter theo holiday_type
+    if (paginationDto.holiday_type) {
+      where.holiday_type = paginationDto.holiday_type;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.holidays.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { start_date: 'asc' },
+      }),
+      this.prisma.holidays.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async updateHoliday(id: number, updateHolidayDto: Partial<CreateHolidayDto>) {
@@ -1393,6 +1594,71 @@ export class TimesheetService {
         total_pages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async getAttendanceLogsPaginated(
+    currentUserId: number,
+    paginationDto: AttendanceLogPaginationDto,
+    userRoles?: string[],
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = QueryUtil.onlyActive({});
+
+    // Chỉ admin/manager mới được xem log của user khác
+    if (paginationDto.user_id && paginationDto.user_id !== currentUserId) {
+      const canViewOtherUsers = userRoles?.some((role) =>
+        ['admin', 'hr', 'manager'].includes(role.toLowerCase()),
+      );
+
+      if (!canViewOtherUsers) {
+        throw new BadRequestException(
+          'Bạn không có quyền xem attendance log của user khác',
+        );
+      }
+
+      where.user_id = paginationDto.user_id;
+    } else {
+      where.user_id = currentUserId;
+    }
+
+    // Thêm filter theo ngày
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    // Thêm filter theo log_type
+    if (paginationDto.log_type) {
+      where.action_type = paginationDto.log_type;
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.attendance_logs.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { timestamp: 'desc' },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          timesheet: {
+            select: { id: true, work_date: true },
+          },
+        },
+      }),
+      this.prisma.attendance_logs.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async getAttendanceLogById(id: number) {

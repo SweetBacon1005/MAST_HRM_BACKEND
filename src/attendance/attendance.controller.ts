@@ -35,6 +35,16 @@ import {
   CreateLeaveRequestDto,
   RemoteWorkRequestDto,
 } from './dto/leave-management.dto';
+import {
+  WorkShiftPaginationDto,
+  LeaveRequestPaginationDto,
+  AttendanceReportPaginationDto,
+  PenaltyRulePaginationDto,
+} from './dto/pagination-queries.dto';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
 
 @ApiTags('Attendance Management')
 @ApiBearerAuth()
@@ -77,6 +87,13 @@ export class AttendanceController {
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   getAllWorkShifts() {
     return this.attendanceService.getAllWorkShifts();
+  }
+
+  @Get('work-shifts/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách ca làm việc có phân trang' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  getAllWorkShiftsPaginated(@Query() paginationDto: WorkShiftPaginationDto) {
+    return this.attendanceService.getAllWorkShiftsPaginated(paginationDto);
   }
 
   @Patch('work-shifts/:id')
@@ -287,6 +304,46 @@ export class AttendanceController {
     });
 
     return blockTimes;
+  }
+
+  @Get('penalty-rules/paginated')
+  @ApiOperation({ summary: 'Lấy danh sách quy định phạt có phân trang' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async getPenaltyRulesPaginated(
+    @Query() paginationDto: PenaltyRulePaginationDto,
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: any = { deleted_at: null };
+
+    // Thêm filter theo block
+    if (paginationDto.block) {
+      where.block = paginationDto.block;
+    }
+
+    // Thêm filter theo min_minutes
+    if (paginationDto.min_minutes) {
+      where.minutes = {
+        gte: paginationDto.min_minutes,
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.attendanceService['prisma'].block_times.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { block: 'asc' },
+      }),
+      this.attendanceService['prisma'].block_times.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   @Post('penalty-rules')
