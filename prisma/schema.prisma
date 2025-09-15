@@ -24,6 +24,7 @@ model certificates {
     created_at              DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at              DateTime               @updatedAt
     deleted_at              DateTime?              @db.DateTime(6)
+    user_certificates       user_certificates[]
 
     @@index([certificate_category_id])
 }
@@ -259,18 +260,23 @@ model skills {
 }
 
 model user_certificates {
-    id         Int       @id @default(autoincrement())
-    user_id    Int
-    user       users     @relation(fields: [user_id], references: [id])
-    name       String    @db.VarChar(255)
-    authority  String    @db.VarChar(255)
-    issued_at  DateTime  @db.DateTime()
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime(6)
+    id             Int             @id @default(autoincrement())
+    certificate_id Int
+    certificate    certificates    @relation(fields: [certificate_id], references: [id])
+    user_id        Int
+    user           users           @relation(fields: [user_id], references: [id])
+    name           String          @db.VarChar(255)
+    authority      String          @db.VarChar(255)
+    issued_at      DateTime        @db.DateTime()
+    created_at     DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime        @updatedAt
+    deleted_at     DateTime?       @db.DateTime(6)
+    start_date     DateTime        @db.Date()
+    type           CerticicateType @default(ACHIEVEMENT)
 
     @@index([user_id])
     @@index([issued_at])
+    @@index([certificate_id])
 }
 
 model user_group_role {
@@ -1956,4 +1962,9 @@ enum time_log_type {
     LATE
     //về sớm
     EARLY
+}
+
+enum CerticicateType {
+    ACHIEVEMENT
+    CERTIFICATE
 }

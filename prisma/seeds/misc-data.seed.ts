@@ -384,6 +384,9 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
         name: 'AWS Certified Solutions Architect - Associate',
         authority: 'Amazon Web Services',
         issued_at: new Date('2023-06-15'),
+        start_date: new Date('2023-06-15'),
+        type: 'CERTIFICATE',
+        certificate_id: 1,
       },
     }),
     // Sarah Wilson - ISTQB Certificate
@@ -393,6 +396,9 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
         name: 'ISTQB Certified Tester Foundation Level',
         authority: 'International Software Testing Qualifications Board',
         issued_at: new Date('2022-03-20'),
+        start_date: new Date('2022-03-20'),
+        type: 'CERTIFICATE',
+        certificate_id: 2,
       },
     }),
     // System Admin - PMP Certificate
@@ -402,6 +408,9 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
         name: 'Project Management Professional (PMP)',
         authority: 'Project Management Institute',
         issued_at: new Date('2021-11-10'),
+        start_date: new Date('2021-11-10'),
+        type: 'CERTIFICATE',
+        certificate_id: 3,
       },
     }),
   ]);

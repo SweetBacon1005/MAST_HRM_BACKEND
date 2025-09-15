@@ -1,44 +1,45 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
+  Get,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { UserProfileService } from './user-profile.service';
-import { UpdateUserInformationDto } from './dto/update-user-information.dto';
-import { CreateChildDto } from './dto/create-child.dto';
-import { UpdateChildDto } from './dto/update-child.dto';
-import { CreateEducationDto } from './dto/create-education.dto';
-import { UpdateEducationDto } from './dto/update-education.dto';
-import { CreateExperienceDto } from './dto/create-experience.dto';
-import { UpdateExperienceDto } from './dto/update-experience.dto';
-import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
-import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
-import { CreateUserSkillDto } from './dto/create-user-skill.dto';
-import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { UpdateAvatarDto } from './dto/upload-avatar.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateChildDto } from './dto/create-child.dto';
+import { CreateEducationDto } from './dto/create-education.dto';
+import { CreateExperienceDto } from './dto/create-experience.dto';
+import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
+import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
+  CertificatePaginationDto,
   ChildrenPaginationDto,
   EducationPaginationDto,
   ExperiencePaginationDto,
-  CertificatePaginationDto,
-  UserSkillPaginationDto,
   ReferencePaginationDto,
+  UserSkillPaginationDto,
 } from './dto/pagination-queries.dto';
+import { UpdateChildDto } from './dto/update-child.dto';
+import { UpdateEducationDto } from './dto/update-education.dto';
+import { UpdateExperienceDto } from './dto/update-experience.dto';
+import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
+import { UpdateUserInformationDto } from './dto/update-user-information.dto';
+import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+import { UpdateAvatarDto } from './dto/upload-avatar.dto';
+import { UserProfileService } from './user-profile.service';
 
 @ApiTags('user-profile')
 @Controller('user-profile')

@@ -439,6 +439,9 @@ export class UserProfileService {
       data: {
         ...createDto,
         issued_at: new Date(createDto.issued_at),
+        start_date: new Date(createDto.start_date),
+        certificate_id: createDto.certificate_id,
+        type: createDto.type,
       },
     });
   }
