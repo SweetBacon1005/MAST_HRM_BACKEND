@@ -1,48 +1,49 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
-import { TimesheetService } from './timesheet.service';
-import { CreateTimesheetDto } from './dto/create-timesheet.dto';
-import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
-import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
-import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
-import { CreateHolidayDto } from './dto/create-holiday.dto';
-import { GetScheduleDto } from './dto/get-schedule.dto';
+import { DayOffStatus } from '@prisma/client';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  AttendanceLogQueryDto,
+  CreateAttendanceLogDto,
+  UpdateAttendanceLogDto,
+} from './dto/attendance-log.dto';
 import { CheckinDto, CheckoutDto } from './dto/checkin-checkout.dto';
+import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
+import { CreateHolidayDto } from './dto/create-holiday.dto';
+import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
+import { CreateTimesheetDto } from './dto/create-timesheet.dto';
+import { GetScheduleDto } from './dto/get-schedule.dto';
+import {
+  AttendanceLogPaginationDto,
+  DayOffRequestPaginationDto,
+  HolidayPaginationDto,
+  OvertimeRequestPaginationDto,
+  TimesheetPaginationDto,
+} from './dto/pagination-queries.dto';
 import {
   TimesheetReportDto,
   WorkingTimeReportDto,
 } from './dto/timesheet-report.dto';
-import {
-  CreateAttendanceLogDto,
-  UpdateAttendanceLogDto,
-  AttendanceLogQueryDto,
-} from './dto/attendance-log.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
-import {
-  TimesheetPaginationDto,
-  DayOffRequestPaginationDto,
-  OvertimeRequestPaginationDto,
-  HolidayPaginationDto,
-  AttendanceLogPaginationDto,
-} from './dto/pagination-queries.dto';
+import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
+import { TimesheetService } from './timesheet.service';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
@@ -184,7 +185,7 @@ export class TimesheetController {
   @Roles('manager', 'admin')
   updateDayOffRequestStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status', ParseIntPipe) status: number,
+    @Body('status') status: DayOffStatus,
     @GetCurrentUser('id') approverId: number,
     @Body('rejected_reason') rejectedReason?: string,
   ) {
@@ -546,13 +547,11 @@ export class TimesheetController {
   bulkLockTimesheets(
     @Body('start_date') startDate: string,
     @Body('end_date') endDate: string,
-    @GetCurrentUser('id') lockerId: number,
     @Body('user_ids') userIds?: number[],
   ) {
     return this.timesheetService.bulkLockTimesheets(
       startDate,
       endDate,
-      lockerId,
       userIds,
     );
   }

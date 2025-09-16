@@ -1,8 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DayOffType } from '@prisma/client';
 import {
   IsBoolean,
   IsDateString,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -17,12 +17,18 @@ export class CreateLeaveRequestDto {
 
   @ApiProperty({
     description: 'Loại nghỉ phép',
-    enum: [1, 2, 3, 4, 5],
-    enumName: 'LeaveType',
+    enum: [
+      DayOffType.PAID,
+      DayOffType.UNPAID,
+      DayOffType.COMPENSATORY,
+      DayOffType.SICK,
+      DayOffType.PERSONAL,
+    ],
+    enumName: 'DayOffType',
   })
   @IsNotEmpty()
-  @IsInt()
-  leave_type: number; // 1: có lương, 2: không lương, 3: phép năm, 4: ốm đau, 5: việc riêng
+  @IsString()
+  leave_type: DayOffType; // 1: có lương, 2: không lương, 3: phép năm, 4: ốm đau, 5: việc riêng
 
   @ApiProperty({ description: 'Ngày bắt đầu nghỉ' })
   @IsNotEmpty()
@@ -112,7 +118,7 @@ export class LeaveBalanceDto {
 
   @ApiProperty({ description: 'Năm' })
   @IsNotEmpty()
-  @IsInt()
+  @IsNumber()
   year: number;
 
   @ApiProperty({ description: 'Tổng số ngày phép năm' })

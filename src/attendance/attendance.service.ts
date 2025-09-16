@@ -22,12 +22,14 @@ import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
+import { WorkShiftPaginationDto } from './dto/pagination-queries.dto';
 import {
-  WorkShiftPaginationDto,
-  LeaveRequestPaginationDto,
-  AttendanceReportPaginationDto,
-  PenaltyRulePaginationDto,
-} from './dto/pagination-queries.dto';
+  DayOffStatus,
+  DayOffType,
+  RemoteType,
+  TimesheetStatus,
+  TimesheetType,
+} from '@prisma/client';
 
 @Injectable()
 export class AttendanceService {
@@ -105,10 +107,10 @@ export class AttendanceService {
       work_time_morning: calculations.morning_minutes,
       work_time_afternoon: calculations.afternoon_minutes,
       fines: penalties.total_penalty,
-      remote: is_remote ? 1 : 0,
-      is_complete: 1,
-      status: 1, // Chờ duyệt
-      type: workShift.type || 1,
+      remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
+      is_complete: true,
+      status: TimesheetStatus.PENDING,
+      type: workShift.type || TimesheetType.NORMAL,
     };
 
     if (existingAttendance) {
@@ -346,7 +348,7 @@ export class AttendanceService {
     } = leaveRequestDto;
 
     // Kiểm tra số dư phép năm nếu là phép năm
-    if (leave_type === 3) {
+    if (leave_type === DayOffType.COMPENSATORY) {
       const leaveBalance = await this.getLeaveBalance(
         user_id,
         new Date().getFullYear(),
@@ -360,7 +362,7 @@ export class AttendanceService {
     const conflictingLeave = await this.prisma.day_offs.findFirst({
       where: {
         user_id,
-        status: { in: [1, 2] }, // Chờ duyệt hoặc đã duyệt
+        status: { in: ['PENDING', 'APPROVED'] },
         deleted_at: null,
         OR: [
           {
@@ -383,9 +385,9 @@ export class AttendanceService {
       data: {
         user_id,
         total: total_days,
-        status: 1, // Chờ duyệt
-        type: leave_type,
-        is_past: 0,
+        status: DayOffStatus.PENDING,
+        type: leave_type as DayOffType,
+        is_past: false,
         start_date,
         end_date,
         // Lưu thông tin bổ sung vào các trường có sẵn hoặc tạo bảng mới nếu cần
@@ -412,7 +414,7 @@ export class AttendanceService {
           gte: new Date(work_date + 'T00:00:00.000Z'),
           lt: new Date(work_date + 'T23:59:59.999Z'),
         },
-        remote: 1,
+        remote: RemoteType.REMOTE,
         deleted_at: null,
       },
     });
@@ -436,10 +438,10 @@ export class AttendanceService {
         user_id,
         checkin,
         checkout,
-        remote: 1,
-        status: 1, // Chờ duyệt
-        is_complete: 1,
-        request_type: 1, // Remote work request
+        remote: 'REMOTE',
+        status: 'PENDING',
+        is_complete: true,
+        request_type: 'NORMAL',
         work_time_morning: is_full_day
           ? 240
           : Math.floor((checkout.getTime() - checkin.getTime()) / (1000 * 60)),
@@ -459,8 +461,8 @@ export class AttendanceService {
     const used_leaves = await this.prisma.day_offs.findMany({
       where: {
         user_id,
-        type: 3, // Phép năm
-        status: 2, // Đã duyệt
+        type: 'PAID',
+        status: 'APPROVED',
         deleted_at: null,
         created_at: {
           gte: new Date(`${year}-01-01`),
@@ -478,8 +480,8 @@ export class AttendanceService {
     const sick_leaves = await this.prisma.day_offs.findMany({
       where: {
         user_id,
-        type: 4, // Nghỉ ốm
-        status: 2, // Đã duyệt
+        type: 'SICK',
+        status: 'APPROVED',
         deleted_at: null,
         created_at: {
           gte: new Date(`${year}-01-01`),
@@ -558,7 +560,7 @@ export class AttendanceService {
     const earlyLeaveRecords = timesheets.filter(
       (t) => t.early_time && t.early_time > 0,
     ).length;
-    const remoteRecords = timesheets.filter((t) => t.remote === 1).length;
+    const remoteRecords = timesheets.filter((t) => t.remote === 'REMOTE').length;
     const totalPenalties = timesheets.reduce(
       (sum, t) => sum + (t.fines || 0),
       0,
@@ -737,7 +739,7 @@ export class AttendanceService {
         lte: new Date(endDate),
       },
       deleted_at: null,
-      status: 2, // Đã duyệt
+      status: DayOffStatus.APPROVED, // Đã duyệt
     };
 
     if (userIds.length > 0) {
@@ -749,19 +751,19 @@ export class AttendanceService {
     const stats = {
       total_leave_days: leaves.reduce((sum, leave) => sum + leave.total, 0),
       paid_leave: leaves
-        .filter((l) => l.type === 1)
+        .filter((l) => l.type === DayOffType.PAID)
         .reduce((sum, leave) => sum + leave.total, 0),
       unpaid_leave: leaves
-        .filter((l) => l.type === 2)
+        .filter((l) => l.type === DayOffType.UNPAID)
         .reduce((sum, leave) => sum + leave.total, 0),
       annual_leave: leaves
-        .filter((l) => l.type === 3)
+        .filter((l) => l.type === DayOffType.COMPENSATORY)
         .reduce((sum, leave) => sum + leave.total, 0),
       sick_leave: leaves
-        .filter((l) => l.type === 4)
+        .filter((l) => l.type === DayOffType.SICK)
         .reduce((sum, leave) => sum + leave.total, 0),
       personal_leave: leaves
-        .filter((l) => l.type === 5)
+        .filter((l) => l.type === DayOffType.PERSONAL)
         .reduce((sum, leave) => sum + leave.total, 0),
     };
 
@@ -844,7 +846,7 @@ export class AttendanceService {
         userStats[userId].early_leave_days += 1;
         userStats[userId].total_early_minutes += timesheet.early_time;
       }
-      if (timesheet.remote === 1) userStats[userId].remote_days += 1;
+      if (timesheet.remote === RemoteType.REMOTE) userStats[userId].remote_days += 1;
 
       const workHours =
         ((timesheet.work_time_morning || 0) +
@@ -878,7 +880,7 @@ export class AttendanceService {
             (timesheet.work_time_afternoon || 0)) /
           60,
         penalties: timesheet.fines || 0,
-        is_remote: timesheet.remote === 1,
+        is_remote: timesheet.remote === RemoteType.REMOTE,
         status: timesheet.status,
       })),
       generated_at: new Date(),

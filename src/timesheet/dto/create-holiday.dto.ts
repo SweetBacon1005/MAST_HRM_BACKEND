@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { HolidayStatus, HolidayType } from '@prisma/client';
 import {
   IsDateString,
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -17,20 +17,20 @@ export class CreateHolidayDto {
   name: string;
 
   @ApiProperty({
-    description: 'Loại ngày lễ (1: lễ quốc gia, 2: lễ công ty, ...)',
-    example: 1,
+    description: 'Loại ngày lễ (NATIONAL, COMPANY)',
+    example: HolidayType.NATIONAL,
   })
   @IsNotEmpty()
-  @IsInt()
-  type: number;
+  @IsString()
+  type: HolidayType;
 
   @ApiProperty({
-    description: 'Trạng thái (1: hoạt động, 0: không hoạt động)',
-    example: 1,
+    description: 'Trạng thái (ACTIVE, INACTIVE)',
+    example: HolidayStatus.ACTIVE,
   })
   @IsNotEmpty()
-  @IsInt()
-  status: number;
+  @IsString()
+  status: HolidayStatus;
 
   @ApiProperty({
     description: 'Ngày bắt đầu',

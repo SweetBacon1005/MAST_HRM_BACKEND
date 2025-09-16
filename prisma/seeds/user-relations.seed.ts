@@ -171,12 +171,12 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         checkin_checkout: '08:00-17:30',
         late_time: 0,
         early_time: 0,
-        is_complete: 1,
+        is_complete: true,
         fines: 0,
         work_time_morning: 240, // 4 hours in minutes
         work_time_afternoon: 270, // 4.5 hours in minutes
-        status: 1, // approved
-        type: 1, // normal working day
+        status: 'APPROVED', // approved
+        type: 'NORMAL', // normal working day
       },
     }),
     // Jane Smith timesheet
@@ -192,12 +192,12 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         checkin_checkout: '08:15-17:45',
         late_time: 15, // 15 minutes late
         early_time: 0,
-        is_complete: 1,
+        is_complete: true,
         fines: 0,
         work_time_morning: 225, // 3h45m in minutes
         work_time_afternoon: 285, // 4h45m in minutes
-        status: 1, // approved
-        type: 1,
+        status: 'APPROVED', // approved
+        type: 'NORMAL',
       },
     }),
     // Mike Johnson timesheet
@@ -213,12 +213,12 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         checkin_checkout: '08:00-17:00',
         late_time: 0,
         early_time: 30, // left 30 minutes early
-        is_complete: 1,
+        is_complete: true,
         fines: 0,
         work_time_morning: 240,
         work_time_afternoon: 240, // 4 hours
-        status: 1,
-        type: 1,
+        status: 'APPROVED',
+        type: 'NORMAL',
       },
     }),
   ]);
@@ -232,13 +232,13 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         user_id: users[2].id,
         project_id: projects[0].id, // ABC CRM System
         coefficient: 2.0,
-        tool_type: 1,
+        tool_type: 'JIRA',
         issue_key: 'ABC-123',
         title: 'Implement user authentication API',
         work_date: yesterday as Date,
-        process_type: 1, // Development
+        process_type: 'DEVELOPMENT',
         actual_time: 8.0,
-        status: 1, // approved
+        status: 'APPROVED', // approved
         link_backlog: 'https://jira.company.com/browse/ABC-123',
         description:
           'Completed user authentication endpoints with JWT token implementation',
@@ -251,13 +251,13 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         user_id: users[3].id,
         project_id: projects[2].id, // E-Commerce Platform
         coefficient: 2.0,
-        tool_type: 1,
+        tool_type: 'JIRA',
         issue_key: 'ECS-456',
         title: 'Design product listing page UI',
         work_date: yesterday as Date,
-        process_type: 2, // Design
+        process_type: 'DESIGN',
         actual_time: 7.5,
-        status: 1, // approved
+        status: 'APPROVED', // approved
         link_backlog: 'https://jira.company.com/browse/ECS-456',
         description:
           'Created responsive product listing page with filtering options',
@@ -270,13 +270,13 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
         user_id: users[4].id,
         project_id: projects[1].id, // XYZ Banking Mobile App
         coefficient: 1.5,
-        tool_type: 1,
+        tool_type: 'JIRA',
         issue_key: 'XYZ-789',
         title: 'Implement biometric authentication',
         work_date: yesterday as Date,
-        process_type: 1, // Development
+        process_type: 'DEVELOPMENT',
         actual_time: 8.0,
-        status: 0, // pending
+        status: 'PENDING', // pending
         link_backlog: 'https://jira.company.com/browse/XYZ-789',
         description:
           'Working on fingerprint and face ID authentication for mobile app',

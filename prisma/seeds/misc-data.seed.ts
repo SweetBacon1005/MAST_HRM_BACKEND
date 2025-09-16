@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { HolidayStatus, HolidayType, PrismaClient } from '@prisma/client';
 
 export async function seedMiscData(prisma: PrismaClient, seedData: any) {
   console.log('📚 Seeding miscellaneous data...');
 
-  const { users, skills, roles, groups } = seedData;
+  const { users, groups } = seedData;
 
   // 1. Tạo education data
   console.log('🎓 Tạo education data...');
@@ -133,8 +133,8 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     prisma.holidays.create({
       data: {
         name: 'Tết Nguyên Đán',
-        type: 1, // National holiday
-        status: 1, // Active
+        type: HolidayType.NATIONAL,
+        status: HolidayStatus.ACTIVE,
         start_date: new Date(`${currentYear}-02-08`),
         end_date: new Date(`${currentYear}-02-14`),
         description: 'Tết Nguyên Đán - Năm mới theo âm lịch',
@@ -143,8 +143,8 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     prisma.holidays.create({
       data: {
         name: 'Giỗ Tổ Hùng Vương',
-        type: 1,
-        status: 1,
+        type: HolidayType.NATIONAL,
+        status: HolidayStatus.ACTIVE,
         start_date: new Date(`${currentYear}-04-18`),
         end_date: new Date(`${currentYear}-04-18`),
         description: 'Ngày Giỗ Tổ Hùng Vương',
@@ -153,8 +153,8 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     prisma.holidays.create({
       data: {
         name: 'Ngày Chiến thắng',
-        type: 1,
-        status: 1,
+        type: HolidayType.NATIONAL,
+        status: HolidayStatus.ACTIVE,
         start_date: new Date(`${currentYear}-04-30`),
         end_date: new Date(`${currentYear}-04-30`),
         description: 'Ngày Giải phóng miền Nam',
@@ -163,8 +163,8 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     prisma.holidays.create({
       data: {
         name: 'Ngày Quốc tế Lao động',
-        type: 1,
-        status: 1,
+        type: HolidayType.NATIONAL,
+        status: HolidayStatus.ACTIVE,
         start_date: new Date(`${currentYear}-05-01`),
         end_date: new Date(`${currentYear}-05-01`),
         description: 'Ngày Quốc tế Lao động',
@@ -173,8 +173,8 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     prisma.holidays.create({
       data: {
         name: 'Ngày Quốc Khánh',
-        type: 1,
-        status: 1,
+        type: HolidayType.NATIONAL,
+        status: HolidayStatus.ACTIVE,
         start_date: new Date(`${currentYear}-09-02`),
         end_date: new Date(`${currentYear}-09-02`),
         description: 'Ngày Quốc Khánh Việt Nam',

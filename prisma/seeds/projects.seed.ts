@@ -71,20 +71,20 @@ export async function seedProjects(prisma: PrismaClient) {
       create: {
         name: 'ABC CRM System',
         code: 'ABC-CRM-001',
-        status: 2, // IN_PROGRESS
+        status: 'IN_PROGRESS',
         division_id: 4, // Development Team A
         team_id: 1, // Backend Team
-        contract_type: 2, // fixed price
-        project_type: 1, // by customer
+        contract_type: 'FIXED_PRICE',
+        project_type: 'CUSTOMER',
         billable: 50000.0,
         budget: 60000.0,
         rank: 1,
-        customer_type: 2, // End user
+        customer_type: 'END_USER',
         industry: 1,
         language: 'Vietnamese, English',
         scope: 'Full CRM system with customer management',
         number_process_apply: 5,
-        legal: 1, // Amela JP
+        legal: 'AMELA_JP',
         communication: 'Daily standup, Weekly review',
         description: 'Complete CRM system for ABC Technology',
         contract_information: 'Fixed price contract for 6 months',
@@ -101,20 +101,20 @@ export async function seedProjects(prisma: PrismaClient) {
       create: {
         name: 'XYZ Banking Mobile App',
         code: 'XYZ-MOBILE-001',
-        status: 2, // IN_PROGRESS
+        status: 'IN_PROGRESS',
         division_id: 5, // Development Team B
         team_id: 3, // Mobile Team
-        contract_type: 1, // labo
-        project_type: 1, // by customer
+        contract_type: 'LABO',
+        project_type: 'CUSTOMER',
         billable: 80000.0,
         budget: 90000.0,
         rank: 1,
-        customer_type: 1, // Công ty SI
+        customer_type: 'SI_COMPANY',
         industry: 2,
         language: 'English, Vietnamese',
         scope: 'Mobile banking application for iOS and Android',
         number_process_apply: 8,
-        legal: 2, // Amela VN
+        legal: 'AMELA_VN',
         communication: 'Bi-weekly meetings, Monthly review',
         description: 'Mobile banking app with full features',
         contract_information: 'Labo contract for 12 months',
@@ -131,20 +131,20 @@ export async function seedProjects(prisma: PrismaClient) {
       create: {
         name: 'E-Commerce Platform V2',
         code: 'ECS-PLATFORM-002',
-        status: 1, // OPEN
+        status: 'OPEN',
         division_id: 4, // Development Team A
         team_id: 2, // Frontend Team
-        contract_type: 2, // fixed price
-        project_type: 1, // by customer
+        contract_type: 'FIXED_PRICE',
+        project_type: 'CUSTOMER',
         billable: 75000.0,
         budget: 85000.0,
         rank: 2,
-        customer_type: 2, // End user
+        customer_type: 'END_USER',
         industry: 3,
         language: 'Vietnamese',
         scope: 'Modern e-commerce platform with admin panel',
         number_process_apply: 6,
-        legal: 2, // Amela VN
+        legal: 'AMELA_VN',
         communication: 'Agile methodology, Sprint reviews',
         description: 'Next generation e-commerce platform',
         contract_information: 'Fixed price with milestone payments',
@@ -161,11 +161,11 @@ export async function seedProjects(prisma: PrismaClient) {
       create: {
         name: 'Internal HRM System',
         code: 'INT-HRM-001',
-        status: 2, // IN_PROGRESS
+        status: 'IN_PROGRESS',
         division_id: 1, // Technology Division
         team_id: 1, // Backend Team
-        contract_type: 1, // labo
-        project_type: 2, // in-house
+        contract_type: 'LABO',
+        project_type: 'IN_HOUSE',
         billable: 0.0,
         budget: 30000.0,
         rank: 3,
@@ -174,7 +174,7 @@ export async function seedProjects(prisma: PrismaClient) {
         language: 'Vietnamese',
         scope: 'Human Resource Management System',
         number_process_apply: 4,
-        legal: 2, // Amela VN
+        legal: 'AMELA_VN',
         communication: 'Weekly team meetings',
         description: 'Internal HRM system for company use',
         contract_information: 'Internal project',
@@ -219,9 +219,9 @@ export async function seedProjects(prisma: PrismaClient) {
       update: {},
       create: {
         project_id: projects[0].id,
-        type: 1, // sprint
+        type: 'SPRINT',
         version: 'v1.0.0',
-        status: 3, // close
+        status: 'CLOSED',
         billable: 15000.0,
         budget: 18000.0,
         start_date: new Date('2024-01-15'),
@@ -238,16 +238,16 @@ export async function seedProjects(prisma: PrismaClient) {
       update: {},
       create: {
         project_id: projects[0].id,
-        type: 1, // sprint
+        type: 'SPRINT',
         version: 'v1.1.0',
-        status: 2, // in progress
+        status: 'IN_PROGRESS',
         billable: 20000.0,
         budget: 22000.0,
         start_date: new Date('2024-02-16'),
         end_date: new Date('2024-04-15'),
         replan_start_date: new Date('2024-02-16'),
         replan_end_date: new Date('2024-04-20'),
-        replan_by: 1, // by team
+        replan_by: 'BY_TEAM',
         reason: 'Additional features requested',
         description: 'Customer management and contact features',
       },
@@ -258,9 +258,9 @@ export async function seedProjects(prisma: PrismaClient) {
       update: {},
       create: {
         project_id: projects[1].id,
-        type: 2, // labo
+        type: 'LABO',
         version: 'Phase 1',
-        status: 2, // in progress
+        status: 'IN_PROGRESS',
         billable: 40000.0,
         budget: 45000.0,
         start_date: new Date('2024-02-01'),
@@ -278,9 +278,9 @@ export async function seedProjects(prisma: PrismaClient) {
       update: {},
       create: {
         project_id: projects[2].id,
-        type: 3, // solution
+        type: 'SOLUTION',
         version: 'Discovery',
-        status: 1, // open
+        status: 'OPEN',
         billable: 10000.0,
         budget: 12000.0,
         start_date: new Date('2024-03-01'),

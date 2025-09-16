@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TimesheetStatus } from '@prisma/client';
 import {
   IsNotEmpty,
   IsOptional,
@@ -124,9 +125,9 @@ export class CreateAttendanceLogDto {
     example: 1,
   })
   @IsOptional()
-  @IsInt()
-  @IsIn([0, 1, 2])
-  status?: number;
+  @IsString()
+  @IsIn([TimesheetStatus.PENDING, TimesheetStatus.APPROVED, TimesheetStatus.REJECTED])
+  status?: TimesheetStatus;
 }
 
 export class UpdateAttendanceLogDto {
@@ -151,9 +152,9 @@ export class UpdateAttendanceLogDto {
     example: 1,
   })
   @IsOptional()
-  @IsInt()
-  @IsIn([0, 1, 2])
-  status?: number;
+  @IsString()
+  @IsIn([TimesheetStatus.PENDING, TimesheetStatus.APPROVED, TimesheetStatus.REJECTED])
+  status?: TimesheetStatus;
 }
 
 export class AttendanceLogQueryDto {

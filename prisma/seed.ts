@@ -8,6 +8,7 @@ import { seedUsers } from './seeds/users.seed';
 import { seedProjects } from './seeds/projects.seed';
 import { seedUserRelations } from './seeds/user-relations.seed';
 import { seedMiscData } from './seeds/misc-data.seed';
+import { seedDayOffs } from './seeds/day-offs.seed';
 
 const prisma = new PrismaClient();
 
@@ -53,6 +54,10 @@ async function main() {
     });
     console.log('✅ Miscellaneous data seeded successfully!\n');
 
+    // 8. Seed day offs
+    const dayOffsData = await seedDayOffs(prisma, usersData);
+    console.log('✅ Day offs data seeded successfully!\n');
+
     // Summary
     console.log('🎉 =================================');
     console.log('✅ SEED DATABASE HOÀN THÀNH!');
@@ -81,7 +86,8 @@ async function main() {
     console.log('- Education records, work experience, holidays');
     console.log('- Children, user skills, overtime history');
     console.log('- Time sheets, daily reports, project allocations');
-    console.log('- User divisions, group assignments\n');
+    console.log('- User divisions, group assignments');
+    console.log(`- ${dayOffsData.dayOffs.length} day off requests\n`);
 
     console.log('🔑 Thông tin đăng nhập:');
     console.log('Admin: admin@company.com / 123456');
@@ -113,7 +119,8 @@ async function main() {
     console.log('    ├── users.seed.ts');
     console.log('    ├── projects.seed.ts');
     console.log('    ├── user-relations.seed.ts');
-    console.log('    └── misc-data.seed.ts');
+    console.log('    ├── misc-data.seed.ts');
+    console.log('    └── day-offs.seed.ts');
   } catch (error) {
     console.error('❌ Lỗi khi seed database:', error);
     throw error;

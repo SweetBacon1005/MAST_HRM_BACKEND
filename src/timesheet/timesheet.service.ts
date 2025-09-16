@@ -4,6 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  DayOffDuration,
+  DayOffStatus,
+  DayOffType,
+  TimesheetStatus,
+} from '@prisma/client';
+import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
@@ -31,17 +37,11 @@ import {
   WorkingTimeReportDto,
 } from './dto/timesheet-report.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
+import { DayOffCalculator } from './enums/day-off.enum';
 import {
-  DayOffCalculator,
-  DayOffDuration,
-  DayOffStatus,
-  DayOffType,
-} from './enums/day-off.enum';
-import {
-  TimesheetState,
-  TimesheetStateManager,
+  TimesheetStatusManager,
   TimesheetType,
-} from './enums/timesheet-state.enum';
+} from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
 import { TimezoneUtil } from './utils/timezone.util';
 
@@ -87,6 +87,11 @@ export class TimesheetService {
         checkout: createTimesheetDto.checkout
           ? new Date(createTimesheetDto.checkout)
           : null,
+        is_complete: createTimesheetDto.is_complete ? true : false,
+        status: 'PENDING',
+        type: createTimesheetDto.type,
+        remote: createTimesheetDto.remote,
+        request_type: createTimesheetDto.request_type,
       },
     });
   }
@@ -172,24 +177,32 @@ export class TimesheetService {
     const timesheet = await this.findTimesheetById(id);
 
     // Kiểm tra xem timesheet có thể chỉnh sửa không
-    if (
-      !TimesheetStateManager.canEdit(timesheet.status || TimesheetState.DRAFT)
-    ) {
+    const currentState = timesheet.status
+      ? timesheet.status
+      : TimesheetStatus.PENDING;
+    if (!TimesheetStatusManager.canEdit(currentState)) {
       throw new BadRequestException(
-        `Không thể sửa timesheet ở trạng thái: ${TimesheetStateManager.getStateName(timesheet.status || TimesheetState.DRAFT)}`,
+        `Không thể sửa timesheet ở trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
       );
     }
+
+    const { is_complete, ...rest } = updateTimesheetDto;
 
     return this.prisma.time_sheets.update({
       where: { id },
       data: {
-        ...updateTimesheetDto,
+        ...rest,
         checkin: updateTimesheetDto.checkin
           ? new Date(updateTimesheetDto.checkin)
           : undefined,
         checkout: updateTimesheetDto.checkout
           ? new Date(updateTimesheetDto.checkout)
           : undefined,
+        is_complete: is_complete ? true : false,
+        status: 'PENDING',
+        type: 'NORMAL',
+        remote: 'OFFICE',
+        request_type: 'NORMAL',
       },
     });
   }
@@ -198,11 +211,12 @@ export class TimesheetService {
     const timesheet = await this.findTimesheetById(id);
 
     // Kiểm tra xem timesheet có thể xóa không
-    if (
-      !TimesheetStateManager.canDelete(timesheet.status || TimesheetState.DRAFT)
-    ) {
+    const currentState = timesheet.status
+      ? timesheet.status
+      : TimesheetStatus.PENDING;
+    if (!TimesheetStatusManager.canDelete(currentState)) {
       throw new BadRequestException(
-        `Không thể xóa timesheet ở trạng thái: ${TimesheetStateManager.getStateName(timesheet.status || TimesheetState.DRAFT)}`,
+        `Không thể xóa timesheet ở trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
       );
     }
 
@@ -278,8 +292,8 @@ export class TimesheetService {
           data: {
             user_id: userId,
             work_date: new Date(today),
-            status: TimesheetState.DRAFT,
-            type: TimesheetType.NORMAL,
+            status: 'PENDING',
+            type: 'NORMAL',
           },
         });
       }
@@ -308,7 +322,7 @@ export class TimesheetService {
           gps_longitude: checkinDto.gps_longitude,
           photo_url: checkinDto.photo_url,
           note: `${checkinDto.note || ''} [${idempotencyKey}]`,
-          status: 1, // approved
+          status: 'APPROVED',
         },
       });
 
@@ -318,8 +332,8 @@ export class TimesheetService {
         data: {
           checkin: checkinTime,
           late_time: lateTime,
-          remote: checkinDto.remote || 0,
-          status: 1, // approved
+          remote: 'OFFICE',
+          status: 'APPROVED',
         },
       });
 
@@ -448,7 +462,7 @@ export class TimesheetService {
           gps_longitude: checkoutDto.gps_longitude,
           photo_url: checkoutDto.photo_url,
           note: `${checkoutDto.note || ''} [${idempotencyKey}]`,
-          status: 1, // approved
+          status: 'APPROVED',
         },
       });
 
@@ -462,7 +476,7 @@ export class TimesheetService {
           work_time_afternoon: workTimeAfternoon,
           total_work_time: workTimeMorning + workTimeAfternoon,
           break_time: breakTime,
-          is_complete: 1,
+          is_complete: true,
         },
       });
 
@@ -530,12 +544,17 @@ export class TimesheetService {
       );
     }
 
+    const { is_past, ...rest } = createDayOffRequestDto;
+
     return this.prisma.day_offs.create({
       data: {
-        ...createDayOffRequestDto,
+        ...rest,
         start_date: startDate,
         end_date: endDate,
-        status: DayOffStatus.PENDING,
+        duration: 'FULL_DAY',
+        type: 'PAID',
+        is_past: is_past ? true : false,
+        status: 'PENDING',
       },
     });
   }
@@ -561,7 +580,7 @@ export class TimesheetService {
 
     // Thêm filter theo leave_type
     if (paginationDto.leave_type) {
-      where.leave_type = paginationDto.leave_type;
+      where.type = paginationDto.leave_type;
     }
 
     // Lấy dữ liệu và đếm tổng
@@ -590,7 +609,7 @@ export class TimesheetService {
 
   async updateDayOffRequestStatus(
     id: number,
-    status: number,
+    status: DayOffStatus,
     approverId?: number,
     rejectedReason?: string,
   ) {
@@ -647,16 +666,15 @@ export class TimesheetService {
             user_id: dayOff.user_id,
             work_date: new Date(currentDate),
             day_off_id: dayOff.id,
-            status: TimesheetState.APPROVED, // Tự động approved vì đã được duyệt nghỉ phép
-            type: this.getTimesheetTypeFromDayOff(dayOff.type),
+            status: 'APPROVED', // Tự động approved vì đã được duyệt nghỉ phép
+            type: 'NORMAL', // Default type for day off
             work_time_morning: workHours.morningHours,
             work_time_afternoon: workHours.afternoonHours,
             total_work_time: workHours.totalHours,
-            is_complete: dayOff.duration === DayOffDuration.FULL_DAY ? 0 : 1, // Nếu nghỉ cả ngày thì không complete
-            paid_leave:
-              dayOff.type === DayOffType.PAID_LEAVE ? dayOff.reason : null,
+            is_complete: dayOff.duration === 'FULL_DAY' ? false : true, // Nếu nghỉ cả ngày thì không complete
+            paid_leave: dayOff.type === DayOffType.PAID ? dayOff.reason : null,
             unpaid_leave:
-              dayOff.type === DayOffType.UNPAID_LEAVE ? dayOff.reason : null,
+              dayOff.type === DayOffType.UNPAID ? dayOff.reason : null,
           },
         });
       } else {
@@ -671,11 +689,11 @@ export class TimesheetService {
             work_time_afternoon: workHours.afternoonHours,
             total_work_time: workHours.totalHours,
             paid_leave:
-              dayOff.type === DayOffType.PAID_LEAVE
+              dayOff.type === DayOffType.PAID
                 ? dayOff.reason
                 : existingTimesheet.paid_leave,
             unpaid_leave:
-              dayOff.type === DayOffType.UNPAID_LEAVE
+              dayOff.type === DayOffType.UNPAID
                 ? dayOff.reason
                 : existingTimesheet.unpaid_leave,
           },
@@ -686,25 +704,6 @@ export class TimesheetService {
       currentDate.setDate(currentDate.getDate() + 1);
     }
   }
-
-  /**
-   * Chuyển đổi loại nghỉ phép thành loại timesheet
-   */
-  private getTimesheetTypeFromDayOff(dayOffType: number): TimesheetType {
-    switch (dayOffType) {
-      case DayOffType.PAID_LEAVE:
-      case DayOffType.UNPAID_LEAVE:
-      case DayOffType.SICK_LEAVE:
-      case DayOffType.MATERNITY_LEAVE:
-      case DayOffType.PERSONAL_LEAVE:
-        return TimesheetType.NORMAL;
-      case DayOffType.COMPENSATORY_LEAVE:
-        return TimesheetType.WEEKEND; // Hoặc loại phù hợp khác
-      default:
-        return TimesheetType.NORMAL;
-    }
-  }
-
   /**
    * Kiểm tra xem ngày có nghỉ phép không và loại nghỉ phép
    */
@@ -732,7 +731,7 @@ export class TimesheetService {
         end_date: {
           gte: targetDate,
         },
-        status: DayOffStatus.APPROVED,
+        status: 'APPROVED',
       }),
     });
 
@@ -748,12 +747,16 @@ export class TimesheetService {
       };
     }
 
-    const workHours = DayOffCalculator.calculateWorkHours(dayOff.duration);
+    const workHours = DayOffCalculator.calculateWorkHours(
+      dayOff.duration as DayOffDuration,
+    );
 
     return {
       hasDayOff: true,
       dayOff,
-      needsAttendance: DayOffCalculator.needsAttendance(dayOff.duration),
+      needsAttendance: DayOffCalculator.needsAttendance(
+        dayOff.duration as DayOffDuration,
+      ),
       expectedWorkHours: workHours,
     };
   }
@@ -892,6 +895,13 @@ export class TimesheetService {
   // === HOLIDAYS MANAGEMENT ===
 
   async createHoliday(createHolidayDto: CreateHolidayDto) {
+    const holiday = await this.prisma.holidays.findFirst({
+      where: QueryUtil.onlyActive({ name: createHolidayDto.name }),
+    });
+    if (holiday) {
+      throw new BadRequestException('Ngày lễ đã tồn tại');
+    }
+
     return this.prisma.holidays.create({
       data: {
         ...createHolidayDto,
@@ -901,6 +911,7 @@ export class TimesheetService {
         end_date: createHolidayDto.end_date
           ? new Date(createHolidayDto.end_date)
           : new Date(),
+        status: createHolidayDto.status
       },
     });
   }
@@ -1064,7 +1075,7 @@ export class TimesheetService {
     const dayOffs = await this.prisma.day_offs.findMany({
       where: QueryUtil.onlyActive({
         user_id: userId,
-        status: 2, // Đã duyệt
+        status: 'APPROVED',
       }),
     });
 
@@ -1271,8 +1282,9 @@ export class TimesheetService {
       total_early_leave: timesheets.filter(
         (t) => t.early_time && t.early_time > 0,
       ).length,
-      total_incomplete: timesheets.filter((t) => t.is_complete === 0).length,
-      total_remote: timesheets.filter((t) => t.remote === 1).length,
+      total_incomplete: timesheets.filter((t) => t.is_complete === false)
+        .length,
+      total_remote: timesheets.filter((t) => t.remote === 'REMOTE').length,
       average_work_hours:
         timesheets.reduce((sum, t) => {
           const workTime =
@@ -1422,18 +1434,18 @@ export class TimesheetService {
         late: timesheets.filter((t) => t.late_time && t.late_time > 0).length,
         early_leave: timesheets.filter((t) => t.early_time && t.early_time > 0)
           .length,
-        remote_days: timesheets.filter((t) => t.remote === 1).length,
+        remote_days: timesheets.filter((t) => t.remote === 'REMOTE').length,
       },
       leave: {
         total_days_off: dayOffs.reduce((sum, dayOff) => sum + dayOff.total, 0),
         paid_leave: dayOffs
-          .filter((d) => d.type === 1)
+          .filter((d) => d.type === 'PAID')
           .reduce((sum, dayOff) => sum + dayOff.total, 0),
         unpaid_leave: dayOffs
-          .filter((d) => d.type === 2)
+          .filter((d) => d.type === 'UNPAID')
           .reduce((sum, dayOff) => sum + dayOff.total, 0),
         sick_leave: dayOffs
-          .filter((d) => d.type === 3)
+          .filter((d) => d.type === 'SICK')
           .reduce((sum, dayOff) => sum + dayOff.total, 0),
       },
       overtime: {
@@ -1505,6 +1517,7 @@ export class TimesheetService {
         timestamp: new Date(createAttendanceLogDto.timestamp),
         work_date: workDate,
         is_manual: createAttendanceLogDto.is_manual || false,
+        status: createAttendanceLogDto.status || TimesheetStatus.PENDING,
       },
       include: {
         user: {
@@ -1693,6 +1706,7 @@ export class TimesheetService {
       data: {
         ...updateAttendanceLogDto,
         approved_by: updateAttendanceLogDto.approved_by || currentUserId,
+        status: updateAttendanceLogDto.status || TimesheetStatus.PENDING,
       },
       include: {
         user: {
@@ -1735,8 +1749,8 @@ export class TimesheetService {
       data: {
         user_id: userId,
         work_date: targetDate,
-        status: TimesheetState.DRAFT,
-        type: TimesheetType.NORMAL,
+        status: 'PENDING',
+        type: 'NORMAL',
       },
     });
   }
@@ -1755,18 +1769,20 @@ export class TimesheetService {
     }
 
     // Kiểm tra có thể chuyển trạng thái không
-    const currentState = timesheet.status || TimesheetState.DRAFT;
     if (
-      !TimesheetStateManager.canTransition(currentState, TimesheetState.PENDING)
+      !TimesheetStatusManager.canTransition(
+        timesheet.status || TimesheetStatus.PENDING,
+        TimesheetStatus.APPROVED,
+      )
     ) {
       throw new BadRequestException(
-        `Không thể submit timesheet từ trạng thái: ${TimesheetStateManager.getStateName(currentState)}`,
+        `Không thể submit timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(timesheet.status || TimesheetStatus.PENDING)}`,
       );
     }
 
     return this.prisma.time_sheets.update({
       where: { id },
-      data: { status: TimesheetState.PENDING },
+      data: { status: 'PENDING' },
     });
   }
 
@@ -1776,22 +1792,22 @@ export class TimesheetService {
   async approveTimesheet(id: number, _approverId: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetState.DRAFT;
+    const currentState = timesheet.status || TimesheetStatus.PENDING;
     if (
-      !TimesheetStateManager.canTransition(
+      !TimesheetStatusManager.canTransition(
         currentState,
-        TimesheetState.APPROVED,
+        TimesheetStatus.APPROVED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể duyệt timesheet từ trạng thái: ${TimesheetStateManager.getStateName(currentState)}`,
+        `Không thể duyệt timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
       );
     }
 
     return this.prisma.time_sheets.update({
       where: { id },
       data: {
-        status: TimesheetState.APPROVED,
+        status: 'APPROVED',
         // Có thể thêm trường approved_by: approverId nếu cần
       },
     });
@@ -1803,22 +1819,22 @@ export class TimesheetService {
   async rejectTimesheet(id: number, _rejectorId: number, _reason?: string) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetState.DRAFT;
+    const currentState = timesheet.status || TimesheetStatus.PENDING;
     if (
-      !TimesheetStateManager.canTransition(
+      !TimesheetStatusManager.canTransition(
         currentState,
-        TimesheetState.REJECTED,
+        TimesheetStatus.REJECTED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể từ chối timesheet từ trạng thái: ${TimesheetStateManager.getStateName(currentState)}`,
+        `Không thể từ chối timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
       );
     }
 
     return this.prisma.time_sheets.update({
       where: { id },
       data: {
-        status: TimesheetState.REJECTED,
+        status: 'REJECTED',
         // Có thể thêm trường rejected_by: rejectorId, reject_reason: reason nếu cần
       },
     });
@@ -1830,19 +1846,22 @@ export class TimesheetService {
   async lockTimesheet(id: number, _lockerId: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetState.DRAFT;
+    const currentState = timesheet.status || TimesheetStatus.PENDING;
     if (
-      !TimesheetStateManager.canTransition(currentState, TimesheetState.LOCKED)
+      !TimesheetStatusManager.canTransition(
+        currentState,
+        TimesheetStatus.APPROVED,
+      )
     ) {
       throw new BadRequestException(
-        `Không thể khóa timesheet từ trạng thái: ${TimesheetStateManager.getStateName(currentState)}`,
+        `Không thể khóa timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
       );
     }
 
     return this.prisma.time_sheets.update({
       where: { id },
       data: {
-        status: TimesheetState.LOCKED,
+        status: 'APPROVED', // LOCKED maps to APPROVED in new schema
         // Có thể thêm trường locked_by: lockerId, locked_at: new Date() nếu cần
       },
     });
@@ -1854,11 +1873,10 @@ export class TimesheetService {
   async bulkLockTimesheets(
     startDate: string,
     endDate: string,
-    lockerId: number,
     userIds?: number[],
   ) {
     const where: any = QueryUtil.onlyActive({
-      status: TimesheetState.APPROVED,
+      status: TimesheetStatus.APPROVED,
       ...QueryUtil.workDateRange(startDate, endDate),
     });
 
@@ -1869,7 +1887,7 @@ export class TimesheetService {
     const result = await this.prisma.time_sheets.updateMany({
       where,
       data: {
-        status: TimesheetState.LOCKED,
+        status: 'APPROVED', // LOCKED maps to APPROVED in new schema
       },
     });
 
@@ -1917,7 +1935,7 @@ export class TimesheetService {
     const createData = newUserIds.map((userId) => ({
       user_id: userId,
       work_date: targetDate,
-      status: TimesheetState.DRAFT,
+      status: TimesheetStatus.PENDING,
       type: TimesheetType.NORMAL,
     }));
 

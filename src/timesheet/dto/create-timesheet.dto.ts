@@ -1,11 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  IsString,
+  RemoteType,
+  TimesheetRequestType,
+  TimesheetStatus,
+  TimesheetType,
+} from '@prisma/client';
+import {
+  IsBoolean,
   IsDateString,
-  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class CreateTimesheetDto {
@@ -74,12 +80,12 @@ export class CreateTimesheetDto {
   early_time?: number;
 
   @ApiPropertyOptional({
-    description: 'Có hoàn thành không (1: có, 0: không)',
-    example: 1,
+    description: 'Có hoàn thành không (true: có, false: không)',
+    example: true,
   })
   @IsOptional()
-  @IsInt()
-  is_complete?: number;
+  @IsBoolean()
+  is_complete?: boolean;
 
   @ApiPropertyOptional({
     description: 'Tiền phạt',
@@ -98,19 +104,19 @@ export class CreateTimesheetDto {
   group_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Loại (1: bình thường, 2: nghỉ phép, ...)',
-    example: 1,
+    description: 'Loại (NORMAL, OVERTIME, HOLIDAY, WEEKEND)',
+    example: TimesheetType.NORMAL,
   })
   @IsOptional()
-  @IsInt()
-  type?: number;
+  @IsString()
+  type?: TimesheetType;
 
   @ApiPropertyOptional({
     description: 'Giờ làm buổi sáng',
     example: 240,
   })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   work_time_morning?: number;
 
   @ApiPropertyOptional({
@@ -118,24 +124,24 @@ export class CreateTimesheetDto {
     example: 240,
   })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   work_time_afternoon?: number;
 
   @ApiPropertyOptional({
-    description: 'Trạng thái (1: chờ duyệt, 2: đã duyệt, 3: từ chối)',
-    example: 1,
+    description: 'Trạng thái',
+    example: TimesheetStatus.PENDING,
   })
   @IsOptional()
-  @IsInt()
-  status?: number;
+  @IsString()
+  status?: TimesheetStatus;
 
   @ApiPropertyOptional({
     description: 'Loại yêu cầu',
-    example: 1,
+    example: TimesheetRequestType.OVERTIME,
   })
   @IsOptional()
-  @IsInt()
-  request_type?: number;
+  @IsString()
+  request_type?: TimesheetRequestType;
 
   @ApiPropertyOptional({
     description: 'Yêu cầu đi muộn',
@@ -170,19 +176,19 @@ export class CreateTimesheetDto {
   unpaid_leave?: string;
 
   @ApiPropertyOptional({
-    description: 'Làm việc từ xa (0: office, 1: remote, 2: hybrid)',
-    example: 0,
+    description: 'Làm việc từ xa (OFFICE, REMOTE, HYBRID) ',
+    example: RemoteType.OFFICE,
   })
   @IsOptional()
-  @IsInt()
-  remote?: number;
+  @IsString()
+  remote?: RemoteType;
 
   @ApiPropertyOptional({
     description: 'Tổng thời gian làm việc (phút)',
     example: 480,
   })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   total_work_time?: number;
 
   @ApiPropertyOptional({
@@ -190,6 +196,6 @@ export class CreateTimesheetDto {
     example: 60,
   })
   @IsOptional()
-  @IsInt()
+  @IsNumber()
   break_time?: number;
 }
