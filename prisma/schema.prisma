@@ -1,1811 +1,2324 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+    provider = "mysql"
+    url      = env("DATABASE_URL")
 }
 
-// ME Module
 model certificate_categories {
-  id           BigInt         @id @default(autoincrement())
-  name         String         @unique @db.VarChar(255)
-  created_at    DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime       @updatedAt
-  deleted_at    DateTime       @db.DateTime()
-  certificates certificates[]
+    id           Int            @id @default(autoincrement())
+    name         String         @unique @db.VarChar(255)
+    created_at   DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime       @updatedAt
+    deleted_at   DateTime?      @db.DateTime(6)
+    certificates certificates[]
 }
 
 model certificates {
-  id                      BigInt                 @id @default(autoincrement())
-  name                    String                 @unique @db.VarChar(255)
-  certificate_category_id BigInt
-  category                certificate_categories @relation(fields: [certificate_category_id], references: [id])
-  created_at               DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at               DateTime               @updatedAt
-  deleted_at               DateTime               @db.DateTime()
+    id                      Int                    @id @default(autoincrement())
+    name                    String                 @unique @db.VarChar(255)
+    certificate_category_id Int
+    category                certificate_categories @relation(fields: [certificate_category_id], references: [id])
+    created_at              DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at              DateTime               @updatedAt
+    deleted_at              DateTime?              @db.DateTime(6)
+    user_certificates       user_certificates[]
 
-  @@index([certificate_category_id])
+    @@index([certificate_category_id])
 }
 
 model children {
-  id                   BigInt   @id @default(autoincrement())
-  user_id              BigInt
-  user                 users    @relation(fields: [user_id], references: [id])
-  gender               String   @db.VarChar(10)
-  name                 String   @db.VarChar(255)
-  birthday             DateTime @db.DateTime()
-  phone                String?  @db.VarChar(255)
-  is_dependent         Boolean  @default(false)
-  dependent_start_date DateTime @db.DateTime()
-  created_at            DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at            DateTime @updatedAt
-  deleted_at            DateTime @db.DateTime()
-  type                 String   @db.VarChar(50)
+    id                   Int       @id @default(autoincrement())
+    user_id              Int
+    user                 users     @relation(fields: [user_id], references: [id])
+    gender               String    @db.VarChar(10)
+    name                 String    @db.VarChar(255)
+    birthday             DateTime  @db.Date()
+    phone                String?   @db.VarChar(255)
+    is_dependent         Boolean   @default(false)
+    dependent_start_date DateTime  @db.Date()
+    created_at           DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime  @updatedAt
+    deleted_at           DateTime? @db.DateTime()
+    type                 String    @db.VarChar(50)
 
-  @@index([user_id])
+    @@index([user_id])
 }
 
 model completed_project_skills {
-  id                   BigInt            @id @default(autoincrement())
-  completed_project_id BigInt
-  completed_project    completed_project @relation(fields: [completed_project_id], references: [id])
-  skill_id             Int
-  skill                skills            @relation(fields: [skill_id], references: [id])
+    id                   Int               @id @default(autoincrement())
+    completed_project_id Int
+    completed_project    completed_project @relation(fields: [completed_project_id], references: [id])
+    skill_id             Int
+    skill                skills            @relation(fields: [skill_id], references: [id])
 
-  @@index([completed_project_id])
-  @@index([skill_id])
+    @@index([completed_project_id])
+    @@index([skill_id])
 }
 
 model completed_project {
-  id                       BigInt                     @id @default(autoincrement())
-  user_id                  BigInt
-  user                     users                      @relation(fields: [user_id], references: [id])
-  name                     String                     @db.VarChar(255)
-  industry                 String                     @db.VarChar(255)
-  start_date               DateTime                   @db.Date
-  end_date                 DateTime                   @db.Date
-  position_id              Int
-  position                 positions                  @relation(fields: [position_id], references: [id])
-  scale                    String                     @db.VarChar(255)
-  other_skill              String                     @db.VarChar(255)
-  server                   String                     @db.VarChar(255)
-  framework                String                     @db.VarChar(255)
-  phase_type               String                     @db.VarChar(255)
-  content                  String                     @db.LongText
-  created_at                DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at                DateTime                   @updatedAt
-  completed_project_skills completed_project_skills[]
+    id                       Int                        @id @default(autoincrement())
+    user_id                  Int
+    user                     users                      @relation(fields: [user_id], references: [id])
+    name                     String                     @db.VarChar(255)
+    industry                 String                     @db.VarChar(255)
+    start_date               DateTime                   @db.Date
+    end_date                 DateTime                   @db.Date
+    position_id              Int
+    position                 positions                  @relation(fields: [position_id], references: [id])
+    scale                    String                     @db.VarChar(255)
+    other_skill              String                     @db.VarChar(255)
+    server                   String                     @db.VarChar(255)
+    framework                String                     @db.VarChar(255)
+    phase_type               String                     @db.VarChar(255)
+    content                  String                     @db.LongText
+    created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at               DateTime                   @updatedAt
+    completed_project_skills completed_project_skills[]
 
-  @@index([user_id])
-  @@index([position_id])
-  @@index([start_date, end_date])
+    @@index([user_id])
+    @@index([position_id])
+    @@index([start_date, end_date])
 }
 
 model education {
-  id          Int      @id @default(autoincrement())
-  user_id     BigInt
-  user        users    @relation(fields: [user_id], references: [id])
-  name        String   @db.VarChar(255)
-  major       String   @db.VarChar(255)
-  description String   @db.VarChar(255)
-  start_date  DateTime @db.Date
-  end_date    DateTime @db.Date
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
-  deleted_at   DateTime @db.DateTime()
+    id          Int       @id @default(autoincrement())
+    user_id     Int
+    user        users     @relation(fields: [user_id], references: [id])
+    name        String    @db.VarChar(255)
+    major       String    @db.VarChar(255)
+    description String    @db.VarChar(255)
+    start_date  DateTime  @db.Date
+    end_date    DateTime  @db.Date
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
+    deleted_at  DateTime? @db.DateTime()
 
-  @@index([user_id])
+    @@index([user_id])
 }
 
 model experience {
-  id         Int      @id @default(autoincrement())
-  user_id    BigInt
-  user       users    @relation(fields: [user_id], references: [id])
-  job_title  String   @db.VarChar(255)
-  company    String   @db.VarChar(255)
-  start_date DateTime @db.Date
-  end_date   DateTime @db.Date
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime @db.DateTime()
+    id         Int       @id @default(autoincrement())
+    user_id    Int
+    user       users     @relation(fields: [user_id], references: [id])
+    job_title  String    @db.VarChar(255)
+    company    String    @db.VarChar(255)
+    start_date DateTime  @db.Date
+    end_date   DateTime  @db.Date
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
 
-  @@index([user_id])
+    @@index([user_id])
 }
 
 model failed_jobs {
-  id         Int      @id @default(autoincrement())
-  connection String   @db.Text
-  queue      String   @db.Text
-  payload    String   @db.LongText
-  exception  String   @db.LongText
-  failed_at  DateTime @db.DateTime()
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime @db.DateTime()
+    id         Int       @id @default(autoincrement())
+    connection String    @db.Text
+    queue      String    @db.Text
+    payload    String    @db.LongText
+    exception  String    @db.LongText
+    failed_at  DateTime  @db.DateTime()
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
 
-  @@index([failed_at])
+    @@index([failed_at])
 }
 
 model group_role_permissions {
-  id            BigInt      @id @default(autoincrement())
-  group_role_id BigInt
-  group_role    group_roles @relation(fields: [group_role_id], references: [id])
-  role_id       BigInt
-  role          roles       @relation(fields: [role_id], references: [id])
-  permission_id Int
-  permission    permissions @relation(fields: [permission_id], references: [id])
-  created_at     DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime    @updatedAt
-  deleted_at     DateTime    @db.DateTime()
+    id            Int         @id @default(autoincrement())
+    group_role_id Int
+    group_role    group_roles @relation(fields: [group_role_id], references: [id])
+    role_id       Int
+    role          roles       @relation(fields: [role_id], references: [id])
+    permission_id Int
+    permission    permissions @relation(fields: [permission_id], references: [id])
+    created_at    DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime    @updatedAt
+    deleted_at    DateTime?   @db.DateTime()
 
-  @@index([group_role_id])
-  @@index([role_id])
-  @@index([permission_id])
+    @@index([group_role_id])
+    @@index([role_id])
+    @@index([permission_id])
 }
 
 model divisions {
-  id                BigInt             @id @default(autoincrement())
-  name              String
-  is_active_project Int                @default(1)
-  type              Int?
-  status            Int?
-  level             Int?
-  address           String?
-  parent_id         BigInt?
-  parent            divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
-  children          divisions[]        @relation("DivisionParent")
-  founding_at       DateTime
-  description       String?
-  total_member      Int?
-  created_at         DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime           @updatedAt
-  deleted_at         DateTime           @db.DateTime()
-  rotation_members  rotation_members[]
-  user_division     user_division[]
+    id                Int                @id @default(autoincrement())
+    name              String
+    is_active_project Int                @default(1)
+    type              Int?
+    status            Int?
+    level             Int?
+    address           String?
+    parent_id         Int?
+    parent            divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
+    children          divisions[]        @relation("DivisionParent")
+    founding_at       DateTime
+    description       String?
+    total_member      Int?
+    created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime           @updatedAt
+    deleted_at        DateTime?          @db.DateTime(6)
+    rotation_members  rotation_members[]
+    user_division     user_division[]
+    man_month_divisions man_month_divisions[]
+    invoices          invoices[]
+    projects          projects[]
+    rewards           rewards[]
+    nominations       nominations[]
+    unit_prices       unit_prices[]
 
-  // Indexes
-  @@index([parent_id])
-  @@index([type])
-  @@index([status])
-  @@index([level])
+    @@index([parent_id])
+    @@index([type])
+    @@index([status])
+    @@index([level])
 }
 
 model group_roles {
-  id              BigInt                   @id @default(autoincrement())
-  name            String                   @unique @db.VarChar(255)
-  description     String?                  @db.VarChar(255)
-  created_at       DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at       DateTime                 @updatedAt
-  deleted_at       DateTime                 @db.DateTime()
-  permissions     group_role_permissions[]
-  user_group_role user_group_role[]
+    id              Int                      @id @default(autoincrement())
+    name            String                   @unique @db.VarChar(255)
+    description     String?                  @db.VarChar(255)
+    created_at      DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime                 @updatedAt
+    deleted_at      DateTime?                @db.DateTime(6)
+    permissions     group_role_permissions[]
+    user_group_role user_group_role[]
 }
 
 model identifications {
-  id           BigInt   @id @default(autoincrement())
-  type         Int
-  user_id      BigInt
-  user         users    @relation(fields: [user_id], references: [id])
-  detail       String   @db.Text
-  is_encrypted Boolean  @default(false)
-  link         String   @db.Text
-  created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime @updatedAt
-  deleted_at    DateTime @db.DateTime()
+    id           Int       @id @default(autoincrement())
+    type         Int
+    user_id      Int
+    user         users     @relation(fields: [user_id], references: [id])
+    detail       String    @db.Text
+    is_encrypted Boolean   @default(false)
+    link         String    @db.Text
+    created_at   DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime  @updatedAt
+    deleted_at   DateTime? @db.DateTime(6)
 
-  @@index([user_id])
+    @@index([user_id])
 }
 
 model levels {
-  id               Int                @id @default(autoincrement())
-  name             String             @db.VarChar(255)
-  coefficient      Float              @db.Float
-  created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime           @updatedAt
-  deleted_at        DateTime           @db.DateTime()
-  user_information user_information[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    coefficient      Float              @db.Float
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
+    rental_resource  rental_resource[]
+    rental_unit_prices rental_unit_prices[]
 }
 
 model migrations {
-  id        Int    @id @default(autoincrement()) @db.UnsignedInt
-  migration String @db.VarChar(255)
-  batch     Int
+    id        Int    @id @default(autoincrement()) @db.UnsignedInt
+    migration String @db.VarChar(255)
+    batch     Int
 }
 
 model permissions {
-  id                     Int                      @id @default(autoincrement())
-  name                   String                   @unique @db.VarChar(255)
-  created_at              DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at              DateTime                 @updatedAt
-  deleted_at              DateTime                 @db.DateTime()
-  group_role_permissions group_role_permissions[]
+    id                     Int                      @id @default(autoincrement())
+    name                   String                   @unique @db.VarChar(255)
+    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at             DateTime                 @updatedAt
+    deleted_at             DateTime?                @db.DateTime(6)
+    group_role_permissions group_role_permissions[]
 }
 
 model positions {
-  id                Int                 @id @default(autoincrement())
-  name              String              @db.VarChar(255)
-  is_active_project Boolean             @default(false)
-  created_at         DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime            @updatedAt
-  deleted_at         DateTime            @db.DateTime()
-  skills            skills[]
-  completed_project completed_project[]
-  user_information  user_information[]
+    id                Int                 @id @default(autoincrement())
+    name              String              @db.VarChar(255)
+    is_active_project Boolean             @default(false)
+    created_at        DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime            @updatedAt
+    deleted_at        DateTime?           @db.DateTime(6)
+    skills            skills[]
+    completed_project completed_project[]
+    user_information  user_information[]
+    rental_resource   rental_resource[]
+    rental_unit_prices rental_unit_prices[]
 }
 
 model roles {
-  id                     BigInt                   @id @default(autoincrement())
-  name                   String                   @unique @db.VarChar(255)
-  created_at              DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at              DateTime                 @updatedAt
-  deleted_at              DateTime                 @db.DateTime()
-  group_role_permissions group_role_permissions[]
-  user_information       user_information[]
-  user_division          user_division[]
+    id                     Int                      @id @default(autoincrement())
+    name                   String                   @unique @db.VarChar(255)
+    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at             DateTime                 @updatedAt
+    deleted_at             DateTime?                @db.DateTime(6)
+    group_role_permissions group_role_permissions[]
+    user_information       user_information[]
+    user_division          user_division[]
+    allocations            allocations[]
 }
 
 model skills {
-  id                       Int                        @id @default(autoincrement())
-  name                     String                     @unique @db.VarChar(255)
-  position_id              Int
-  position                 positions                  @relation(fields: [position_id], references: [id])
-  created_at                DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at                DateTime                   @updatedAt
-  deleted_at                DateTime                   @db.DateTime()
-  completed_project_skills completed_project_skills[]
-  user_skills              user_skills[]
+    id                       Int                        @id @default(autoincrement())
+    name                     String                     @unique @db.VarChar(255)
+    position_id              Int
+    position                 positions                  @relation(fields: [position_id], references: [id])
+    created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at               DateTime                   @updatedAt
+    deleted_at               DateTime?                  @db.DateTime(6)
+    completed_project_skills completed_project_skills[]
+    user_skills              user_skills[]
+    allocations              allocations[]
 
-  @@index([position_id])
+    @@index([position_id])
 }
 
 model user_certificates {
-  id        Int      @id @default(autoincrement())
-  user_id   BigInt
-  user      users    @relation(fields: [user_id], references: [id])
-  name      String   @db.VarChar(255)
-  authority String   @db.VarChar(255)
-  issued_at DateTime @db.DateTime()
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime @db.DateTime()
+    id             Int             @id @default(autoincrement())
+    certificate_id Int
+    certificate    certificates    @relation(fields: [certificate_id], references: [id])
+    user_id        Int
+    user           users           @relation(fields: [user_id], references: [id])
+    name           String          @db.VarChar(255)
+    authority      String          @db.VarChar(255)
+    issued_at      DateTime        @db.DateTime()
+    created_at     DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime        @updatedAt
+    deleted_at     DateTime?       @db.DateTime(6)
+    start_date     DateTime        @db.Date()
+    type           CerticicateType @default(ACHIEVEMENT)
 
-  @@index([user_id])
-  @@index([issued_at])
+    @@index([user_id])
+    @@index([issued_at])
+    @@index([certificate_id])
 }
 
 model user_group_role {
-  id        Int         @id @default(autoincrement())
-  user_id   BigInt
-  user      users       @relation(fields: [user_id], references: [id])
-  group_id  BigInt
-  group     group_roles @relation(fields: [group_id], references: [id])
-  created_at DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime    @updatedAt
-  deleted_at DateTime    @db.DateTime()
+    id         Int         @id @default(autoincrement())
+    user_id    Int
+    user       users       @relation(fields: [user_id], references: [id])
+    group_id   Int
+    group      group_roles @relation(fields: [group_id], references: [id])
+    created_at DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime    @updatedAt
+    deleted_at DateTime?   @db.DateTime(6)
 
-  @@index([user_id])
-  @@index([group_id])
+    @@index([user_id])
+    @@index([group_id])
 }
 
 model user_information {
-  id                    Int       @id @default(autoincrement())
-  user_id               BigInt
-  user                  users     @relation(fields: [user_id], references: [id])
-  email                 String    @db.VarChar(255)
-  personal_email        String    @db.VarChar(255)
-  nationality           String    @db.VarChar(255)
-  name                  String    @db.VarChar(255)
-  code                  String    @db.VarChar(255)
-  avatar                String    @db.VarChar(255)
-  gender                String    @db.VarChar(255)
-  marital               String    @db.VarChar(255)
-  birthday              DateTime  @db.DateTime()
-  position_id           Int
-  position              positions @relation(fields: [position_id], references: [id])
-  office_id             Int
-  office                offices   @relation(fields: [office_id], references: [id])
-  address               String    @db.VarChar(255)
-  temp_address          String    @db.VarChar(255)
-  phone                 String    @db.VarChar(255)
-  tax_code              String    @db.VarChar(255)
-  role_id               BigInt
-  role                  roles     @relation(fields: [role_id], references: [id])
-  status                String    @db.VarChar(255)
-  description           String    @db.VarChar(255)
-  level_id              Int
-  level                 levels    @relation(fields: [level_id], references: [id])
-  special_timesheet_id  BigInt?
-  social_insurance_code String    @db.VarChar(255)
-  provider_id           String    @db.Text
-  note                  String    @db.Text
-  overview              String    @db.Text
-  market_type           String    @db.VarChar(255)
-  expertise             String    @db.VarChar(255)
-  technique             String    @db.VarChar(255)
-  main_task             String    @db.VarChar(255)
-  language_id           Int
-  language              languages @relation(fields: [language_id], references: [id])
-  created_at             DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at             DateTime  @updatedAt
-  deleted_at             DateTime  @db.DateTime()
+    id                    Int       @id @default(autoincrement())
+    user_id               Int       @unique
+    user                  users     @relation(fields: [user_id], references: [id])
+    email                 String    @db.VarChar(255)
+    personal_email        String    @db.VarChar(255)
+    nationality           String    @db.VarChar(255)
+    name                  String    @db.VarChar(255)
+    code                  String    @db.VarChar(255)
+    avatar                String    @db.VarChar(255)
+    gender                String    @db.VarChar(255)
+    marital               String    @db.VarChar(255)
+    birthday              DateTime  @db.Date()
+    position_id           Int
+    position              positions @relation(fields: [position_id], references: [id])
+    office_id             Int
+    office                offices   @relation(fields: [office_id], references: [id])
+    address               String    @db.VarChar(255)
+    temp_address          String    @db.VarChar(255)
+    phone                 String    @db.VarChar(255)
+    tax_code              String    @db.VarChar(255)
+    role_id               Int
+    role                  roles     @relation(fields: [role_id], references: [id])
+    status                String    @db.VarChar(255)
+    description           String    @db.VarChar(255)
+    level_id              Int
+    level                 levels    @relation(fields: [level_id], references: [id])
+    special_timesheet_id  Int?
+    social_insurance_code String    @db.VarChar(255)
+    provider_id           String    @db.Text
+    note                  String    @db.Text
+    overview              String    @db.Text
+    market_type           String    @db.VarChar(255)
+    expertise             String    @db.VarChar(255)
+    technique             String    @db.VarChar(255)
+    main_task             String    @db.VarChar(255)
+    language_id           Int
+    language              languages @relation(fields: [language_id], references: [id])
+    created_at            DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at            DateTime  @updatedAt
+    deleted_at            DateTime? @db.DateTime(6)
 
-  @@index([user_id])
-  @@index([position_id])
-  @@index([office_id])
-  @@index([role_id])
-  @@index([level_id])
-  @@index([language_id])
+    @@index([user_id])
+    @@index([position_id])
+    @@index([office_id])
+    @@index([role_id])
+    @@index([level_id])
+    @@index([language_id])
 }
 
 model offices {
-  id               Int                @id @default(autoincrement())
-  name             String             @db.VarChar(255)
-  location         String             @db.VarChar(255)
-  created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime           @updatedAt
-  deleted_at        DateTime           @db.DateTime()
-  user_information user_information[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    location         String             @db.VarChar(255)
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
 
-  @@index([name])
+    @@index([name])
 }
 
 model languages {
-  id               Int                @id @default(autoincrement())
-  name             String             @db.VarChar(255)
-  created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime           @updatedAt
-  deleted_at        DateTime           @db.DateTime()
-  user_information user_information[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
 
-  @@index([name])
+    @@index([name])
 }
 
 model user_skills {
-  id                BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  skill_id          Int
-  skill             skills   @relation(fields: [skill_id], references: [id])
-  user_id           BigInt
-  user              users    @relation(fields: [user_id], references: [id])
-  experience        Int
-  months_experience Int
-  is_main           Boolean  @default(false)
-  created_at        DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime @updatedAt
-  deleted_at        DateTime @db.DateTime()
+    id                Int       @id @default(autoincrement()) @db.UnsignedInt
+    skill_id          Int
+    skill             skills    @relation(fields: [skill_id], references: [id])
+    user_id           Int
+    user              users     @relation(fields: [user_id], references: [id])
+    experience        Int
+    months_experience Int
+    is_main           Boolean   @default(false)
+    created_at        DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime  @updatedAt
+    deleted_at        DateTime? @db.DateTime(6)
 
-  @@index([user_id])
-  @@index([skill_id])
+    @@index([user_id])
+    @@index([skill_id])
 }
 
 model user_social_insurances {
-  id                    BigInt   @id @default(autoincrement()) @db.UnsignedBigInt
-  user_id               BigInt
-  user                  users    @relation(fields: [user_id], references: [id])
-  social_insurance_code String   @db.VarChar(30)
-  increase_status       Boolean  @default(false)
-  increase_date         DateTime @db.Date
-  decrease_status       Boolean  @default(false)
-  decrease_date         DateTime @db.Date
-  is_recall             Boolean  @default(false)
-  recall_start          DateTime @db.Date
-  recall_end            DateTime @db.Date
-  created_at            DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at            DateTime @updatedAt
-  deleted_at            DateTime @db.DateTime()
+    id                    Int       @id @default(autoincrement()) @db.UnsignedInt
+    user_id               Int
+    user                  users     @relation(fields: [user_id], references: [id])
+    social_insurance_code String    @db.VarChar(30)
+    increase_status       Boolean   @default(false)
+    increase_date         DateTime  @db.Date
+    decrease_status       Boolean   @default(false)
+    decrease_date         DateTime  @db.Date
+    is_recall             Boolean   @default(false)
+    recall_start          DateTime  @db.Date
+    recall_end            DateTime  @db.Date
+    created_at            DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at            DateTime  @updatedAt
+    deleted_at            DateTime? @db.DateTime(6)
 
-  @@index([user_id])
-  @@index([social_insurance_code])
-  @@index([increase_status, decrease_status])
+    @@index([user_id])
+    @@index([social_insurance_code])
+    @@index([increase_status, decrease_status])
 }
 
-//Division Module
 model activity_log {
-  id           BigInt   @id @default(autoincrement())
-  log_name     String   @db.VarChar(255)
-  description  String   @db.Text
-  subject_type String   @db.VarChar(255)
-  event        String   @db.VarChar(255)
-  subject_id   BigInt
-  causer_type  String   @db.VarChar(255)
-  causer_id    BigInt
-  properties   Json
-  batch_uuid   String   @db.Char(36)
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
+    id           Int      @id @default(autoincrement())
+    log_name     String   @db.VarChar(255)
+    description  String   @db.Text
+    subject_type String   @db.VarChar(255)
+    event        String   @db.VarChar(255)
+    subject_id   Int
+    causer_type  String   @db.VarChar(255)
+    causer_id    Int
+    properties   Json
+    batch_uuid   String   @db.Char(36)
+    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime @updatedAt
 
-  @@index([log_name])
-  @@index([event])
-  @@index([subject_type, subject_id])
-  @@index([causer_type, causer_id])
-  @@index([batch_uuid])
+    @@index([log_name])
+    @@index([event])
+    @@index([subject_type, subject_id])
+    @@index([causer_type, causer_id])
+    @@index([batch_uuid])
 }
 
 model available_employees {
-  id         BigInt   @id @default(autoincrement())
-  user_id    Int
-  start_date DateTime @db.Date
-  end_date   DateTime @db.Date
-  free       Int
-  note       String?  @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    start_date DateTime @db.Date
+    end_date   DateTime @db.Date
+    free       Int
+    note       String?  @db.VarChar(255)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([start_date, end_date])
+    @@index([user_id])
+    @@index([start_date, end_date])
 }
 
 model average_costs {
-  id                        BigInt   @id @default(autoincrement())
-  division_id               Int
-  name                      String   @db.VarChar(255)
-  division_cost_category_id Int
-  cost                      Float    @db.Double
-  year                      Int
-  created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at                DateTime @updatedAt
+    id                        Int      @id @default(autoincrement())
+    division_id               Int
+    name                      String   @db.VarChar(255)
+    division_cost_category_id Int
+    cost                      Float    @db.Double
+    year                      Int
+    created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at                DateTime @updatedAt
 
-  @@index([division_id])
-  @@index([division_cost_category_id])
-  @@index([year])
+    @@index([division_id])
+    @@index([division_cost_category_id])
+    @@index([year])
 }
 
 model backoffice_unit_prices {
-  id               BigInt   @id @default(autoincrement())
-  contract_type_id Int
-  year             Int
-  price            Float    @db.Double
-  created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at       DateTime @updatedAt
+    id               Int      @id @default(autoincrement())
+    contract_type_id Int
+    year             Int
+    price            Float    @db.Double
+    created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime @updatedAt
 
-  @@index([contract_type_id])
-  @@index([year])
+    @@index([contract_type_id])
+    @@index([year])
 }
 
 model break_even_point {
-  id                 BigInt   @id @default(autoincrement())
-  month              String   @db.VarChar(255)
-  division_id        String   @db.VarChar(255)
-  mm_fulltime        Int
-  mm_parttime        Int
-  parttime_salary    Int
-  overtime_salary    Int
-  partner_cost       Int
-  team_building_cost Int
-  other_cost         Int
-  device_cost        Int
-  software_cost      Int
-  created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime @updatedAt
+    id                 Int      @id @default(autoincrement())
+    month              String   @db.VarChar(255)
+    division_id        String   @db.VarChar(255)
+    mm_fulltime        Int
+    mm_parttime        Int
+    parttime_salary    Int
+    overtime_salary    Int
+    partner_cost       Int
+    team_building_cost Int
+    other_cost         Int
+    device_cost        Int
+    software_cost      Int
+    created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime @updatedAt
 
-  @@index([division_id])
-  @@index([month])
+    @@index([division_id])
+    @@index([month])
 }
 
 model comments {
-  id               BigInt   @id @default(autoincrement())
-  user_id          BigInt
-  comment          String   @db.Text
-  commentable_type String   @db.VarChar(255)
-  commentable_id   BigInt
-  created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at       DateTime @updatedAt
+    id               Int      @id @default(autoincrement())
+    user_id          Int
+    comment          String   @db.Text
+    commentable_type String   @db.VarChar(255)
+    commentable_id   Int
+    created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([commentable_type, commentable_id])
+    @@index([user_id])
+    @@index([commentable_type, commentable_id])
 }
 
 model division_cost_categories {
-  id         BigInt   @id @default(autoincrement())
-  name       String   @db.VarChar(255)
-  parent_id  Int?
-  is_edit    Boolean  @default(false)
-  code       String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime @db.DateTime()
+    id         Int       @id @default(autoincrement())
+    name       String    @db.VarChar(255)
+    parent_id  Int?
+    is_edit    Boolean   @default(false)
+    code       String    @db.VarChar(255)
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime(6)
 
-  @@index([parent_id])
-  @@index([code])
-  @@index([name])
+    @@index([parent_id])
+    @@index([code])
+    @@index([name])
 }
 
 model division_monthly_costs {
-  id                        BigInt   @id @default(autoincrement())
-  division_id               Int
-  month                     String   @db.VarChar(255)
-  division_cost_category_id Int
-  cost                      Float    @db.Double
-  created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at                DateTime @updatedAt
+    id                        Int      @id @default(autoincrement())
+    division_id               Int
+    month                     String   @db.VarChar(255)
+    division_cost_category_id Int
+    cost                      Float    @db.Double
+    created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at                DateTime @updatedAt
 
-  @@index([division_id])
-  @@index([division_cost_category_id])
-  @@index([month])
+    @@index([division_id])
+    @@index([division_cost_category_id])
+    @@index([month])
 }
 
 model evaluation_histories {
-  id         BigInt   @id @default(autoincrement())
-  user_id    Int
-  date       DateTime @db.Date
-  point      Float    @db.Double
-  level_id   Int
-  note       String?  @db.MediumText
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    date       DateTime @db.Date
+    point      Float    @db.Double
+    level_id   Int
+    note       String?  @db.MediumText
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([level_id])
-  @@index([date])
+    @@index([user_id])
+    @@index([level_id])
+    @@index([date])
 }
 
 model exchange_rates {
-  id         BigInt   @id @default(autoincrement())
-  currency   String   @db.VarChar(255)
-  month      String   @db.VarChar(255)
-  rate       Float    @db.Double
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  // @@unique([currency, month]) // bật nếu muốn 1 tỷ giá/1 tháng/1 loại tiền
+    id         Int      @id @default(autoincrement())
+    currency   String   @db.VarChar(255)
+    month      String   @db.VarChar(255)
+    rate       Float    @db.Double
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([currency])
-  @@index([month])
+    @@index([currency])
+    @@index([month])
 }
 
 model external_rental_resources {
-  id                 BigInt   @id @default(autoincrement())
-  user_id            Int
-  rental_division_id Int
-  rent_division_id   Int
-  project_id         Int
-  level_id           Int
-  start_date         DateTime @db.Date
-  end_date           DateTime @db.Date
-  payment_type       Int
-  allocation         Int
-  note               String?  @db.Text
-  created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime @updatedAt
+    id                 Int      @id @default(autoincrement())
+    user_id            Int
+    rental_division_id Int
+    rent_division_id   Int
+    project_id         Int
+    level_id           Int
+    start_date         DateTime @db.Date
+    end_date           DateTime @db.Date
+    payment_type       Int
+    allocation         Int
+    note               String?  @db.Text
+    created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([rental_division_id])
-  @@index([rent_division_id])
-  @@index([project_id])
-  @@index([level_id])
-  @@index([start_date, end_date])
+    @@index([user_id])
+    @@index([rental_division_id])
+    @@index([rent_division_id])
+    @@index([project_id])
+    @@index([level_id])
+    @@index([start_date, end_date])
 }
 
 model files {
-  id            BigInt   @id @default(autoincrement())
-  name          String   @db.VarChar(255)
-  path          String   @db.VarChar(255)
-  mime_type     String   @db.VarChar(255)
-  type          Int
-  fileable_id   BigInt
-  fileable_type String   @db.VarChar(255)
-  created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime @updatedAt
+    id            Int      @id @default(autoincrement())
+    name          String   @db.VarChar(255)
+    path          String   @db.VarChar(255)
+    mime_type     String   @db.VarChar(255)
+    type          Int
+    fileable_id   Int
+    fileable_type String   @db.VarChar(255)
+    created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime @updatedAt
 
-  @@index([fileable_type, fileable_id])
-  @@index([type])
+    @@index([fileable_type, fileable_id])
+    @@index([type])
 }
 
 model freelancer_timesheets {
-  id          BigInt   @id @default(autoincrement())
-  user_id     Int
-  report_date DateTime @db.Date
-  actual_time Float    @db.Double
-  note        String?  @db.Text // ảnh ghi “not”, hiểu là “note”
-  work_detail String?  @db.Text
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime
+    id          Int       @id @default(autoincrement())
+    user_id     Int
+    report_date DateTime  @db.Date
+    actual_time Float     @db.Double
+    note        String?   @db.Text
+    work_detail String?   @db.Text
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
+    deleted_at  DateTime? @db.DateTime()
 
-  @@index([user_id])
-  @@index([report_date])
+    @@index([user_id])
+    @@index([report_date])
 }
 
 model freelancers {
-  id              BigInt   @id @default(autoincrement())
-  user_id         Int
-  freelancer_type Int
-  position        String   @db.VarChar(255)
-  project_id      Int
-  allocation      Int
-  division_id     Int
-  start_date      DateTime @db.Date
-  end_date        DateTime @db.Date
-  status          Int
-  price           Int
-  price_type      Int
-  created_at      DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at      DateTime @updatedAt
-  deleted_at      DateTime @db.DateTime()
+    id              Int       @id @default(autoincrement())
+    user_id         Int
+    freelancer_type Int
+    position        String    @db.VarChar(255)
+    project_id      Int
+    allocation      Int
+    division_id     Int
+    start_date      DateTime  @db.Date
+    end_date        DateTime  @db.Date
+    status          Int
+    price           Int
+    price_type      Int
+    created_at      DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime  @updatedAt
+    deleted_at      DateTime? @db.DateTime(6)
 
-  @@index([user_id])
-  @@index([project_id])
-  @@index([division_id])
-  @@index([start_date, end_date])
-  @@index([status])
+    @@index([user_id])
+    @@index([project_id])
+    @@index([division_id])
+    @@index([start_date, end_date])
+    @@index([status])
 }
 
 model health_check_result_history_item {
-  id           BigInt   @id @default(autoincrement())
-  check_name   String   @db.VarChar(255)
-  check_label  String   @db.VarChar(255)
-  status       String   @db.VarChar(255)
-  notification String?  @db.Text
-  short_sum    String?  @db.VarChar(255)
-  meta         Json
-  ended_at     DateTime @db.DateTime()
-  batch        String?  @db.Char(36)
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
+    id           Int      @id @default(autoincrement())
+    check_name   String   @db.VarChar(255)
+    check_label  String   @db.VarChar(255)
+    status       String   @db.VarChar(255)
+    notification String?  @db.Text
+    short_sum    String?  @db.VarChar(255)
+    meta         Json
+    ended_at     DateTime @db.DateTime()
+    batch        String?  @db.Char(36)
+    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime @updatedAt
 
-  @@index([check_name])
-  @@index([status])
-  @@index([batch])
-  @@index([ended_at])
+    @@index([check_name])
+    @@index([status])
+    @@index([batch])
+    @@index([ended_at])
 }
 
 model idle_workforce {
-  id          BigInt   @id @default(autoincrement())
-  user_id     Int
-  division_id Int
-  team_id     Int
-  month       String   @db.VarChar(255)
-  free        Int
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    user_id     Int
+    division_id Int
+    team_id     Int
+    month       String   @db.VarChar(255)
+    free        Int
+    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([division_id])
-  @@index([team_id])
-  @@index([month])
+    @@index([user_id])
+    @@index([division_id])
+    @@index([team_id])
+    @@index([month])
 }
 
 model internal_rental_resource {
-  id             BigInt   @id @default(autoincrement())
-  user_id        Int?
-  rental_team_id Int?
-  rent_team_id   Int?
-  project_id     Int?
-  level_id       Int?
-  start_date     DateTime @db.Date
-  end_date       DateTime @db.Date
-  allocation     Int?
-  note           String?  @db.Text
-  created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime @updatedAt
+    id             Int      @id @default(autoincrement())
+    user_id        Int?
+    rental_team_id Int?
+    rent_team_id   Int?
+    project_id     Int?
+    level_id       Int?
+    start_date     DateTime @db.Date
+    end_date       DateTime @db.Date
+    allocation     Int?
+    note           String?  @db.Text
+    created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([rental_team_id])
-  @@index([rent_team_id])
-  @@index([project_id])
-  @@index([level_id])
-  @@index([start_date, end_date])
+    @@index([user_id])
+    @@index([rental_team_id])
+    @@index([rent_team_id])
+    @@index([project_id])
+    @@index([level_id])
+    @@index([start_date, end_date])
 }
 
 model invoices {
-  id                   BigInt   @id @default(autoincrement())
-  code                 String   @unique @db.VarChar(255)
-  division_id          BigInt?
-  team_id              Int?
-  project_id           BigInt?
-  billable             Float    @db.Double
-  amount               Float    @db.Double
-  money_paid           Float    @db.Double
-  currency             String   @db.VarChar(255) // ảnh ghi enum nhưng không có danh sách giá trị
-  status               String   @db.VarChar(255) // enum -> dùng String
-  deadline             DateTime @db.Date
-  expect_payment_date  String?  @db.VarChar(20)
-  actual_payment_date  DateTime @db.Date
-  link_evidence        String?  @db.VarChar(255)
-  invoice_date         DateTime @db.Date
-  note                 String?  @db.Text
-  created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at           DateTime @updatedAt
-  deleted_at           DateTime @db.DateTime()
-  received_month       String?  @db.VarChar(20)
-  execution_end_time   DateTime @db.Date
-  execution_start_time DateTime @db.Date
-  job_description      String?  @db.VarChar(255)
+    id                   Int            @id @default(autoincrement())
+    code                 String         @unique @db.VarChar(255)
+    division_id          Int?
+    division             divisions?     @relation(fields: [division_id], references: [id])
+    team_id              Int?
+    team                 teams?         @relation(fields: [team_id], references: [id])
+    project_id           Int?
+    project              projects?      @relation(fields: [project_id], references: [id])
+    billable             Float          @db.Double
+    amount               Float          @db.Double
+    money_paid           Float          @db.Double
+    currency             CurrencyType   @default(VND)
+    status               InvoiceStatus  @default(DRAFT)
+    deadline             DateTime       @db.Date
+    expect_payment_date  String?        @db.VarChar(20)
+    actual_payment_date  DateTime       @db.Date
+    link_evidence        String?        @db.VarChar(255)
+    invoice_date         DateTime       @db.Date
+    note                 String?        @db.Text
+    created_at           DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime       @updatedAt
+    deleted_at           DateTime?      @db.DateTime()
+    received_month       String?        @db.VarChar(20)
+    execution_end_time   DateTime       @db.Date
+    execution_start_time DateTime       @db.Date
+    job_description      String?        @db.VarChar(255)
+    invoice_comments     invoice_comments[]
 
-  @@index([division_id])
-  @@index([team_id])
-  @@index([project_id])
-  @@index([currency])
-  @@index([status])
-  @@index([invoice_date])
-  @@index([received_month])
+    @@index([division_id])
+    @@index([team_id])
+    @@index([project_id])
+    @@index([currency])
+    @@index([status])
+    @@index([invoice_date])
+    @@index([received_month])
 }
 
 model invoice_comments {
-  id         BigInt   @id @default(autoincrement())
-  invoice_id BigInt
-  user_id    BigInt
-  comment    String   @db.Text
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    invoice_id Int
+    invoice    invoices @relation(fields: [invoice_id], references: [id])
+    user_id    Int
+    user       users    @relation(fields: [user_id], references: [id])
+    comment    String   @db.Text
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([invoice_id])
-  @@index([user_id])
+    @@index([invoice_id])
+    @@index([user_id])
 }
 
 model man_month_divisions {
-  id          BigInt   @id @default(autoincrement())
-  type        Int
-  month       String   @db.VarChar(255)
-  division_id String   @db.VarChar(255)
-  amount      Float    @db.Double
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    type        Int
+    month       String   @db.VarChar(255)
+    division_id Int
+    division    divisions @relation(fields: [division_id], references: [id])
+    amount      Float    @db.Double
+    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime @updatedAt
 
-  @@index([division_id])
-  @@index([month])
-  @@index([type])
+    @@index([division_id])
+    @@index([month])
+    @@index([type])
 }
 
 model month_rental_costs {
-  id                   BigInt   @id @default(autoincrement())
-  rental_costable_id   Int
-  rental_costable_type String   @db.VarChar(255)
-  year                 Int
-  position_id          Int
-  level_id             Int
-  month                String   @db.VarChar(255)
-  cost                 Float    @db.Double
-  status               Int // tinyint(1) dùng như mã trạng thái
-  created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at           DateTime @updatedAt
-  // @@unique([rental_costable_id, rental_costable_type, year, month, position_id, level_id]) // nếu cần chống trùng
+    id                   Int      @id @default(autoincrement())
+    rental_costable_id   Int
+    rental_costable_type String   @db.VarChar(255)
+    year                 Int
+    position_id          Int
+    level_id             Int
+    month                String   @db.VarChar(255)
+    cost                 Float    @db.Double
+    status               Int // tinyint(1) dùng như mã trạng thái
+    created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime @updatedAt
 
-  @@index([rental_costable_id])
-  @@index([rental_costable_type])
-  @@index([year])
-  @@index([position_id])
-  @@index([level_id])
-  @@index([month])
+    @@index([rental_costable_id])
+    @@index([rental_costable_type])
+    @@index([year])
+    @@index([position_id])
+    @@index([level_id])
+    @@index([month])
 }
 
 model nominations {
-  id              BigInt   @id @default(autoincrement())
-  type            Int
-  division_id     BigInt
-  manager_id      BigInt
-  employee_id     BigInt
-  reward_date     String   @db.VarChar(255)
-  quality         Int
-  quality_note    String?  @db.Text
-  value           Int
-  value_note      String?  @db.Text
-  contribute      Int
-  contribute_note String?  @db.Text
-  attitude        Int
-  attitude_note   String?  @db.Text
-  status          String   @db.VarChar(255) // ảnh ghi enum
-  note            String?  @db.Text
-  created_at      DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at      DateTime @updatedAt
-  deleted_at      DateTime @db.DateTime()
+    id              Int               @id @default(autoincrement())
+    type            RewardType        @default(INDIVIDUAL)
+    division_id     Int
+    division        divisions         @relation(fields: [division_id], references: [id])
+    manager_id      Int
+    manager         users             @relation("NominationManager", fields: [manager_id], references: [id])
+    employee_id     Int
+    employee        users             @relation("NominationEmployee", fields: [employee_id], references: [id])
+    reward_date     String            @db.VarChar(255)
+    quality         Int
+    quality_note    String?           @db.Text
+    value           Int
+    value_note      String?           @db.Text
+    contribute      Int
+    contribute_note String?           @db.Text
+    attitude        Int
+    attitude_note   String?           @db.Text
+    status          NominationStatus  @default(PENDING)
+    note            String?           @db.Text
+    created_at      DateTime          @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime          @updatedAt
+    deleted_at      DateTime?         @db.DateTime()
 
-  @@index([division_id])
-  @@index([manager_id])
-  @@index([employee_id])
-  @@index([status])
+    @@index([division_id])
+    @@index([manager_id])
+    @@index([employee_id])
+    @@index([status])
 }
 
 model permissions_groups {
-  id         BigInt   @id @default(autoincrement())
-  name       String   @unique @db.VarChar(255)
-  order      Int
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    name       String   @unique @db.VarChar(255)
+    order      Int
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 }
 
 model permission_role {
-  id            BigInt   @id @default(autoincrement())
-  permission_id BigInt
-  role_id       BigInt
-  created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime @updatedAt
-  // @@unique([permission_id, role_id]) // gợi ý: 1 permission không lặp trong 1 role
+    id            Int      @id @default(autoincrement())
+    permission_id Int
+    role_id       Int
+    created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime @updatedAt
 
-  @@index([permission_id])
-  @@index([role_id])
+    @@index([permission_id])
+    @@index([role_id])
 }
 
 model personal_access_tokens {
-  id             BigInt   @id @default(autoincrement())
-  tokenable_type String   @db.VarChar(255)
-  tokenable_id   BigInt
-  name           String   @db.VarChar(255)
-  token          String   @unique @db.VarChar(64)
-  abilities      String?  @db.Text
-  last_used_at   DateTime @db.DateTime()
-  expires_at     DateTime @db.DateTime()
-  created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime @updatedAt
+    id             Int      @id @default(autoincrement())
+    tokenable_type String   @db.VarChar(255)
+    tokenable_id   Int
+    name           String   @db.VarChar(255)
+    token          String   @unique @db.VarChar(64)
+    abilities      String?  @db.Text
+    last_used_at   DateTime @db.DateTime()
+    expires_at     DateTime @db.DateTime()
+    created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime @updatedAt
 
-  @@index([tokenable_type, tokenable_id])
+    @@index([tokenable_type, tokenable_id])
 }
 
 model project_costs {
-  id         BigInt   @id @default(autoincrement())
-  project_id BigInt
-  cost       Float    @db.Double
-  month      String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    project_id Int
+    project    projects @relation(fields: [project_id], references: [id])
+    cost       Float    @db.Double
+    month      String   @db.VarChar(255)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([project_id])
-  @@index([month])
+    @@index([project_id])
+    @@index([month])
 }
 
 model rental_resource {
-  id             BigInt   @id @default(autoincrement())
-  user_id        Int
-  project_id     Int
-  allocation     Int
-  working_hours  Float    @db.Double
-  lease_team_id  Int
-  rent_team_id   Int
-  start_date     DateTime @db.Date
-  end_date       DateTime @db.Date
-  position_id    Int
-  level_id       Int
-  note           String?  @db.Text
-  price          Int
-  request_id     Int
-  request_status String   @db.VarChar(255)
-  payment_month  String   @db.VarChar(10)
-  created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime @updatedAt
-  deleted_at     DateTime @db.DateTime()
-  payment_value  Float    @db.Double
+    id             Int       @id @default(autoincrement())
+    user_id        Int
+    user           users     @relation(fields: [user_id], references: [id])
+    project_id     Int
+    project        projects  @relation(fields: [project_id], references: [id])
+    allocation     Int
+    working_hours  Float     @db.Double
+    lease_team_id  Int
+    lease_team     teams     @relation("LeaseTeam", fields: [lease_team_id], references: [id])
+    rent_team_id   Int
+    rent_team      teams     @relation("RentTeam", fields: [rent_team_id], references: [id])
+    start_date     DateTime  @db.Date
+    end_date       DateTime  @db.Date
+    position_id    Int
+    position       positions @relation(fields: [position_id], references: [id])
+    level_id       Int
+    level          levels    @relation(fields: [level_id], references: [id])
+    note           String?   @db.Text
+    price          Int
+    request_id     Int
+    request_status String    @db.VarChar(255)
+    payment_month  String    @db.VarChar(10)
+    created_at     DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime  @updatedAt
+    deleted_at     DateTime  @db.DateTime()
+    payment_value  Float     @db.Double
 
-  @@index([user_id])
-  @@index([project_id])
-  @@index([lease_team_id])
-  @@index([rent_team_id])
-  @@index([position_id])
-  @@index([level_id])
-  @@index([request_id])
-  @@index([payment_month])
-  @@index([start_date, end_date])
+    @@index([user_id])
+    @@index([project_id])
+    @@index([lease_team_id])
+    @@index([rent_team_id])
+    @@index([position_id])
+    @@index([level_id])
+    @@index([request_id])
+    @@index([payment_month])
+    @@index([start_date, end_date])
 }
 
 model rental_unit_prices {
-  id          BigInt   @id @default(autoincrement())
-  position_id Int
-  level_id    Int
-  year        Int
-  price       Float    @db.Double
-  experience  String   @db.VarChar(255)
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  // @@unique([position_id, level_id, year, experience]) // mở nếu muốn tránh trùng cấu hình
+    id          Int       @id @default(autoincrement())
+    position_id Int
+    position    positions @relation(fields: [position_id], references: [id])
+    level_id    Int
+    level       levels    @relation(fields: [level_id], references: [id])
+    year        Int
+    price       Float     @db.Double
+    experience  String    @db.VarChar(255)
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
 
-  @@index([position_id])
-  @@index([level_id])
-  @@index([year])
+    @@index([position_id])
+    @@index([level_id])
+    @@index([year])
 }
 
 model rewards {
-  id          BigInt   @id @default(autoincrement())
-  division_id BigInt
-  project_id  BigInt
-  reward_date String   @db.VarChar(20)
-  css         Float    @db.Double
-  total       Float    @db.Double
-  status      String   @db.VarChar(255) // enum trong ảnh -> String trong Prisma
-  reward_type Int // tinyint(1)
-  note        String?  @db.Text
-  reward_file String?  @db.VarChar(255)
-  pqa_file    String?  @db.VarChar(255)
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime
+    id          Int           @id @default(autoincrement())
+    division_id Int
+    division    divisions     @relation(fields: [division_id], references: [id])
+    project_id  Int
+    project     projects      @relation(fields: [project_id], references: [id])
+    reward_date String        @db.VarChar(20)
+    css         Float         @db.Double
+    total       Float         @db.Double
+    status      RewardStatus  @default(PENDING)
+    reward_type RewardType    @default(INDIVIDUAL)
+    note        String?       @db.Text
+    reward_file String?       @db.VarChar(255)
+    pqa_file    String?       @db.VarChar(255)
+    created_at  DateTime      @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime      @updatedAt
+    deleted_at  DateTime?     @db.DateTime()
 
-  @@index([division_id])
-  @@index([project_id])
-  @@index([status])
-  @@index([reward_type])
-  @@index([reward_date])
+    @@index([division_id])
+    @@index([project_id])
+    @@index([status])
+    @@index([reward_type])
+    @@index([reward_date])
 }
 
 model staff_coefficient {
-  id          BigInt   @id @default(autoincrement())
-  user_id     Int
-  coefficient Float    @db.Double
-  note        String?  @db.Text
-  start_month String   @db.VarChar(255)
-  end_month   String   @db.VarChar(255)
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    user_id     Int
+    user        users    @relation(fields: [user_id], references: [id])
+    coefficient Float    @db.Double
+    note        String?  @db.Text
+    start_month String   @db.VarChar(255)
+    end_month   String   @db.VarChar(255)
+    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime @updatedAt
 
-  @@index([user_id])
-  @@index([start_month])
-  @@index([end_month])
+    @@index([user_id])
+    @@index([start_month])
+    @@index([end_month])
 }
 
 model team_cost_categories {
-  id         BigInt   @id @default(autoincrement())
-  code       String   @db.VarChar(255)
-  name       String   @db.VarChar(255)
-  parent_id  Int?
-  is_edit    Boolean  @default(false)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt @db.DateTime()
-  deleted_at DateTime @db.DateTime()
+    id                 Int                  @id @default(autoincrement())
+    code               String               @db.VarChar(255)
+    name               String               @db.VarChar(255)
+    parent_id          Int?
+    parent             team_cost_categories? @relation("TeamCostCategoryParent", fields: [parent_id], references: [id])
+    children           team_cost_categories[] @relation("TeamCostCategoryParent")
+    is_edit            Boolean              @default(false)
+    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime             @updatedAt
+    deleted_at         DateTime?            @db.DateTime()
+    team_monthly_costs team_monthly_costs[]
 
-  @@index([parent_id])
-  @@index([code])
-  @@index([name])
+    @@index([parent_id])
+    @@index([code])
+    @@index([name])
 }
 
 model team_costs {
-  id         BigInt   @id @default(autoincrement())
-  team_id    Int
-  cost       Float    @db.Double
-  month      String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt @db.DateTime()
+    id         Int      @id @default(autoincrement())
+    team_id    Int
+    team       teams    @relation(fields: [team_id], references: [id])
+    cost       Float    @db.Double
+    month      String   @db.VarChar(255)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([team_id])
-  @@index([month])
+    @@index([team_id])
+    @@index([month])
 }
 
 model team_monthly_costs {
-  id                    BigInt   @id @default(autoincrement())
-  team_id               Int
-  month                 String   @db.VarChar(255)
-  team_cost_category_id Int
-  cost                  Float    @db.Double
-  created_at            DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at            DateTime @updatedAt @db.DateTime()
+    id                    Int                   @id @default(autoincrement())
+    team_id               Int
+    team                  teams                 @relation(fields: [team_id], references: [id])
+    month                 String                @db.VarChar(255)
+    team_cost_category_id Int
+    team_cost_category    team_cost_categories  @relation(fields: [team_cost_category_id], references: [id])
+    cost                  Float                 @db.Double
+    created_at            DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at            DateTime              @updatedAt
 
-  @@index([team_id])
-  @@index([team_cost_category_id])
-  @@index([month])
+    @@index([team_id])
+    @@index([team_cost_category_id])
+    @@index([month])
 }
 
-//Project Module
 model allocations {
-  id          BigInt   @id @default(autoincrement())
-  stage_id    Int
-  user_id     Int
-  start_date  DateTime @db.Date
-  end_date    DateTime @db.Date
-  man_day     Int
-  allocation  Int
-  skill_id    Int
-  coefficient Float    @db.Double
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt @db.DateTime()
-  role_id     Int
-  deleted_at  DateTime @db.DateTime()
+    id          Int       @id @default(autoincrement())
+    stage_id    Int
+    stage       stages    @relation(fields: [stage_id], references: [id])
+    user_id     Int
+    user        users     @relation(fields: [user_id], references: [id])
+    start_date  DateTime  @db.Date
+    end_date    DateTime  @db.Date
+    man_day     Int
+    allocation  Int
+    skill_id    Int
+    skill       skills    @relation(fields: [skill_id], references: [id])
+    coefficient Float     @db.Double
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
+    role_id     Int
+    role        roles     @relation(fields: [role_id], references: [id])
+    deleted_at  DateTime? @db.DateTime()
 
-  @@index([stage_id])
-  @@index([user_id])
-  @@index([skill_id])
-  @@index([role_id])
-  @@index([start_date, end_date])
+    @@index([stage_id])
+    @@index([user_id])
+    @@index([skill_id])
+    @@index([role_id])
+    @@index([start_date, end_date])
 }
 
 model customer_project {
-  id          BigInt @id @default(autoincrement())
-  customer_id BigInt
-  project_id  Int
+    id          Int       @id @default(autoincrement())
+    customer_id Int
+    customer    customers @relation(fields: [customer_id], references: [id])
+    project_id  Int
+    project     projects  @relation(fields: [project_id], references: [id])
 
-  @@index([customer_id])
-  @@index([project_id])
+    @@index([customer_id])
+    @@index([project_id])
 }
 
 model customers {
-  id            BigInt   @id @default(autoincrement())
-  hubspot_id    String?  @db.VarChar(255)
-  name          String   @db.VarChar(255)
-  original_name String?  @db.VarChar(255)
-  code          String?  @db.VarChar(255)
-  email         String?  @db.VarChar(255)
-  phone         String?  @db.VarChar(255)
-  city          String?  @db.VarChar(255)
-  domain        String?  @db.VarChar(255)
-  industry      String?  @db.VarChar(255)
-  state         String?  @db.VarChar(255)
-  address       String?  @db.LongText
-  supporter     String?  @db.VarChar(255)
-  note          String?  @db.LongText
-  created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime @updatedAt @db.DateTime()
+    id            Int          @id @default(autoincrement())
+    hubspot_id    String?      @db.VarChar(255)
+    name          String       @db.VarChar(255)
+    original_name String?      @db.VarChar(255)
+    code          String?      @db.VarChar(255)
+    email         String?      @db.VarChar(255)
+    phone         String?      @db.VarChar(255)
+    city          String?      @db.VarChar(255)
+    domain        String?      @db.VarChar(255)
+    industry      String?      @db.VarChar(255)
+    state         String?      @db.VarChar(255)
+    address       String?      @db.LongText
+    supporter     String?      @db.VarChar(255)
+    note          String?      @db.LongText
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    unit_prices      unit_prices[]
+    customer_project customer_project[]
 
-  @@index([hubspot_id])
-  @@index([code])
-  @@index([email])
-  @@index([domain])
+    @@index([hubspot_id])
+    @@index([code])
+    @@index([email])
+    @@index([domain])
 }
 
 model daily_reports {
-  id               BigInt   @id @default(autoincrement())
-  user_id          Int
-  project_id       BigInt
-  coefficient      Float    @db.Double
-  tool_type        Int // tinyint(1)
-  issue_key        String?  @db.VarChar(255)
-  title            String?  @db.MediumText
-  work_date        DateTime @db.Date
-  process_type     Int // tinyint
-  actual_time      Float    @db.Double
-  status           Int // 0: pending, 1: approved, 2: rejected
-  link_backlog     String?  @db.MediumText
-  issue_properties Json?
-  description      String?  @db.Text
-  reject_reason    String?  @db.MediumText
-  created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at       DateTime @updatedAt @db.DateTime()
+    id               Int                @id @default(autoincrement())
+    user_id          Int
+    user             users              @relation(fields: [user_id], references: [id])
+    project_id       Int
+    project          projects           @relation(fields: [project_id], references: [id])
+    coefficient      Float              @db.Double
+    tool_type        ToolType           @default(OTHER)
+    issue_key        String?            @db.VarChar(255)
+    title            String?            @db.MediumText
+    work_date        DateTime           @db.Date
+    process_type     ProcessType        @default(ANALYSIS)
+    actual_time      Float              @db.Double
+    status           DailyReportStatus? @default(PENDING)
+    link_backlog     String?            @db.MediumText
+    issue_properties Json?
+    description      String?            @db.Text
+    reject_reason    String?            @db.MediumText
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
 
-  @@index([user_id])
-  @@index([project_id])
-  @@index([work_date])
-  @@index([status])
-  @@index([issue_key])
+    @@index([user_id])
+    @@index([project_id])
+    @@index([work_date])
+    @@index([status])
+    @@index([issue_key])
 }
 
 model deliverables {
-  id             BigInt   @id @default(autoincrement())
-  stage_id       Int
-  name           String   @db.VarChar(255)
-  expected_date  DateTime @db.Date
-  status         String   @db.VarChar(255) // enum (1: open, 2: close)
-  replan_to_date DateTime @db.Date
-  actual_date    DateTime @db.Date
-  replan_by      String?  @db.VarChar(255) // enum (1: by team, 2: by customer)
-  reason         String?  @db.LongText
-  created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime @updatedAt @db.DateTime()
-  deleted_at     DateTime @db.DateTime()
+    id             Int                @id @default(autoincrement())
+    stage_id       Int
+    stage          stages             @relation(fields: [stage_id], references: [id])
+    name           String             @db.VarChar(255)
+    expected_date  DateTime           @db.Date
+    status         DeliverableStatus  @default(OPEN)
+    replan_to_date DateTime           @db.Date
+    actual_date    DateTime           @db.Date
+    replan_by      ReplanBy?
+    reason         String?            @db.LongText
+    created_at     DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime           @updatedAt
+    deleted_at     DateTime?          @db.DateTime()
 
-  @@index([stage_id])
-  @@index([status])
-  @@index([expected_date])
+    @@index([stage_id])
+    @@index([status])
+    @@index([expected_date])
+}
+
+model requirement_changes {
+    id           Int             @id @default(autoincrement())
+    title        String          @db.VarChar(255)
+    description  String?         @db.Text
+    status       String          @db.VarChar(50)
+    created_at   DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime        @updatedAt
+    file_evidence file_evidence[]
 }
 
 model file_evidence {
-  id                    BigInt   @id @default(autoincrement())
-  requirement_change_id Int
-  url                   String   @db.VarChar(255)
-  file_type             String   @db.VarChar(255) // enum (1: close CR, 2: finished CR) -> String
-  created_at            DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at            DateTime @updatedAt @db.DateTime()
-  file_name             String?  @db.VarChar(255)
+    id                    Int                 @id @default(autoincrement())
+    requirement_change_id Int
+    requirement_change    requirement_changes @relation(fields: [requirement_change_id], references: [id])
+    url                   String              @db.VarChar(255)
+    file_type             String              @db.VarChar(255) // enum (1: close CR, 2: finished CR) -> String
+    created_at            DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at            DateTime            @updatedAt
+    file_name             String?             @db.VarChar(255)
 
-  @@index([requirement_change_id])
-  @@index([file_type])
+    @@index([requirement_change_id])
+    @@index([file_type])
 }
 
 model jobs {
-  id           BigInt   @id @default(autoincrement())
-  queue        String   @db.VarChar(255)
-  payload      String   @db.LongText
-  attempts     Int
-  reserved_at  Int?
-  available_at Int?
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
+    id           Int      @id @default(autoincrement())
+    queue        String   @db.VarChar(255)
+    payload      String   @db.LongText
+    attempts     Int
+    reserved_at  Int?
+    available_at Int?
+    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime @updatedAt
 
-  @@index([queue])
-  @@index([available_at])
-  @@index([reserved_at])
+    @@index([queue])
+    @@index([available_at])
+    @@index([reserved_at])
 }
 
 model milestones {
-  id             BigInt   @id @default(autoincrement())
-  stage_id       Int
-  type           String   @db.VarChar(255) // enum: 1 analysis, 2 design, 3 development, 4 testing
-  name           String   @db.VarChar(255)
-  expected_date  DateTime @db.Date
-  status         String   @db.VarChar(255) // enum: 1 open, 2 close
-  replan_to_date DateTime @db.Date
-  actual_date    DateTime @db.Date
-  replan_by      String?  @db.VarChar(255) // enum: 1 by team, 2 by customer
-  reason         String?  @db.LongText
-  created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime @updatedAt
+    id             Int               @id @default(autoincrement())
+    stage_id       Int
+    stage          stages            @relation(fields: [stage_id], references: [id])
+    type           MilestoneType     @default(ANALYSIS)
+    name           String            @db.VarChar(255)
+    expected_date  DateTime          @db.Date
+    status         DeliverableStatus @default(OPEN)
+    replan_to_date DateTime          @db.Date
+    actual_date    DateTime          @db.Date
+    replan_by      ReplanBy?
+    reason         String?           @db.LongText
+    created_at     DateTime          @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime          @updatedAt
 
-  @@index([stage_id])
-  @@index([status])
-  @@index([type])
-  @@index([expected_date])
+    @@index([stage_id])
+    @@index([status])
+    @@index([type])
+    @@index([expected_date])
 }
 
 model password_resets {
-  id         BigInt   @id @default(autoincrement())
-  email      String   @db.VarChar(255)
-  token      String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    email      String   @db.VarChar(255)
+    token      String   @db.VarChar(255)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([email])
-  @@index([token])
+    @@index([email])
+    @@index([token])
 }
 
 model penalties {
-  id           BigInt   @id @default(autoincrement())
-  name         String   @db.VarChar(255)
-  is_deletable Boolean // tinyint(1)
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
-  deleted_at   DateTime @db.DateTime()
+    id           Int             @id @default(autoincrement())
+    name         String          @db.VarChar(255)
+    is_deletable Boolean         // tinyint(1)
+    created_at   DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime        @updatedAt
+    deleted_at   DateTime?       @db.DateTime()
+    rule_penalties rule_penalties[]
 
-  @@index([name])
+    @@index([name])
 }
 
 model pm_reports {
-  id                        BigInt   @id @default(autoincrement())
-  user_id                   Int
-  project_id                Int
-  date                      DateTime
-  week                      String
-  template_id               Int?
-  customer_feedback         Int? // 1: good, 2: warning, 3: serious
-  process_status            Int? // 1: good, 2: warning, 3: serious
-  timeliness_status         Int? // 1: good, 2: warning, 3: serious
-  quality_status            Int? // 1: good, 2: warning, 3: serious
-  cost_status               Int? // 1: good, 2: warning, 3: serious
-  cost_comment              String?
-  quality_comment           String?
-  timeliness_comment        String?
-  process_comment           String?
-  customer_feedback_comment String?
-  note                      String?
-  created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at                DateTime @updatedAt
+    id                        Int      @id @default(autoincrement())
+    user_id                   Int
+    user                      users    @relation(fields: [user_id], references: [id])
+    project_id                Int
+    project                   projects @relation(fields: [project_id], references: [id])
+    date                      DateTime
+    week                      String
+    template_id               Int?
+    customer_feedback         Int? // 1: good, 2: warning, 3: serious
+    process_status            Int? // 1: good, 2: warning, 3: serious
+    timeliness_status         Int? // 1: good, 2: warning, 3: serious
+    quality_status            Int? // 1: good, 2: warning, 3: serious
+    cost_status               Int? // 1: good, 2: warning, 3: serious
+    cost_comment              String?
+    quality_comment           String?
+    timeliness_comment        String?
+    process_comment           String?
+    customer_feedback_comment String?
+    note                      String?
+    created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at                DateTime @updatedAt
+    
+    @@index([user_id])
+    @@index([project_id])
 }
 
 model project_month_budget {
-  id         BigInt   @id @default(autoincrement())
-  project_id Int
-  year       Int
-  month      String
-  budget     Float
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime
+    id         Int       @id @default(autoincrement())
+    project_id Int
+    project    projects  @relation(fields: [project_id], references: [id])
+    year       Int
+    month      String
+    budget     Float
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
+
+    @@index([project_id])
+    @@index([deleted_at])
 }
 
 model project_role_user {
-  id                  BigInt @id @default(autoincrement())
-  project_id          Int
-  user_id             Int
-  role_id             Int
-  position_in_project Int? // 1: monitor, 2: supporter, 3: implementor
+    id                  Int      @id @default(autoincrement())
+    project_id          Int
+    user_id             Int
+    role_id             Int
+    position_in_project Int? // 1: monitor, 2: supporter, 3: implementor
+    project             projects @relation(fields: [project_id], references: [id])
+    user                users    @relation(fields: [user_id], references: [id])
+
+    @@index([project_id])
+    @@index([user_id])
 }
 
 model project_year_budget {
-  id         BigInt   @id @default(autoincrement())
-  project_id Int
-  year       Int
-  budget     Float
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int       @id @default(autoincrement())
+    project_id Int
+    year       Int
+    budget     Float
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
+
+    @@index([project_id])
+    @@index([deleted_at])
 }
 
 model projects {
-  id                   BigInt   @id @default(autoincrement())
-  name                 String
-  code                 String
-  status               Int // 1=OPEN,2=IN_PROGRESS,3=PENDING,4=CANCELED,5=GUARANTEE,6=CLOSED
-  backlog_project_id   Int?
-  division_id          Int?
-  team_id              Int?
-  contract_type        Int? // 1: labo, 2: fixed price
-  project_type         Int? // 1: by customer, 2: in-house, 3: start up, 4: in-house
-  billable             Float?
-  budget               Float?
-  rank                 Int?
-  customer_type        Int? // 1: Công ty SI, 2: End user
-  industry             Int?
-  language             String?
-  scope                String?
-  number_process_apply Int?
-  legal                Int? // 1: Amela JP, 2: Amela VN
-  communication        String?
-  description          String?
-  contract_information String?
-  critical             String?
-  note                 String?
-  teams_webhook_url    String?
-  start_date           DateTime
-  end_date             DateTime
-  created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at           DateTime @updatedAt
-  deleted_at           DateTime
+    id                    Int                     @id @default(autoincrement())
+    name                  String
+    code                  String
+    status                ProjectStatus           @default(OPEN)
+    backlog_project_id    Int?
+    backlog_project       projects?               @relation("ProjectBacklog", fields: [backlog_project_id], references: [id])
+    backlog_projects      projects[]              @relation("ProjectBacklog")
+    division_id           Int?
+    division              divisions?              @relation(fields: [division_id], references: [id])
+    team_id               Int?
+    team                  teams?                  @relation(fields: [team_id], references: [id])
+    contract_type         ContractType?
+    project_type          ProjectType?
+    billable              Float?
+    budget                Float?
+    rank                  Int?
+    customer_type         CustomerType?
+    industry              Int?
+    language              String?
+    scope                 String?
+    number_process_apply  Int?
+    legal                 Legal?
+    communication         String?
+    description           String?
+    contract_information  String?
+    critical              String?
+    note                  String?
+    teams_webhook_url     String?
+    start_date            DateTime
+    end_date              DateTime
+    created_at            DateTime                @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at            DateTime                @updatedAt
+    deleted_at            DateTime?               @db.DateTime()
+    working_times         working_times[]
+    project_role_user     project_role_user[]
+    project_month_budget  project_month_budget[]
+    resource_rental_costs resource_rental_costs[]
+    violation_reports     violation_reports[]
+    invoices              invoices[]
+    daily_reports         daily_reports[]
+    stages                stages[]
+    rental_resource       rental_resource[]
+    rewards               rewards[]
+    tasks                 tasks[]
+    task_backlogs         tasks[]               @relation("TaskBacklog")
+    project_costs         project_costs[]
+    customer_project      customer_project[]
+    pm_reports            pm_reports[]
+    
+    @@index([deleted_at])
+    @@index([division_id])
+    @@index([team_id])
+    @@index([backlog_project_id])
 }
 
 model resource_rental_costs {
-  id          BigInt   @id @default(autoincrement())
-  project_id  Int
-  division_id Int
-  year        Int
-  note        String?
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int       @id @default(autoincrement())
+    project_id  Int
+    project     projects  @relation(fields: [project_id], references: [id])
+    division_id Int
+    year        Int
+    note        String?
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
+    deleted_at  DateTime? @db.DateTime()
+
+    @@index([project_id])
+    @@index([division_id])
+    @@index([deleted_at])
 }
 
 model rule_penalties {
-  id         BigInt @id @default(autoincrement())
-  rule_id    Int
-  penalty_id Int
-  number     Int
+    id         Int                         @id @default(autoincrement())
+    rule_id    Int
+    rule       rules                       @relation(fields: [rule_id], references: [id])
+    penalty_id Int
+    penalty    penalties                   @relation(fields: [penalty_id], references: [id])
+    number     Int
+    violation_report_penalties violation_report_penalties[]
+    
+    @@index([rule_id])
+    @@index([penalty_id])
+}
+
+model rules {
+    id         Int @id @default(autoincrement())
+    name       String
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
+    deleted_at DateTime? @db.DateTime()
+    rule_penalties rule_penalties[]
+    violation_reports violation_reports[]
 }
 
 model stages {
-  id                BigInt   @id @default(autoincrement())
-  project_id        Int
-  type              Int // 1:sprint,2:labo,3:solution,4:construction,5:transition,6:guarantee
-  version           String
-  status            Int // 1:open, 2:in progress, 3:close
-  billable          Decimal?
-  budget            Decimal?
-  start_date        DateTime
-  end_date          DateTime
-  replan_start_date DateTime
-  replan_end_date   DateTime
-  replan_by         Int? // 1:by team, 2:by customer
-  reason            String?
-  description       String?
-  created_at        DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime @updatedAt
-  deleted_at        DateTime
+    id                Int            @id @default(autoincrement())
+    project_id        Int
+    project           projects       @relation(fields: [project_id], references: [id])
+    type              StageType      @default(SPRINT)
+    version           String
+    status            StageStatus    @default(OPEN)
+    billable          Decimal?
+    budget            Decimal?
+    start_date        DateTime
+    end_date          DateTime
+    replan_start_date DateTime
+    replan_end_date   DateTime
+    replan_by         ReplanBy?
+    reason            String?
+    description       String?
+    created_at        DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime       @updatedAt
+    deleted_at        DateTime?      @db.DateTime()
+    deliverables      deliverables[]
+    milestones        milestones[]
+    allocations       allocations[]
+
+    @@index([project_id])
+    @@index([deleted_at])
 }
 
 model tasks {
-  id                 BigInt   @id @default(autoincrement())
-  project_id         Int
-  backlog_project_id Int
-  issue_id           Int
-  user_id            Int
-  title              String
-  issue_type         String
-  status             String
-  start_date         DateTime
-  due_date           DateTime
-  estimate_hours     Int?
-  actual_hours       Int?
-  billable           Int?
-  created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime @updatedAt
+    id                 Int      @id @default(autoincrement())
+    project_id         Int
+    project            projects @relation(fields: [project_id], references: [id])
+    backlog_project_id Int
+    backlog_project    projects @relation("TaskBacklog", fields: [backlog_project_id], references: [id])
+    issue_id           Int
+    user_id            Int
+    user               users    @relation(fields: [user_id], references: [id])
+    title              String
+    issue_type         String
+    status             String
+    start_date         DateTime
+    due_date           DateTime
+    estimate_hours     Int?
+    actual_hours       Int?
+    billable           Int?
+    created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime @updatedAt
+
+    @@index([project_id])
+    @@index([backlog_project_id])
+    @@index([issue_id])
+    @@index([user_id])
 }
 
 model technologies {
-  id                  BigInt   @id @default(autoincrement())
-  programing_language String?  @db.VarChar(255)
-  framework           String?  @db.VarChar(255)
-  created_at          DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at          DateTime @updatedAt
+    id                  Int      @id @default(autoincrement())
+    programing_language String?  @db.VarChar(255)
+    framework           String?  @db.VarChar(255)
+    created_at          DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at          DateTime @updatedAt
 }
 
 model unit_prices {
-  id            BigInt   @id @default(autoincrement())
-  customer_id   BigInt
-  division_id   Int
-  price         Float
-  currency_unit Boolean
-  start_date    DateTime @db.Date
-  end_date      DateTime @db.Date
-  created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime @updatedAt
+    id            Int       @id @default(autoincrement())
+    customer_id   Int
+    customer      customers @relation(fields: [customer_id], references: [id])
+    division_id   Int
+    division      divisions @relation(fields: [division_id], references: [id])
+    price         Float
+    currency_unit Boolean
+    start_date    DateTime  @db.Date
+    end_date      DateTime  @db.Date
+    created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime  @updatedAt
+
+    @@index([customer_id])
+    @@index([division_id])
 }
 
 model users {
-  id                     BigInt                   @id @default(autoincrement())
-  name                   String?                  @db.VarChar(255)
-  email                  String                   @unique @db.VarChar(255)
-  email_verified_at      DateTime                 @db.DateTime()
-  password               String?                  @db.VarChar(255)
-  remember_token         String?                  @db.VarChar(100)
-  created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at             DateTime                 @updatedAt
-  children               children[]
-  completed_project      completed_project[]
-  education              education[]
-  experience             experience[]
-  identifications        identifications[]
-  user_certificates      user_certificates[]
-  user_group_role        user_group_role[]
-  user_information       user_information[]
-  user_skills            user_skills[]
-  user_social_insurances user_social_insurances[]
-  rotation_members       rotation_members[]
-  over_times_history     over_times_history[]
-  user_group             user_group[]
-  user_division          user_division[]
+    id                     Int                      @id @default(autoincrement())
+    name                   String?                  @db.VarChar(255)
+    email                  String                   @unique @db.VarChar(255)
+    email_verified_at      DateTime                 @db.DateTime()
+    password               String?                  @db.VarChar(255)
+    remember_token         String?                  @db.VarChar(100)
+    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at             DateTime                 @updatedAt
+    deleted_at             DateTime?                @db.DateTime()
+    children               children[]
+    completed_project      completed_project[]
+    education              education[]
+    experience             experience[]
+    identifications        identifications[]
+    user_certificates      user_certificates[]
+    user_group_role        user_group_role[]
+    user_information       user_information[]
+    user_skills            user_skills[]
+    user_social_insurances user_social_insurances[]
+    rotation_members       rotation_members[]
+    over_times_history     over_times_history[]
+    user_group             user_group[]
+    user_division          user_division[]
+    attendance_logs        attendance_logs[]
+    attendance_sessions    attendance_sessions[]
+    day_offs               day_offs[]               @relation("user")
+    users_unpaid_leave     users_unpaid_leave[]
+    approved_by_user       day_offs[]               @relation("approved_by_user")
+    working_times          working_times[]
+    project_role_user      project_role_user[]
+    time_sheets            time_sheets[]
+    user_course            user_course[]
+    contracts              contracts[]
+    work_times             work_times[]
+    creator                violation_reports[]      @relation("creator")
+    handler                violation_reports[]      @relation("handler")
+    violator               violation_reports[]      @relation("violator")
+    daily_reports          daily_reports[]
+    invoice_comments       invoice_comments[]
+    nomination_manager     nominations[]            @relation("NominationManager")
+    nomination_employee    nominations[]            @relation("NominationEmployee")
+    rental_resource        rental_resource[]
+    tasks                  tasks[]
+    staff_coefficient      staff_coefficient[]
+    allocations            allocations[]
+    pm_reports             pm_reports[]
 }
 
 model users_unpaid_leave {
-  id         BigInt   @id @default(autoincrement())
-  user_id    Int
-  start_date DateTime @db.Date
-  end_date   DateTime @db.Date
-  reason     String?  @db.VarChar(1000)
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    user       users    @relation(fields: [user_id], references: [id])
+    start_date DateTime @db.Date
+    end_date   DateTime @db.Date
+    reason     String?  @db.VarChar(1000)
 }
 
 model violation_report_penalties {
-  id                  BigInt @id @default(autoincrement())
-  penalty_id          Int
-  violation_report_id Int
+    id                  Int @id @default(autoincrement())
+    penalty_id          Int
+    penalty             rule_penalties     @relation(fields: [penalty_id], references: [id])
+    violation_report_id Int
+    violation_report    violation_reports @relation(fields: [violation_report_id], references: [id])
 }
 
 model violation_reports {
-  id                 BigInt   @id @default(autoincrement())
-  title              String?  @db.VarChar(255)
-  creator_id         Int
-  handler_id         Int
-  rule_id            Int
-  violator_id        Int
-  project_id         Int
-  team_id            Int
-  status             Int
-  violation_date     DateTime @db.Date
-  violation_content  String?  @db.LongText
-  processing_content String?  @db.LongText
-  evidence_url       String?  @db.VarChar(255)
-  evidence_file_name String?  @db.VarChar(255)
-  result_url         String?  @db.VarChar(255)
-  result_file_name   String?  @db.VarChar(255)
-  result             String?  @db.VarChar(255)
-  created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime @updatedAt
-  deleted_at         DateTime
+    id                 Int       @id @default(autoincrement())
+    title              String?   @db.VarChar(255)
+    creator_id         Int
+    creator            users     @relation("creator", fields: [creator_id], references: [id])
+    handler_id         Int
+    handler            users     @relation("handler", fields: [handler_id], references: [id])
+    rule_id            Int
+    rule               rules     @relation(fields: [rule_id], references: [id])
+    violator_id        Int
+    violator           users     @relation("violator", fields: [violator_id], references: [id])
+    project_id         Int
+    project            projects  @relation(fields: [project_id], references: [id])
+    violation_report_penalties violation_report_penalties[]
+    team_id            Int
+    team               teams     @relation(fields: [team_id], references: [id])
+    status             ViolationReportStatus? @default(PENDING)
+    violation_date     DateTime  @db.Date
+    violation_content  String?   @db.LongText
+    processing_content String?   @db.LongText
+    evidence_url       String?   @db.VarChar(255)
+    evidence_file_name String?   @db.VarChar(255)
+    result_url         String?   @db.VarChar(255)
+    result_file_name   String?   @db.VarChar(255)
+    result             String?   @db.VarChar(255)
+    created_at         DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime  @updatedAt
+    deleted_at         DateTime? @db.DateTime()
 }
 
 model working_times {
-  id         BigInt   @id @default(autoincrement())
-  user_id    Int
-  project_id Int
-  date       DateTime @db.Date
-  time_in    DateTime @db.DateTime()
-  time_out   DateTime @db.DateTime()
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    user_id    Int
+    user       users    @relation(fields: [user_id], references: [id])
+    project_id Int
+    project    projects @relation(fields: [project_id], references: [id])
+    date       DateTime @db.Date
+    time_in    DateTime @db.DateTime()
+    time_out   DateTime @db.DateTime()
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
+
+    @@index([user_id])
+    @@index([project_id])
+    @@index([date])
 }
 
 model workspaces {
-  id         BigInt   @id @default(autoincrement())
-  name       String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    name       String   @db.VarChar(255)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 }
 
 model workspaces_users {
-  id           BigInt   @id @default(autoincrement())
-  user_id      Int
-  workspace_id Int
-  role         Int
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
+    id           Int      @id @default(autoincrement())
+    user_id      Int
+    workspace_id Int
+    role         Int
+    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime @updatedAt
 }
 
-// HR Module
-
-/// quy định khung thời gian đi muộn và các mốc xử phạt
 model block_times {
-  id                   BigInt   @id @default(autoincrement())
-  block                Int
-  minutes              Int
-  money                Float    @db.Double
-  time_late_early      Int
-  next_time_late_early Int
-  created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at           DateTime @updatedAt
-  deleted_at           DateTime
+    id                   Int       @id @default(autoincrement())
+    block                Int
+    minutes              Int
+    money                Float     @db.Double
+    time_late_early      Int
+    next_time_late_early Int
+    created_at           DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime  @updatedAt
+    deleted_at           DateTime? @db.DateTime()
 
-  @@index([block])
+    @@index([block])
 }
 
-/// lưu ngày làm việc cuối cùng
 model checkouts {
-  id            Int      @id @default(autoincrement())
-  user_id       BigInt
-  checkout_date DateTime @db.Date
-  status        Int
-  request_id    BigInt?
+    id            Int      @id @default(autoincrement())
+    user_id       Int
+    checkout_date DateTime @db.Date
+    status        Int
+    request_id    Int?
 
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
 
-  @@index([user_id])
-  @@index([request_id])
+    @@index([user_id])
+    @@index([request_id])
 }
 
-/// danh sách các loại hợp đồng
 model contract_categories {
-  id         BigInt   @id @default(autoincrement())
-  duration   Int?
-  name       String   @db.VarChar(255)
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime
+    id         Int       @id @default(autoincrement())
+    duration   Int?
+    name       String    @db.VarChar(255)
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
 }
 
-/// danh sách hợp đồng của nhân sự trong mỗi khoảng thời gian
 model contracts {
-  id                BigInt   @id @default(autoincrement())
-  user_id           BigInt
-  code              String   @db.VarChar(255)
-  contract_category Int
-  status            Boolean
-  type              Boolean
-  start_date        DateTime @db.Date
-  end_date          DateTime @db.Date
-  author_id         BigInt?
-  editor_id         BigInt?
-  created_at        DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime @updatedAt
-  deleted_at        DateTime
+    id                Int          @id @default(autoincrement())
+    user_id           Int
+    user              users        @relation(fields: [user_id], references: [id])
+    code              String       @db.VarChar(255)
+    contract_category Int
+    status            ContractStatus? @default(ACTIVE) // 0: active, 1: inactive
+    type              Boolean
+    start_date        DateTime     @db.Date
+    end_date          DateTime     @db.Date
+    author_id         Int?
+    editor_id         Int?
+    created_at        DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime     @updatedAt
+    deleted_at        DateTime?    @db.DateTime()
+    work_times        work_times[]
+    day_offs          day_offs[]
 
-  @@index([user_id])
-  @@index([contract_category])
-  @@index([author_id])
-  @@index([editor_id])
+    @@index([user_id])
+    @@index([contract_category])
+    @@index([author_id])
+    @@index([editor_id])
+    @@index([deleted_at])
 }
 
-/// danh sách khoá học của công ty
 model courses {
-  id                  BigInt   @id @default(autoincrement())
-  name                String   @db.VarChar(255)
-  type                Int?
-  month_commit        Int?
-  support_cost        Int?
-  rate_commit         Int?
-  location            String?  @db.VarChar(255)
-  certificate_catalog Int?
-  certificate_id      Int?
-  description         String?  @db.LongText
-  created_at          DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at          DateTime @updatedAt
-  deleted_at          DateTime
+    id                  Int       @id @default(autoincrement())
+    name                String    @db.VarChar(255)
+    type                Int?
+    month_commit        Int?
+    support_cost        Int?
+    rate_commit         Int?
+    location            String?   @db.VarChar(255)
+    certificate_catalog Int?
+    certificate_id      Int?
+    description         String?   @db.LongText
+    created_at          DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at          DateTime  @updatedAt
+    deleted_at          DateTime? @db.DateTime()
 
-  @@index([certificate_catalog])
-  @@index([certificate_id])
+    @@index([certificate_catalog])
+    @@index([certificate_id])
 }
 
-/// Giờ phép còn lại
 model day_offs {
-  id          Int      @id @default(autoincrement())
-  user_id     Int
-  total       Int
-  status      Int      @db.TinyInt
-  type        Int
-  is_past     Int      @db.TinyInt
-  contract_id BigInt? // không sử dụng
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime
+    id               Int              @id @default(autoincrement())
+    user_id          Int
+    user             users            @relation("user", fields: [user_id], references: [id])
+    start_date       DateTime         @db.Date // Ngày bắt đầu nghỉ
+    end_date         DateTime         @db.Date // Ngày kết thúc nghỉ
+    duration         DayOffDuration   @default(FULL_DAY)
+    total            Float            // Số ngày nghỉ (0.5 cho nửa ngày, 1 cho cả ngày)
+    status           DayOffStatus     @default(PENDING)
+    type             DayOffType       @default(PAID)
+    reason           String?          @db.Text // Lý do nghỉ phép
+    note             String?          @db.Text // Ghi chú thêm
+    approved_by      Int?             // ID người duyệt
+    approved_by_user users?           @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at      DateTime?        @db.DateTime() // Thời gian duyệt
+    rejected_reason  String?          @db.Text // Lý do từ chối
+    is_past          Boolean          @default(false) // Nghỉ phép bù (đã làm trước)
+    contract_id      Int?             // không sử dụng
+    contract         contracts?       @relation(fields: [contract_id], references: [id])
+    created_at       DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime         @updatedAt
+    deleted_at       DateTime?        @db.DateTime()
 
-  @@index([user_id])
+    @@index([user_id])
+    @@index([status])
+    @@index([start_date])
+    @@index([end_date])
+    @@index([user_id, status]) // Để lọc day off theo user và trạng thái
+    @@index([user_id, start_date, end_date]) // Để tìm nghỉ phép trong khoảng thời gian
+    @@index([duration]) // Để lọc theo loại nghỉ (cả ngày/nửa ngày)
+    @@index([deleted_at]) // Để tối ưu soft delete queries
+    @@index([approved_by])
+    @@index([contract_id])
 }
 
-/// dữ liệu nhằm xác định nhân sự làm việc ở bộ phận nào trong khoảng thời gian xác định
 model divisions_assignments {
-  id          BigInt   @id @default(autoincrement())
-  division_id Int
-  user_id     Int
-  start_date  DateTime @db.Date
-  end_date    DateTime @db.Date
-  contract_id Int?
-  note        String?  @db.MediumText
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    division_id Int
+    user_id     Int
+    start_date  DateTime @db.Date
+    end_date    DateTime @db.Date
+    contract_id Int?
+    note        String?  @db.MediumText
+    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime @updatedAt
 
-  @@index([division_id])
-  @@index([user_id])
-  @@index([contract_id])
+    @@index([division_id])
+    @@index([user_id])
+    @@index([contract_id])
 }
 
-/// lưu số lượng nhân sự trong division vào mỗi cuối tháng
 model divisions_monthly_counts {
-  id           Int      @id @default(autoincrement())
-  division_id  Int
-  total_member Int
-  date         DateTime @db.Date
-  created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime @updatedAt
-  deleted_at   DateTime
+    id           Int       @id @default(autoincrement())
+    division_id  Int
+    total_member Int
+    date         DateTime  @db.Date
+    created_at   DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime  @updatedAt
+    deleted_at   DateTime? @db.DateTime()
 
-  @@index([division_id, date])
+    @@index([division_id, date])
 }
 
-/// danh sách bộ phận/phòng ban/team của công ty
 model divisions_master {
-  id                BigInt   @id @default(autoincrement())
-  name              String   @db.VarChar(255)
-  is_active_project Boolean? @db.TinyInt
-  type              Int?     @db.TinyInt
-  status            Int?     @db.TinyInt
-  level             Int?
-  address           String?  @db.VarChar(255)
-  parent_id         Int?
-  founding_at       DateTime @db.Date
-  description       String?  @db.Text
-  total_member      Int?
-  created_at        DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at        DateTime @updatedAt
-  deleted_at        DateTime
+    id                Int       @id @default(autoincrement())
+    name              String    @db.VarChar(255)
+    is_active_project Boolean?  @db.TinyInt
+    type              Int?      @db.TinyInt
+    status            Int?      @db.TinyInt
+    level             Int?
+    address           String?   @db.VarChar(255)
+    parent_id         Int?
+    founding_at       DateTime  @db.Date
+    description       String?   @db.Text
+    total_member      Int?
+    created_at        DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime  @updatedAt
+    deleted_at        DateTime? @db.DateTime()
 
-  @@index([parent_id])
-  @@index([type, status])
+    @@index([parent_id])
+    @@index([type, status])
 }
 
-/// quy định ngày nghỉ lễ
 model holidays {
-  id          BigInt   @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  type        Int
-  status      Int
-  start_date  DateTime @db.Date
-  end_date    DateTime @db.Date
-  description String?  @db.VarChar(255)
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime
+    id          Int       @id @default(autoincrement())
+    name        String    @db.VarChar(255)
+    type        HolidayType
+    status      HolidayStatus
+    start_date  DateTime  @db.Date
+    end_date    DateTime  @db.Date
+    description String?   @db.VarChar(255)
+    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime  @updatedAt
+    deleted_at  DateTime? @db.DateTime()
+
+    @@index([start_date])
+    @@index([end_date])
+    @@index([start_date, end_date]) // Để lọc holiday theo khoảng thời gian
+    @@index([status])
+    @@index([deleted_at]) // Để tối ưu soft delete queries
 }
 
 model time_sheets {
-  id                  Int      @id @default(autoincrement())
-  user_id             Int
-  checkin             DateTime
-  checkout            DateTime
-  checkin_checkout    String?
-  day_off_id          Int?
-  late_time           Int?
-  late_time_approved  Int?
-  early_time          Int?
-  is_complete         Int?
-  fines               Float?
-  group_id            BigInt?
-  deleted_at          DateTime
-  created_at          DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at          DateTime @updatedAt
-  type                Int?
-  work_time_morning   Int?
-  work_time_afternoon Int?
-  status              Int?
-  request_type        Int?
-  request_late        String?
-  request_early       String?
-  paid_leave          String?
-  unpaid_leave        String?
-  remote              Int?
+    id                  Int                   @id @default(autoincrement())
+    user_id             Int
+    user                users                 @relation(fields: [user_id], references: [id])
+    work_date           DateTime?             @db.Date // Ngày làm việc
+    checkin             DateTime?             @db.DateTime() // Thời gian check in
+    checkout            DateTime?             @db.DateTime() // Thời gian check out
+    checkin_checkout    String?
+    day_off_id          Int?
+    late_time           Int? // Phút đi muộn
+    late_time_approved  Int? // Phút đi muộn được duyệt
+    early_time          Int? // Phút về sớm
+    is_complete         Boolean?              @default(false) // Hoàn thành đủ giờ làm việc (0: chưa, 1: đủ)
+    fines               Float? // Tiền phạt
+    group_id            Int?
+    deleted_at          DateTime?             @db.DateTime()
+    created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at          DateTime              @updatedAt
+    type                TimesheetType?        @default(NORMAL) // Loại timesheet (1: normal, 2: overtime, 3: holiday)
+    work_time_morning   Int? // Phút làm việc buổi sáng
+    work_time_afternoon Int? // Phút làm việc buổi chiều
+    status              TimesheetStatus?      @default(PENDING) // Trạng thái (0: pending, 1: approved, 2: rejected)
+    request_type        TimesheetRequestType? @default(NORMAL) // Loại yêu cầu
+    request_late        String? // Lý do xin phép đi muộn
+    request_early       String? // Lý do xin phép về sớm
+    paid_leave          String? // Nghỉ phép có lương
+    unpaid_leave        String? // Nghỉ phép không lương
+    remote              RemoteType?           @default(OFFICE) // Làm việc từ xa (0: office, 1: remote, 2: hybrid)
+    total_work_time     Int? // Tổng thời gian làm việc (phút)
+    break_time          Int? // Thời gian nghỉ trưa (phút)
+    attendance_logs     attendance_logs[] // Relation với attendance_logs
+    attendance_sessions attendance_sessions[] // Relation với attendance_sessions
 
-  @@index([user_id])
-  @@index([day_off_id])
-  @@index([group_id])
+    @@unique([user_id, work_date]) // Mỗi user chỉ có 1 timesheet/ngày
+    @@index([user_id])
+    @@index([work_date])
+    @@index([user_id, work_date])
+    @@index([day_off_id])
+    @@index([group_id])
+    @@index([status])
+    @@index([type])
+    @@index([work_date, status]) // Để lọc theo ngày và trạng thái
+    @@index([user_id, status]) // Để lọc theo user và trạng thái
+    @@index([deleted_at]) // Để tối ưu soft delete queries
+}
+
+model attendance_sessions {
+    id             Int              @id @default(autoincrement())
+    user_id        Int
+    user           users            @relation(fields: [user_id], references: [id])
+    timesheet_id   Int? // Link tới time_sheets
+    timesheet      time_sheets?     @relation(fields: [timesheet_id], references: [id])
+    work_date      DateTime         @db.Date // Ngày làm việc
+    session_type   String           @default("work") @db.VarChar(20) // 'work', 'break', 'overtime'
+    checkin_time   DateTime?        @db.DateTime() // Thời gian vào
+    checkout_time  DateTime?        @db.DateTime() // Thời gian ra
+    duration       Int? // Thời lượng (phút)
+    location_type  String?          @db.VarChar(20) // 'office', 'remote', 'client_site'
+    ip_address     String?          @db.VarChar(45) // IP address
+    device_info    String?          @db.VarChar(255) // Thông tin thiết bị
+    gps_latitude   Float?           @db.Double // Tọa độ GPS
+    gps_longitude  Float?           @db.Double // Tọa độ GPS  
+    checkin_photo  String?          @db.VarChar(500) // Ảnh selfie check in
+    checkout_photo String?          @db.VarChar(500) // Ảnh selfie check out
+    note           String?          @db.Text // Ghi chú
+    is_manual      Boolean          @default(false) // Tạo thủ công bởi admin
+    approved_by    Int? // ID người duyệt (nếu cần duyệt)
+    status         TimesheetStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    created_at     DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime         @updatedAt
+    deleted_at     DateTime?        @db.DateTime()
+
+    attendance_logs attendance_logs[] // Relation với attendance_logs
+
+    @@index([user_id])
+    @@index([work_date])
+    @@index([user_id, work_date])
+    @@index([session_type])
+    @@index([checkin_time])
+    @@index([checkout_time])
+    @@index([timesheet_id])
+    @@index([status])
+    @@index([user_id, work_date, session_type]) // Để tìm session theo user, ngày và loại
+    @@index([deleted_at]) // Để tối ưu soft delete queries
+}
+
+model attendance_logs {
+    id            Int                  @id @default(autoincrement())
+    user_id       Int
+    user          users                @relation(fields: [user_id], references: [id])
+    timesheet_id  Int? // Link tới time_sheets
+    timesheet     time_sheets?         @relation(fields: [timesheet_id], references: [id])
+    session_id    Int? // Link tới attendance_sessions
+    session       attendance_sessions? @relation(fields: [session_id], references: [id])
+    action_type   String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
+    timestamp     DateTime             @db.DateTime() // Thời gian thực hiện hành động
+    work_date     DateTime             @db.Date // Ngày làm việc
+    location_type String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
+    ip_address    String?              @db.VarChar(45) // IP address
+    device_info   String?              @db.VarChar(255) // Thông tin thiết bị
+    gps_latitude  Float?               @db.Double // Tọa độ GPS
+    gps_longitude Float?               @db.Double // Tọa độ GPS  
+    photo_url     String?              @db.VarChar(500) // Ảnh selfie check in/out
+    note          String?              @db.Text // Ghi chú
+    is_manual     Boolean              @default(false) // Check in/out thủ công bởi admin
+    approved_by   Int? // ID người duyệt (nếu cần duyệt)
+    status        TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    created_at    DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime             @updatedAt
+    deleted_at    DateTime?            @db.DateTime()
+
+    @@index([user_id])
+    @@index([work_date])
+    @@index([user_id, work_date])
+    @@index([action_type])
+    @@index([timestamp])
+    @@index([timesheet_id])
+    @@index([session_id])
+    @@index([status])
+    @@index([user_id, action_type, work_date]) // Để kiểm tra checkin/checkout trong ngày
+    @@index([deleted_at]) // Để tối ưu soft delete queries
 }
 
 model time_logs {
-  id         BigInt   @id @default(autoincrement())
-  user_id    BigInt
-  time       Float?
-  date       DateTime
-  type       Int?
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime
+    id         Int            @id @default(autoincrement())
+    user_id    Int
+    time       Float?
+    date       DateTime       @db.DateTime()
+    type       time_log_type?
+    created_at DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime       @updatedAt
+    deleted_at DateTime?      @db.DateTime()
 
-  @@index([user_id])
+    @@index([user_id])
 }
 
 model team_member_resources {
-  id          BigInt   @id @default(autoincrement())
-  team_id     Int
-  user_id     Int
-  contract_id Int
-  start_date  DateTime
-  end_date    DateTime
-  note        String?
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
+    id          Int      @id @default(autoincrement())
+    team_id     Int
+    user_id     Int
+    contract_id Int
+    start_date  DateTime
+    end_date    DateTime
+    note        String?
+    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime @updatedAt
 
-  @@index([team_id])
-  @@index([user_id])
-  @@index([contract_id])
+    @@index([team_id])
+    @@index([user_id])
+    @@index([contract_id])
 }
 
 model schedule_works {
-  id                   BigInt   @id @default(autoincrement())
-  start_date           DateTime
-  end_date             DateTime
-  hour_start_morning   DateTime
-  hour_end_morning     DateTime
-  hour_start_afternoon DateTime
-  hour_end_afternoon   DateTime
-  type                 Int?
-  name                 String?
-  created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at           DateTime @updatedAt
-  deleted_at           DateTime
+    id                   Int       @id @default(autoincrement())
+    start_date           DateTime
+    end_date             DateTime
+    hour_start_morning   DateTime
+    hour_end_morning     DateTime
+    hour_start_afternoon DateTime
+    hour_end_afternoon   DateTime
+    type                 Int?
+    name                 String?
+    created_at           DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime  @updatedAt
+    deleted_at           DateTime? @db.DateTime()
 
-  @@index([start_date])
-  @@index([end_date])
+    @@index([start_date])
+    @@index([end_date])
 }
 
 model rotation_members {
-  id            BigInt    @id @default(autoincrement())
-  division_id   BigInt
-  division      divisions @relation(fields: [division_id], references: [id])
-  user_id       BigInt
-  user          users     @relation(fields: [user_id], references: [id])
-  type          Int?
-  date_rotation DateTime
-  created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at    DateTime  @updatedAt
-  deleted_at    DateTime
+    id            Int       @id @default(autoincrement())
+    division_id   Int
+    division      divisions @relation(fields: [division_id], references: [id])
+    user_id       Int
+    user          users     @relation(fields: [user_id], references: [id])
+    type          Int?
+    date_rotation DateTime
+    created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime  @updatedAt
+    deleted_at    DateTime? @db.DateTime()
 
-  @@index([division_id])
-  @@index([user_id])
+    @@index([division_id])
+    @@index([user_id])
 }
 
 model over_times_history {
-  id         BigInt   @id @default(autoincrement())
-  user_id    BigInt
-  user       users    @relation(fields: [user_id], references: [id])
-  total      Float?
-  value      Float?
-  date       DateTime
-  project_id BigInt?
-  start_time DateTime
-  end_time   DateTime
-  reason     String?
-  deleted_at DateTime
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int       @id @default(autoincrement())
+    user_id    Int
+    user       users     @relation(fields: [user_id], references: [id])
+    total      Float?
+    value      Float?
+    date       DateTime
+    project_id Int?
+    start_time DateTime
+    end_time   DateTime
+    reason     String?
+    deleted_at DateTime? @db.DateTime()
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
 
-  @@index([user_id])
-  @@index([project_id])
+    @@index([user_id])
+    @@index([project_id])
+    @@index([date])
+    @@index([user_id, date]) // Để lọc overtime theo user và ngày
+    @@index([deleted_at]) // Để tối ưu soft delete queries
 }
 
 model over_times {
-  id                 BigInt   @id @default(autoincrement())
-  type               Int?
-  start_first_shift  DateTime
-  end_first_shift    DateTime
-  first_coefficient  Float?
-  start_second_shift DateTime
-  end_second_shift   DateTime
-  second_coefficient Float?
-  start_third_shift  DateTime
-  end_third_shift    DateTime
-  third_coefficient  Float?
-  created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at         DateTime @updatedAt
-  deleted_at         DateTime
+    id                 Int       @id @default(autoincrement())
+    type               Int?
+    start_first_shift  DateTime
+    end_first_shift    DateTime
+    first_coefficient  Float?
+    start_second_shift DateTime
+    end_second_shift   DateTime
+    second_coefficient Float?
+    start_third_shift  DateTime
+    end_third_shift    DateTime
+    third_coefficient  Float?
+    created_at         DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime  @updatedAt
+    deleted_at         DateTime? @db.DateTime()
 }
 
 model user_course {
-  id              BigInt   @id @default(autoincrement())
-  course_id       Int
-  user_id         Int
-  support_cost    Int?
-  path            String?
-  type            String?
-  start_date      DateTime
-  end_date        DateTime
-  status          Int?
-  end_commit_date DateTime
-  end_commit_cost Int?
-  created_at      DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at      DateTime @updatedAt
+    id              Int      @id @default(autoincrement())
+    course_id       Int
+    user_id         Int
+    user            users     @relation(fields: [user_id], references: [id])
+    support_cost    Int?
+    path            String?
+    type            String?
+    start_date      DateTime
+    end_date        DateTime
+    status          Int?
+    end_commit_date DateTime
+    end_commit_cost Int?
+    created_at      DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime @updatedAt
 
-  @@index([course_id])
-  @@index([user_id])
+    @@index([course_id])
+    @@index([user_id])
 }
 
-/// Ngày bắt đầu làm việc (onboard)
 model work_times {
-  id         BigInt   @id @default(autoincrement())
-  userId     Int
-  startDate  DateTime
-  total      Int?
-  status     Int?
-  contractId BigInt?
-  created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime @updatedAt
-  deleted_at  DateTime
+    id         Int        @id @default(autoincrement())
+    userId     Int
+    user       users      @relation(fields: [userId], references: [id])
+    startDate  DateTime
+    total      Int?
+    status     Int?
+    contractId Int?
+    contract   contracts? @relation(fields: [contractId], references: [id])
+    created_at DateTime   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime   @updatedAt
+    deleted_at DateTime?  @db.DateTime()
 
-  @@index([userId])
-  @@index([contractId])
-  @@index([startDate])
-  @@index([status])
-  @@index([deleted_at])
+    @@index([userId])
+    @@index([contractId])
+    @@index([startDate])
+    @@index([status])
+    @@index([deleted_at])
 }
 
 model validate_request {
-  id        BigInt   @id @default(autoincrement())
-  name      String
-  api       String
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    name       String
+    api        String
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
 
-  @@index([name])
-  @@index([api])
+    @@index([name])
+    @@index([api])
 }
 
 model user_group {
-  id        Int      @id @default(autoincrement())
-  userId    BigInt
-  user      users    @relation(fields: [userId], references: [id])
-  group_id  BigInt
-  group     groups   @relation(fields: [group_id], references: [id])
-  date      DateTime
-  created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at DateTime @updatedAt
-  deleted_at DateTime
+    id         Int       @id @default(autoincrement())
+    userId     Int
+    user       users     @relation(fields: [userId], references: [id])
+    group_id   Int
+    group      groups    @relation(fields: [group_id], references: [id])
+    date       DateTime
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
 
-  @@index([userId])
-  @@index([date])
-  @@index([deleted_at])
+    @@index([userId])
+    @@index([date])
+    @@index([deleted_at])
 }
 
 model groups {
-  id         BigInt       @id @default(autoincrement())
-  name       String       @db.VarChar(255)
-  location   String       @db.VarChar(255)
-  created_at  DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at  DateTime     @updatedAt
-  deleted_at  DateTime     @db.DateTime()
-  user_group user_group[]
+    id         Int          @id @default(autoincrement())
+    name       String       @db.VarChar(255)
+    location   String       @db.VarChar(255)
+    created_at DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime     @updatedAt
+    deleted_at DateTime?    @db.DateTime()
+    user_group user_group[]
 
-  @@index([name])
-  @@index([location])
-  @@index([created_at])
-  @@index([updated_at])
-  @@index([deleted_at])
+    @@index([name])
+    @@index([location])
+    @@index([created_at])
+    @@index([updated_at])
+    @@index([deleted_at])
 }
 
 model user_division {
-  id          BigInt     @id @default(autoincrement())
-  userId      BigInt
-  user        users      @relation(fields: [userId], references: [id])
-  role_id     BigInt?
-  role        roles?     @relation(fields: [role_id], references: [id])
-  divisionId  BigInt?
-  division    divisions? @relation(fields: [divisionId], references: [id])
-  teamId      BigInt?
-  team        teams?     @relation(fields: [teamId], references: [id])
-  description String?
-  teamLeader  BigInt?
-  created_at   DateTime   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at   DateTime   @updatedAt
+    id          Int        @id @default(autoincrement())
+    userId      Int
+    user        users      @relation(fields: [userId], references: [id])
+    role_id     Int?
+    role        roles?     @relation(fields: [role_id], references: [id])
+    divisionId  Int?
+    division    divisions? @relation(fields: [divisionId], references: [id])
+    teamId      Int?
+    team        teams?     @relation(fields: [teamId], references: [id])
+    description String?
+    teamLeader  Int?
+    created_at  DateTime   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime   @updatedAt
 
-  // Indexes
-  @@index([userId])
-  @@index([role_id])
-  @@index([divisionId])
-  @@index([teamId])
-  @@index([teamLeader])
+    @@index([userId])
+    @@index([role_id])
+    @@index([divisionId])
+    @@index([teamId])
+    @@index([teamLeader])
 }
 
 model teams {
-  id            BigInt          @id @default(autoincrement())
-  name          String          @db.VarChar(255)
-  created_at     DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-  updated_at     DateTime        @updatedAt
-  deleted_at     DateTime        @db.DateTime()
-  user_division user_division[]
+    id            Int             @id @default(autoincrement())
+    name          String          @db.VarChar(255)
+    created_at    DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime        @updatedAt
+    deleted_at    DateTime?       @db.DateTime()
+    user_division user_division[]
+    violation_reports violation_reports[]
+    invoices      invoices[]
+    lease_rentals rental_resource[] @relation("LeaseTeam")
+    rent_rentals  rental_resource[] @relation("RentTeam")
+    projects      projects[]
+    team_costs    team_costs[]
+    team_monthly_costs team_monthly_costs[]
+    @@index([name])
+    @@index([created_at])
+    @@index([updated_at])
+    @@index([deleted_at])
+}
 
-  @@index([name])
-  @@index([created_at])
-  @@index([updated_at])
-  @@index([deleted_at])
+enum time_log_type {
+    //đi muộn
+    LATE
+    //về sớm
+    EARLY
+}
+
+enum CerticicateType {
+    ACHIEVEMENT
+    CERTIFICATE
+}
+
+enum TimesheetStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum TimesheetType {
+    NORMAL
+    OVERTIME
+    HOLIDAY
+}
+
+enum RemoteType {
+    OFFICE
+    REMOTE
+    HYBRID
+}
+
+enum TimesheetRequestType {
+    NORMAL
+    OVERTIME
+    HOLIDAY
+}
+
+enum DailyReportStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum ContractStatus {
+    ACTIVE
+    INACTIVE
+}
+
+enum ViolationReportStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum CurrencyType {
+    VND
+    USD
+    JPY
+    EUR
+}
+
+enum InvoiceStatus {
+    DRAFT
+    SENT
+    PAID
+    OVERDUE
+    CANCELLED
+}
+
+enum ProjectStatus {
+    OPEN
+    IN_PROGRESS
+    PENDING
+    CANCELED
+    GUARANTEE
+    CLOSED
+}
+
+enum ContractType {
+    LABO
+    FIXED_PRICE
+}
+
+enum ProjectType {
+    CUSTOMER
+    IN_HOUSE
+    START_UP
+    INTERNAL
+}
+
+enum CustomerType {
+    SI_COMPANY
+    END_USER
+}
+
+enum Legal {
+    AMELA_JP
+    AMELA_VN
+}
+
+enum StageType {
+    SPRINT
+    LABO
+    SOLUTION
+    CONSTRUCTION
+    TRANSITION
+    GUARANTEE
+}
+
+enum StageStatus {
+    OPEN
+    IN_PROGRESS
+    CLOSED
+}
+
+enum ReplanBy {
+    BY_TEAM
+    BY_CUSTOMER
+}
+
+enum DeliverableStatus {
+    OPEN
+    CLOSED
+}
+
+enum MilestoneType {
+    ANALYSIS
+    DESIGN
+    DEVELOPMENT
+    TESTING
+}
+
+enum RewardStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum RewardType {
+    INDIVIDUAL
+    TEAM
+}
+
+enum NominationStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum DayOffStatus {
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+enum DayOffType {
+    PAID
+    UNPAID
+    SICK
+    MATERNITY
+    PERSONAL
+    COMPENSATORY
+}
+
+enum DayOffDuration {
+    FULL_DAY
+    MORNING
+    AFTERNOON
+}
+
+enum ProcessType {
+    ANALYSIS
+    DESIGN
+    DEVELOPMENT
+    TESTING
+    DEPLOYMENT
+    MAINTENANCE
+}
+
+enum ToolType {
+    JIRA
+    REDMINE
+    GITHUB
+    GITLAB
+    OTHER
+}
+
+enum LocationType {
+    OFFICE
+    REMOTE
+    CLIENT_SITE
+}
+
+enum SessionType {
+    WORK
+    BREAK
+    OVERTIME
+}
+
+enum ActionType {
+    CHECKIN
+    CHECKOUT
+    BREAK_START
+    BREAK_END
+}
+
+enum HolidayType {
+    NATIONAL
+    COMPANY
+}
+
+enum HolidayStatus {    
+    ACTIVE
+    INACTIVE
 }
