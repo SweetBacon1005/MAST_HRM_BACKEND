@@ -1,12 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsBoolean, IsOptional } from 'class-validator';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsInt, IsOptional } from 'class-validator';
 
 export class CreateUserSkillDto {
   @ApiProperty({ description: 'ID kỹ năng' })
   @IsInt()
   skill_id: number;
 
-  @ApiProperty({ description: 'ID người dùng' })
+  @ApiHideProperty()
+  @IsOptional()
   @IsInt()
   user_id: number;
 
