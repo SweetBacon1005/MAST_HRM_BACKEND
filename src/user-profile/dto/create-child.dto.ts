@@ -1,14 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import {
-  IsString,
-  IsDateString,
-  IsOptional,
   IsBoolean,
+  IsDateString,
   IsInt,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class CreateChildDto {
-  @ApiProperty({ description: 'ID người dùng' })
+  @ApiHideProperty()
+  @IsOptional()
   @IsInt()
   user_id: number;
 

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsArray } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class ChildrenPaginationDto extends PaginationDto {
@@ -42,16 +42,16 @@ export class EducationPaginationDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
-  school_name?: string;
+  name?: string;
 
   @ApiProperty({
-    description: 'Bằng cấp',
+    description: 'Chuyên ngành',
     example: 'Cử nhân',
     required: false,
   })
   @IsOptional()
   @IsString()
-  degree?: string;
+  major?: string;
 }
 
 export class ExperiencePaginationDto extends PaginationDto {

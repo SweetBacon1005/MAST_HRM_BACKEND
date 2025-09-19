@@ -126,7 +126,9 @@ export class UserProfileController {
   async updateChild(
     @Param('id', ParseIntPipe) childId: number,
     @Body() updateDto: UpdateChildDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    updateDto.user_id = userId;
     return await this.userProfileService.updateChild(childId, updateDto);
   }
 
@@ -137,8 +139,11 @@ export class UserProfileController {
     status: 200,
     description: 'Xóa thành công',
   })
-  async deleteChild(@Param('id', ParseIntPipe) childId: number) {
-    return await this.userProfileService.deleteChild(childId);
+  async deleteChild(
+    @Param('id', ParseIntPipe) childId: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.userProfileService.deleteChild(childId, userId);
   }
 
   // ===== QUẢN LÝ HỌC VẤN =====
@@ -192,7 +197,9 @@ export class UserProfileController {
   async updateEducation(
     @Param('id', ParseIntPipe) educationId: number,
     @Body() updateDto: UpdateEducationDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    updateDto.user_id = userId;
     return await this.userProfileService.updateEducation(
       educationId,
       updateDto,
@@ -206,8 +213,11 @@ export class UserProfileController {
     status: 200,
     description: 'Xóa thành công',
   })
-  async deleteEducation(@Param('id', ParseIntPipe) educationId: number) {
-    return await this.userProfileService.deleteEducation(educationId);
+  async deleteEducation(
+    @Param('id', ParseIntPipe) educationId: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.userProfileService.deleteEducation(educationId, userId);
   }
 
   // ===== QUẢN LÝ KINH NGHIỆM =====
@@ -261,7 +271,9 @@ export class UserProfileController {
   async updateExperience(
     @Param('id', ParseIntPipe) experienceId: number,
     @Body() updateDto: UpdateExperienceDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    updateDto.user_id = userId;
     return await this.userProfileService.updateExperience(
       experienceId,
       updateDto,
@@ -275,8 +287,11 @@ export class UserProfileController {
     status: 200,
     description: 'Xóa thành công',
   })
-  async deleteExperience(@Param('id', ParseIntPipe) experienceId: number) {
-    return await this.userProfileService.deleteExperience(experienceId);
+  async deleteExperience(
+    @Param('id', ParseIntPipe) experienceId: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.userProfileService.deleteExperience(experienceId, userId);
   }
 
   // ===== QUẢN LÝ CHỨNG CHỈ =====
@@ -330,7 +345,9 @@ export class UserProfileController {
   async updateUserCertificate(
     @Param('id', ParseIntPipe) certificateId: number,
     @Body() updateDto: UpdateUserCertificateDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    updateDto.user_id = userId;
     return await this.userProfileService.updateUserCertificate(
       certificateId,
       updateDto,
@@ -346,8 +363,9 @@ export class UserProfileController {
   })
   async deleteUserCertificate(
     @Param('id', ParseIntPipe) certificateId: number,
+    @GetCurrentUser('id') userId: number,
   ) {
-    return await this.userProfileService.deleteUserCertificate(certificateId);
+    return await this.userProfileService.deleteUserCertificate(certificateId, userId);
   }
 
   // ===== QUẢN LÝ KỸ NĂNG =====
@@ -401,7 +419,9 @@ export class UserProfileController {
   async updateUserSkill(
     @Param('id', ParseIntPipe) userSkillId: number,
     @Body() updateDto: UpdateUserSkillDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    updateDto.user_id = userId;
     return await this.userProfileService.updateUserSkill(
       userSkillId,
       updateDto,
@@ -415,8 +435,11 @@ export class UserProfileController {
     status: 200,
     description: 'Xóa thành công',
   })
-  async deleteUserSkill(@Param('id', ParseIntPipe) userSkillId: number) {
-    return await this.userProfileService.deleteUserSkill(userSkillId);
+  async deleteUserSkill(
+    @Param('id', ParseIntPipe) userSkillId: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.userProfileService.deleteUserSkill(userSkillId, userId);
   }
 
   @Get('skills/position/:positionId')
@@ -449,7 +472,9 @@ export class UserProfileController {
     status: 200,
     description: 'Danh sách vị trí có phân trang',
   })
-  async getPositionsPaginated(@Query() paginationDto: ReferencePaginationDto) {
+  async getPositionsPaginated(
+    @Query() paginationDto: ReferencePaginationDto,
+  ) {
     return await this.userProfileService.getPositionsPaginated(paginationDto);
   }
 

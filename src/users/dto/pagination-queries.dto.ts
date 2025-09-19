@@ -14,36 +14,6 @@ export class UsersPaginationDto extends PaginationDto {
   search?: string;
 
   @ApiProperty({
-    description: 'Trạng thái người dùng',
-    example: 'active',
-    required: false,
-    enum: ['active', 'inactive', 'suspended'],
-  })
-  @IsOptional()
-  @IsString()
-  status?: string;
-
-  @ApiProperty({
-    description: 'ID phòng ban',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  division_id?: number;
-
-  @ApiProperty({
-    description: 'ID team',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  team_id?: number;
-
-  @ApiProperty({
     description: 'ID vị trí công việc',
     example: 1,
     required: false,

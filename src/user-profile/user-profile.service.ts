@@ -1,28 +1,33 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
-import { UpdateUserInformationDto } from './dto/update-user-information.dto';
-import { CreateChildDto } from './dto/create-child.dto';
-import { UpdateChildDto } from './dto/update-child.dto';
-import { CreateEducationDto } from './dto/create-education.dto';
-import { UpdateEducationDto } from './dto/update-education.dto';
-import { CreateExperienceDto } from './dto/create-experience.dto';
-import { UpdateExperienceDto } from './dto/update-experience.dto';
-import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
-import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
-import { CreateUserSkillDto } from './dto/create-user-skill.dto';
-import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
+import { PrismaService } from '../database/prisma.service';
+import { CreateChildDto } from './dto/create-child.dto';
+import { CreateEducationDto } from './dto/create-education.dto';
+import { CreateExperienceDto } from './dto/create-experience.dto';
+import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
+import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
+  CertificatePaginationDto,
   ChildrenPaginationDto,
   EducationPaginationDto,
   ExperiencePaginationDto,
-  CertificatePaginationDto,
-  UserSkillPaginationDto,
   ReferencePaginationDto,
+  UserSkillPaginationDto,
 } from './dto/pagination-queries.dto';
+import { UpdateChildDto } from './dto/update-child.dto';
+import { UpdateEducationDto } from './dto/update-education.dto';
+import { UpdateExperienceDto } from './dto/update-experience.dto';
+import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
+import { UpdateUserInformationDto } from './dto/update-user-information.dto';
+import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -86,10 +91,44 @@ export class UserProfileService {
     const user = await this.prisma.users.findFirst({
       where: { id: userId, deleted_at: null },
     });
-    console.log('userId', userId);
 
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
+    const office = await this.prisma.offices.findFirst({
+      where: { id: updateDto.office_id, deleted_at: null },
+    });
+    if (!office) {
+      throw new NotFoundException('Không tìm thấy văn phòng');
+    }
+
+    const position = await this.prisma.positions.findFirst({
+      where: { id: updateDto.position_id, deleted_at: null },
+    });
+    if (!position) {
+      throw new NotFoundException('Không tìm thấy vị trí');
+    }
+
+    const role = await this.prisma.roles.findFirst({
+      where: { id: updateDto.role_id, deleted_at: null },
+    });
+    if (!role) {
+      throw new NotFoundException('Không tìm thấy vai trò');
+    }
+
+    const level = await this.prisma.levels.findFirst({
+      where: { id: updateDto.level_id, deleted_at: null },
+    });
+    if (!level) {
+      throw new NotFoundException('Không tìm thấy trình độ');
+    }
+
+    const language = await this.prisma.languages.findFirst({
+      where: { id: updateDto.language_id, deleted_at: null },
+    });
+    if (!language) {
+      throw new NotFoundException('Không tìm thấy ngôn ngữ');
     }
 
     // Kiểm tra xem user_information đã tồn tại chưa
@@ -106,6 +145,11 @@ export class UserProfileService {
           birthday: updateDto.birthday
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
+          position_id: position.id,
+          office_id: office.id,
+          role_id: role.id,
+          level_id: level.id,
+          language_id: language.id,
         },
         include: {
           position: true,
@@ -187,7 +231,7 @@ export class UserProfileService {
     paginationDto: ChildrenPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = {
+    const where: Prisma.childrenWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
@@ -196,7 +240,6 @@ export class UserProfileService {
     if (paginationDto.name) {
       where.name = {
         contains: paginationDto.name,
-        mode: 'insensitive',
       };
     }
 
@@ -228,8 +271,12 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin con');
     }
 
+    if (child.user_id !== updateDto.user_id) {
+      throw new ForbiddenException('Bạn không có quyền cập nhật thông tin con');
+    }
+
     const user = await this.prisma.users.findFirst({
-      where: { id: child.user_id, deleted_at: null },
+      where: { id: updateDto.user_id, deleted_at: null },
     });
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
@@ -249,9 +296,9 @@ export class UserProfileService {
     });
   }
 
-  async deleteChild(childId: number) {
+  async deleteChild(childId: number, userId: number) {
     const child = await this.prisma.children.findFirst({
-      where: { id: childId, deleted_at: undefined },
+      where: { id: childId, deleted_at: undefined, user_id: userId },
     });
 
     if (!child) {
@@ -292,24 +339,22 @@ export class UserProfileService {
     paginationDto: EducationPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = {
+    const where: Prisma.educationWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     // Thêm filter theo tên trường
-    if (paginationDto.school_name) {
-      where.school_name = {
-        contains: paginationDto.school_name,
-        mode: 'insensitive',
+    if (paginationDto.name) {
+      where.name = {
+        contains: paginationDto.name,
       };
     }
 
     // Thêm filter theo bằng cấp
-    if (paginationDto.degree) {
-      where.degree = {
-        contains: paginationDto.degree,
-        mode: 'insensitive',
+    if (paginationDto.major) {
+      where.major = {
+        contains: paginationDto.major,
       };
     }
 
@@ -334,11 +379,22 @@ export class UserProfileService {
 
   async updateEducation(educationId: number, updateDto: UpdateEducationDto) {
     const education = await this.prisma.education.findFirst({
-      where: { id: educationId, deleted_at: undefined },
+      where: {
+        id: educationId,
+        deleted_at: undefined,
+        user_id: updateDto.user_id,
+      },
     });
 
     if (!education) {
       throw new NotFoundException('Không tìm thấy thông tin học vấn');
+    }
+
+    const user = await this.prisma.users.findFirst({
+      where: { id: updateDto.user_id, deleted_at: null },
+    });
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
     }
 
     return await this.prisma.education.update({
@@ -355,9 +411,9 @@ export class UserProfileService {
     });
   }
 
-  async deleteEducation(educationId: number) {
+  async deleteEducation(educationId: number, userId: number) {
     const education = await this.prisma.education.findFirst({
-      where: { id: educationId, deleted_at: undefined },
+      where: { id: educationId, deleted_at: undefined, user_id: userId },
     });
 
     if (!education) {
@@ -395,7 +451,11 @@ export class UserProfileService {
 
   async updateExperience(experienceId: number, updateDto: UpdateExperienceDto) {
     const experience = await this.prisma.experience.findFirst({
-      where: { id: experienceId, deleted_at: undefined },
+      where: {
+        id: experienceId,
+        deleted_at: undefined,
+        user_id: updateDto.user_id,
+      },
     });
 
     if (!experience) {
@@ -416,9 +476,9 @@ export class UserProfileService {
     });
   }
 
-  async deleteExperience(experienceId: number) {
+  async deleteExperience(experienceId: number, userId: number) {
     const experience = await this.prisma.experience.findFirst({
-      where: { id: experienceId, deleted_at: undefined },
+      where: { id: experienceId, deleted_at: undefined, user_id: userId },
     });
 
     if (!experience) {
@@ -461,17 +521,32 @@ export class UserProfileService {
     updateDto: UpdateUserCertificateDto,
   ) {
     const certificate = await this.prisma.user_certificates.findFirst({
-      where: { id: certificateId, deleted_at: undefined },
+      where: {
+        id: certificateId,
+        deleted_at: undefined,
+        user_id: updateDto.user_id,
+      },
     });
 
     if (!certificate) {
       throw new NotFoundException('Không tìm thấy thông tin chứng chỉ');
     }
 
+    if (certificate.user_id !== updateDto.user_id) {
+      throw new ForbiddenException(
+        'Bạn không có quyền cập nhật thông tin chứng chỉ',
+      );
+    }
+
     return await this.prisma.user_certificates.update({
       where: { id: certificateId },
       data: {
         ...updateDto,
+        certificate_id: updateDto.certificate_id,
+        type: updateDto.type,
+        start_date: updateDto.start_date
+          ? new Date(updateDto.start_date).toISOString()
+          : undefined,
         issued_at: updateDto.issued_at
           ? new Date(updateDto.issued_at).toISOString()
           : undefined,
@@ -479,13 +554,19 @@ export class UserProfileService {
     });
   }
 
-  async deleteUserCertificate(certificateId: number) {
+  async deleteUserCertificate(certificateId: number, userId: number) {
     const certificate = await this.prisma.user_certificates.findFirst({
       where: { id: certificateId, deleted_at: undefined },
     });
 
     if (!certificate) {
       throw new NotFoundException('Không tìm thấy thông tin chứng chỉ');
+    }
+
+    if (certificate.user_id !== userId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền xóa thông tin chứng chỉ',
+      );
     }
 
     await this.prisma.user_certificates.update({
@@ -498,8 +579,28 @@ export class UserProfileService {
 
   // Quản lý kỹ năng
   async createUserSkill(createDto: CreateUserSkillDto) {
+    const skill = await this.prisma.skills.findFirst({
+      where: { id: createDto.skill_id, deleted_at: undefined },
+    });
+
+    if (!skill) {
+      throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
+    }
+
+    const user = await this.prisma.users.findFirst({
+      where: { id: createDto.user_id, deleted_at: undefined },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+
     return await this.prisma.user_skills.create({
-      data: createDto,
+      data: {
+        ...createDto,
+        user_id: createDto.user_id,
+        skill_id: createDto.skill_id,
+      },
       include: {
         skill: {
           include: {
@@ -536,6 +637,20 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
     }
 
+    if (userSkill.user_id !== updateDto.user_id) {
+      throw new ForbiddenException(
+        'Bạn không có quyền cập nhật thông tin kỹ năng',
+      );
+    }
+
+    const skill = await this.prisma.skills.findFirst({
+      where: { id: updateDto.skill_id, deleted_at: undefined },
+    });
+
+    if (!skill) {
+      throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
+    }
+
     return await this.prisma.user_skills.update({
       where: { id: userSkillId },
       data: {
@@ -553,13 +668,17 @@ export class UserProfileService {
     });
   }
 
-  async deleteUserSkill(userSkillId: number) {
+  async deleteUserSkill(userSkillId: number, userId: number) {
     const userSkill = await this.prisma.user_skills.findFirst({
       where: { id: userSkillId, deleted_at: undefined },
     });
 
     if (!userSkill) {
       throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
+    }
+
+    if (userSkill.user_id !== userId) {
+      throw new ForbiddenException('Bạn không có quyền xóa thông tin kỹ năng');
     }
 
     await this.prisma.user_skills.update({
@@ -706,24 +825,22 @@ export class UserProfileService {
     paginationDto: ExperiencePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = {
+    const where: Prisma.experienceWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     // Thêm filter theo tên công ty
     if (paginationDto.company_name) {
-      where.company_name = {
+      where.company = {
         contains: paginationDto.company_name,
-        mode: 'insensitive',
       };
     }
 
     // Thêm filter theo vị trí
     if (paginationDto.position) {
-      where.position = {
+      where.job_title = {
         contains: paginationDto.position,
-        mode: 'insensitive',
       };
     }
 
@@ -751,19 +868,16 @@ export class UserProfileService {
     paginationDto: CertificatePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = {
+    const where: Prisma.user_certificatesWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     // Thêm filter theo certificate_id
     if (paginationDto.certificate_id) {
-      where.certificate_id = paginationDto.certificate_id;
-    }
-
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
+      where.certificate_id = {
+        equals: paginationDto.certificate_id,
+      };
     }
 
     // Lấy dữ liệu và đếm tổng
@@ -793,25 +907,26 @@ export class UserProfileService {
     paginationDto: UserSkillPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = {
+    const where: Prisma.user_skillsWhereInput = {
       user_id: userId,
       deleted_at: null,
     };
 
     // Thêm filter theo skill_id
     if (paginationDto.skill_id) {
-      where.skill_id = paginationDto.skill_id;
+      where.skill_id = {
+        equals: paginationDto.skill_id,
+      };
     }
 
     // Thêm filter theo level range
     if (paginationDto.min_level) {
-      where.level = {
+      where.experience = {
         gte: paginationDto.min_level,
       };
     }
     if (paginationDto.max_level) {
-      where.level = {
-        ...where.level,
+      where.experience = {
         lte: paginationDto.max_level,
       };
     }
@@ -840,19 +955,13 @@ export class UserProfileService {
 
   async getPositionsPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = { deleted_at: null };
+    const where: Prisma.positionsWhereInput = { deleted_at: null };
 
     // Thêm filter theo search
     if (paginationDto.search) {
       where.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
-    }
-
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
     }
 
     // Lấy dữ liệu và đếm tổng
@@ -876,19 +985,13 @@ export class UserProfileService {
 
   async getOfficesPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = { deleted_at: null };
+    const where: Prisma.officesWhereInput = { deleted_at: null };
 
     // Thêm filter theo search
     if (paginationDto.search) {
       where.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
-    }
-
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
     }
 
     // Lấy dữ liệu và đếm tổng
@@ -912,19 +1015,13 @@ export class UserProfileService {
 
   async getRolesPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = { deleted_at: null };
+    const where: Prisma.rolesWhereInput = { deleted_at: null };
 
     // Thêm filter theo search
     if (paginationDto.search) {
       where.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
-    }
-
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
     }
 
     // Lấy dữ liệu và đếm tổng

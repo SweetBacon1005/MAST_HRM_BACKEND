@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsDateString, IsInt } from 'class-validator';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { IsDateString, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreateEducationDto {
-  @ApiProperty({ description: 'ID người dùng' })
+  @ApiHideProperty()
+  @IsOptional()
   @IsInt()
   user_id: number;
 

@@ -332,7 +332,6 @@ model user_information {
     description           String    @db.VarChar(255)
     level_id              Int
     level                 levels    @relation(fields: [level_id], references: [id])
-    special_timesheet_id  Int?
     social_insurance_code String    @db.VarChar(255)
     provider_id           String    @db.Text
     note                  String    @db.Text

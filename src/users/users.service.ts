@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
-import { buildPaginationQuery, buildPaginationResponse } from '../common/utils/pagination.util';
-import * as bcrypt from 'bcryptjs';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -74,31 +77,18 @@ export class UsersService {
         {
           name: {
             contains: paginationDto.search,
-            mode: 'insensitive',
           },
         },
         {
           email: {
             contains: paginationDto.search,
-            mode: 'insensitive',
           },
         },
       ];
     }
 
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
-    }
-
     // Thêm filter theo user_information
     const userInfoFilters: any = {};
-    if (paginationDto.division_id) {
-      userInfoFilters.division_id = paginationDto.division_id;
-    }
-    if (paginationDto.team_id) {
-      userInfoFilters.team_id = paginationDto.team_id;
-    }
     if (paginationDto.position_id) {
       userInfoFilters.position_id = paginationDto.position_id;
     }
@@ -147,7 +137,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.users.count({ where })
+      this.prisma.users.count({ where }),
     ]);
 
     // Transform data giống như findAll
@@ -158,7 +148,12 @@ export class UsersService {
       user_information: undefined,
     }));
 
-    return buildPaginationResponse(transformedData, total, paginationDto.page || 1, paginationDto.limit || 10);
+    return buildPaginationResponse(
+      transformedData,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async findById(id: number) {
@@ -202,6 +197,10 @@ export class UsersService {
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     const user = await this.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
 
     const updatedUser = await this.prisma.users.update({
       where: { id: id },
