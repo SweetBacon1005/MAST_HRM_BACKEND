@@ -16,10 +16,15 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { DayOffStatus } from '@prisma/client';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  DateRangeValidationPipe,
+  DateValidationPipe,
+  WorkDateValidationPipe,
+} from '../common/pipes/date-validation.pipe';
 import {
   AttendanceLogQueryDto,
   CreateAttendanceLogDto,
@@ -30,6 +35,11 @@ import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
+import {
+  BulkLockTimesheetsDto,
+  DateRangeQueryDto,
+  SingleDateQueryDto,
+} from './dto/date-validation.dto';
 import { GetScheduleDto } from './dto/get-schedule.dto';
 import {
   AttendanceLogPaginationDto,
@@ -42,6 +52,8 @@ import {
   TimesheetReportDto,
   WorkingTimeReportDto,
 } from './dto/timesheet-report.dto';
+import { UpdateDayOffStatusDto } from './dto/update-day-off-status.dto';
+import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { TimesheetService } from './timesheet.service';
 
@@ -70,10 +82,13 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   findMyTimesheets(
     @GetCurrentUser('id') userId: number,
-    @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string,
+    @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
   ) {
-    return this.timesheetService.findAllTimesheets(userId, startDate, endDate);
+    return this.timesheetService.findAllTimesheets(
+      userId,
+      dateRange.start_date,
+      dateRange.end_date,
+    );
   }
 
   @Get('my-timesheets/paginated')
@@ -152,7 +167,11 @@ export class TimesheetController {
   @Post('day-off-requests')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
   @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
-  createDayOffRequest(@Body() createDayOffRequestDto: CreateDayOffRequestDto) {
+  createDayOffRequest(
+    @Body() createDayOffRequestDto: CreateDayOffRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    createDayOffRequestDto.user_id = userId;
     return this.timesheetService.createDayOffRequest(createDayOffRequestDto);
   }
 
@@ -179,21 +198,23 @@ export class TimesheetController {
   }
 
   @Patch('day-off-requests/:id/status')
-  @ApiOperation({ summary: 'Cập nhật trạng thái đơn nghỉ phép' })
+  @ApiOperation({
+    summary: 'Cập nhật trạng thái đơn nghỉ phép (Duyệt/Từ chối)',
+  })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy đơn nghỉ phép' })
   @Roles('manager', 'admin')
   updateDayOffRequestStatus(
     @Param('id', ParseIntPipe) id: number,
-    @Body('status') status: DayOffStatus,
+    @Body() updateStatusDto: UpdateDayOffStatusDto,
     @GetCurrentUser('id') approverId: number,
-    @Body('rejected_reason') rejectedReason?: string,
   ) {
     return this.timesheetService.updateDayOffRequestStatus(
       id,
-      status,
+      updateStatusDto.status,
       approverId,
-      rejectedReason,
+      updateStatusDto.rejected_reason,
     );
   }
 
@@ -202,7 +223,7 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy thông tin thành công' })
   getDayOffInfo(
     @GetCurrentUser('id') userId: number,
-    @Param('date') date: string,
+    @Param('date', DateValidationPipe) date: string,
   ) {
     return this.timesheetService.getDayOffInfo(userId, date);
   }
@@ -214,7 +235,9 @@ export class TimesheetController {
   @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
   createOvertimeRequest(
     @Body() createOvertimeRequestDto: CreateOvertimeRequestDto,
+    @GetCurrentUser('id') userId: number,
   ) {
+    createOvertimeRequestDto.user_id = userId;
     return this.timesheetService.createOvertimeRequest(
       createOvertimeRequestDto,
     );
@@ -276,9 +299,10 @@ export class TimesheetController {
   }
 
   @Get('holidays')
-  @ApiOperation({ summary: 'Lấy danh sách ngày lễ' })
+  @ApiOperation({ summary: 'Lấy danh sách ngày lễ theo năm' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findAllHolidays(@Query('year', ParseIntPipe) year?: number) {
+  findAllHolidays(@Param('year') year: string) {
+    console.log(year);
     return this.timesheetService.findAllHolidays(year);
   }
 
@@ -296,7 +320,7 @@ export class TimesheetController {
   @Roles('admin', 'hr')
   updateHoliday(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateHolidayDto: Partial<CreateHolidayDto>,
+    @Body() updateHolidayDto: UpdateHolidayDto,
   ) {
     return this.timesheetService.updateHoliday(id, updateHolidayDto);
   }
@@ -342,16 +366,15 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
   getAttendanceStatistics(
     @GetCurrentUser('id') currentUserId: number,
+    @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
     @Query('user_id', ParseIntPipe) userId?: number,
-    @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string,
   ) {
     // Nếu không phải admin/manager thì chỉ xem được thống kê của mình
     const targetUserId = userId || currentUserId;
     return this.timesheetService.getAttendanceStatistics(
       targetUserId,
-      startDate,
-      endDate,
+      dateRange.start_date,
+      dateRange.end_date,
     );
   }
 
@@ -360,13 +383,12 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
   getMyAttendanceStatistics(
     @GetCurrentUser('id') userId: number,
-    @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string,
+    @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
   ) {
     return this.timesheetService.getAttendanceStatistics(
       userId,
-      startDate,
-      endDate,
+      dateRange.start_date,
+      dateRange.end_date,
     );
   }
 
@@ -472,9 +494,9 @@ export class TimesheetController {
   @ApiResponse({ status: 400, description: 'Timesheet đã tồn tại' })
   createDailyTimesheet(
     @GetCurrentUser('id') userId: number,
-    @Body('work_date') workDate?: string,
+    @Body(DateRangeValidationPipe) body: SingleDateQueryDto,
   ) {
-    return this.timesheetService.createDailyTimesheet(userId, workDate);
+    return this.timesheetService.createDailyTimesheet(userId, body.date);
   }
 
   @Post('daily/bulk-create')
@@ -482,10 +504,21 @@ export class TimesheetController {
   @ApiResponse({ status: 201, description: 'Tạo timesheet thành công' })
   @Roles('admin', 'hr')
   createBulkDailyTimesheets(
-    @Body('work_date') workDate: string,
+    @Body('work_date', WorkDateValidationPipe) workDate: string,
     @Body('user_ids') userIds?: number[],
   ) {
     return this.timesheetService.createBulkDailyTimesheets(workDate, userIds);
+  }
+
+  @Post('cronjob/auto-create-daily')
+  @ApiOperation({ summary: 'Tạo timesheet tự động hàng ngày (Cronjob only)' })
+  @ApiResponse({ status: 201, description: 'Tạo timesheet tự động thành công' })
+  @ApiResponse({ status: 400, description: 'Lỗi khi tạo timesheet' })
+  @Public() // Không cần auth cho cronjob
+  autoDailyTimesheetCreation(
+    @Body(DateRangeValidationPipe) body: SingleDateQueryDto,
+  ) {
+    return this.timesheetService.autoDailyTimesheetCreation(body.date);
   }
 
   // === TIMESHEET STATE MANAGEMENT ===
@@ -545,14 +578,12 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Khóa thành công' })
   @Roles('admin', 'hr')
   bulkLockTimesheets(
-    @Body('start_date') startDate: string,
-    @Body('end_date') endDate: string,
-    @Body('user_ids') userIds?: number[],
+    @Body(DateRangeValidationPipe) body: BulkLockTimesheetsDto,
   ) {
     return this.timesheetService.bulkLockTimesheets(
-      startDate,
-      endDate,
-      userIds,
+      body.start_date,
+      body.end_date,
+      body.user_ids,
     );
   }
 }

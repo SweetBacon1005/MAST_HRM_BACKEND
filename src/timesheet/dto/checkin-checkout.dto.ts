@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { RemoteType } from '@prisma/client';
+import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CheckinDto {
   @ApiPropertyOptional({
@@ -61,13 +62,13 @@ export class CheckinDto {
   note?: string;
 
   @ApiPropertyOptional({
-    description: 'Làm việc từ xa (0: office, 1: remote, 2: hybrid)',
-    example: 0,
+    description: 'Làm việc từ xa [OFFICE, REMOTE, HYBRID]',
+    example: RemoteType.OFFICE,
   })
   @IsOptional()
-  @IsInt()
-  @IsIn([0, 1, 2])
-  remote?: number;
+  @IsString()
+  @IsIn([RemoteType.OFFICE, RemoteType.REMOTE, RemoteType.HYBRID])
+  remote?: RemoteType;
 }
 
 export class CheckoutDto {

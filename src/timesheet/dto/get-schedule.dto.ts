@@ -1,8 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsDateString, IsInt } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class GetScheduleDto {
-  @ApiPropertyOptional({
+  @ApiPropertyOptional({  
     description: 'Ngày bắt đầu (YYYY-MM-DD)',
     example: '2024-02-01',
   })
@@ -19,18 +19,10 @@ export class GetScheduleDto {
   end_date?: string;
 
   @ApiPropertyOptional({
-    description: 'ID team (để xem lịch team)',
-    example: 3,
-  })
-  @IsOptional()
-  @IsInt()
-  team_id?: number;
-
-  @ApiPropertyOptional({
     description: 'ID division (để xem lịch phòng ban)',
-    example: 2,
+    example: '2',
   })
   @IsOptional()
-  @IsInt()
-  division_id?: number;
+  @IsString()
+  division_id?: string;
 }

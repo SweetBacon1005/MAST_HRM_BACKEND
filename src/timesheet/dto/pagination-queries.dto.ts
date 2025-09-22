@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt } from 'class-validator';
+import { DayOffStatus, DayOffType, TimesheetStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsOptional, IsString, Matches } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class TimesheetPaginationDto extends PaginationDto {
@@ -11,6 +12,9 @@ export class TimesheetPaginationDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày bắt đầu phải có định dạng YYYY-MM-DD',
+  })
   start_date?: string;
 
   @ApiProperty({
@@ -20,67 +24,75 @@ export class TimesheetPaginationDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày kết thúc phải có định dạng YYYY-MM-DD',
+  })
   end_date?: string;
 
   @ApiProperty({
     description: 'Trạng thái timesheet',
-    example: 'approved',
+    example: 'APPROVED',
     required: false,
-    enum: ['draft', 'submitted', 'approved', 'rejected', 'locked'],
+    enum: TimesheetStatus,
   })
   @IsOptional()
   @IsString()
-  status?: string;
+  status?: TimesheetStatus;
 }
 
 export class DayOffRequestPaginationDto extends PaginationDto {
   @ApiProperty({
     description: 'Trạng thái đơn nghỉ phép',
-    example: 'pending',
+    example: 'PENDING',
     required: false,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: DayOffStatus,
   })
   @IsOptional()
   @IsString()
-  status?: string;
+  status?: DayOffStatus;
 
   @ApiProperty({
     description: 'Loại nghỉ phép',
-    example: 'annual_leave',
+    example: DayOffType.PAID,
     required: false,
+    enum: DayOffType,
   })
   @IsOptional()
   @IsString()
-  leave_type?: string;
+  @IsIn([
+    DayOffType.PAID,
+    DayOffType.UNPAID,
+    DayOffType.SICK,
+    DayOffType.MATERNITY,
+    DayOffType.PERSONAL,
+    DayOffType.COMPENSATORY,
+  ])
+  leave_type?: DayOffType;
 }
 
 export class OvertimeRequestPaginationDto extends PaginationDto {
   @ApiProperty({
-    description: 'Trạng thái đơn làm thêm giờ',
-    example: 'pending',
-    required: false,
-    enum: ['pending', 'approved', 'rejected'],
-  })
-  @IsOptional()
-  @IsString()
-  status?: string;
-
-  @ApiProperty({
-    description: 'Ngày bắt đầu',
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
     example: '2024-01-01',
     required: false,
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày bắt đầu phải có định dạng YYYY-MM-DD',
+  })
   start_date?: string;
 
   @ApiProperty({
-    description: 'Ngày kết thúc',
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
     example: '2024-01-31',
     required: false,
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày kết thúc phải có định dạng YYYY-MM-DD',
+  })
   end_date?: string;
 }
 
@@ -94,15 +106,6 @@ export class HolidayPaginationDto extends PaginationDto {
   @Type(() => Number)
   @IsInt()
   year?: number;
-
-  @ApiProperty({
-    description: 'Loại ngày lễ',
-    example: 'national',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  holiday_type?: string;
 }
 
 export class AttendanceLogPaginationDto extends PaginationDto {
@@ -117,21 +120,27 @@ export class AttendanceLogPaginationDto extends PaginationDto {
   user_id?: number;
 
   @ApiProperty({
-    description: 'Ngày bắt đầu',
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
     example: '2024-01-01',
     required: false,
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày bắt đầu phải có định dạng YYYY-MM-DD',
+  })
   start_date?: string;
 
   @ApiProperty({
-    description: 'Ngày kết thúc',
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
     example: '2024-01-31',
     required: false,
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'Ngày kết thúc phải có định dạng YYYY-MM-DD',
+  })
   end_date?: string;
 
   @ApiProperty({

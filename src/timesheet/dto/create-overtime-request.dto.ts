@@ -1,18 +1,19 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  IsString,
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
+import {
   IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class CreateOvertimeRequestDto {
-  @ApiProperty({
-    description: 'ID người dùng',
-    example: 1,
-  })
-  @IsNotEmpty()
+  @ApiHideProperty()
+  @IsOptional()
   @IsNumber()
   user_id: number;
 

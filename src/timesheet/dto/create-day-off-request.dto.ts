@@ -1,19 +1,22 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsInt,
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
+import { DayOffDuration, DayOffType } from '@prisma/client';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsDateString,
   IsString,
 } from 'class-validator';
 
 export class CreateDayOffRequestDto {
-  @ApiProperty({
-    description: 'ID người dùng',
-    example: 1,
-  })
-  @IsNotEmpty()
+  @ApiHideProperty()
+  @IsOptional()
   @IsNumber()
   user_id: number;
 
@@ -34,13 +37,22 @@ export class CreateDayOffRequestDto {
   end_date: string;
 
   @ApiProperty({
-    description: 'Thời lượng nghỉ (1: cả ngày, 2: buổi sáng, 3: buổi chiều)',
-    example: 1,
-    enum: [1, 2, 3],
+    description: '',
+    example: DayOffDuration.FULL_DAY,
+    enum: [
+      DayOffDuration.FULL_DAY,
+      DayOffDuration.MORNING,
+      DayOffDuration.AFTERNOON,
+    ],
   })
   @IsNotEmpty()
-  @IsInt()
-  duration: number;
+  @IsString()
+  @IsIn([
+    DayOffDuration.FULL_DAY,
+    DayOffDuration.MORNING,
+    DayOffDuration.AFTERNOON,
+  ])
+  duration: DayOffDuration;
 
   @ApiProperty({
     description: 'Tổng số ngày nghỉ (0.5 cho nửa ngày, 1 cho cả ngày)',
@@ -52,13 +64,28 @@ export class CreateDayOffRequestDto {
 
   @ApiProperty({
     description:
-      'Loại nghỉ phép (1: có lương, 2: không lương, 3: ốm đau, 4: thai sản, 5: việc riêng, 6: nghỉ bù)',
-    example: 1,
-    enum: [1, 2, 3, 4, 5, 6],
+      'Loại nghỉ phép (PAID: có lương, UNPAID: không lương, SICK: ốm đau, MATERNITY: thai sản, PRIVATE: việc riêng, COMPENSATION: nghỉ bù)',
+    example: DayOffType.PAID,
+    enum: [
+      DayOffType.PAID,
+      DayOffType.UNPAID,
+      DayOffType.SICK,
+      DayOffType.MATERNITY,
+      DayOffType.PERSONAL,
+      DayOffType.COMPENSATORY,
+    ],
   })
   @IsNotEmpty()
-  @IsInt()
-  type: number;
+  @IsString()
+  @IsIn([
+    DayOffType.PAID,
+    DayOffType.UNPAID,
+    DayOffType.SICK,
+    DayOffType.MATERNITY,
+    DayOffType.PERSONAL,
+    DayOffType.COMPENSATORY,
+  ])
+  type: DayOffType;
 
   @ApiProperty({
     description: 'Lý do nghỉ phép',
@@ -77,12 +104,12 @@ export class CreateDayOffRequestDto {
   note?: string;
 
   @ApiPropertyOptional({
-    description: 'Có phải nghỉ bù không (1: có, 0: không)',
-    example: 0,
+    description: 'Có phải nghỉ bù không (TRUE: có, FALSE: không)',
+    example: false,
   })
   @IsOptional()
-  @IsInt()
-  is_past?: number;
+  @IsBoolean()
+  is_past?: boolean;
 
   @ApiPropertyOptional({
     description: 'ID hợp đồng',
