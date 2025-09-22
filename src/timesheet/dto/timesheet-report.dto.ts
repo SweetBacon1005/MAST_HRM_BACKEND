@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsDateString, IsInt, IsString } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class TimesheetReportDto {
   @ApiPropertyOptional({
@@ -20,18 +20,18 @@ export class TimesheetReportDto {
 
   @ApiPropertyOptional({
     description: 'ID phòng ban',
-    example: 2,
+    example: '2',
   })
   @IsOptional()
-  @IsInt()
+  @IsString()
   division_id?: number;
 
   @ApiPropertyOptional({
     description: 'ID team',
-    example: 3,
+    example: '3',
   })
   @IsOptional()
-  @IsInt()
+  @IsString()
   team_id?: number;
 
   @ApiPropertyOptional({
@@ -54,17 +54,17 @@ export class WorkingTimeReportDto {
 
   @ApiPropertyOptional({
     description: 'Năm báo cáo',
-    example: 2024,
+    example: '2024',
   })
   @IsOptional()
-  @IsInt()
+  @IsString()
   year?: number;
 
   @ApiPropertyOptional({
     description: 'ID người dùng',
-    example: 1,
+    example: '1',
   })
   @IsOptional()
-  @IsInt()
+  @IsString()
   user_id?: number;
 }
