@@ -26,12 +26,14 @@ async function createApp() {
     // CORS
     app.enableCors();
 
-    // Swagger Configuration - Only in development
-    if (process.env.NODE_ENV !== 'production') {
+    // Swagger Configuration - Enable in development and Vercel
+    const enableSwagger = process.env.NODE_ENV !== 'production' || process.env.VERCEL === '1';
+    if (enableSwagger) {
       const config = new DocumentBuilder()
         .setTitle('MAST HRM API')
         .setDescription('API documentation cho hệ thống MAST HRM')
         .setVersion('1.0')
+        .addServer(process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
         .addBearerAuth(
           {
             type: 'http',
@@ -45,6 +47,7 @@ async function createApp() {
         )
         .addTag('auth', 'Authentication endpoints')
         .addTag('users', 'User management endpoints')
+        .addTag('Timesheet', 'Timesheet management endpoints')
         .build();
 
       const document = SwaggerModule.createDocument(app, config);
@@ -56,7 +59,7 @@ async function createApp() {
       
       console.log('Swagger documentation available at /api');
     } else {
-      console.log('Swagger disabled in production environment');
+      console.log('Swagger disabled - not in development or Vercel environment');
     }
 
     await app.init();
