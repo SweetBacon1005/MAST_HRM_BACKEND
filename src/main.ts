@@ -64,27 +64,57 @@ async function createApp() {
           persistAuthorization: true,
           displayRequestDuration: true,
         },
-        customCssUrl: [
-          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.css',
-        ],
-        customJs: [
-          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-        ],
         customSiteTitle: 'MAST HRM API Documentation',
-        customfavIcon: 'https://nestjs.com/img/logo_text.svg',
+        customCssUrl: 'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css',
         customCss: `
           .swagger-ui .topbar { 
-            background-color: #2c3e50; 
+            background-color: #2c3e50 !important; 
+            padding: 10px 0 !important;
           }
           .swagger-ui .topbar .download-url-wrapper { 
-            display: none; 
+            display: none !important; 
           }
           .swagger-ui .info { 
-            margin: 50px 0; 
+            margin: 50px 0 !important; 
           }
           .swagger-ui .info .title { 
-            color: #2c3e50; 
+            color: #2c3e50 !important; 
+            font-size: 2em !important;
+          }
+          .swagger-ui .info .description { 
+            font-size: 1.1em !important;
+            line-height: 1.6 !important;
+          }
+          .swagger-ui .scheme-container {
+            background: #f8f9fa !important;
+            border: 1px solid #e9ecef !important;
+            border-radius: 4px !important;
+            padding: 15px !important;
+            margin: 20px 0 !important;
+          }
+          .swagger-ui .opblock .opblock-summary {
+            border: 1px solid #e9ecef !important;
+            border-radius: 4px !important;
+          }
+          .swagger-ui .opblock.opblock-post {
+            border-color: #49cc90 !important;
+            background: rgba(73, 204, 144, 0.1) !important;
+          }
+          .swagger-ui .opblock.opblock-get {
+            border-color: #61affe !important;
+            background: rgba(97, 175, 254, 0.1) !important;
+          }
+          .swagger-ui .opblock.opblock-put {
+            border-color: #fca130 !important;
+            background: rgba(252, 161, 48, 0.1) !important;
+          }
+          .swagger-ui .opblock.opblock-delete {
+            border-color: #f93e3e !important;
+            background: rgba(249, 62, 62, 0.1) !important;
+          }
+          .swagger-ui .opblock.opblock-patch {
+            border-color: #50e3c2 !important;
+            background: rgba(80, 227, 194, 0.1) !important;
           }
         `,
       });
