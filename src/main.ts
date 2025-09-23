@@ -26,6 +26,15 @@ async function createApp() {
     // CORS
     app.enableCors();
 
+    // Serve static files for Swagger UI (fallback for Vercel)
+    if (process.env.VERCEL) {
+      app.use('/swagger-ui', (req: any, res: any, next: any) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+        next();
+      });
+    }
+
     // Swagger Configuration - Enable in development and Vercel
     const enableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
     if (enableSwagger) {
@@ -53,7 +62,31 @@ async function createApp() {
       SwaggerModule.setup('api', app, document, {
         swaggerOptions: {
           persistAuthorization: true,
+          displayRequestDuration: true,
         },
+        customCssUrl: [
+          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.css',
+        ],
+        customJs: [
+          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
+          'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
+        ],
+        customSiteTitle: 'MAST HRM API Documentation',
+        customfavIcon: 'https://nestjs.com/img/logo_text.svg',
+        customCss: `
+          .swagger-ui .topbar { 
+            background-color: #2c3e50; 
+          }
+          .swagger-ui .topbar .download-url-wrapper { 
+            display: none; 
+          }
+          .swagger-ui .info { 
+            margin: 50px 0; 
+          }
+          .swagger-ui .info .title { 
+            color: #2c3e50; 
+          }
+        `,
       });
       
       console.log('Swagger documentation available at /api');
