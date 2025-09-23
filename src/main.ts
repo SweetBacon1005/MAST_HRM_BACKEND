@@ -23,14 +23,27 @@ async function createApp() {
       }),
     );
 
-    // CORS
-    app.enableCors();
+    // CORS Configuration optimized for Vercel
+    app.enableCors({
+      origin: process.env.NODE_ENV === 'production' 
+        ? [
+            process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+            /\.vercel\.app$/,
+            'https://localhost:3000',
+          ].filter(Boolean)
+        : true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    });
 
-    // Serve static files for Swagger UI (fallback for Vercel)
+    // Vercel-specific optimizations
     if (process.env.VERCEL) {
-      app.use('/swagger-ui', (req: any, res: any, next: any) => {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET');
+      // Add security headers
+      app.use((req: any, res: any, next: any) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Frame-Options', 'DENY');
+        res.setHeader('X-XSS-Protection', '1; mode=block');
         next();
       });
     }
@@ -59,13 +72,30 @@ async function createApp() {
         .build();
 
       const document = SwaggerModule.createDocument(app, config);
-      SwaggerModule.setup('api', app, document, {
+      
+      // Optimized setup for Vercel
+      const swaggerConfig = {
         swaggerOptions: {
           persistAuthorization: true,
           displayRequestDuration: true,
+          tryItOutEnabled: true,
+          filter: true,
+          docExpansion: 'none',
+          defaultModelsExpandDepth: 2,
+          defaultModelExpandDepth: 2,
         },
         customSiteTitle: 'MAST HRM API Documentation',
-        customCssUrl: 'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css',
+        customfavIcon: '/favicon.ico',
+        customJs: [
+          // Use multiple CDNs for reliability
+          'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-bundle.js',
+          'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui-standalone-preset.js',
+        ],
+        customCssUrl: [
+          // Multiple CSS sources for fallback
+          'https://unpkg.com/swagger-ui-dist@4.15.5/swagger-ui.css',
+          'https://cdn.jsdelivr.net/npm/swagger-ui-dist@4.15.5/swagger-ui.css',
+        ],
         customCss: `
           .swagger-ui .topbar { 
             background-color: #2c3e50 !important; 
@@ -81,20 +111,12 @@ async function createApp() {
             color: #2c3e50 !important; 
             font-size: 2em !important;
           }
-          .swagger-ui .info .description { 
-            font-size: 1.1em !important;
-            line-height: 1.6 !important;
-          }
           .swagger-ui .scheme-container {
             background: #f8f9fa !important;
             border: 1px solid #e9ecef !important;
             border-radius: 4px !important;
             padding: 15px !important;
             margin: 20px 0 !important;
-          }
-          .swagger-ui .opblock .opblock-summary {
-            border: 1px solid #e9ecef !important;
-            border-radius: 4px !important;
           }
           .swagger-ui .opblock.opblock-post {
             border-color: #49cc90 !important;
@@ -116,8 +138,22 @@ async function createApp() {
             border-color: #50e3c2 !important;
             background: rgba(80, 227, 194, 0.1) !important;
           }
+          
+          /* Vercel-specific optimizations */
+          .swagger-ui .loading-container {
+            padding: 40px 0 !important;
+          }
+          .swagger-ui .info .title small {
+            background: #7d8492 !important;
+          }
+          .swagger-ui .opblock .opblock-summary-description {
+            font-size: 13px !important;
+            color: #3b4151 !important;
+          }
         `,
-      });
+      };
+      
+      SwaggerModule.setup('api', app, document, swaggerConfig);
       
       console.log('Swagger documentation available at /api');
     } else {
