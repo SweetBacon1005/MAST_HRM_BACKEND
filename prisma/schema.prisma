@@ -1911,21 +1911,22 @@ model team_member_resources {
 }
 
 model schedule_works {
-    id                   Int       @id @default(autoincrement())
+    id                   Int            @id @default(autoincrement())
     start_date           DateTime
     end_date             DateTime
     hour_start_morning   DateTime
     hour_end_morning     DateTime
     hour_start_afternoon DateTime
     hour_end_afternoon   DateTime
-    type                 Int?
+    type                 WorkShiftType? @default(NORMAL)
     name                 String?
-    created_at           DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime  @updatedAt
-    deleted_at           DateTime? @db.DateTime()
+    created_at           DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime       @updatedAt
+    deleted_at           DateTime?      @db.DateTime()
 
     @@index([start_date])
     @@index([end_date])
+    @@index([type])
 }
 
 model rotation_members {
@@ -2323,4 +2324,12 @@ enum HolidayType {
 enum HolidayStatus {
     ACTIVE
     INACTIVE
+}
+
+enum WorkShiftType {
+    NORMAL      // Ca thường (hành chính)
+    NIGHT       // Ca đêm
+    FLEXIBLE    // Ca linh hoạt
+    PART_TIME   // Ca bán thời gian
+    OVERTIME    // Ca tăng ca
 }

@@ -9,6 +9,7 @@ import { seedProjects } from './seeds/projects.seed';
 import { seedUserRelations } from './seeds/user-relations.seed';
 import { seedMiscData } from './seeds/misc-data.seed';
 import { seedDayOffs } from './seeds/day-offs.seed';
+import { seedScheduleWorks } from './seeds/schedule-works.seed';
 
 const prisma = new PrismaClient();
 
@@ -29,15 +30,19 @@ async function main() {
     const orgData = await seedOrganization(prisma);
     console.log('✅ Organization data seeded successfully!\n');
 
-    // 4. Seed users and user information
+    // 4. Seed schedule works (work shifts)
+    const scheduleWorksData = await seedScheduleWorks(prisma);
+    console.log('✅ Schedule works data seeded successfully!\n');
+
+    // 5. Seed users and user information
     const usersData = await seedUsers(prisma, basicData);
     console.log('✅ Users data seeded successfully!\n');
 
-    // 5. Seed projects, customers, and stages
+    // 6. Seed projects, customers, and stages
     const projectsData = await seedProjects(prisma);
     console.log('✅ Projects data seeded successfully!\n');
 
-    // 6. Seed user relationships (divisions, allocations, timesheets, reports)
+    // 7. Seed user relationships (divisions, allocations, timesheets, reports)
     await seedUserRelations(prisma, {
       ...usersData,
       ...basicData,
@@ -45,7 +50,7 @@ async function main() {
     });
     console.log('✅ User relationships seeded successfully!\n');
 
-    // 7. Seed miscellaneous data (education, experience, holidays, children, etc.)
+    // 8. Seed miscellaneous data (education, experience, holidays, children, etc.)
     await seedMiscData(prisma, {
       ...usersData,
       ...skillsData,
@@ -54,7 +59,7 @@ async function main() {
     });
     console.log('✅ Miscellaneous data seeded successfully!\n');
 
-    // 8. Seed day offs
+    // 9. Seed day offs
     const dayOffsData = await seedDayOffs(prisma, usersData);
     console.log('✅ Day offs data seeded successfully!\n');
 
@@ -79,6 +84,7 @@ async function main() {
     console.log(`- ${orgData.divisions.length} divisions`);
     console.log(`- ${orgData.teams.length} teams`);
     console.log(`- ${orgData.groups.length} groups`);
+    console.log(`- ${scheduleWorksData.scheduleWorks.length} work shifts`);
     console.log(`- ${usersData.users.length} users`);
     console.log(`- ${projectsData.customers.length} customers`);
     console.log(`- ${projectsData.projects.length} projects`);
@@ -116,6 +122,7 @@ async function main() {
     console.log('    ├── basic-data.seed.ts');
     console.log('    ├── skills-certificates.seed.ts');
     console.log('    ├── organization.seed.ts');
+    console.log('    ├── schedule-works.seed.ts');
     console.log('    ├── users.seed.ts');
     console.log('    ├── projects.seed.ts');
     console.log('    ├── user-relations.seed.ts');

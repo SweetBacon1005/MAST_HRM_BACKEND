@@ -2,6 +2,9 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ConflictException,
+  UnprocessableEntityException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import {
@@ -29,10 +32,13 @@ import {
   RemoteType,
   TimesheetStatus,
   TimesheetType,
+  WorkShiftType,
 } from '@prisma/client';
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name);
+  
   constructor(private prisma: PrismaService) {}
 
   // === TÍNH TOÁN THỜI GIAN CHI TIẾT ===
@@ -47,29 +53,70 @@ export class AttendanceService {
       note: _note,
     } = attendanceDto;
 
+    // Validation: Kiểm tra người dùng tồn tại
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id, deleted_at: null }
+    });
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với ID: ${user_id}`);
+    }
+
     const checkin = new Date(checkin_time);
     const checkout = new Date(checkout_time);
+    
+    // Validation: Kiểm tra thời gian hợp lệ
+    if (checkin >= checkout) {
+      throw new BadRequestException('Thời gian check-out phải sau thời gian check-in');
+    }
+
     const workDate = checkin.toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Validation: Không cho phép chấm công quá 30 ngày trước
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    if (checkin < thirtyDaysAgo) {
+      throw new BadRequestException('Không thể chấm công cho ngày quá 30 ngày trước');
+    }
+
+    // Validation: Không cho phép chấm công ngày tương lai (trừ hôm nay)
+    if (workDate > today) {
+      throw new BadRequestException('Không thể chấm công cho ngày trong tương lai');
+    }
+
+    // Validation: Kiểm tra thời gian làm việc hợp lý (tối đa 16 giờ/ngày)
+    const workDurationHours = (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60);
+    if (workDurationHours > 16) {
+      throw new BadRequestException('Thời gian làm việc không thể vượt quá 16 giờ một ngày');
+    }
+    if (workDurationHours < 0.5) {
+      throw new BadRequestException('Thời gian làm việc phải ít nhất 30 phút');
+    }
 
     // Lấy thông tin ca làm việc
     let workShift;
     if (shift_id) {
       workShift = await this.prisma.schedule_works.findUnique({
-        where: { id: shift_id },
+        where: { id: shift_id, deleted_at: null },
       });
+      if (!workShift) {
+        throw new NotFoundException(`Không tìm thấy ca làm việc với ID: ${shift_id}`);
+      }
     } else {
       // Lấy ca làm việc mặc định
       workShift = await this.prisma.schedule_works.findFirst({
         where: {
           start_date: { lte: new Date(workDate) },
           end_date: { gte: new Date(workDate) },
-          type: 1, // Ca thường
+          type: WorkShiftType.NORMAL, // Ca thường
+          deleted_at: null,
         },
+        orderBy: { created_at: 'desc' }
       });
     }
 
     if (!workShift) {
-      throw new NotFoundException('Không tìm thấy ca làm việc phù hợp');
+      throw new NotFoundException('Không tìm thấy ca làm việc phù hợp cho ngày này');
     }
 
     // Tính toán thời gian làm việc
@@ -97,6 +144,9 @@ export class AttendanceService {
       },
     });
 
+    // Log thông tin tính toán
+    this.logger.log(`Tính toán chấm công cho user ${user_id}, ngày ${workDate}`);
+
     const attendanceData = {
       user_id,
       checkin,
@@ -110,20 +160,29 @@ export class AttendanceService {
       remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
       is_complete: true,
       status: TimesheetStatus.PENDING,
-      type: workShift.type || TimesheetType.NORMAL,
+      type: TimesheetType.NORMAL,
     };
 
-    if (existingAttendance) {
-      // Cập nhật bản ghi hiện tại
-      return this.prisma.time_sheets.update({
-        where: { id: existingAttendance.id },
-        data: attendanceData,
-      });
-    } else {
-      // Tạo bản ghi mới
-      return this.prisma.time_sheets.create({
-        data: attendanceData,
-      });
+    try {
+      if (existingAttendance) {
+        // Cập nhật bản ghi hiện tại
+        const result = await this.prisma.time_sheets.update({
+          where: { id: existingAttendance.id },
+          data: attendanceData,
+        });
+        this.logger.log(`Cập nhật chấm công thành công cho user ${user_id}`);
+        return result;
+      } else {
+        // Tạo bản ghi mới
+        const result = await this.prisma.time_sheets.create({
+          data: attendanceData,
+        });
+        this.logger.log(`Tạo chấm công mới thành công cho user ${user_id}`);
+        return result;
+      }
+    } catch (error) {
+      this.logger.error(`Lỗi khi lưu chấm công: ${error.message}`, error.stack);
+      throw new UnprocessableEntityException('Không thể lưu thông tin chấm công');
     }
   }
 
@@ -133,7 +192,7 @@ export class AttendanceService {
     const afternoonStart = new Date(workShift.hour_start_afternoon);
     const afternoonEnd = new Date(workShift.hour_end_afternoon);
 
-    // Set same date for comparison
+    // Set cùng ngày để so sánh
     const _workDate = checkin.toISOString().split('T')[0];
     morningStart.setFullYear(
       checkin.getFullYear(),
@@ -206,12 +265,24 @@ export class AttendanceService {
   async calculatePenalties(penaltyDto: PenaltyCalculationDto) {
     const { late_minutes, early_minutes, block_time_id } = penaltyDto;
 
+    // Validation: Kiểm tra giá trị hợp lệ
+    if (late_minutes < 0 || early_minutes < 0) {
+      throw new BadRequestException('Số phút đi muộn và về sớm không được âm');
+    }
+
+    if (late_minutes > 480 || early_minutes > 480) {
+      throw new BadRequestException('Số phút đi muộn/về sớm không thể vượt quá 8 giờ (480 phút)');
+    }
+
     // Lấy quy định phạt
     let blockTime;
     if (block_time_id) {
       blockTime = await this.prisma.block_times.findUnique({
-        where: { id: block_time_id },
+        where: { id: block_time_id, deleted_at: null },
       });
+      if (!blockTime) {
+        throw new NotFoundException(`Không tìm thấy quy định phạt với ID: ${block_time_id}`);
+      }
     } else {
       // Lấy quy định phạt mặc định
       blockTime = await this.prisma.block_times.findFirst({
@@ -221,7 +292,15 @@ export class AttendanceService {
     }
 
     if (!blockTime) {
-      return { late_penalty: 0, early_penalty: 0, total_penalty: 0 };
+      this.logger.warn('Không tìm thấy quy định phạt nào');
+      return { 
+        late_penalty: 0, 
+        early_penalty: 0, 
+        total_penalty: 0,
+        late_blocks: 0,
+        early_blocks: 0,
+        block_time_used: null
+      };
     }
 
     // Tính phạt đi muộn
@@ -245,18 +324,60 @@ export class AttendanceService {
   // === QUẢN LÝ CA LÀM VIỆC ===
 
   async createWorkShift(workShiftDto: WorkShiftDto) {
-    return this.prisma.schedule_works.create({
-      data: {
-        name: workShiftDto.name,
-        hour_start_morning: new Date(workShiftDto.morning_start),
-        hour_end_morning: new Date(workShiftDto.morning_end),
-        hour_start_afternoon: new Date(workShiftDto.afternoon_start),
-        hour_end_afternoon: new Date(workShiftDto.afternoon_end),
-        type: workShiftDto.type || 1,
-        start_date: new Date(),
-        end_date: new Date(new Date().getFullYear() + 1, 11, 31), // Hết năm
+    const { name, morning_start, morning_end, afternoon_start, afternoon_end, type } = workShiftDto;
+
+    // Validation: Kiểm tra tên ca làm việc duy nhất
+    const existingShift = await this.prisma.schedule_works.findFirst({
+      where: { 
+        name: { 
+          equals: name, 
+        }, 
+        deleted_at: null 
       },
     });
+
+    if (existingShift) {
+      throw new ConflictException(`Ca làm việc với tên "${name}" đã tồn tại`);
+    }
+
+    // Validation: Kiểm tra thời gian hợp lệ
+    const morningStart = new Date(morning_start);
+    const morningEnd = new Date(morning_end);
+    const afternoonStart = new Date(afternoon_start);
+    const afternoonEnd = new Date(afternoon_end);
+
+    if (morningStart >= morningEnd) {
+      throw new BadRequestException('Giờ kết thúc buổi sáng phải sau giờ bắt đầu');
+    }
+
+    if (afternoonStart >= afternoonEnd) {
+      throw new BadRequestException('Giờ kết thúc buổi chiều phải sau giờ bắt đầu');
+    }
+
+    if (morningEnd >= afternoonStart) {
+      throw new BadRequestException('Giờ bắt đầu buổi chiều phải sau giờ kết thúc buổi sáng');
+    }
+
+    try {
+      const result = await this.prisma.schedule_works.create({
+        data: {
+          name,
+          hour_start_morning: morningStart,
+          hour_end_morning: morningEnd,
+          hour_start_afternoon: afternoonStart,
+          hour_end_afternoon: afternoonEnd,
+          type: type || WorkShiftType.NORMAL,
+          start_date: new Date(),
+          end_date: new Date(new Date().getFullYear() + 1, 11, 31), // Hết năm
+        },
+      });
+      
+      this.logger.log(`Tạo ca làm việc mới thành công: ${name}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo ca làm việc: ${error.message}`, error.stack);
+      throw new UnprocessableEntityException('Không thể tạo ca làm việc');
+    }
   }
 
   async getAllWorkShifts() {
@@ -347,14 +468,44 @@ export class AttendanceService {
       note: _note,
     } = leaveRequestDto;
 
-    // Kiểm tra số dư phép năm nếu là phép năm
-    if (leave_type === DayOffType.COMPENSATORY) {
+    // Validation: Kiểm tra người dùng tồn tại
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id, deleted_at: null }
+    });
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với ID: ${user_id}`);
+    }
+
+    // Validation: Kiểm tra ngày hợp lệ
+    const startDateObj = new Date(start_date);
+    const endDateObj = new Date(end_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (startDateObj < today) {
+      throw new BadRequestException('Ngày bắt đầu nghỉ phải từ hôm nay trở đi');
+    }
+
+    if (endDateObj < startDateObj) {
+      throw new BadRequestException('Ngày kết thúc phải sau hoặc bằng ngày bắt đầu');
+    }
+
+    // Validation: Kiểm tra số ngày nghỉ hợp lý
+    const daysDiff = Math.ceil((endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    if (Math.abs(daysDiff - total_days) > 0.5) {
+      throw new BadRequestException('Số ngày nghỉ không khớp với khoảng thời gian đăng ký');
+    }
+
+    // Kiểm tra số dư phép năm nếu là phép năm hoặc phép có lương
+    if (leave_type === DayOffType.COMPENSATORY || leave_type === DayOffType.PAID) {
       const leaveBalance = await this.getLeaveBalance(
         user_id,
-        new Date().getFullYear(),
+        startDateObj.getFullYear(),
       );
       if (leaveBalance.remaining_annual_leave < total_days) {
-        throw new BadRequestException('Số ngày phép năm không đủ');
+        throw new BadRequestException(
+          `Số ngày phép năm không đủ. Còn lại: ${leaveBalance.remaining_annual_leave} ngày, yêu cầu: ${total_days} ngày`
+        );
       }
     }
 
@@ -362,13 +513,13 @@ export class AttendanceService {
     const conflictingLeave = await this.prisma.day_offs.findFirst({
       where: {
         user_id,
-        status: { in: ['PENDING', 'APPROVED'] },
+        status: { in: [DayOffStatus.PENDING, DayOffStatus.APPROVED] },
         deleted_at: null,
         OR: [
           {
             AND: [
-              { created_at: { gte: new Date(start_date) } },
-              { created_at: { lte: new Date(end_date) } },
+              { start_date: { lte: new Date(end_date) } },
+              { end_date: { gte: new Date(start_date) } },
             ],
           },
         ],
@@ -376,23 +527,31 @@ export class AttendanceService {
     });
 
     if (conflictingLeave) {
-      throw new BadRequestException(
-        'Đã có đơn nghỉ phép trong khoảng thời gian này',
+      throw new ConflictException(
+        `Đã có đơn nghỉ phép trùng thời gian từ ${conflictingLeave.start_date} đến ${conflictingLeave.end_date}`
       );
     }
 
-    return this.prisma.day_offs.create({
-      data: {
-        user_id,
-        total: total_days,
-        status: DayOffStatus.PENDING,
-        type: leave_type as DayOffType,
-        is_past: false,
-        start_date,
-        end_date,
-        // Lưu thông tin bổ sung vào các trường có sẵn hoặc tạo bảng mới nếu cần
-      },
-    });
+    try {
+      const result = await this.prisma.day_offs.create({
+        data: {
+          user_id,
+          total: total_days,
+          status: DayOffStatus.PENDING,
+          type: leave_type as DayOffType,
+          is_past: false,
+          start_date: startDateObj,
+          end_date: endDateObj,
+          // Lưu thông tin bổ sung vào các trường có sẵn hoặc tạo bảng mới nếu cần
+        },
+      });
+      
+      this.logger.log(`Tạo đơn nghỉ phép thành công cho user ${user_id}, từ ${start_date} đến ${end_date}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo đơn nghỉ phép: ${error.message}`, error.stack);
+      throw new UnprocessableEntityException('Không thể tạo đơn nghỉ phép');
+    }
   }
 
   async createRemoteWorkRequest(remoteWorkDto: RemoteWorkRequestDto) {
@@ -405,6 +564,51 @@ export class AttendanceService {
       start_time,
       end_time,
     } = remoteWorkDto;
+
+    // Validation: Kiểm tra người dùng tồn tại
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id, deleted_at: null }
+    });
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với ID: ${user_id}`);
+    }
+
+    // Validation: Kiểm tra ngày làm việc
+    const workDateObj = new Date(work_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (workDateObj < today) {
+      throw new BadRequestException('Không thể đăng ký làm việc từ xa cho ngày quá khứ');
+    }
+
+    const maxFutureDate = new Date();
+    maxFutureDate.setDate(today.getDate() + 30);
+    if (workDateObj > maxFutureDate) {
+      throw new BadRequestException('Chỉ có thể đăng ký làm việc từ xa trước 30 ngày');
+    }
+
+    // Validation: Nếu không làm cả ngày, kiểm tra thời gian
+    if (!is_full_day) {
+      if (!start_time || !end_time) {
+        throw new BadRequestException('Phải cung cấp thời gian bắt đầu và kết thúc khi không làm cả ngày');
+      }
+      
+      const startTimeObj = new Date(start_time);
+      const endTimeObj = new Date(end_time);
+      
+      if (startTimeObj >= endTimeObj) {
+        throw new BadRequestException('Thời gian kết thúc phải sau thời gian bắt đầu');
+      }
+      
+      const workDurationHours = (endTimeObj.getTime() - startTimeObj.getTime()) / (1000 * 60 * 60);
+      if (workDurationHours < 1) {
+        throw new BadRequestException('Thời gian làm việc từ xa phải ít nhất 1 giờ');
+      }
+      if (workDurationHours > 10) {
+        throw new BadRequestException('Thời gian làm việc từ xa không quá 10 giờ');
+      }
+    }
 
     // Kiểm tra xem đã có yêu cầu remote work cho ngày này chưa
     const existingRequest = await this.prisma.time_sheets.findFirst({
@@ -420,7 +624,7 @@ export class AttendanceService {
     });
 
     if (existingRequest) {
-      throw new BadRequestException(
+      throw new ConflictException(
         'Đã có yêu cầu làm việc từ xa cho ngày này',
       );
     }
@@ -433,28 +637,51 @@ export class AttendanceService {
       ? new Date(work_date + 'T17:30:00.000Z')
       : new Date(end_time!);
 
-    return this.prisma.time_sheets.create({
-      data: {
-        user_id,
-        checkin,
-        checkout,
-        remote: 'REMOTE',
-        status: 'PENDING',
-        is_complete: true,
-        request_type: 'NORMAL',
-        work_time_morning: is_full_day
-          ? 240
-          : Math.floor((checkout.getTime() - checkin.getTime()) / (1000 * 60)),
-        work_time_afternoon: is_full_day ? 240 : 0,
-      },
-    });
+    try {
+      const result = await this.prisma.time_sheets.create({
+        data: {
+          user_id,
+          checkin,
+          checkout,
+          remote: RemoteType.REMOTE,
+          status: TimesheetStatus.PENDING,
+          is_complete: true,
+          type: TimesheetType.NORMAL,
+          work_time_morning: is_full_day
+            ? 240
+            : Math.floor((checkout.getTime() - checkin.getTime()) / (1000 * 60)),
+          work_time_afternoon: is_full_day ? 240 : 0,
+        },
+      });
+      
+      this.logger.log(`Tạo yêu cầu làm việc từ xa thành công cho user ${user_id}, ngày ${work_date}`);
+      return result;
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo yêu cầu làm việc từ xa: ${error.message}`, error.stack);
+      throw new UnprocessableEntityException('Không thể tạo yêu cầu làm việc từ xa');
+    }
   }
 
   async getLeaveBalance(
     user_id: number,
     year: number,
   ): Promise<LeaveBalanceDto> {
+    // Validation: Kiểm tra người dùng tồn tại
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id, deleted_at: null }
+    });
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với ID: ${user_id}`);
+    }
+
+    // Validation: Kiểm tra năm hợp lệ
+    const currentYear = new Date().getFullYear();
+    if (year < 2020 || year > currentYear + 1) {
+      throw new BadRequestException(`Năm phải từ 2020 đến ${currentYear + 1}`);
+    }
+
     // Lấy tổng số ngày phép trong năm (mặc định 12 ngày)
+    // Có thể tính toán dựa trên thâm niên, chức vụ, etc.
     const total_annual_leave = 12;
 
     // Tính số ngày phép đã sử dụng
