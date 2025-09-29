@@ -9,6 +9,10 @@ import {
   Post,
   Query,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
+  HttpStatus,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -16,6 +20,13 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
+  ApiParam,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiConflictResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -37,18 +48,28 @@ import {
 } from './dto/leave-management.dto';
 import {
   WorkShiftPaginationDto,
-  LeaveRequestPaginationDto,
-  AttendanceReportPaginationDto,
   PenaltyRulePaginationDto,
 } from './dto/pagination-queries.dto';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
+import {
+  ErrorResponseDto,
+  ValidationErrorResponseDto,
+} from '../common/dto/error-response.dto';
 
-@ApiTags('Attendance Management')
-@ApiBearerAuth()
+@ApiTags('attendance')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
+@UsePipes(new ValidationPipe({ 
+  transform: true, 
+  whitelist: true, 
+  forbidNonWhitelisted: true,
+  transformOptions: {
+    enableImplicitConversion: true,
+  },
+}))
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
@@ -59,15 +80,77 @@ export class AttendanceController {
   @ApiOperation({
     summary: 'Tính toán chấm công chi tiết với thời gian và phạt',
   })
-  @ApiResponse({ status: 201, description: 'Tính toán thành công' })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  calculateAttendance(@Body() attendanceDto: AttendanceCalculationDto) {
+  @ApiResponse({ 
+    status: HttpStatus.CREATED, 
+    description: 'Tính toán chấm công thành công',
+    schema: {
+      example: {
+        id: 1,
+        checkin: '2024-01-15T08:00:00Z',
+        checkout: '2024-01-15T17:30:00Z',
+        late_time: 0,
+        early_time: 0,
+        work_time_morning: 240,
+        work_time_afternoon: 240,
+        fines: 0,
+        remote: 'OFFICE'
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Dữ liệu đầu vào không hợp lệ',
+    type: ValidationErrorResponseDto
+  })
+  @ApiNotFoundResponse({ 
+    description: 'Không tìm thấy người dùng hoặc ca làm việc',
+    type: ErrorResponseDto
+  })
+  @ApiUnprocessableEntityResponse({ 
+    description: 'Không thể xử lý yêu cầu',
+    type: ErrorResponseDto
+  })
+  @ApiUnauthorizedResponse({ 
+    description: 'Chưa xác thực',
+    type: ErrorResponseDto
+  })
+  @ApiForbiddenResponse({ 
+    description: 'Không có quyền truy cập',
+    type: ErrorResponseDto
+  })
+  calculateAttendance(@Body() attendanceDto: AttendanceCalculationDto, @GetCurrentUser('id') userId: number) {
+    attendanceDto.user_id = userId;
     return this.attendanceService.calculateAttendance(attendanceDto);
   }
 
   @Post('calculate-penalty')
   @ApiOperation({ summary: 'Tính toán phạt đi muộn, về sớm' })
-  @ApiResponse({ status: 200, description: 'Tính toán phạt thành công' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Tính toán phạt thành công',
+    schema: {
+      example: {
+        late_penalty: 50000,
+        early_penalty: 25000,
+        total_penalty: 75000,
+        late_blocks: 2,
+        early_blocks: 1,
+        block_time_used: {
+          id: 1,
+          block: 1,
+          minutes: 15,
+          money: 25000
+        }
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Dữ liệu đầu vào không hợp lệ',
+    type: ValidationErrorResponseDto
+  })
+  @ApiNotFoundResponse({ 
+    description: 'Không tìm thấy quy định phạt',
+    type: ErrorResponseDto
+  })
   calculatePenalty(@Body() penaltyDto: PenaltyCalculationDto) {
     return this.attendanceService.calculatePenalties(penaltyDto);
   }
@@ -98,11 +181,17 @@ export class AttendanceController {
 
   @Patch('work-shifts/:id')
   @ApiOperation({ summary: 'Cập nhật ca làm việc' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy ca làm việc' })
+  @ApiParam({ name: 'id', description: 'ID ca làm việc', type: 'integer', example: 1 })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Cập nhật ca làm việc thành công' })
+  @ApiNotFoundResponse({ description: 'Không tìm thấy ca làm việc' })
+  @ApiBadRequestResponse({ description: 'Dữ liệu cập nhật không hợp lệ' })
+  @ApiForbiddenResponse({ description: 'Không có quyền cập nhật ca làm việc' })
   @Roles('admin', 'hr', 'manager')
   updateWorkShift(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', new ParseIntPipe({ 
+      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+      exceptionFactory: () => new Error('ID ca làm việc phải là số nguyên dương')
+    })) id: number,
     @Body() workShiftDto: Partial<WorkShiftDto>,
   ) {
     return this.attendanceService.updateWorkShift(id, workShiftDto);
@@ -112,10 +201,33 @@ export class AttendanceController {
 
   @Post('leave-requests')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép chi tiết' })
-  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
-  @ApiResponse({
-    status: 400,
-    description: 'Số ngày phép không đủ hoặc trùng lịch',
+  @ApiResponse({ 
+    status: HttpStatus.CREATED, 
+    description: 'Tạo đơn nghỉ phép thành công',
+    schema: {
+      example: {
+        id: 1,
+        user_id: 1,
+        total: 3,
+        status: 'PENDING',
+        type: 'PAID',
+        start_date: '2024-01-15',
+        end_date: '2024-01-17',
+        is_past: false
+      }
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Dữ liệu đầu vào không hợp lệ hoặc số ngày phép không đủ',
+    type: ValidationErrorResponseDto
+  })
+  @ApiConflictResponse({
+    description: 'Đã có đơn nghỉ phép trùng thời gian',
+    type: ErrorResponseDto
+  })
+  @ApiNotFoundResponse({
+    description: 'Không tìm thấy người dùng',
+    type: ErrorResponseDto
   })
   createLeaveRequest(@Body() leaveRequestDto: CreateLeaveRequestDto) {
     return this.attendanceService.createLeaveRequest(leaveRequestDto);
@@ -123,38 +235,93 @@ export class AttendanceController {
 
   @Post('remote-work-requests')
   @ApiOperation({ summary: 'Tạo yêu cầu làm việc từ xa' })
-  @ApiResponse({ status: 201, description: 'Tạo yêu cầu thành công' })
-  @ApiResponse({ status: 400, description: 'Đã có yêu cầu cho ngày này' })
+  @ApiResponse({ 
+    status: HttpStatus.CREATED, 
+    description: 'Tạo yêu cầu làm việc từ xa thành công',
+    schema: {
+      example: {
+        id: 1,
+        user_id: 1,
+        checkin: '2024-01-15T08:00:00Z',
+        checkout: '2024-01-15T17:30:00Z',
+        remote: 'REMOTE',
+        status: 'PENDING',
+        work_time_morning: 240,
+        work_time_afternoon: 240
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Dữ liệu đầu vào không hợp lệ',
+    type: ValidationErrorResponseDto
+  })
+  @ApiConflictResponse({ 
+    description: 'Đã có yêu cầu làm việc từ xa cho ngày này',
+    type: ErrorResponseDto
+  })
+  @ApiNotFoundResponse({
+    description: 'Không tìm thấy người dùng',
+    type: ErrorResponseDto
+  })
   createRemoteWorkRequest(@Body() remoteWorkDto: RemoteWorkRequestDto) {
     return this.attendanceService.createRemoteWorkRequest(remoteWorkDto);
   }
 
   @Get('leave-balance/:userId/:year')
   @ApiOperation({ summary: 'Xem số dư phép năm của nhân viên' })
-  @ApiResponse({ status: 200, description: 'Lấy số dư thành công' })
-  @ApiQuery({
-    name: 'year',
-    required: false,
-    description: 'Năm (mặc định năm hiện tại)',
+  @ApiParam({ name: 'userId', description: 'ID người dùng', type: 'integer', example: 1 })
+  @ApiParam({ name: 'year', description: 'Năm cần xem (YYYY)', type: 'integer', example: 2024 })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Lấy số dư phép thành công',
+    schema: {
+      example: {
+        user_id: 1,
+        year: 2024,
+        total_annual_leave: 12,
+        used_annual_leave: 5,
+        remaining_annual_leave: 7,
+        compensatory_leave: 2,
+        used_sick_leave: 1
+      }
+    }
   })
+  @ApiBadRequestResponse({ description: 'Tham số đầu vào không hợp lệ' })
+  @ApiNotFoundResponse({ description: 'Không tìm thấy người dùng' })
   getLeaveBalance(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Param('year', ParseIntPipe) year: number,
+    @Param('userId', new ParseIntPipe({ 
+      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+      exceptionFactory: () => new Error('ID người dùng phải là số nguyên dương')
+    })) userId: number,
+    @Param('year', new ParseIntPipe({ 
+      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+      exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ')
+    })) year: number,
   ) {
     return this.attendanceService.getLeaveBalance(userId, year);
   }
 
   @Get('my-leave-balance')
   @ApiOperation({ summary: 'Xem số dư phép năm của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy số dư thành công' })
   @ApiQuery({
     name: 'year',
     required: false,
-    description: 'Năm (mặc định năm hiện tại)',
+    description: 'Năm cần xem (mặc định năm hiện tại)',
+    type: 'integer',
+    example: 2024
   })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Lấy số dư phép cá nhân thành công' 
+  })
+  @ApiBadRequestResponse({ description: 'Tham số năm không hợp lệ' })
   getMyLeaveBalance(
     @GetCurrentUser('id') userId: number,
-    @Query('year', ParseIntPipe) year?: number,
+    @Query('year', new DefaultValuePipe(new Date().getFullYear()), new ParseIntPipe({ 
+      optional: true,
+      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+      exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ')
+    })) year?: number,
   ) {
     const targetYear = year || new Date().getFullYear();
     return this.attendanceService.getLeaveBalance(userId, targetYear);
@@ -197,10 +364,7 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Báo cáo phạt vi phạm chấm công' })
   @ApiResponse({ status: 200, description: 'Tạo báo cáo phạt thành công' })
   @Roles('manager', 'admin', 'hr')
-  generatePenaltyReport(@Query() penaltyReportDto: PenaltyReportDto) {
-    const { start_date, end_date, min_penalty_amount, violation_type } =
-      penaltyReportDto;
-
+  generatePenaltyReport(@Query() _penaltyReportDto: PenaltyReportDto) {
     // Tạo AttendanceReportDto cho penalty report
     const reportDto: AttendanceReportDto = {
       report_type: 'penalty',
