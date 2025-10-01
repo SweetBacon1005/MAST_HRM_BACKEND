@@ -8,6 +8,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { OtpService } from './services/otp.service';
+import { EmailService } from '../common/services/email.service';
+import { PrismaService } from 'src/database/prisma.service';
 
 @Module({
   imports: [
@@ -25,7 +28,7 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy, OtpService, EmailService, PrismaService],
   exports: [AuthService],
 })
 export class AuthModule {}

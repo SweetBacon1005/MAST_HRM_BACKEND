@@ -1,14 +1,7 @@
-import { IsNumber, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
 
 export class RefreshTokenDto {
-  @ApiProperty({
-    description: 'ID của user',
-    example: 1,
-  })
-  @IsNumber({}, { message: 'User ID phải là số' })
-  userId: number;
-
   @ApiProperty({
     description: 'Refresh token',
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
