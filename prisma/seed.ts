@@ -10,6 +10,7 @@ import { seedUserRelations } from './seeds/user-relations.seed';
 import { seedMiscData } from './seeds/misc-data.seed';
 import { seedDayOffs } from './seeds/day-offs.seed';
 import { seedScheduleWorks } from './seeds/schedule-works.seed';
+import { seedUserDevices } from './seeds/user-devices.seed';
 
 const prisma = new PrismaClient();
 
@@ -62,6 +63,10 @@ async function main() {
     // 9. Seed day offs
     const dayOffsData = await seedDayOffs(prisma, usersData);
     console.log('✅ Day offs data seeded successfully!\n');
+
+    // 10. Seed user devices
+    await seedUserDevices();
+    console.log('✅ User devices seeded successfully!\n');
 
     // Summary
     console.log('🎉 =================================');

@@ -1191,6 +1191,22 @@ model password_resets {
     @@index([token])
 }
 
+model otp_codes {
+    id         Int      @id @default(autoincrement())
+    email      String   @db.VarChar(255)
+    code       String   @db.VarChar(6)
+    type       OtpType  @default(PASSWORD_RESET)
+    expires_at DateTime @db.DateTime()
+    is_used    Boolean  @default(false)
+    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime @updatedAt
+
+    @@index([email])
+    @@index([code])
+    @@index([type])
+    @@index([expires_at])
+}
+
 model penalties {
     id             Int              @id @default(autoincrement())
     name           String           @db.VarChar(255)
@@ -1492,6 +1508,7 @@ model users {
     staff_coefficient      staff_coefficient[]
     allocations            allocations[]
     pm_reports             pm_reports[]
+    user_devices           user_devices[]
 }
 
 model users_unpaid_leave {
@@ -2332,4 +2349,48 @@ enum WorkShiftType {
     FLEXIBLE    // Ca linh hoạt
     PART_TIME   // Ca bán thời gian
     OVERTIME    // Ca tăng ca
+}
+
+enum OtpType {
+    PASSWORD_RESET
+    CHANGE_PASSWORD
+    EMAIL_VERIFICATION
+}
+
+model user_devices {
+    id            Int      @id @default(autoincrement())
+    user_id       Int
+    user          users    @relation(fields: [user_id], references: [id])
+    device_name   String   @db.VarChar(255)
+    device_type   DeviceType @default(LAPTOP)
+    device_serial String?  @db.VarChar(255)
+    assigned_date DateTime @db.Date
+    returned_date DateTime? @db.Date
+    status        DeviceStatus @default(ACTIVE)
+    notes         String?  @db.Text
+    created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime @updatedAt
+    deleted_at    DateTime? @db.DateTime()
+
+    @@index([user_id])
+    @@index([device_type])
+    @@index([status])
+    @@index([assigned_date])
+}
+
+enum DeviceType {
+    LAPTOP
+    DESKTOP
+    MONITOR
+    KEYBOARD
+    MOUSE
+    HEADPHONE
+    OTHER
+}
+
+enum DeviceStatus {
+    ACTIVE
+    RETURNED
+    LOST
+    DAMAGED
 }
