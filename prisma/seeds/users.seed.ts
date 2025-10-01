@@ -99,6 +99,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[0].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[0].id,
         email: 'admin@company.com',
         personal_email: 'admin.personal@gmail.com',
@@ -116,14 +117,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234567',
         tax_code: 'TAX001',
         role_id: roles[0].id, // admin
-        status: 'Active',
         description: 'System Administrator',
         level_id: 7, // Principal
-        social_insurance_code: 'SI001',
-        provider_id: 'PROV001',
         note: 'Super admin user',
         overview: 'Experienced system administrator',
-        market_type: 'Internal',
         expertise: 'System Administration',
         technique: 'DevOps, System Management',
         main_task: 'System Administration',
@@ -134,6 +131,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[1].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[1].id,
         email: 'hr.manager@company.com',
         personal_email: 'hr.personal@gmail.com',
@@ -151,14 +149,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234568',
         tax_code: 'TAX002',
         role_id: roles[1].id, // manager
-        status: 'Active',
         description: 'Human Resources Manager',
         level_id: 6, // Lead
-        social_insurance_code: 'SI002',
-        provider_id: 'PROV002',
         note: 'HR Manager',
         overview: 'HR management expert',
-        market_type: 'Internal',
         expertise: 'Human Resources',
         technique: 'HR Management, Recruitment',
         main_task: 'HR Management',
@@ -169,6 +163,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[2].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[2].id,
         email: 'john.doe@company.com',
         personal_email: 'john.personal@gmail.com',
@@ -186,14 +181,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234569',
         tax_code: 'TAX003',
         role_id: roles[3].id, // developer
-        status: 'Active',
         description: 'Senior Backend Developer',
         level_id: 5, // Senior
-        social_insurance_code: 'SI003',
-        provider_id: 'PROV003',
         note: 'Senior backend developer',
         overview: 'Experienced in Node.js and NestJS',
-        market_type: 'External',
         expertise: 'Backend Development',
         technique: 'Node.js, NestJS, TypeScript',
         main_task: 'Backend Development',
@@ -204,6 +195,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[3].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[3].id,
         email: 'jane.smith@company.com',
         personal_email: 'jane.personal@gmail.com',
@@ -221,14 +213,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234570',
         tax_code: 'TAX004',
         role_id: roles[3].id, // developer
-        status: 'Active',
         description: 'Senior Frontend Developer',
         level_id: 5, // Senior
-        social_insurance_code: 'SI004',
-        provider_id: 'PROV004',
         note: 'Senior frontend developer',
         overview: 'Expert in React and Vue.js',
-        market_type: 'External',
         expertise: 'Frontend Development',
         technique: 'React.js, Vue.js, TypeScript',
         main_task: 'Frontend Development',
@@ -239,6 +227,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[4].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[4].id,
         email: 'mike.johnson@company.com',
         personal_email: 'mike.personal@gmail.com',
@@ -256,14 +245,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234571',
         tax_code: 'TAX005',
         role_id: roles[3].id, // developer
-        status: 'Active',
         description: 'Mobile Developer',
         level_id: 4, // Middle
-        social_insurance_code: 'SI005',
-        provider_id: 'PROV005',
         note: 'Mobile developer',
         overview: 'React Native and Flutter expert',
-        market_type: 'External',
         expertise: 'Mobile Development',
         technique: 'React Native, Flutter',
         main_task: 'Mobile Development',
@@ -274,6 +259,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[5].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[5].id,
         email: 'sarah.wilson@company.com',
         personal_email: 'sarah.personal@gmail.com',
@@ -291,14 +277,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234572',
         tax_code: 'TAX006',
         role_id: roles[4].id, // tester
-        status: 'Active',
         description: 'Senior QA Tester',
         level_id: 5, // Senior
-        social_insurance_code: 'SI006',
-        provider_id: 'PROV006',
         note: 'Senior QA tester',
         overview: 'Manual and automation testing expert',
-        market_type: 'External',
         expertise: 'Quality Assurance',
         technique: 'Manual Testing, Selenium, Automation',
         main_task: 'Quality Assurance',
@@ -309,6 +291,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[6].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[6].id,
         email: 'david.brown@company.com',
         personal_email: 'david.personal@gmail.com',
@@ -326,14 +309,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234573',
         tax_code: 'TAX007',
         role_id: roles[3].id, // developer
-        status: 'Active',
         description: 'DevOps Engineer',
         level_id: 4, // Middle
-        social_insurance_code: 'SI007',
-        provider_id: 'PROV007',
         note: 'DevOps engineer',
         overview: 'Infrastructure and deployment expert',
-        market_type: 'External',
         expertise: 'DevOps',
         technique: 'Docker, Kubernetes, AWS, CI/CD',
         main_task: 'DevOps Engineering',
@@ -344,6 +323,7 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       where: { user_id: users[7].id },
       update: {},
       create: {
+        status: 'ACTIVE',
         user_id: users[7].id,
         email: 'lisa.davis@company.com',
         personal_email: 'lisa.personal@gmail.com',
@@ -361,14 +341,10 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
         phone: '+84901234574',
         tax_code: 'TAX008',
         role_id: roles[5].id, // employee
-        status: 'Active',
         description: 'UI/UX Designer',
         level_id: 3, // Junior
-        social_insurance_code: 'SI008',
-        provider_id: 'PROV008',
         note: 'UI/UX designer',
         overview: 'Creative designer with modern UI/UX skills',
-        market_type: 'External',
         expertise: 'UI/UX Design',
         technique: 'Figma, Adobe XD, Sketch',
         main_task: 'UI/UX Design',
