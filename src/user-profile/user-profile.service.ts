@@ -44,7 +44,6 @@ export class UserProfileService {
         user_information: {
           include: {
             position: true,
-            office: true,
             role: true,
             level: true,
             language: true,
@@ -96,13 +95,6 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    const office = await this.prisma.offices.findFirst({
-      where: { id: updateDto.office_id, deleted_at: null },
-    });
-    if (!office) {
-      throw new NotFoundException('Không tìm thấy văn phòng');
-    }
-
     const position = await this.prisma.positions.findFirst({
       where: { id: updateDto.position_id, deleted_at: null },
     });
@@ -142,18 +134,17 @@ export class UserProfileService {
         where: { id: existingInfo.id },
         data: {
           ...updateDto,
+          status:'ACTIVE',
           birthday: updateDto.birthday
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
           position_id: position.id,
-          office_id: office.id,
           role_id: role.id,
           level_id: level.id,
           language_id: language.id,
         },
         include: {
           position: true,
-          office: true,
           role: true,
           level: true,
           language: true,
@@ -163,6 +154,7 @@ export class UserProfileService {
       // Tạo mới thông tin
       return await this.prisma.user_information.create({
         data: {
+          status:'ACTIVE',
           user_id: userId,
           email: updateDto.email || '',
           personal_email: updateDto.personal_email || '',
@@ -182,14 +174,10 @@ export class UserProfileService {
           phone: updateDto.phone || '',
           tax_code: updateDto.tax_code || '',
           role_id: updateDto.role_id || 1,
-          status: updateDto.status || 'active',
           description: updateDto.description || '',
           level_id: updateDto.level_id || 1,
-          social_insurance_code: updateDto.social_insurance_code || '',
-          provider_id: updateDto.provider_id || '',
           note: updateDto.note || '',
           overview: updateDto.overview || '',
-          market_type: updateDto.market_type || '',
           expertise: updateDto.expertise || '',
           technique: updateDto.technique || '',
           main_task: updateDto.main_task || '',
@@ -197,7 +185,6 @@ export class UserProfileService {
         },
         include: {
           position: true,
-          office: true,
           role: true,
           level: true,
           language: true,
@@ -709,12 +696,6 @@ export class UserProfileService {
     });
   }
 
-  async getOffices() {
-    return await this.prisma.offices.findMany({
-      where: { deleted_at: undefined },
-    });
-  }
-
   async getRoles() {
     return await this.prisma.roles.findMany({
       where: { deleted_at: undefined },
@@ -755,7 +736,6 @@ export class UserProfileService {
         data: { avatar: avatarUrl },
         include: {
           position: true,
-          office: true,
           role: true,
           level: true,
           language: true,
@@ -788,14 +768,11 @@ export class UserProfileService {
           phone: '',
           tax_code: '',
           role_id: 1, // Default role
-          status: 'active',
+          status: 'ACTIVE',
           description: '',
           level_id: 1, // Default level
-          social_insurance_code: '',
-          provider_id: '',
           note: '',
           overview: '',
-          market_type: '',
           expertise: '',
           technique: '',
           main_task: '',
@@ -803,7 +780,6 @@ export class UserProfileService {
         },
         include: {
           position: true,
-          office: true,
           role: true,
           level: true,
           language: true,
@@ -973,36 +949,6 @@ export class UserProfileService {
         orderBy: orderBy || { name: 'asc' },
       }),
       this.prisma.positions.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async getOfficesPaginated(paginationDto: ReferencePaginationDto) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.officesWhereInput = { deleted_at: null };
-
-    // Thêm filter theo search
-    if (paginationDto.search) {
-      where.name = {
-        contains: paginationDto.search,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.offices.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { name: 'asc' },
-      }),
-      this.prisma.offices.count({ where }),
     ]);
 
     return buildPaginationResponse(

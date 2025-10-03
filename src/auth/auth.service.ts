@@ -1,24 +1,24 @@
 import {
-  Injectable,
-  UnauthorizedException,
   BadRequestException,
+  Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service';
-import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { TokensDto } from './dto/tokens.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { TokensDto } from './dto/tokens.dto';
 // import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { OtpService } from './services/otp.service';
 import { OtpType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
+import { OtpService } from './services/otp.service';
 
 @Injectable()
 export class AuthService {
@@ -42,10 +42,7 @@ export class AuthService {
     }
 
     // Kiểm tra mật khẩu
-    if (
-      user.password &&
-      (await bcrypt.compare(password, user.password))
-    ) {
+    if (user.password && (await bcrypt.compare(password, user.password))) {
       const { password: _, ...result } = user;
       return result;
     }
@@ -116,10 +113,8 @@ export class AuthService {
     }
   }
 
-  async logout(userId: number): Promise<{ message: string }> {
-    // Invalidate refresh token bằng cách xóa remember_token
-    await this.usersService.updateRefreshToken(userId, null);
-    return { message: 'Đăng xuất thành công' };
+  async logOut(userId: number) {
+    return 'Log out thành công';
   }
 
   async getProfile(userId: number): Promise<any> {
@@ -130,7 +125,7 @@ export class AuthService {
 
     // Lấy thông tin bổ sung
     const additionalInfo = await this.getUserAdditionalInfo(userId);
-    
+
     const { password: _, ...result } = user;
     return {
       ...result,
@@ -241,7 +236,7 @@ export class AuthService {
       },
     });
 
-    return devices.map(device => ({
+    return devices.map((device) => ({
       id: device.id,
       name: device.device_name,
       type: device.device_type.toLowerCase(),
@@ -251,34 +246,49 @@ export class AuthService {
     }));
   }
 
-  async forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{ message: string }> {
+  async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
     const { email } = forgotPasswordDto;
 
     // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Không trả về lỗi để tránh email enumeration attack
-      return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+      return {
+        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+      };
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+      return {
+        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+      };
     }
 
     // Kiểm tra rate limit
-    const canSendOTP = await this.otpService.checkOTPRateLimit(email, OtpType.PASSWORD_RESET);
+    const canSendOTP = await this.otpService.checkOTPRateLimit(
+      email,
+      OtpType.PASSWORD_RESET,
+    );
     if (!canSendOTP) {
-      throw new BadRequestException('Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.');
+      throw new BadRequestException(
+        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.',
+      );
     }
 
     // Tạo và gửi OTP
     await this.otpService.generateAndSendOTP(email, OtpType.PASSWORD_RESET);
 
-    return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+    return {
+      message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+    };
   }
 
-  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
     const { email, otp, newPassword } = resetPasswordDto;
 
     // Kiểm tra email có tồn tại không
@@ -298,7 +308,11 @@ export class AuthService {
     }
 
     // Xác thực OTP
-    const isValidOTP = await this.otpService.verifyOTP(email, otp, OtpType.PASSWORD_RESET);
+    const isValidOTP = await this.otpService.verifyOTP(
+      email,
+      otp,
+      OtpType.PASSWORD_RESET,
+    );
     if (!isValidOTP) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }
@@ -315,7 +329,10 @@ export class AuthService {
     return { message: 'Đặt lại mật khẩu thành công' };
   }
 
-  async changePassword(userId: number, changePasswordDto: ChangePasswordDto): Promise<{ message: string }> {
+  async changePassword(
+    userId: number,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
     const { currentPassword, newPassword } = changePasswordDto;
 
     // Lấy thông tin user
@@ -333,8 +350,11 @@ export class AuthService {
     if (!user.password) {
       throw new BadRequestException('Tài khoản chưa có mật khẩu');
     }
-    
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('Mật khẩu hiện tại không đúng');
     }
@@ -364,27 +384,42 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       // Không trả về lỗi để tránh email enumeration attack
-      return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+      return {
+        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+      };
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+      return {
+        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+      };
     }
 
     // Kiểm tra rate limit
-    const canSendOTP = await this.otpService.checkOTPRateLimit(email, OtpType.CHANGE_PASSWORD);
+    const canSendOTP = await this.otpService.checkOTPRateLimit(
+      email,
+      OtpType.CHANGE_PASSWORD,
+    );
     if (!canSendOTP) {
-      throw new BadRequestException('Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.');
+      throw new BadRequestException(
+        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.',
+      );
     }
 
     // Tạo và gửi OTP
     await this.otpService.generateAndSendOTP(email, OtpType.CHANGE_PASSWORD);
 
-    return { message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn' };
+    return {
+      message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+    };
   }
 
-  async changePasswordWithOTP(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+  async changePasswordWithOTP(
+    email: string,
+    otp: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
     // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
@@ -402,7 +437,11 @@ export class AuthService {
     }
 
     // Xác thực OTP
-    const isValidOTP = await this.otpService.verifyOTP(email, otp, OtpType.CHANGE_PASSWORD);
+    const isValidOTP = await this.otpService.verifyOTP(
+      email,
+      otp,
+      OtpType.CHANGE_PASSWORD,
+    );
     if (!isValidOTP) {
       throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
     }

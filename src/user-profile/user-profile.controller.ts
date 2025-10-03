@@ -478,16 +478,6 @@ export class UserProfileController {
     return await this.userProfileService.getPositionsPaginated(paginationDto);
   }
 
-  @Get('references/offices')
-  @ApiOperation({ summary: 'Lấy danh sách văn phòng' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách văn phòng',
-  })
-  async getOffices() {
-    return await this.userProfileService.getOffices();
-  }
-
   @Get('references/roles')
   @ApiOperation({ summary: 'Lấy danh sách vai trò' })
   @ApiResponse({
