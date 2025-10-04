@@ -101,9 +101,7 @@ export class TimesheetService {
     const existingTimesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: userId,
-        work_date: createTimesheetDto.work_date
-          ? new Date(createTimesheetDto.work_date)
-          : null,
+        work_date: new Date(createTimesheetDto.work_date),
         deleted_at: null,
       },
     });
@@ -116,9 +114,7 @@ export class TimesheetService {
       data: {
         ...createTimesheetDto,
         user_id: userId,
-        work_date: createTimesheetDto.work_date
-          ? new Date(createTimesheetDto.work_date)
-          : null,
+        work_date: new Date(createTimesheetDto.work_date),
         checkin: createTimesheetDto.checkin
           ? new Date(createTimesheetDto.checkin)
           : null,
@@ -272,54 +268,50 @@ export class TimesheetService {
   // === CHECK-IN/CHECK-OUT ===
 
   async checkin(userId: number, checkinDto: CheckinDto) {
-    // Tạo idempotency key từ user_id, work_date và timestamp
     const today = TimezoneUtil.getCurrentWorkDate();
-    const idempotencyKey = `checkin_${userId}_${today}_${new Date().getTime()}`;
-
-    // Validate với nghỉ phép nửa ngày
-    await this.validateAttendanceWithDayOff(userId, today, 'checkin');
+    const checkinTime = new Date();
+    
+    // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
+    const idempotencyKey = `checkin_${userId}_${today}`;
 
     return this.prisma.$transaction(async (tx) => {
       // Kiểm tra user tồn tại
       const user = await tx.users.findFirst({
         where: QueryUtil.onlyActive({ id: userId }),
       });
+
       if (!user) {
         throw new NotFoundException('Không tìm thấy người dùng');
       }
 
-      const checkinTime = new Date();
-
-      // Kiểm tra xem đã check-in hôm nay chưa (với lock để tránh race condition)
+      // Kiểm tra idempotency - nếu đã có log check-in hôm nay thì trả về lỗi
       const existingCheckin = await tx.attendance_logs.findFirst({
         where: QueryUtil.onlyActive({
           user_id: userId,
           action_type: 'checkin',
           work_date: new Date(today),
         }),
+        include: {
+          timesheet: true,
+        },
       });
 
       if (existingCheckin) {
         throw new BadRequestException('Bạn đã check-in hôm nay rồi');
       }
 
-      // Kiểm tra idempotency - nếu có log với cùng key thì trả về kết quả cũ
-      const _existingLog = await tx.attendance_logs.findFirst({
+      // Kiểm tra session đang mở
+      const openSession = await tx.attendance_sessions.findFirst({
         where: QueryUtil.onlyActive({
           user_id: userId,
-          note: idempotencyKey, // Tạm thời dùng note để lưu idempotency key
+          is_open: true,
         }),
-        include: {
-          timesheet: true,
-        },
       });
 
-      if (_existingLog) {
-        return {
-          timesheet: _existingLog.timesheet,
-          attendance_log: _existingLog,
-          message: 'Check-in thành công (đã tồn tại)',
-        };
+      if (openSession) {
+        throw new BadRequestException(
+          'Bạn đang có session làm việc mở. Vui lòng check-out trước khi check-in lại.',
+        );
       }
 
       // Tìm hoặc tạo timesheet cho hôm nay
@@ -337,20 +329,32 @@ export class TimesheetService {
             work_date: new Date(today),
             status: 'PENDING',
             type: 'NORMAL',
+            remote: checkinDto.remote || 'OFFICE',
           },
         });
       }
 
-      // Tính toán late time
-      const workStart = new Date(today + 'T08:00:00.000Z'); // 8:00 AM
-      const lateTime =
-        checkinTime > workStart
-          ? Math.floor(
-              (checkinTime.getTime() - workStart.getTime()) / (1000 * 60),
-            )
-          : 0;
+      // Tính toán late time (8:30 AM làm mốc)
+      const workStartTime = new Date(today + 'T08:30:00.000Z');
+      const lateTime = checkinTime > workStartTime
+        ? Math.floor((checkinTime.getTime() - workStartTime.getTime()) / (1000 * 60))
+        : 0;
 
-      // Tạo attendance log với idempotency key
+      // Tạo session mới
+      const newSession = await tx.attendance_sessions.create({
+        data: {
+          user_id: userId,
+          timesheet_id: timesheet.id,
+          checkin_time: checkinTime,
+          is_open: true,
+          checkin_photo: checkinDto.photo_url || null,
+          work_date: new Date(today),
+          location_type: checkinDto.location_type || 'office',
+          session_type: checkinDto.session_type || 'WORK',
+        },
+      });
+
+      // Tạo attendance log
       const attendanceLog = await tx.attendance_logs.create({
         data: {
           user_id: userId,
@@ -360,48 +364,46 @@ export class TimesheetService {
           work_date: new Date(today),
           location_type: checkinDto.location_type || 'office',
           photo_url: checkinDto.photo_url,
-          note: `${checkinDto.note || ''} [${idempotencyKey}]`,
+          itempodency_key: idempotencyKey,
           status: 'APPROVED',
         },
       });
 
-      // Cập nhật timesheet
+      // Cập nhật timesheet với thông tin check-in
       const updatedTimesheet = await tx.time_sheets.update({
         where: { id: timesheet.id },
         data: {
           checkin: checkinTime,
           late_time: lateTime,
-          remote: checkinDto.remote,
-          status: 'APPROVED',
+          remote: checkinDto.remote || 'OFFICE',
         },
       });
 
       return {
         timesheet: updatedTimesheet,
         attendance_log: attendanceLog,
+        session: newSession,
         message: 'Check-in thành công',
       };
     });
   }
 
   async checkout(userId: number, checkoutDto: CheckoutDto) {
-    // Tạo idempotency key từ user_id, work_date và timestamp
     const today = TimezoneUtil.getCurrentWorkDate();
-    const idempotencyKey = `checkout_${userId}_${today}_${new Date().getTime()}`;
-
-    // Validate với nghỉ phép nửa ngày
-    await this.validateAttendanceWithDayOff(userId, today, 'checkout');
+    const checkoutTime = new Date();
+    
+    // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
+    const idempotencyKey = `checkout_${userId}_${today}`;
 
     return this.prisma.$transaction(async (tx) => {
       // Kiểm tra user tồn tại
       const user = await tx.users.findFirst({
         where: QueryUtil.onlyActive({ id: userId }),
       });
+      
       if (!user) {
         throw new NotFoundException('Không tìm thấy người dùng');
       }
-
-      const checkoutTime = new Date();
 
       // Kiểm tra đã check-in hôm nay chưa
       const existingCheckin = await tx.attendance_logs.findFirst({
@@ -429,23 +431,19 @@ export class TimesheetService {
         throw new BadRequestException('Bạn đã check-out hôm nay rồi');
       }
 
-      // Kiểm tra idempotency - nếu có log với cùng key thì trả về kết quả cũ
-      const _existingLog = await tx.attendance_logs.findFirst({
+      // Tìm session đang mở để checkout
+      const openSession = await tx.attendance_sessions.findFirst({
         where: QueryUtil.onlyActive({
           user_id: userId,
-          note: { contains: idempotencyKey },
+          work_date: new Date(today),
+          is_open: true,
         }),
-        include: {
-          timesheet: true,
-        },
       });
 
-      if (_existingLog) {
-        return {
-          timesheet: _existingLog.timesheet,
-          attendance_log: _existingLog,
-          message: 'Check-out thành công (đã tồn tại)',
-        };
+      if (!openSession) {
+        throw new BadRequestException(
+          'Không tìm thấy phiên làm việc đang mở. Vui lòng liên hệ quản trị viên.',
+        );
       }
 
       // Tìm timesheet hôm nay
@@ -460,33 +458,40 @@ export class TimesheetService {
         throw new BadRequestException('Không tìm thấy timesheet hôm nay');
       }
 
-      // Tính toán thời gian
-      const workEnd = new Date(today + 'T17:30:00.000Z'); // 5:30 PM
-      const earlyTime =
-        checkoutTime < workEnd
-          ? Math.floor(
-              (workEnd.getTime() - checkoutTime.getTime()) / (1000 * 60),
-            )
-          : 0;
-
-      // Tính giờ làm việc (nếu có checkin time)
-      let workTimeTotal = 0;
-      let workTimeMorning = 0;
-      let workTimeAfternoon = 0;
-      const breakTime = 60; // Mặc định 60 phút nghỉ trưa
-
-      if (todayTimesheet.checkin) {
-        workTimeTotal = Math.floor(
-          (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) /
-            (1000 * 60),
-        );
-        // Trừ thời gian nghỉ trưa
-        const netWorkTime = Math.max(0, workTimeTotal - breakTime);
-        workTimeMorning = Math.min(240, netWorkTime); // 4 giờ sáng tối đa
-        workTimeAfternoon = Math.max(0, netWorkTime - 240);
+      if (!todayTimesheet.checkin) {
+        throw new BadRequestException('Timesheet không có thông tin check-in');
       }
 
-      // Tạo attendance log với idempotency key
+      // Tính toán thời gian làm việc
+      const workEndTime = new Date(today + 'T17:30:00.000Z'); // 5:30 PM
+      const earlyTime = checkoutTime < workEndTime
+        ? Math.floor((workEndTime.getTime() - checkoutTime.getTime()) / (1000 * 60))
+        : 0;
+
+      // Tính tổng thời gian làm việc (phút)
+      const totalWorkMinutes = Math.floor(
+        (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) / (1000 * 60)
+      );
+
+      // Trừ thời gian nghỉ trưa (60 phút mặc định)
+      const breakTime = 60;
+      const netWorkMinutes = Math.max(0, totalWorkMinutes - breakTime);
+
+      // Phân chia thời gian sáng/chiều (4 giờ sáng = 240 phút)
+      const workTimeMorning = Math.min(240, netWorkMinutes);
+      const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
+
+      // Cập nhật session với thông tin checkout
+      await tx.attendance_sessions.update({
+        where: { id: openSession.id },
+        data: {
+          checkout_time: checkoutTime,
+          checkout_photo: checkoutDto.photo_url || null,
+          is_open: false, // Đóng session khi checkout
+        },
+      });
+
+      // Tạo attendance log
       const attendanceLog = await tx.attendance_logs.create({
         data: {
           user_id: userId,
@@ -496,12 +501,12 @@ export class TimesheetService {
           work_date: new Date(today),
           location_type: checkoutDto.location_type || 'office',
           photo_url: checkoutDto.photo_url,
-          note: `${checkoutDto.note || ''} [${idempotencyKey}]`,
+          itempodency_key: idempotencyKey,
           status: 'APPROVED',
         },
       });
 
-      // Cập nhật timesheet
+      // Cập nhật timesheet với thông tin checkout và thời gian làm việc
       const updatedTimesheet = await tx.time_sheets.update({
         where: { id: todayTimesheet.id },
         data: {
@@ -518,6 +523,14 @@ export class TimesheetService {
       return {
         timesheet: updatedTimesheet,
         attendance_log: attendanceLog,
+        session: openSession,
+        work_summary: {
+          total_minutes: totalWorkMinutes,
+          net_work_minutes: netWorkMinutes,
+          break_minutes: breakTime,
+          morning_minutes: workTimeMorning,
+          afternoon_minutes: workTimeAfternoon,
+        },
         message: 'Check-out thành công',
       };
     });
@@ -820,57 +833,6 @@ export class TimesheetService {
       ),
       expectedWorkHours: workHours,
     };
-  }
-
-  /**
-   * Validate check-in/out với nghỉ phép nửa ngày
-   */
-  private async validateAttendanceWithDayOff(
-    userId: number,
-    workDate: string,
-    actionType: 'checkin' | 'checkout',
-  ) {
-    const dayOffInfo = await this.getDayOffInfo(userId, workDate);
-
-    if (!dayOffInfo.hasDayOff) {
-      return; // Không có nghỉ phép, cho phép check-in/out bình thường
-    }
-
-    if (!dayOffInfo.needsAttendance) {
-      throw new BadRequestException(
-        `Bạn nghỉ ${DayOffCalculator.getDurationName(dayOffInfo.dayOff.duration)}, không cần ${actionType}`,
-      );
-    }
-
-    // Nếu nghỉ buổi sáng, chỉ cho phép check-in sau 13:00
-    if (
-      dayOffInfo.dayOff.duration === DayOffDuration.MORNING &&
-      actionType === 'checkin'
-    ) {
-      const currentTime = new Date();
-      const afternoonStart = new Date(workDate + 'T13:00:00.000Z');
-
-      if (currentTime < afternoonStart) {
-        throw new BadRequestException(
-          'Bạn nghỉ buổi sáng, chỉ có thể check-in từ 13:00',
-        );
-      }
-    }
-
-    // Nếu nghỉ buổi chiều, chỉ cho phép check-out trước 12:00
-    if (
-      dayOffInfo.dayOff.duration === DayOffDuration.AFTERNOON &&
-      actionType === 'checkout'
-    ) {
-      const currentTime = new Date();
-      const morningEnd = new Date(workDate + 'T12:00:00.000Z');
-
-      if (currentTime > morningEnd) {
-        throw new BadRequestException(
-          'Bạn nghỉ buổi chiều, chỉ có thể check-out trước 12:00',
-        );
-      }
-    }
   }
 
   // === OVERTIME REQUESTS ===
@@ -1758,15 +1720,13 @@ export class TimesheetService {
   async updateAttendanceLog(
     id: number,
     updateAttendanceLogDto: UpdateAttendanceLogDto,
-    currentUserId: number,
   ) {
     await this.getAttendanceLogById(id);
 
     return this.prisma.attendance_logs.update({
-      where: { id },
+      where: { id, user_id: updateAttendanceLogDto.userId },
       data: {
         ...updateAttendanceLogDto,
-        approved_by: updateAttendanceLogDto.approved_by || currentUserId,
         status: updateAttendanceLogDto.status || TimesheetStatus.PENDING,
       },
       include: {

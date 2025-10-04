@@ -993,7 +993,7 @@ model time_sheets {
     id                  Int                   @id @default(autoincrement())
     user_id             Int
     user                users                 @relation(fields: [user_id], references: [id])
-    work_date           DateTime?             @db.Date // Ngày làm việc
+    work_date           DateTime             @db.Date // Ngày làm việc
     checkin             DateTime?             @db.DateTime() // Thời gian check in
     checkout            DateTime?             @db.DateTime() // Thời gian check out
     checkin_checkout    String?
@@ -1042,16 +1042,15 @@ model attendance_sessions {
     timesheet_id   Int? // Link tới time_sheets
     timesheet      time_sheets?     @relation(fields: [timesheet_id], references: [id])
     work_date      DateTime         @db.Date // Ngày làm việc
-    session_type   String           @default("work") @db.VarChar(20) // 'work', 'break', 'overtime'
+    session_type   SessionType // 'work', 'break', 'overtime'
     checkin_time   DateTime?        @db.DateTime() // Thời gian vào
     checkout_time  DateTime?        @db.DateTime() // Thời gian ra
     duration       Int? // Thời lượng (phút)
-    location_type  String?          @db.VarChar(20) // 'office', 'remote', 'client_site'
+    is_open        Boolean          @default(true) // Phiên đã đóng chưa
+    location_type  LocationType?    // 'office', 'remote', 'client_site'
     checkin_photo  String?          @db.VarChar(500) // Ảnh selfie check in
     checkout_photo String?          @db.VarChar(500) // Ảnh selfie check out
     note           String?          @db.Text // Ghi chú
-    is_manual      Boolean          @default(false) // Tạo thủ công bởi admin
-    approved_by    Int? // ID người duyệt (nếu cần duyệt)
     status         TimesheetStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
     created_at     DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at     DateTime         @updatedAt
@@ -1072,25 +1071,25 @@ model attendance_sessions {
 }
 
 model attendance_logs {
-    id            Int                  @id @default(autoincrement())
-    user_id       Int
-    user          users                @relation(fields: [user_id], references: [id])
-    timesheet_id  Int? // Link tới time_sheets
-    timesheet     time_sheets?         @relation(fields: [timesheet_id], references: [id])
-    session_id    Int? // Link tới attendance_sessions
-    session       attendance_sessions? @relation(fields: [session_id], references: [id])
-    action_type   String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
-    timestamp     DateTime             @db.DateTime() // Thời gian thực hiện hành động
-    work_date     DateTime             @db.Date // Ngày làm việc
-    location_type String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
-    photo_url     String?              @db.VarChar(500) // Ảnh selfie check in/out
-    note          String?              @db.Text // Ghi chú
-    is_manual     Boolean              @default(false) // Check in/out thủ công bởi admin
-    approved_by   Int? // ID người duyệt (nếu cần duyệt)
-    status        TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
-    created_at    DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime             @updatedAt
-    deleted_at    DateTime?            @db.DateTime()
+    id              Int                  @id @default(autoincrement())
+    user_id         Int
+    user            users                @relation(fields: [user_id], references: [id])
+    timesheet_id    Int? // Link tới time_sheets
+    timesheet       time_sheets?         @relation(fields: [timesheet_id], references: [id])
+    session_id      Int? // Link tới attendance_sessions
+    session         attendance_sessions? @relation(fields: [session_id], references: [id])
+    action_type     String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
+    timestamp       DateTime             @db.DateTime() // Thời gian thực hiện hành động
+    work_date       DateTime             @db.Date // Ngày làm việc
+    location_type   String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
+    photo_url       String?              @db.VarChar(500) // Ảnh selfie check in/out
+    note            String?              @db.Text // Ghi chú
+    itempodency_key String?              @db.VarChar(255) // Mã định danh check in/out từ thiết bị
+    is_manual       Boolean              @default(false) // Check in/out thủ công bởi admin
+    status          TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    created_at      DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime             @updatedAt
+    deleted_at      DateTime?            @db.DateTime()
 
     @@index([user_id])
     @@index([work_date])
@@ -1100,6 +1099,7 @@ model attendance_logs {
     @@index([timesheet_id])
     @@index([session_id])
     @@index([status])
+    @@index([itempodency_key])
     @@index([user_id, action_type, work_date]) // Để kiểm tra checkin/checkout trong ngày
     @@index([deleted_at]) // Để tối ưu soft delete queries
 }

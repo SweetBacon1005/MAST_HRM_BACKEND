@@ -59,15 +59,33 @@ export class AuthService {
     return tokens;
   }
 
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 8) {
+      throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự');
+    }
+
+    // Kiểm tra có ít nhất 1 chữ hoa, 1 chữ thường, 1 số
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber) {
+      throw new BadRequestException(
+        'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số'
+      );
+    }
+
+    // Kiểm tra không chứa ký tự đặc biệt nguy hiểm
+    const dangerousChars = /[<>'"&]/;
+    if (dangerousChars.test(password)) {
+      throw new BadRequestException('Mật khẩu chứa ký tự không được phép');
+    }
+  }
+
   async register(registerDto: RegisterDto): Promise<TokensDto> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new BadRequestException('Email đã tồn tại');
-    }
-
-    // Kiểm tra độ mạnh mật khẩu
-    if (registerDto.password.length < 6) {
-      throw new BadRequestException('Mật khẩu phải có ít nhất 6 ký tự');
     }
 
     // Validate email format (đã được validate trong DTO)
@@ -76,7 +94,10 @@ export class AuthService {
       throw new BadRequestException('Email không hợp lệ');
     }
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    // Kiểm tra độ mạnh mật khẩu
+    this.validatePasswordStrength(registerDto.password);
+
+    const hashedPassword = await bcrypt.hash(registerDto.password, 12); // Tăng salt rounds
     const user = await this.usersService.create({
       ...registerDto,
       password: hashedPassword,
@@ -102,35 +123,55 @@ export class AuthService {
       }
 
       const user = await this.usersService.findById(Number(userId));
-      if (!user) {
-        throw new UnauthorizedException('User không tồn tại');
+      if (!user || user.deleted_at) {
+        throw new UnauthorizedException('User không tồn tại hoặc đã bị xóa');
       }
 
       const tokens = await this.getTokens(Number(user.id), user.email);
       return tokens;
-    } catch (_error) {
-      throw new UnauthorizedException('Refresh token không hợp lệ');
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
     }
   }
 
-  async logOut(userId: number) {
-    return 'Log out thành công';
+  async logOut(_userId: number): Promise<{ message: string }> {
+    // TODO: Implement token blacklisting if needed
+    // Có thể thêm logic để blacklist token hoặc invalidate session
+    
+    return { message: 'Đăng xuất thành công' };
   }
 
   async getProfile(userId: number): Promise<any> {
     const user = await this.usersService.findById(userId);
-    if (!user) {
-      throw new UnauthorizedException('User không tồn tại');
+    if (!user || user.deleted_at) {
+      throw new NotFoundException('User không tồn tại hoặc đã bị xóa');
     }
 
-    // Lấy thông tin bổ sung
-    const additionalInfo = await this.getUserAdditionalInfo(userId);
+    try {
+      // Lấy thông tin bổ sung
+      const additionalInfo = await this.getUserAdditionalInfo(userId);
 
-    const { password: _, ...result } = user;
-    return {
-      ...result,
-      ...additionalInfo,
-    };
+      const { password: _, ...result } = user;
+      return {
+        ...result,
+        ...additionalInfo,
+      };
+    } catch (error) {
+      // Log error nhưng vẫn trả về thông tin cơ bản
+      console.error('Error getting additional user info:', error);
+      
+      const { password: _, ...result } = user;
+      return {
+        ...result,
+        join_date: null,
+        today_attendance: null,
+        remaining_leave_days: 0,
+        assigned_devices: [],
+      };
+    }
   }
 
   private async getUserAdditionalInfo(userId: number): Promise<any> {
@@ -139,69 +180,99 @@ export class AuthService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Lấy thời gian gia nhập công ty từ contract đầu tiên
-    const firstContract = await this.prisma.contracts.findFirst({
-      where: {
-        user_id: userId,
-        deleted_at: null,
-      },
-      orderBy: {
-        start_date: 'asc',
-      },
-      select: {
-        start_date: true,
-      },
-    });
-
-    // Lấy thông tin chấm công hôm nay
-    const todayTimesheet = await this.prisma.time_sheets.findFirst({
-      where: {
-        user_id: userId,
-        work_date: {
-          gte: today,
-          lt: tomorrow,
-        },
-        deleted_at: null,
-      },
-      select: {
-        checkin: true,
-        checkout: true,
-        total_work_time: true,
-        status: true,
-      },
-    });
-
-    // Lấy số giờ phép còn lại trong tháng hiện tại
+    // Tháng hiện tại để tính leave days
     const currentMonth = new Date();
     currentMonth.setDate(1);
     currentMonth.setHours(0, 0, 0, 0);
     const nextMonth = new Date(currentMonth);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-    // Tính tổng số ngày phép đã sử dụng trong tháng
-    const usedLeaveDays = await this.prisma.day_offs.aggregate({
-      where: {
-        user_id: userId,
-        start_date: {
-          gte: currentMonth,
-          lt: nextMonth,
+    // Thực hiện tất cả queries song song để tối ưu performance
+    const [firstContract, todayTimesheet, usedLeaveDays, assignedDevices] = await Promise.all([
+      // Lấy thời gian gia nhập công ty từ contract đầu tiên
+      this.prisma.contracts.findFirst({
+        where: {
+          user_id: userId,
+          deleted_at: null,
         },
-        status: 'APPROVED',
-        type: 'PAID',
-        deleted_at: null,
-      },
-      _sum: {
-        total: true,
-      },
-    });
+        orderBy: {
+          start_date: 'asc',
+        },
+        select: {
+          start_date: true,
+        },
+      }),
+
+      // Lấy thông tin chấm công hôm nay
+      this.prisma.time_sheets.findFirst({
+        where: {
+          user_id: userId,
+          work_date: {
+            gte: today,
+            lt: tomorrow,
+          },
+          deleted_at: null,
+        },
+        select: {
+          checkin: true,
+          checkout: true,
+          total_work_time: true,
+          status: true,
+        },
+      }),
+
+      // Tính tổng số ngày phép đã sử dụng trong tháng
+      this.prisma.day_offs.aggregate({
+        where: {
+          user_id: userId,
+          start_date: {
+            gte: currentMonth,
+            lt: nextMonth,
+          },
+          status: 'APPROVED',
+          type: 'PAID',
+          deleted_at: null,
+        },
+        _sum: {
+          total: true,
+        },
+      }),
+
+      // Lấy danh sách thiết bị được cấp
+      this.prisma.user_devices.findMany({
+        where: {
+          user_id: userId,
+          status: 'ACTIVE',
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          device_name: true,
+          device_type: true,
+          device_serial: true,
+          assigned_date: true,
+          notes: true,
+        },
+        orderBy: {
+          assigned_date: 'desc',
+        },
+      }),
+    ]);
 
     // Giả sử mỗi tháng có 2.5 ngày phép (có thể config)
     const monthlyLeaveQuota = 2.5;
     const usedLeave = usedLeaveDays._sum.total || 0;
     const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
 
-    // Lấy danh sách thiết bị được cấp (tạm thời trả về mock data)
-    const assignedDevices = await this.getUserAssignedDevices(userId);
+    // Format assigned devices
+    const formattedDevices = assignedDevices.map((device) => ({
+      id: device.id,
+      name: device.device_name,
+      type: device.device_type?.toLowerCase() || 'unknown',
+      serial: device.device_serial,
+      assigned_date: device.assigned_date,
+      notes: device.notes,
+    }));
 
     return {
       join_date: firstContract?.start_date || null,
@@ -212,38 +283,8 @@ export class AuthService {
         status: todayTimesheet?.status || null,
       },
       remaining_leave_days: remainingLeave,
-      assigned_devices: assignedDevices,
+      assigned_devices: formattedDevices,
     };
-  }
-
-  private async getUserAssignedDevices(userId: number): Promise<any[]> {
-    const devices = await this.prisma.user_devices.findMany({
-      where: {
-        user_id: userId,
-        status: 'ACTIVE',
-        deleted_at: null,
-      },
-      select: {
-        id: true,
-        device_name: true,
-        device_type: true,
-        device_serial: true,
-        assigned_date: true,
-        notes: true,
-      },
-      orderBy: {
-        assigned_date: 'desc',
-      },
-    });
-
-    return devices.map((device) => ({
-      id: device.id,
-      name: device.device_name,
-      type: device.device_type.toLowerCase(),
-      serial: device.device_serial,
-      assigned_date: device.assigned_date,
-      notes: device.notes,
-    }));
   }
 
   async forgotPassword(
@@ -303,9 +344,7 @@ export class AuthService {
     }
 
     // Validate mật khẩu mới
-    if (newPassword.length < 6) {
-      throw new BadRequestException('Mật khẩu phải có ít nhất 6 ký tự');
-    }
+    this.validatePasswordStrength(newPassword);
 
     // Xác thực OTP
     const isValidOTP = await this.otpService.verifyOTP(
@@ -318,7 +357,7 @@ export class AuthService {
     }
 
     // Mã hóa mật khẩu mới
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Cập nhật mật khẩu
     await this.usersService.updatePassword(user.id, hashedPassword);
@@ -360,9 +399,7 @@ export class AuthService {
     }
 
     // Validate mật khẩu mới
-    if (newPassword.length < 6) {
-      throw new BadRequestException('Mật khẩu mới phải có ít nhất 6 ký tự');
-    }
+    this.validatePasswordStrength(newPassword);
 
     // Kiểm tra mật khẩu mới có khác mật khẩu hiện tại không
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
@@ -371,7 +408,7 @@ export class AuthService {
     }
 
     // Mã hóa mật khẩu mới
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
     // Cập nhật mật khẩu
     await this.usersService.updatePassword(userId, hashedNewPassword);
@@ -432,9 +469,7 @@ export class AuthService {
     }
 
     // Validate mật khẩu mới
-    if (newPassword.length < 6) {
-      throw new BadRequestException('Mật khẩu mới phải có ít nhất 6 ký tự');
-    }
+    this.validatePasswordStrength(newPassword);
 
     // Xác thực OTP
     const isValidOTP = await this.otpService.verifyOTP(
@@ -447,7 +482,7 @@ export class AuthService {
     }
 
     // Mã hóa mật khẩu mới
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Cập nhật mật khẩu
     await this.usersService.updatePassword(user.id, hashedPassword);

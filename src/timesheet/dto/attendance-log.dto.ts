@@ -1,14 +1,18 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import { TimesheetStatus } from '@prisma/client';
 import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
-  IsDateString,
-  IsNumber,
-  IsBoolean,
-  IsInt,
-  IsIn,
 } from 'class-validator';
 
 export class CreateAttendanceLogDto {
@@ -126,7 +130,11 @@ export class CreateAttendanceLogDto {
   })
   @IsOptional()
   @IsString()
-  @IsIn([TimesheetStatus.PENDING, TimesheetStatus.APPROVED, TimesheetStatus.REJECTED])
+  @IsIn([
+    TimesheetStatus.PENDING,
+    TimesheetStatus.APPROVED,
+    TimesheetStatus.REJECTED,
+  ])
   status?: TimesheetStatus;
 }
 
@@ -139,13 +147,10 @@ export class UpdateAttendanceLogDto {
   @IsString()
   note?: string;
 
-  @ApiPropertyOptional({
-    description: 'ID người duyệt',
-    example: 456,
-  })
+  @ApiHideProperty()
   @IsOptional()
   @IsInt()
-  approved_by?: number;
+  userId?: number;
 
   @ApiPropertyOptional({
     description: 'Trạng thái (0: pending, 1: approved, 2: rejected)',
@@ -153,7 +158,11 @@ export class UpdateAttendanceLogDto {
   })
   @IsOptional()
   @IsString()
-  @IsIn([TimesheetStatus.PENDING, TimesheetStatus.APPROVED, TimesheetStatus.REJECTED])
+  @IsIn([
+    TimesheetStatus.PENDING,
+    TimesheetStatus.APPROVED,
+    TimesheetStatus.REJECTED,
+  ])
   status?: TimesheetStatus;
 }
 

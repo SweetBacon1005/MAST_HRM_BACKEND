@@ -470,10 +470,10 @@ export class TimesheetController {
     @Body() updateAttendanceLogDto: UpdateAttendanceLogDto,
     @GetCurrentUser('id') currentUserId: number,
   ) {
+    updateAttendanceLogDto.userId = currentUserId;
     return this.timesheetService.updateAttendanceLog(
       id,
       updateAttendanceLogDto,
-      currentUserId,
     );
   }
 
