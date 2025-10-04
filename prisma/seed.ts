@@ -79,7 +79,6 @@ async function main() {
     console.log(`- ${basicData.groupRoles.length} group roles`);
     console.log(`- ${basicData.levels.length} levels`);
     console.log(`- ${basicData.positions.length} positions`);
-    console.log(`- ${basicData.offices.length} offices`);
     console.log(`- ${basicData.languages.length} languages`);
     console.log(`- ${skillsData.skills.length} skills`);
     console.log(

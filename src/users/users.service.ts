@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -220,19 +219,6 @@ export class UsersService {
     });
 
     return { message: 'Xóa người dùng thành công' };
-  }
-
-  async updateRefreshToken(userId: number, refreshToken: string | null) {
-    const hashedRefreshToken = refreshToken
-      ? await bcrypt.hash(refreshToken, 10)
-      : null;
-
-    await this.prisma.users.update({
-      where: { id: userId },
-      data: {
-        remember_token: hashedRefreshToken,
-      },
-    });
   }
 
   async updatePassword(userId: number, hashedPassword: string) {

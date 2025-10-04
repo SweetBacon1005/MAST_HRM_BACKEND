@@ -161,6 +161,7 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     // John Doe timesheet
     prisma.time_sheets.create({
       data: {
+        work_date: yesterday as Date,
         user_id: users[2].id,
         checkin: new Date(
           `${yesterday.toISOString().split('T')[0]}T08:00:00.000Z`,
@@ -183,6 +184,7 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     prisma.time_sheets.create({
       data: {
         user_id: users[3].id,
+        work_date: yesterday as Date,
         checkin: new Date(
           `${yesterday.toISOString().split('T')[0]}T08:15:00.000Z`,
         ),
@@ -203,6 +205,7 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     // Mike Johnson timesheet
     prisma.time_sheets.create({
       data: {
+        work_date: yesterday as Date,
         user_id: users[4].id,
         checkin: new Date(
           `${yesterday.toISOString().split('T')[0]}T08:00:00.000Z`,

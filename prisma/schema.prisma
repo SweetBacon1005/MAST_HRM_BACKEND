@@ -29,6 +29,7 @@ model certificates {
     @@index([certificate_category_id])
 }
 
+// delete
 model children {
     id                   Int       @id @default(autoincrement())
     user_id              Int
@@ -45,42 +46,6 @@ model children {
     type                 String    @db.VarChar(50)
 
     @@index([user_id])
-}
-
-model completed_project_skills {
-    id                   Int               @id @default(autoincrement())
-    completed_project_id Int
-    completed_project    completed_project @relation(fields: [completed_project_id], references: [id])
-    skill_id             Int
-    skill                skills            @relation(fields: [skill_id], references: [id])
-
-    @@index([completed_project_id])
-    @@index([skill_id])
-}
-
-model completed_project {
-    id                       Int                        @id @default(autoincrement())
-    user_id                  Int
-    user                     users                      @relation(fields: [user_id], references: [id])
-    name                     String                     @db.VarChar(255)
-    industry                 String                     @db.VarChar(255)
-    start_date               DateTime                   @db.Date
-    end_date                 DateTime                   @db.Date
-    position_id              Int
-    position                 positions                  @relation(fields: [position_id], references: [id])
-    scale                    String                     @db.VarChar(255)
-    other_skill              String                     @db.VarChar(255)
-    server                   String                     @db.VarChar(255)
-    framework                String                     @db.VarChar(255)
-    phase_type               String                     @db.VarChar(255)
-    content                  String                     @db.LongText
-    created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at               DateTime                   @updatedAt
-    completed_project_skills completed_project_skills[]
-
-    @@index([user_id])
-    @@index([position_id])
-    @@index([start_date, end_date])
 }
 
 model education {
@@ -114,20 +79,6 @@ model experience {
     @@index([user_id])
 }
 
-model failed_jobs {
-    id         Int       @id @default(autoincrement())
-    connection String    @db.Text
-    queue      String    @db.Text
-    payload    String    @db.LongText
-    exception  String    @db.LongText
-    failed_at  DateTime  @db.DateTime()
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([failed_at])
-}
-
 model group_role_permissions {
     id            Int         @id @default(autoincrement())
     group_role_id Int
@@ -146,30 +97,25 @@ model group_role_permissions {
 }
 
 model divisions {
-    id                  Int                   @id @default(autoincrement())
-    name                String
-    is_active_project   Int                   @default(1)
-    type                Int?
-    status              Int?
-    level               Int?
-    address             String?
-    parent_id           Int?
-    parent              divisions?            @relation("DivisionParent", fields: [parent_id], references: [id])
-    children            divisions[]           @relation("DivisionParent")
-    founding_at         DateTime
-    description         String?
-    total_member        Int?
-    created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at          DateTime              @updatedAt
-    deleted_at          DateTime?             @db.DateTime(6)
-    rotation_members    rotation_members[]
-    user_division       user_division[]
-    man_month_divisions man_month_divisions[]
-    invoices            invoices[]
-    projects            projects[]
-    rewards             rewards[]
-    nominations         nominations[]
-    unit_prices         unit_prices[]
+    id                Int                @id @default(autoincrement())
+    name              String
+    is_active_project Int                @default(1)
+    type              Int?
+    status            Int?
+    level             Int?
+    address           String?
+    parent_id         Int?
+    parent            divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
+    children          divisions[]        @relation("DivisionParent")
+    founding_at       DateTime
+    description       String?
+    total_member      Int?
+    created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime           @updatedAt
+    deleted_at        DateTime?          @db.DateTime(6)
+    user_division     user_division[]
+    rotation_member   rotation_members[]
+    projects          projects[]
 
     @@index([parent_id])
     @@index([type])
@@ -177,6 +123,7 @@ model divisions {
     @@index([level])
 }
 
+//maybe delete
 model group_roles {
     id              Int                      @id @default(autoincrement())
     name            String                   @unique @db.VarChar(255)
@@ -188,31 +135,14 @@ model group_roles {
     user_group_role user_group_role[]
 }
 
-model identifications {
-    id           Int       @id @default(autoincrement())
-    type         Int
-    user_id      Int
-    user         users     @relation(fields: [user_id], references: [id])
-    detail       String    @db.Text
-    is_encrypted Boolean   @default(false)
-    link         String    @db.Text
-    created_at   DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at   DateTime  @updatedAt
-    deleted_at   DateTime? @db.DateTime(6)
-
-    @@index([user_id])
-}
-
 model levels {
-    id                 Int                  @id @default(autoincrement())
-    name               String               @db.VarChar(255)
-    coefficient        Float                @db.Float
-    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime             @updatedAt
-    deleted_at         DateTime?            @db.DateTime(6)
-    user_information   user_information[]
-    rental_resource    rental_resource[]
-    rental_unit_prices rental_unit_prices[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    coefficient      Float              @db.Float
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
 }
 
 model migrations {
@@ -231,17 +161,14 @@ model permissions {
 }
 
 model positions {
-    id                 Int                  @id @default(autoincrement())
-    name               String               @db.VarChar(255)
-    is_active_project  Boolean              @default(false)
-    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime             @updatedAt
-    deleted_at         DateTime?            @db.DateTime(6)
-    skills             skills[]
-    completed_project  completed_project[]
-    user_information   user_information[]
-    rental_resource    rental_resource[]
-    rental_unit_prices rental_unit_prices[]
+    id                Int                @id @default(autoincrement())
+    name              String             @db.VarChar(255)
+    is_active_project Boolean            @default(false)
+    created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime           @updatedAt
+    deleted_at        DateTime?          @db.DateTime(6)
+    skills            skills[]
+    user_information  user_information[]
 }
 
 model roles {
@@ -257,16 +184,15 @@ model roles {
 }
 
 model skills {
-    id                       Int                        @id @default(autoincrement())
-    name                     String                     @unique @db.VarChar(255)
-    position_id              Int
-    position                 positions                  @relation(fields: [position_id], references: [id])
-    created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at               DateTime                   @updatedAt
-    deleted_at               DateTime?                  @db.DateTime(6)
-    completed_project_skills completed_project_skills[]
-    user_skills              user_skills[]
-    allocations              allocations[]
+    id          Int           @id @default(autoincrement())
+    name        String        @unique @db.VarChar(255)
+    position_id Int
+    position    positions     @relation(fields: [position_id], references: [id])
+    created_at  DateTime      @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at  DateTime      @updatedAt
+    deleted_at  DateTime?     @db.DateTime(6)
+    user_skills user_skills[]
+    allocations allocations[]
 
     @@index([position_id])
 }
@@ -306,45 +232,41 @@ model user_group_role {
 }
 
 model user_information {
-    id                    Int       @id @default(autoincrement())
-    user_id               Int       @unique
-    user                  users     @relation(fields: [user_id], references: [id])
-    email                 String    @db.VarChar(255)
-    personal_email        String    @db.VarChar(255)
-    nationality           String    @db.VarChar(255)
-    name                  String    @db.VarChar(255)
-    code                  String    @db.VarChar(255)
-    avatar                String    @db.VarChar(255)
-    gender                String    @db.VarChar(255)
-    marital               String    @db.VarChar(255)
-    birthday              DateTime  @db.Date()
-    position_id           Int
-    position              positions @relation(fields: [position_id], references: [id])
-    office_id             Int
-    office                offices   @relation(fields: [office_id], references: [id])
-    address               String    @db.VarChar(255)
-    temp_address          String    @db.VarChar(255)
-    phone                 String    @db.VarChar(255)
-    tax_code              String    @db.VarChar(255)
-    role_id               Int
-    role                  roles     @relation(fields: [role_id], references: [id])
-    status                String    @db.VarChar(255)
-    description           String    @db.VarChar(255)
-    level_id              Int
-    level                 levels    @relation(fields: [level_id], references: [id])
-    social_insurance_code String    @db.VarChar(255)
-    provider_id           String    @db.Text
-    note                  String    @db.Text
-    overview              String    @db.Text
-    market_type           String    @db.VarChar(255)
-    expertise             String    @db.VarChar(255)
-    technique             String    @db.VarChar(255)
-    main_task             String    @db.VarChar(255)
-    language_id           Int
-    language              languages @relation(fields: [language_id], references: [id])
-    created_at            DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at            DateTime  @updatedAt
-    deleted_at            DateTime? @db.DateTime(6)
+    id             Int                   @id @default(autoincrement())
+    user_id        Int                   @unique
+    user           users                 @relation(fields: [user_id], references: [id])
+    email          String                @db.VarChar(255)
+    personal_email String                @db.VarChar(255)
+    nationality    String                @db.VarChar(255)
+    name           String                @db.VarChar(255)
+    code           String                @db.VarChar(255)
+    avatar         String                @db.VarChar(255)
+    gender         String                @db.VarChar(255)
+    marital        String                @db.VarChar(255)
+    birthday       DateTime              @db.Date()
+    position_id    Int
+    position       positions             @relation(fields: [position_id], references: [id])
+    office_id      Int
+    address        String                @db.VarChar(255)
+    temp_address   String                @db.VarChar(255)
+    phone          String                @db.VarChar(255)
+    tax_code       String                @db.VarChar(255)
+    role_id        Int
+    role           roles                 @relation(fields: [role_id], references: [id])
+    status         UserInformationStatus
+    description    String                @db.VarChar(255)
+    level_id       Int
+    level          levels                @relation(fields: [level_id], references: [id])
+    note           String                @db.Text
+    overview       String                @db.Text
+    expertise      String                @db.VarChar(255)
+    technique      String                @db.VarChar(255)
+    main_task      String                @db.VarChar(255)
+    language_id    Int
+    language       languages             @relation(fields: [language_id], references: [id])
+    created_at     DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime              @updatedAt
+    deleted_at     DateTime?             @db.DateTime(6)
 
     @@index([user_id])
     @@index([position_id])
@@ -352,18 +274,6 @@ model user_information {
     @@index([role_id])
     @@index([level_id])
     @@index([language_id])
-}
-
-model offices {
-    id               Int                @id @default(autoincrement())
-    name             String             @db.VarChar(255)
-    location         String             @db.VarChar(255)
-    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime           @updatedAt
-    deleted_at       DateTime?          @db.DateTime(6)
-    user_information user_information[]
-
-    @@index([name])
 }
 
 model languages {
@@ -392,27 +302,6 @@ model user_skills {
 
     @@index([user_id])
     @@index([skill_id])
-}
-
-model user_social_insurances {
-    id                    Int       @id @default(autoincrement()) @db.UnsignedInt
-    user_id               Int
-    user                  users     @relation(fields: [user_id], references: [id])
-    social_insurance_code String    @db.VarChar(30)
-    increase_status       Boolean   @default(false)
-    increase_date         DateTime  @db.Date
-    decrease_status       Boolean   @default(false)
-    decrease_date         DateTime  @db.Date
-    is_recall             Boolean   @default(false)
-    recall_start          DateTime  @db.Date
-    recall_end            DateTime  @db.Date
-    created_at            DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at            DateTime  @updatedAt
-    deleted_at            DateTime? @db.DateTime(6)
-
-    @@index([user_id])
-    @@index([social_insurance_code])
-    @@index([increase_status, decrease_status])
 }
 
 model activity_log {
@@ -450,95 +339,6 @@ model available_employees {
     @@index([start_date, end_date])
 }
 
-model average_costs {
-    id                        Int      @id @default(autoincrement())
-    division_id               Int
-    name                      String   @db.VarChar(255)
-    division_cost_category_id Int
-    cost                      Float    @db.Double
-    year                      Int
-    created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at                DateTime @updatedAt
-
-    @@index([division_id])
-    @@index([division_cost_category_id])
-    @@index([year])
-}
-
-model backoffice_unit_prices {
-    id               Int      @id @default(autoincrement())
-    contract_type_id Int
-    year             Int
-    price            Float    @db.Double
-    created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime @updatedAt
-
-    @@index([contract_type_id])
-    @@index([year])
-}
-
-model break_even_point {
-    id                 Int      @id @default(autoincrement())
-    month              String   @db.VarChar(255)
-    division_id        String   @db.VarChar(255)
-    mm_fulltime        Int
-    mm_parttime        Int
-    parttime_salary    Int
-    overtime_salary    Int
-    partner_cost       Int
-    team_building_cost Int
-    other_cost         Int
-    device_cost        Int
-    software_cost      Int
-    created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime @updatedAt
-
-    @@index([division_id])
-    @@index([month])
-}
-
-model comments {
-    id               Int      @id @default(autoincrement())
-    user_id          Int
-    comment          String   @db.Text
-    commentable_type String   @db.VarChar(255)
-    commentable_id   Int
-    created_at       DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([commentable_type, commentable_id])
-}
-
-model division_cost_categories {
-    id         Int       @id @default(autoincrement())
-    name       String    @db.VarChar(255)
-    parent_id  Int?
-    is_edit    Boolean   @default(false)
-    code       String    @db.VarChar(255)
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime(6)
-
-    @@index([parent_id])
-    @@index([code])
-    @@index([name])
-}
-
-model division_monthly_costs {
-    id                        Int      @id @default(autoincrement())
-    division_id               Int
-    month                     String   @db.VarChar(255)
-    division_cost_category_id Int
-    cost                      Float    @db.Double
-    created_at                DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at                DateTime @updatedAt
-
-    @@index([division_id])
-    @@index([division_cost_category_id])
-    @@index([month])
-}
-
 model evaluation_histories {
     id         Int      @id @default(autoincrement())
     user_id    Int
@@ -554,41 +354,6 @@ model evaluation_histories {
     @@index([date])
 }
 
-model exchange_rates {
-    id         Int      @id @default(autoincrement())
-    currency   String   @db.VarChar(255)
-    month      String   @db.VarChar(255)
-    rate       Float    @db.Double
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([currency])
-    @@index([month])
-}
-
-model external_rental_resources {
-    id                 Int      @id @default(autoincrement())
-    user_id            Int
-    rental_division_id Int
-    rent_division_id   Int
-    project_id         Int
-    level_id           Int
-    start_date         DateTime @db.Date
-    end_date           DateTime @db.Date
-    payment_type       Int
-    allocation         Int
-    note               String?  @db.Text
-    created_at         DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([rental_division_id])
-    @@index([rent_division_id])
-    @@index([project_id])
-    @@index([level_id])
-    @@index([start_date, end_date])
-}
-
 model files {
     id            Int      @id @default(autoincrement())
     name          String   @db.VarChar(255)
@@ -602,220 +367,6 @@ model files {
 
     @@index([fileable_type, fileable_id])
     @@index([type])
-}
-
-model freelancer_timesheets {
-    id          Int       @id @default(autoincrement())
-    user_id     Int
-    report_date DateTime  @db.Date
-    actual_time Float     @db.Double
-    note        String?   @db.Text
-    work_detail String?   @db.Text
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-    deleted_at  DateTime? @db.DateTime()
-
-    @@index([user_id])
-    @@index([report_date])
-}
-
-model freelancers {
-    id              Int       @id @default(autoincrement())
-    user_id         Int
-    freelancer_type Int
-    position        String    @db.VarChar(255)
-    project_id      Int
-    allocation      Int
-    division_id     Int
-    start_date      DateTime  @db.Date
-    end_date        DateTime  @db.Date
-    status          Int
-    price           Int
-    price_type      Int
-    created_at      DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at      DateTime  @updatedAt
-    deleted_at      DateTime? @db.DateTime(6)
-
-    @@index([user_id])
-    @@index([project_id])
-    @@index([division_id])
-    @@index([start_date, end_date])
-    @@index([status])
-}
-
-model health_check_result_history_item {
-    id           Int      @id @default(autoincrement())
-    check_name   String   @db.VarChar(255)
-    check_label  String   @db.VarChar(255)
-    status       String   @db.VarChar(255)
-    notification String?  @db.Text
-    short_sum    String?  @db.VarChar(255)
-    meta         Json
-    ended_at     DateTime @db.DateTime()
-    batch        String?  @db.Char(36)
-    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at   DateTime @updatedAt
-
-    @@index([check_name])
-    @@index([status])
-    @@index([batch])
-    @@index([ended_at])
-}
-
-model idle_workforce {
-    id          Int      @id @default(autoincrement())
-    user_id     Int
-    division_id Int
-    team_id     Int
-    month       String   @db.VarChar(255)
-    free        Int
-    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([division_id])
-    @@index([team_id])
-    @@index([month])
-}
-
-model internal_rental_resource {
-    id             Int      @id @default(autoincrement())
-    user_id        Int?
-    rental_team_id Int?
-    rent_team_id   Int?
-    project_id     Int?
-    level_id       Int?
-    start_date     DateTime @db.Date
-    end_date       DateTime @db.Date
-    allocation     Int?
-    note           String?  @db.Text
-    created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at     DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([rental_team_id])
-    @@index([rent_team_id])
-    @@index([project_id])
-    @@index([level_id])
-    @@index([start_date, end_date])
-}
-
-model invoices {
-    id                   Int                @id @default(autoincrement())
-    code                 String             @unique @db.VarChar(255)
-    division_id          Int?
-    division             divisions?         @relation(fields: [division_id], references: [id])
-    team_id              Int?
-    team                 teams?             @relation(fields: [team_id], references: [id])
-    project_id           Int?
-    project              projects?          @relation(fields: [project_id], references: [id])
-    billable             Float              @db.Double
-    amount               Float              @db.Double
-    money_paid           Float              @db.Double
-    currency             CurrencyType       @default(VND)
-    status               InvoiceStatus      @default(DRAFT)
-    deadline             DateTime           @db.Date
-    expect_payment_date  String?            @db.VarChar(20)
-    actual_payment_date  DateTime           @db.Date
-    link_evidence        String?            @db.VarChar(255)
-    invoice_date         DateTime           @db.Date
-    note                 String?            @db.Text
-    created_at           DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime           @updatedAt
-    deleted_at           DateTime?          @db.DateTime()
-    received_month       String?            @db.VarChar(20)
-    execution_end_time   DateTime           @db.Date
-    execution_start_time DateTime           @db.Date
-    job_description      String?            @db.VarChar(255)
-    invoice_comments     invoice_comments[]
-
-    @@index([division_id])
-    @@index([team_id])
-    @@index([project_id])
-    @@index([currency])
-    @@index([status])
-    @@index([invoice_date])
-    @@index([received_month])
-}
-
-model invoice_comments {
-    id         Int      @id @default(autoincrement())
-    invoice_id Int
-    invoice    invoices @relation(fields: [invoice_id], references: [id])
-    user_id    Int
-    user       users    @relation(fields: [user_id], references: [id])
-    comment    String   @db.Text
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([invoice_id])
-    @@index([user_id])
-}
-
-model man_month_divisions {
-    id          Int       @id @default(autoincrement())
-    type        Int
-    month       String    @db.VarChar(255)
-    division_id Int
-    division    divisions @relation(fields: [division_id], references: [id])
-    amount      Float     @db.Double
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-
-    @@index([division_id])
-    @@index([month])
-    @@index([type])
-}
-
-model month_rental_costs {
-    id                   Int      @id @default(autoincrement())
-    rental_costable_id   Int
-    rental_costable_type String   @db.VarChar(255)
-    year                 Int
-    position_id          Int
-    level_id             Int
-    month                String   @db.VarChar(255)
-    cost                 Float    @db.Double
-    status               Int // tinyint(1) dùng như mã trạng thái
-    created_at           DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime @updatedAt
-
-    @@index([rental_costable_id])
-    @@index([rental_costable_type])
-    @@index([year])
-    @@index([position_id])
-    @@index([level_id])
-    @@index([month])
-}
-
-model nominations {
-    id              Int              @id @default(autoincrement())
-    type            RewardType       @default(INDIVIDUAL)
-    division_id     Int
-    division        divisions        @relation(fields: [division_id], references: [id])
-    manager_id      Int
-    manager         users            @relation("NominationManager", fields: [manager_id], references: [id])
-    employee_id     Int
-    employee        users            @relation("NominationEmployee", fields: [employee_id], references: [id])
-    reward_date     String           @db.VarChar(255)
-    quality         Int
-    quality_note    String?          @db.Text
-    value           Int
-    value_note      String?          @db.Text
-    contribute      Int
-    contribute_note String?          @db.Text
-    attitude        Int
-    attitude_note   String?          @db.Text
-    status          NominationStatus @default(PENDING)
-    note            String?          @db.Text
-    created_at      DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at      DateTime         @updatedAt
-    deleted_at      DateTime?        @db.DateTime()
-
-    @@index([division_id])
-    @@index([manager_id])
-    @@index([employee_id])
-    @@index([status])
 }
 
 model permissions_groups {
@@ -835,178 +386,6 @@ model permission_role {
 
     @@index([permission_id])
     @@index([role_id])
-}
-
-model personal_access_tokens {
-    id             Int      @id @default(autoincrement())
-    tokenable_type String   @db.VarChar(255)
-    tokenable_id   Int
-    name           String   @db.VarChar(255)
-    token          String   @unique @db.VarChar(64)
-    abilities      String?  @db.Text
-    last_used_at   DateTime @db.DateTime()
-    expires_at     DateTime @db.DateTime()
-    created_at     DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at     DateTime @updatedAt
-
-    @@index([tokenable_type, tokenable_id])
-}
-
-model project_costs {
-    id         Int      @id @default(autoincrement())
-    project_id Int
-    project    projects @relation(fields: [project_id], references: [id])
-    cost       Float    @db.Double
-    month      String   @db.VarChar(255)
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([project_id])
-    @@index([month])
-}
-
-model rental_resource {
-    id             Int       @id @default(autoincrement())
-    user_id        Int
-    user           users     @relation(fields: [user_id], references: [id])
-    project_id     Int
-    project        projects  @relation(fields: [project_id], references: [id])
-    allocation     Int
-    working_hours  Float     @db.Double
-    lease_team_id  Int
-    lease_team     teams     @relation("LeaseTeam", fields: [lease_team_id], references: [id])
-    rent_team_id   Int
-    rent_team      teams     @relation("RentTeam", fields: [rent_team_id], references: [id])
-    start_date     DateTime  @db.Date
-    end_date       DateTime  @db.Date
-    position_id    Int
-    position       positions @relation(fields: [position_id], references: [id])
-    level_id       Int
-    level          levels    @relation(fields: [level_id], references: [id])
-    note           String?   @db.Text
-    price          Int
-    request_id     Int
-    request_status String    @db.VarChar(255)
-    payment_month  String    @db.VarChar(10)
-    created_at     DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at     DateTime  @updatedAt
-    deleted_at     DateTime  @db.DateTime()
-    payment_value  Float     @db.Double
-
-    @@index([user_id])
-    @@index([project_id])
-    @@index([lease_team_id])
-    @@index([rent_team_id])
-    @@index([position_id])
-    @@index([level_id])
-    @@index([request_id])
-    @@index([payment_month])
-    @@index([start_date, end_date])
-}
-
-model rental_unit_prices {
-    id          Int       @id @default(autoincrement())
-    position_id Int
-    position    positions @relation(fields: [position_id], references: [id])
-    level_id    Int
-    level       levels    @relation(fields: [level_id], references: [id])
-    year        Int
-    price       Float     @db.Double
-    experience  String    @db.VarChar(255)
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-
-    @@index([position_id])
-    @@index([level_id])
-    @@index([year])
-}
-
-model rewards {
-    id          Int          @id @default(autoincrement())
-    division_id Int
-    division    divisions    @relation(fields: [division_id], references: [id])
-    project_id  Int
-    project     projects     @relation(fields: [project_id], references: [id])
-    reward_date String       @db.VarChar(20)
-    css         Float        @db.Double
-    total       Float        @db.Double
-    status      RewardStatus @default(PENDING)
-    reward_type RewardType   @default(INDIVIDUAL)
-    note        String?      @db.Text
-    reward_file String?      @db.VarChar(255)
-    pqa_file    String?      @db.VarChar(255)
-    created_at  DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime     @updatedAt
-    deleted_at  DateTime?    @db.DateTime()
-
-    @@index([division_id])
-    @@index([project_id])
-    @@index([status])
-    @@index([reward_type])
-    @@index([reward_date])
-}
-
-model staff_coefficient {
-    id          Int      @id @default(autoincrement())
-    user_id     Int
-    user        users    @relation(fields: [user_id], references: [id])
-    coefficient Float    @db.Double
-    note        String?  @db.Text
-    start_month String   @db.VarChar(255)
-    end_month   String   @db.VarChar(255)
-    created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([start_month])
-    @@index([end_month])
-}
-
-model team_cost_categories {
-    id                 Int                    @id @default(autoincrement())
-    code               String                 @db.VarChar(255)
-    name               String                 @db.VarChar(255)
-    parent_id          Int?
-    parent             team_cost_categories?  @relation("TeamCostCategoryParent", fields: [parent_id], references: [id])
-    children           team_cost_categories[] @relation("TeamCostCategoryParent")
-    is_edit            Boolean                @default(false)
-    created_at         DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime               @updatedAt
-    deleted_at         DateTime?              @db.DateTime()
-    team_monthly_costs team_monthly_costs[]
-
-    @@index([parent_id])
-    @@index([code])
-    @@index([name])
-}
-
-model team_costs {
-    id         Int      @id @default(autoincrement())
-    team_id    Int
-    team       teams    @relation(fields: [team_id], references: [id])
-    cost       Float    @db.Double
-    month      String   @db.VarChar(255)
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([team_id])
-    @@index([month])
-}
-
-model team_monthly_costs {
-    id                    Int                  @id @default(autoincrement())
-    team_id               Int
-    team                  teams                @relation(fields: [team_id], references: [id])
-    month                 String               @db.VarChar(255)
-    team_cost_category_id Int
-    team_cost_category    team_cost_categories @relation(fields: [team_cost_category_id], references: [id])
-    cost                  Float                @db.Double
-    created_at            DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at            DateTime             @updatedAt
-
-    @@index([team_id])
-    @@index([team_cost_category_id])
-    @@index([month])
 }
 
 model allocations {
@@ -1063,7 +442,6 @@ model customers {
     note             String?            @db.LongText
     created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at       DateTime           @updatedAt
-    unit_prices      unit_prices[]
     customer_project customer_project[]
 
     @@index([hubspot_id])
@@ -1246,21 +624,6 @@ model pm_reports {
     @@index([project_id])
 }
 
-model project_month_budget {
-    id         Int       @id @default(autoincrement())
-    project_id Int
-    project    projects  @relation(fields: [project_id], references: [id])
-    year       Int
-    month      String
-    budget     Float
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([project_id])
-    @@index([deleted_at])
-}
-
 model project_role_user {
     id                  Int      @id @default(autoincrement())
     project_id          Int
@@ -1274,113 +637,67 @@ model project_role_user {
     @@index([user_id])
 }
 
-model project_year_budget {
-    id         Int       @id @default(autoincrement())
-    project_id Int
-    year       Int
-    budget     Float
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([project_id])
-    @@index([deleted_at])
-}
-
 model projects {
-    id                    Int                     @id @default(autoincrement())
-    name                  String
-    code                  String
-    status                ProjectStatus           @default(OPEN)
-    backlog_project_id    Int?
-    backlog_project       projects?               @relation("ProjectBacklog", fields: [backlog_project_id], references: [id])
-    backlog_projects      projects[]              @relation("ProjectBacklog")
-    division_id           Int?
-    division              divisions?              @relation(fields: [division_id], references: [id])
-    team_id               Int?
-    team                  teams?                  @relation(fields: [team_id], references: [id])
-    contract_type         ContractType?
-    project_type          ProjectType?
-    billable              Float?
-    budget                Float?
-    rank                  Int?
-    customer_type         CustomerType?
-    industry              Int?
-    language              String?
-    scope                 String?
-    number_process_apply  Int?
-    legal                 Legal?
-    communication         String?
-    description           String?
-    contract_information  String?
-    critical              String?
-    note                  String?
-    teams_webhook_url     String?
-    start_date            DateTime
-    end_date              DateTime
-    created_at            DateTime                @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at            DateTime                @updatedAt
-    deleted_at            DateTime?               @db.DateTime()
-    working_times         working_times[]
-    project_role_user     project_role_user[]
-    project_month_budget  project_month_budget[]
-    resource_rental_costs resource_rental_costs[]
-    violation_reports     violation_reports[]
-    invoices              invoices[]
-    daily_reports         daily_reports[]
-    stages                stages[]
-    rental_resource       rental_resource[]
-    rewards               rewards[]
-    tasks                 tasks[]
-    task_backlogs         tasks[]                 @relation("TaskBacklog")
-    project_costs         project_costs[]
-    customer_project      customer_project[]
-    pm_reports            pm_reports[]
-    over_time_history     over_times_history[]
+    id                   Int                  @id @default(autoincrement())
+    name                 String
+    code                 String
+    status               ProjectStatus        @default(OPEN)
+    division_id          Int?
+    division             divisions?           @relation(fields: [division_id], references: [id])
+    team_id              Int?
+    team                 teams?               @relation(fields: [team_id], references: [id])
+    contract_type        ContractType?
+    project_type         ProjectType?
+    billable             Float?
+    budget               Float?
+    rank                 Int?
+    customer_type        CustomerType?
+    industry             IndustryType?
+    scope                String?
+    number_process_apply Int?
+    description          String?
+    contract_information String?
+    critical             String?
+    note                 String?
+    start_date           DateTime
+    end_date             DateTime
+    created_at           DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at           DateTime             @updatedAt
+    deleted_at           DateTime?            @db.DateTime()
+    working_times        working_times[]
+    project_role_user    project_role_user[]
+    daily_reports        daily_reports[]
+    stages               stages[]
+    tasks                tasks[]
+    task_backlogs        tasks[]              @relation("TaskBacklog")
+    customer_project     customer_project[]
+    pm_reports           pm_reports[]
+    over_time_history    over_times_history[]
 
     @@index([deleted_at])
     @@index([division_id])
     @@index([team_id])
-    @@index([backlog_project_id])
-}
-
-model resource_rental_costs {
-    id          Int       @id @default(autoincrement())
-    project_id  Int
-    project     projects  @relation(fields: [project_id], references: [id])
-    division_id Int
-    year        Int
-    note        String?
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-    deleted_at  DateTime? @db.DateTime()
-
-    @@index([project_id])
-    @@index([division_id])
-    @@index([deleted_at])
 }
 
 model rule_penalties {
-    id                         Int                          @id @default(autoincrement())
-    rule_id                    Int
-    rule                       rules                        @relation(fields: [rule_id], references: [id])
-    penalty_id                 Int
-    penalty                    penalties                    @relation(fields: [penalty_id], references: [id])
-    number                     Int
-    violation_report_penalties violation_report_penalties[]
+    id         Int       @id @default(autoincrement())
+    rule_id    Int
+    rule       rules     @relation(fields: [rule_id], references: [id])
+    penalty_id Int
+    penalty    penalties @relation(fields: [penalty_id], references: [id])
+    number     Int
 
     @@index([rule_id])
     @@index([penalty_id])
 }
 
 model rules {
-    id                Int                 @id @default(autoincrement())
-    name              String
-    created_at        DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at        DateTime            @updatedAt
-    deleted_at        DateTime?           @db.DateTime()
-    rule_penalties    rule_penalties[]
-    violation_reports violation_reports[]
+    id             Int              @id @default(autoincrement())
+    name           String
+    created_at     DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime         @updatedAt
+    deleted_at     DateTime?        @db.DateTime()
+    rule_penalties rule_penalties[]
 }
 
 model stages {
@@ -1390,8 +707,6 @@ model stages {
     type              StageType      @default(SPRINT)
     version           String
     status            StageStatus    @default(OPEN)
-    billable          Decimal?
-    budget            Decimal?
     start_date        DateTime
     end_date          DateTime
     replan_start_date DateTime
@@ -1436,79 +751,41 @@ model tasks {
     @@index([user_id])
 }
 
-model technologies {
-    id                  Int      @id @default(autoincrement())
-    programing_language String?  @db.VarChar(255)
-    framework           String?  @db.VarChar(255)
-    created_at          DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at          DateTime @updatedAt
-}
-
-model unit_prices {
-    id            Int       @id @default(autoincrement())
-    customer_id   Int
-    customer      customers @relation(fields: [customer_id], references: [id])
-    division_id   Int
-    division      divisions @relation(fields: [division_id], references: [id])
-    price         Float
-    currency_unit Boolean
-    start_date    DateTime  @db.Date
-    end_date      DateTime  @db.Date
-    created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime  @updatedAt
-
-    @@index([customer_id])
-    @@index([division_id])
-}
-
 model users {
-    id                     Int                      @id @default(autoincrement())
-    name                   String?                  @db.VarChar(255)
-    email                  String                   @unique @db.VarChar(255)
-    email_verified_at      DateTime                 @db.DateTime()
-    password               String?                  @db.VarChar(255)
-    remember_token         String?                  @db.VarChar(100)
-    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at             DateTime                 @updatedAt
-    deleted_at             DateTime?                @db.DateTime()
-    children               children[]
-    completed_project      completed_project[]
-    education              education[]
-    experience             experience[]
-    identifications        identifications[]
-    user_certificates      user_certificates[]
-    user_group_role        user_group_role[]
-    user_information       user_information[]
-    user_skills            user_skills[]
-    user_social_insurances user_social_insurances[]
-    rotation_members       rotation_members[]
-    over_times_history     over_times_history[]
-    user_group             user_group[]
-    user_division          user_division[]
-    attendance_logs        attendance_logs[]
-    attendance_sessions    attendance_sessions[]
-    day_offs               day_offs[]               @relation("user")
-    users_unpaid_leave     users_unpaid_leave[]
-    approved_by_user       day_offs[]               @relation("approved_by_user")
-    working_times          working_times[]
-    project_role_user      project_role_user[]
-    time_sheets            time_sheets[]
-    user_course            user_course[]
-    contracts              contracts[]
-    work_times             work_times[]
-    creator                violation_reports[]      @relation("creator")
-    handler                violation_reports[]      @relation("handler")
-    violator               violation_reports[]      @relation("violator")
-    daily_reports          daily_reports[]
-    invoice_comments       invoice_comments[]
-    nomination_manager     nominations[]            @relation("NominationManager")
-    nomination_employee    nominations[]            @relation("NominationEmployee")
-    rental_resource        rental_resource[]
-    tasks                  tasks[]
-    staff_coefficient      staff_coefficient[]
-    allocations            allocations[]
-    pm_reports             pm_reports[]
-    user_devices           user_devices[]
+    id                  Int                   @id @default(autoincrement())
+    name                String?               @db.VarChar(255)
+    email               String                @unique @db.VarChar(255)
+    email_verified_at   DateTime              @db.DateTime()
+    password            String?               @db.VarChar(255)
+    created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at          DateTime              @updatedAt
+    deleted_at          DateTime?             @db.DateTime()
+    education           education[]
+    experience          experience[]
+    user_certificates   user_certificates[]
+    user_group_role     user_group_role[]
+    user_information    user_information[]
+    user_skills         user_skills[]
+    rotation_members    rotation_members[]
+    over_times_history  over_times_history[]
+    user_group          user_group[]
+    user_division       user_division[]
+    attendance_logs     attendance_logs[]
+    attendance_sessions attendance_sessions[]
+    day_offs            day_offs[]            @relation("user")
+    users_unpaid_leave  users_unpaid_leave[]
+    approved_by_user    day_offs[]            @relation("approved_by_user")
+    working_times       working_times[]
+    project_role_user   project_role_user[]
+    time_sheets         time_sheets[]
+    contracts           contracts[]
+    work_times          work_times[]
+    tasks               tasks[]
+    allocations         allocations[]
+    pm_reports          pm_reports[]
+    user_devices        user_devices[]
+    daily_reports       daily_reports[]
+    children            children[]
 }
 
 model users_unpaid_leave {
@@ -1518,44 +795,6 @@ model users_unpaid_leave {
     start_date DateTime @db.Date
     end_date   DateTime @db.Date
     reason     String?  @db.VarChar(1000)
-}
-
-model violation_report_penalties {
-    id                  Int               @id @default(autoincrement())
-    penalty_id          Int
-    penalty             rule_penalties    @relation(fields: [penalty_id], references: [id])
-    violation_report_id Int
-    violation_report    violation_reports @relation(fields: [violation_report_id], references: [id])
-}
-
-model violation_reports {
-    id                         Int                          @id @default(autoincrement())
-    title                      String?                      @db.VarChar(255)
-    creator_id                 Int
-    creator                    users                        @relation("creator", fields: [creator_id], references: [id])
-    handler_id                 Int
-    handler                    users                        @relation("handler", fields: [handler_id], references: [id])
-    rule_id                    Int
-    rule                       rules                        @relation(fields: [rule_id], references: [id])
-    violator_id                Int
-    violator                   users                        @relation("violator", fields: [violator_id], references: [id])
-    project_id                 Int
-    project                    projects                     @relation(fields: [project_id], references: [id])
-    violation_report_penalties violation_report_penalties[]
-    team_id                    Int
-    team                       teams                        @relation(fields: [team_id], references: [id])
-    status                     ViolationReportStatus?       @default(PENDING)
-    violation_date             DateTime                     @db.Date
-    violation_content          String?                      @db.LongText
-    processing_content         String?                      @db.LongText
-    evidence_url               String?                      @db.VarChar(255)
-    evidence_file_name         String?                      @db.VarChar(255)
-    result_url                 String?                      @db.VarChar(255)
-    result_file_name           String?                      @db.VarChar(255)
-    result                     String?                      @db.VarChar(255)
-    created_at                 DateTime                     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at                 DateTime                     @updatedAt
-    deleted_at                 DateTime?                    @db.DateTime()
 }
 
 model working_times {
@@ -1573,22 +812,6 @@ model working_times {
     @@index([user_id])
     @@index([project_id])
     @@index([date])
-}
-
-model workspaces {
-    id         Int      @id @default(autoincrement())
-    name       String   @db.VarChar(255)
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-}
-
-model workspaces_users {
-    id           Int      @id @default(autoincrement())
-    user_id      Int
-    workspace_id Int
-    role         Int
-    created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at   DateTime @updatedAt
 }
 
 model block_times {
@@ -1618,15 +841,6 @@ model checkouts {
 
     @@index([user_id])
     @@index([request_id])
-}
-
-model contract_categories {
-    id         Int       @id @default(autoincrement())
-    duration   Int?
-    name       String    @db.VarChar(255)
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
 }
 
 model contracts {
@@ -1779,7 +993,7 @@ model time_sheets {
     id                  Int                   @id @default(autoincrement())
     user_id             Int
     user                users                 @relation(fields: [user_id], references: [id])
-    work_date           DateTime?             @db.Date // Ngày làm việc
+    work_date           DateTime             @db.Date // Ngày làm việc
     checkin             DateTime?             @db.DateTime() // Thời gian check in
     checkout            DateTime?             @db.DateTime() // Thời gian check out
     checkin_checkout    String?
@@ -1828,20 +1042,15 @@ model attendance_sessions {
     timesheet_id   Int? // Link tới time_sheets
     timesheet      time_sheets?     @relation(fields: [timesheet_id], references: [id])
     work_date      DateTime         @db.Date // Ngày làm việc
-    session_type   String           @default("work") @db.VarChar(20) // 'work', 'break', 'overtime'
+    session_type   SessionType // 'work', 'break', 'overtime'
     checkin_time   DateTime?        @db.DateTime() // Thời gian vào
     checkout_time  DateTime?        @db.DateTime() // Thời gian ra
     duration       Int? // Thời lượng (phút)
-    location_type  String?          @db.VarChar(20) // 'office', 'remote', 'client_site'
-    ip_address     String?          @db.VarChar(45) // IP address
-    device_info    String?          @db.VarChar(255) // Thông tin thiết bị
-    gps_latitude   Float?           @db.Double // Tọa độ GPS
-    gps_longitude  Float?           @db.Double // Tọa độ GPS  
+    is_open        Boolean          @default(true) // Phiên đã đóng chưa
+    location_type  LocationType?    // 'office', 'remote', 'client_site'
     checkin_photo  String?          @db.VarChar(500) // Ảnh selfie check in
     checkout_photo String?          @db.VarChar(500) // Ảnh selfie check out
     note           String?          @db.Text // Ghi chú
-    is_manual      Boolean          @default(false) // Tạo thủ công bởi admin
-    approved_by    Int? // ID người duyệt (nếu cần duyệt)
     status         TimesheetStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
     created_at     DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at     DateTime         @updatedAt
@@ -1862,29 +1071,25 @@ model attendance_sessions {
 }
 
 model attendance_logs {
-    id            Int                  @id @default(autoincrement())
-    user_id       Int
-    user          users                @relation(fields: [user_id], references: [id])
-    timesheet_id  Int? // Link tới time_sheets
-    timesheet     time_sheets?         @relation(fields: [timesheet_id], references: [id])
-    session_id    Int? // Link tới attendance_sessions
-    session       attendance_sessions? @relation(fields: [session_id], references: [id])
-    action_type   String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
-    timestamp     DateTime             @db.DateTime() // Thời gian thực hiện hành động
-    work_date     DateTime             @db.Date // Ngày làm việc
-    location_type String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
-    ip_address    String?              @db.VarChar(45) // IP address
-    device_info   String?              @db.VarChar(255) // Thông tin thiết bị
-    gps_latitude  Float?               @db.Double // Tọa độ GPS
-    gps_longitude Float?               @db.Double // Tọa độ GPS  
-    photo_url     String?              @db.VarChar(500) // Ảnh selfie check in/out
-    note          String?              @db.Text // Ghi chú
-    is_manual     Boolean              @default(false) // Check in/out thủ công bởi admin
-    approved_by   Int? // ID người duyệt (nếu cần duyệt)
-    status        TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
-    created_at    DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime             @updatedAt
-    deleted_at    DateTime?            @db.DateTime()
+    id              Int                  @id @default(autoincrement())
+    user_id         Int
+    user            users                @relation(fields: [user_id], references: [id])
+    timesheet_id    Int? // Link tới time_sheets
+    timesheet       time_sheets?         @relation(fields: [timesheet_id], references: [id])
+    session_id      Int? // Link tới attendance_sessions
+    session         attendance_sessions? @relation(fields: [session_id], references: [id])
+    action_type     String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
+    timestamp       DateTime             @db.DateTime() // Thời gian thực hiện hành động
+    work_date       DateTime             @db.Date // Ngày làm việc
+    location_type   String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
+    photo_url       String?              @db.VarChar(500) // Ảnh selfie check in/out
+    note            String?              @db.Text // Ghi chú
+    itempodency_key String?              @db.VarChar(255) // Mã định danh check in/out từ thiết bị
+    is_manual       Boolean              @default(false) // Check in/out thủ công bởi admin
+    status          TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    created_at      DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime             @updatedAt
+    deleted_at      DateTime?            @db.DateTime()
 
     @@index([user_id])
     @@index([work_date])
@@ -1894,21 +1099,9 @@ model attendance_logs {
     @@index([timesheet_id])
     @@index([session_id])
     @@index([status])
+    @@index([itempodency_key])
     @@index([user_id, action_type, work_date]) // Để kiểm tra checkin/checkout trong ngày
     @@index([deleted_at]) // Để tối ưu soft delete queries
-}
-
-model time_logs {
-    id         Int            @id @default(autoincrement())
-    user_id    Int
-    time       Float?
-    date       DateTime       @db.DateTime()
-    type       time_log_type?
-    created_at DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime       @updatedAt
-    deleted_at DateTime?      @db.DateTime()
-
-    @@index([user_id])
 }
 
 model team_member_resources {
@@ -1946,6 +1139,7 @@ model schedule_works {
     @@index([type])
 }
 
+//maybe delete
 model rotation_members {
     id            Int       @id @default(autoincrement())
     division_id   Int
@@ -1963,20 +1157,20 @@ model rotation_members {
 }
 
 model over_times_history {
-    id         Int              @id @default(autoincrement())
+    id         Int       @id @default(autoincrement())
     user_id    Int
-    user       users            @relation(fields: [user_id], references: [id])
+    user       users     @relation(fields: [user_id], references: [id])
     total      Float?
     value      Float?
     date       DateTime
     project_id Int?
-    project    projects?        @relation(fields: [project_id], references: [id])
+    project    projects? @relation(fields: [project_id], references: [id])
     start_time DateTime
     end_time   DateTime
     reason     String?
-    deleted_at DateTime?        @db.DateTime()
-    created_at DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime         @updatedAt
+    deleted_at DateTime? @db.DateTime()
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
 
     @@index([user_id])
     @@index([project_id])
@@ -2000,26 +1194,6 @@ model over_times {
     created_at         DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at         DateTime  @updatedAt
     deleted_at         DateTime? @db.DateTime()
-}
-
-model user_course {
-    id              Int      @id @default(autoincrement())
-    course_id       Int
-    user_id         Int
-    user            users    @relation(fields: [user_id], references: [id])
-    support_cost    Int?
-    path            String?
-    type            String?
-    start_date      DateTime
-    end_date        DateTime
-    status          Int?
-    end_commit_date DateTime
-    end_commit_cost Int?
-    created_at      DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at      DateTime @updatedAt
-
-    @@index([course_id])
-    @@index([user_id])
 }
 
 model work_times {
@@ -2108,31 +1282,18 @@ model user_division {
 }
 
 model teams {
-    id                 Int                  @id @default(autoincrement())
-    name               String               @db.VarChar(255)
-    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at         DateTime             @updatedAt
-    deleted_at         DateTime?            @db.DateTime()
-    user_division      user_division[]
-    violation_reports  violation_reports[]
-    invoices           invoices[]
-    lease_rentals      rental_resource[]    @relation("LeaseTeam")
-    rent_rentals       rental_resource[]    @relation("RentTeam")
-    projects           projects[]
-    team_costs         team_costs[]
-    team_monthly_costs team_monthly_costs[]
+    id            Int             @id @default(autoincrement())
+    name          String          @db.VarChar(255)
+    created_at    DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime        @updatedAt
+    deleted_at    DateTime?       @db.DateTime()
+    user_division user_division[]
+    projects      projects[]
 
     @@index([name])
     @@index([created_at])
     @@index([updated_at])
     @@index([deleted_at])
-}
-
-enum time_log_type {
-    //đi muộn
-    LATE
-    //về sớm
-    EARLY
 }
 
 enum CerticicateType {
@@ -2175,25 +1336,11 @@ enum ContractStatus {
     INACTIVE
 }
 
-enum ViolationReportStatus {
-    PENDING
-    APPROVED
-    REJECTED
-}
-
 enum CurrencyType {
     VND
     USD
     JPY
     EUR
-}
-
-enum InvoiceStatus {
-    DRAFT
-    SENT
-    PAID
-    OVERDUE
-    CANCELLED
 }
 
 enum ProjectStatus {
@@ -2222,11 +1369,6 @@ enum CustomerType {
     END_USER
 }
 
-enum Legal {
-    AMELA_JP
-    AMELA_VN
-}
-
 enum StageType {
     SPRINT
     LABO
@@ -2234,6 +1376,11 @@ enum StageType {
     CONSTRUCTION
     TRANSITION
     GUARANTEE
+}
+
+enum UserInformationStatus {
+    ACTIVE
+    INACTIVE
 }
 
 enum StageStatus {
@@ -2257,23 +1404,6 @@ enum MilestoneType {
     DESIGN
     DEVELOPMENT
     TESTING
-}
-
-enum RewardStatus {
-    PENDING
-    APPROVED
-    REJECTED
-}
-
-enum RewardType {
-    INDIVIDUAL
-    TEAM
-}
-
-enum NominationStatus {
-    PENDING
-    APPROVED
-    REJECTED
 }
 
 enum DayOffStatus {
@@ -2344,11 +1474,11 @@ enum HolidayStatus {
 }
 
 enum WorkShiftType {
-    NORMAL      // Ca thường (hành chính)
-    NIGHT       // Ca đêm
-    FLEXIBLE    // Ca linh hoạt
-    PART_TIME   // Ca bán thời gian
-    OVERTIME    // Ca tăng ca
+    NORMAL // Ca thường (hành chính)
+    NIGHT // Ca đêm
+    FLEXIBLE // Ca linh hoạt
+    PART_TIME // Ca bán thời gian
+    OVERTIME // Ca tăng ca
 }
 
 enum OtpType {
@@ -2358,19 +1488,19 @@ enum OtpType {
 }
 
 model user_devices {
-    id            Int      @id @default(autoincrement())
+    id            Int          @id @default(autoincrement())
     user_id       Int
-    user          users    @relation(fields: [user_id], references: [id])
-    device_name   String   @db.VarChar(255)
-    device_type   DeviceType @default(LAPTOP)
-    device_serial String?  @db.VarChar(255)
-    assigned_date DateTime @db.Date
-    returned_date DateTime? @db.Date
+    user          users        @relation(fields: [user_id], references: [id])
+    device_name   String       @db.VarChar(255)
+    device_type   DeviceType   @default(LAPTOP)
+    device_serial String?      @db.VarChar(255)
+    assigned_date DateTime     @db.Date
+    returned_date DateTime?    @db.Date
     status        DeviceStatus @default(ACTIVE)
-    notes         String?  @db.Text
-    created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime @updatedAt
-    deleted_at    DateTime? @db.DateTime()
+    notes         String?      @db.Text
+    created_at    DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime     @updatedAt
+    deleted_at    DateTime?    @db.DateTime()
 
     @@index([user_id])
     @@index([device_type])
@@ -2393,4 +1523,11 @@ enum DeviceStatus {
     RETURNED
     LOST
     DAMAGED
+}
+
+enum IndustryType {
+    IT
+    FINANCE
+    MANUFACTURING
+    OTHER
 }

@@ -98,7 +98,7 @@ export class AuthController {
     description: 'Đăng xuất thành công',
   })
   async logout(@GetCurrentUser('id') userId: number) {
-    return this.authService.logout(userId);
+    return this.authService.logOut(userId);
   }
 
   @UseGuards(JwtAuthGuard)

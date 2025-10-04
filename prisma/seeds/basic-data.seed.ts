@@ -294,43 +294,6 @@ export async function seedBasicData(prisma: PrismaClient) {
     }),
   ]);
 
-  // 6. Tạo offices
-  console.log('🏢 Tạo offices...');
-  const offices = await Promise.all([
-    prisma.offices.upsert({
-      where: { id: 1 },
-      update: {},
-      create: {
-        name: 'Hà Nội Office',
-        location: 'Hà Nội, Việt Nam',
-      },
-    }),
-    prisma.offices.upsert({
-      where: { id: 2 },
-      update: {},
-      create: {
-        name: 'TP.HCM Office',
-        location: 'TP.Hồ Chí Minh, Việt Nam',
-      },
-    }),
-    prisma.offices.upsert({
-      where: { id: 3 },
-      update: {},
-      create: {
-        name: 'Đà Nẵng Office',
-        location: 'Đà Nẵng, Việt Nam',
-      },
-    }),
-    prisma.offices.upsert({
-      where: { id: 4 },
-      update: {},
-      create: {
-        name: 'Tokyo Office',
-        location: 'Tokyo, Japan',
-      },
-    }),
-  ]);
-
   // 7. Tạo languages
   console.log('🌍 Tạo languages...');
   const languages = await Promise.all([
@@ -362,7 +325,6 @@ export async function seedBasicData(prisma: PrismaClient) {
     groupRoles,
     levels,
     positions,
-    offices,
     languages,
   };
 }
