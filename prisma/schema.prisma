@@ -29,24 +29,6 @@ model certificates {
     @@index([certificate_category_id])
 }
 
-// delete
-model children {
-    id                   Int       @id @default(autoincrement())
-    user_id              Int
-    user                 users     @relation(fields: [user_id], references: [id])
-    gender               String    @db.VarChar(10)
-    name                 String    @db.VarChar(255)
-    birthday             DateTime  @db.Date()
-    phone                String?   @db.VarChar(255)
-    is_dependent         Boolean   @default(false)
-    dependent_start_date DateTime  @db.Date()
-    created_at           DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime  @updatedAt
-    deleted_at           DateTime? @db.DateTime()
-    type                 String    @db.VarChar(50)
-
-    @@index([user_id])
-}
 
 model education {
     id          Int       @id @default(autoincrement())
@@ -699,7 +681,6 @@ model users {
     pm_reports            pm_reports[]
     user_devices          user_devices[]
     daily_reports         daily_reports[]
-    children              children[]
     divisions_assignments divisions_assignments[]
     team_member_resources team_member_resources[]
     evaluation_histories  evaluation_histories[]
