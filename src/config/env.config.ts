@@ -12,4 +12,7 @@ export const envConfig = {
     port: parseInt(process.env.PORT || '3000', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
   },
+  faceIdentificationUrl: {
+    url: process.env.FACE_IDENTIFICATION_URL || 'http://localhost:4000',
+  },
 };

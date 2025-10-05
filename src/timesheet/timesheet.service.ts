@@ -47,10 +47,18 @@ import {
 } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
 import { TimezoneUtil } from './utils/timezone.util';
+import { envConfig } from 'src/config/env.config';
+import { Multer } from 'multer';
+import FormData from 'form-data';
+import { FaceIdentifiedDto } from './dto/face-identified.dto';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class TimesheetService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private httpService: HttpService,
+  ) {}
 
   // === TIMESHEET MANAGEMENT ===
 
@@ -267,7 +275,35 @@ export class TimesheetService {
 
   // === CHECK-IN/CHECK-OUT ===
 
-  async checkin(userId: number, checkinDto: CheckinDto) {
+  async registerFace(userId: number, image: Express.Multer.File) {
+    if (image){
+      try {
+        // Tạo form-data
+        const formData = new FormData();
+        formData.append('image', image.buffer, {
+          filename: image.originalname,
+          contentType: image.mimetype,
+        } as any);
+        formData.append('user_id', userId.toString());
+        
+        // Gửi request
+        const response = await this.httpService.axiosRef.post(
+          process.env.FACE_IDENTIFICATION_URL + '/add_user',
+          formData,
+          { headers: formData.getHeaders() },
+        );
+
+        return response.data;
+      } catch (error) {
+        console.error(error);
+        throw new BadRequestException(error.response?.data?.error || 'Đăng ký khuôn mặt không thành công');
+      }
+    } else {
+      throw new BadRequestException('Ảnh khuôn mặt là bắt buộc');
+    }
+  }
+
+  async checkin(userId: number, image: Express.Multer.File, checkinDto: CheckinDto) {
     const today = TimezoneUtil.getCurrentWorkDate();
     const checkinTime = new Date();
     
@@ -282,6 +318,43 @@ export class TimesheetService {
 
       if (!user) {
         throw new NotFoundException('Không tìm thấy người dùng');
+      }
+
+      let face_identified: FaceIdentifiedDto | null = null;
+      if (image) {
+        try {
+          // Tạo form-data
+          const formData = new FormData();
+          formData.append('image', image.buffer, {
+            filename: image.originalname,
+            contentType: image.mimetype,
+          } as any);
+
+          // Gửi request
+          const response = await this.httpService.axiosRef.post(
+            process.env.FACE_IDENTIFICATION_URL + '/identify',
+            formData,
+            { headers: formData.getHeaders() },
+          );
+
+          const result = response.data;
+
+          console.log('Face identification result:', result.user_id, userId, typeof result.user_id, typeof userId);
+          if (Number(result.user_id) !== userId) {
+
+            throw new BadRequestException('Xác thực khuôn mặt không thành công');
+          }
+
+          face_identified = result;
+
+        } catch (error) {
+          console.error(error);
+          throw new BadRequestException(error.response?.data?.error || 'Xác thực khuôn mặt không thành công');
+        }
+      }
+
+      if (!face_identified) {
+        throw new BadRequestException('Xác thực khuôn mặt không thành công');
       }
 
       // Kiểm tra idempotency - nếu đã có log check-in hôm nay thì trả về lỗi
@@ -362,8 +435,8 @@ export class TimesheetService {
           action_type: 'checkin',
           timestamp: checkinTime,
           work_date: new Date(today),
-          location_type: checkinDto.location_type || 'office',
-          photo_url: checkinDto.photo_url,
+          location_type: checkinDto.location_type || 'OFFICE',
+          photo_url: face_identified.captured_image_url,
           itempodency_key: idempotencyKey,
           status: 'APPROVED',
         },
@@ -388,7 +461,7 @@ export class TimesheetService {
     });
   }
 
-  async checkout(userId: number, checkoutDto: CheckoutDto) {
+  async checkout(userId: number, image: Express.Multer.File, checkoutDto: CheckoutDto) {
     const today = TimezoneUtil.getCurrentWorkDate();
     const checkoutTime = new Date();
     
@@ -403,6 +476,41 @@ export class TimesheetService {
       
       if (!user) {
         throw new NotFoundException('Không tìm thấy người dùng');
+      }
+
+      let face_identified: FaceIdentifiedDto | null = null;
+      if (image) {
+        try {
+          // Tạo form-data
+          const formData = new FormData();
+          formData.append('image', image.buffer, {
+            filename: image.originalname,
+            contentType: image.mimetype,
+          } as any);
+
+          // Gửi request
+          const response = await this.httpService.axiosRef.post(
+            process.env.FACE_IDENTIFICATION_URL + '/identify',
+            formData,
+            { headers: formData.getHeaders() },
+          );
+
+          const result = response.data;
+
+          if (Number(result.user_id) !== userId) {
+            throw new BadRequestException('Xác thực khuôn mặt không thành công');
+          }
+
+          face_identified = result;
+
+        } catch (error) {
+          console.error(error);
+          throw new BadRequestException(error.response?.data?.error || 'Xác thực khuôn mặt không thành công');
+        }
+      }
+
+      if (!face_identified) {
+        throw new BadRequestException('Xác thực khuôn mặt không thành công');
       }
 
       // Kiểm tra đã check-in hôm nay chưa
@@ -499,8 +607,8 @@ export class TimesheetService {
           action_type: 'checkout',
           timestamp: checkoutTime,
           work_date: new Date(today),
-          location_type: checkoutDto.location_type || 'office',
-          photo_url: checkoutDto.photo_url,
+          location_type: checkoutDto.location_type || 'OFFICE',
+          photo_url: face_identified.captured_image_url,
           itempodency_key: idempotencyKey,
           status: 'APPROVED',
         },

@@ -8,13 +8,17 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -55,7 +59,10 @@ import {
 import { UpdateDayOffStatusDto } from './dto/update-day-off-status.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
+import { HttpService } from '@nestjs/axios';
 import { TimesheetService } from './timesheet.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import multer from 'multer';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
@@ -131,28 +138,54 @@ export class TimesheetController {
     return this.timesheetService.removeTimesheet(id);
   }
 
+  // Face registeration for check-in/out
+
+  @Post('register-face')
+  @ApiOperation({ summary: 'Đăng ký khuôn mặt cho chấm công' })
+  @ApiResponse({ status: 201, description: 'Đăng ký thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @UseInterceptors(FileInterceptor('image'))
+  registerFace(
+    @GetCurrentUser('id') userId: number,
+    @UploadedFile() image: Express.Multer.File,
+  ) {
+    return this.timesheetService.registerFace(userId, image);
+  }
+  
   // === CHECK-IN/CHECK-OUT ===
 
   @Post('checkin')
   @ApiOperation({ summary: 'Check-in' })
   @ApiResponse({ status: 201, description: 'Check-in thành công' })
   @ApiResponse({ status: 400, description: 'Đã check-in hôm nay rồi' })
-  checkin(
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    type: CheckinDto, // metadata
+  })
+  async checkin(
     @GetCurrentUser('id') userId: number,
+    @UploadedFile() image: Express.Multer.File,
     @Body() checkinDto: CheckinDto,
   ) {
-    return this.timesheetService.checkin(userId, checkinDto);
+    return this.timesheetService.checkin(userId, image, checkinDto);
   }
 
   @Post('checkout')
   @ApiOperation({ summary: 'Check-out' })
   @ApiResponse({ status: 200, description: 'Check-out thành công' })
   @ApiResponse({ status: 400, description: 'Chưa check-in hoặc đã check-out' })
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    type: CheckoutDto, // metadata
+  })
   checkout(
     @GetCurrentUser('id') userId: number,
+    @UploadedFile() image: Express.Multer.File,
     @Body() checkoutDto: CheckoutDto,
   ) {
-    return this.timesheetService.checkout(userId, checkoutDto);
+    return this.timesheetService.checkout(userId, image, checkoutDto);
   }
 
   @Get('attendance/today')

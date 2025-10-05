@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationType, RemoteType, SessionType } from '@prisma/client';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CheckinDto {
   @ApiPropertyOptional({
@@ -28,6 +29,7 @@ export class CheckinDto {
     example: 21.0285,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   gps_latitude?: number;
 
@@ -36,6 +38,7 @@ export class CheckinDto {
     example: 105.8542,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   gps_longitude?: number;
 
@@ -84,12 +87,12 @@ export class CheckinDto {
 export class CheckoutDto {
   @ApiPropertyOptional({
     description: 'Loại địa điểm',
-    example: 'office',
-    enum: ['office', 'remote', 'client_site'],
+    example: 'OFFICE',
+    enum: ['OFFICE', 'REMOTE', 'CLIENT_SITE'],
   })
   @IsOptional()
   @IsString()
-  @IsIn(['office', 'remote', 'client_site'])
+  @IsIn(['OFFICE', 'REMOTE', 'CLIENT_SITE'])
   location_type?: string;
 
   @ApiPropertyOptional({
@@ -107,6 +110,7 @@ export class CheckoutDto {
     example: 21.0285,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   gps_latitude?: number;
 
@@ -115,6 +119,7 @@ export class CheckoutDto {
     example: 105.8542,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   gps_longitude?: number;
 
