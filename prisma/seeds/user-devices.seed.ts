@@ -55,24 +55,31 @@ export async function seedUserDevices() {
     },
   ];
 
+  // Tạo user devices data
+  const userDeviceData = [];
+  
   for (const user of users) {
     // Gán 2-3 thiết bị cho mỗi user
     const userDevices = devices.slice(0, Math.floor(Math.random() * 3) + 2);
     
     for (const device of userDevices) {
-      await prisma.user_devices.create({
-        data: {
-          user_id: user.id,
-          device_name: device.device_name,
-          device_type: device.device_type as any,
-          device_serial: device.device_serial,
-          assigned_date: new Date('2024-01-01'),
-          status: 'ACTIVE',
-          notes: device.notes,
-        },
+      userDeviceData.push({
+        user_id: user.id,
+        device_name: device.device_name,
+        device_type: device.device_type as any,
+        device_serial: device.device_serial,
+        assigned_date: new Date('2024-01-01'),
+        status: 'ACTIVE',
+        notes: device.notes,
       });
     }
   }
+
+  // Sử dụng createMany với skipDuplicates
+  await prisma.user_devices.createMany({
+    data: userDeviceData,
+    skipDuplicates: true,
+  });
 
   console.log('✅ User devices seeded successfully');
 }

@@ -5,90 +5,79 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
 
   const { users, roles, stages, projects } = seedData;
 
-  // 1. Tạo user_division
+  // 1. Tạo user_division - sử dụng createMany với skipDuplicates
   console.log('🏢 Tạo user division assignments...');
-  await Promise.all([
-    prisma.user_division.create({
-      data: {
-        userId: users[0].id,
-        role_id: roles[0].id, // admin
-        divisionId: 1, // Technology Division
-        teamId: null,
-        description: 'System Administrator',
-        teamLeader: null,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[1].id,
-        role_id: roles[1].id, // manager
-        divisionId: 2, // Human Resources
-        teamId: null,
-        description: 'HR Manager',
-        teamLeader: null,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[2].id,
-        role_id: roles[2].id, // team_leader
-        divisionId: 4, // Development Team A
-        teamId: 1, // Backend Team
-        description: 'Backend Team Leader',
-        teamLeader: 1,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[3].id,
-        role_id: roles[2].id, // team_leader
-        divisionId: 4, // Development Team A
-        teamId: 2, // Frontend Team
-        description: 'Frontend Team Leader',
-        teamLeader: 1,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[4].id,
-        role_id: roles[3].id, // developer
-        divisionId: 5, // Development Team B
-        teamId: 3, // Mobile Team
-        description: 'Mobile Developer',
-        teamLeader: 0,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[5].id,
-        role_id: roles[4].id, // tester
-        divisionId: 3, // Quality Assurance
-        teamId: 4, // QA Team
-        description: 'Senior QA Tester',
-        teamLeader: 0,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[6].id,
-        role_id: roles[3].id, // developer
-        divisionId: 1, // Technology Division
-        teamId: 5, // DevOps Team
-        description: 'DevOps Engineer',
-        teamLeader: 0,
-      },
-    }),
-    prisma.user_division.create({
-      data: {
-        userId: users[7].id,
-        role_id: roles[5].id, // employee
-        divisionId: 1, // Technology Division
-        teamId: 6, // UI/UX Team
-        description: 'UI/UX Designer',
-        teamLeader: 0,
-      },
-    }),
-  ]);
+  const userDivisionData = [
+    {
+      userId: users[0].id,
+      role_id: roles[0].id, // admin
+      divisionId: 1, // Technology Division
+      teamId: null,
+      description: 'System Administrator',
+      teamLeader: null,
+    },
+    {
+      userId: users[1].id,
+      role_id: roles[1].id, // manager
+      divisionId: 2, // Human Resources
+      teamId: null,
+      description: 'HR Manager',
+      teamLeader: null,
+    },
+    {
+      userId: users[2].id,
+      role_id: roles[2].id, // team_leader
+      divisionId: 4, // Development Team A
+      teamId: 1, // Backend Team
+      description: 'Backend Team Leader',
+      teamLeader: 1,
+    },
+    {
+      userId: users[3].id,
+      role_id: roles[2].id, // team_leader
+      divisionId: 4, // Development Team A
+      teamId: 2, // Frontend Team
+      description: 'Frontend Team Leader',
+      teamLeader: 1,
+    },
+    {
+      userId: users[4].id,
+      role_id: roles[3].id, // developer
+      divisionId: 5, // Development Team B
+      teamId: 3, // Mobile Team
+      description: 'Mobile Developer',
+      teamLeader: 0,
+    },
+    {
+      userId: users[5].id,
+      role_id: roles[4].id, // tester
+      divisionId: 3, // Quality Assurance
+      teamId: 4, // QA Team
+      description: 'Senior QA Tester',
+      teamLeader: 0,
+    },
+    {
+      userId: users[6].id,
+      role_id: roles[3].id, // developer
+      divisionId: 1, // Technology Division
+      teamId: 5, // DevOps Team
+      description: 'DevOps Engineer',
+      teamLeader: 0,
+    },
+    {
+      userId: users[7].id,
+      role_id: roles[5].id, // employee
+      divisionId: 1, // Technology Division
+      teamId: 6, // UI/UX Team
+      description: 'UI/UX Designer',
+      teamLeader: 0,
+    },
+  ];
+
+  await prisma.user_division.createMany({
+    data: userDivisionData,
+    skipDuplicates: true,
+  });
 
   // 2. Tạo allocations (phân bổ nhân sự cho dự án)
   console.log('👥 Tạo project allocations...');
