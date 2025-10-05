@@ -61,22 +61,6 @@ model experience {
     @@index([user_id])
 }
 
-model group_role_permissions {
-    id            Int         @id @default(autoincrement())
-    group_role_id Int
-    group_role    group_roles @relation(fields: [group_role_id], references: [id])
-    role_id       Int
-    role          roles       @relation(fields: [role_id], references: [id])
-    permission_id Int
-    permission    permissions @relation(fields: [permission_id], references: [id])
-    created_at    DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime    @updatedAt
-    deleted_at    DateTime?   @db.DateTime()
-
-    @@index([group_role_id])
-    @@index([role_id])
-    @@index([permission_id])
-}
 
 model divisions {
     id                       Int                        @id @default(autoincrement())
@@ -107,16 +91,6 @@ model divisions {
     @@index([level])
 }
 
-model group_roles {
-    id              Int                      @id @default(autoincrement())
-    name            String                   @unique @db.VarChar(255)
-    description     String?                  @db.VarChar(255)
-    created_at      DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at      DateTime                 @updatedAt
-    deleted_at      DateTime?                @db.DateTime(6)
-    permissions     group_role_permissions[]
-    user_group_role user_group_role[]
-}
 
 model levels {
     id                   Int                    @id @default(autoincrement())
@@ -141,7 +115,7 @@ model permissions {
     created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at             DateTime                 @updatedAt
     deleted_at             DateTime?                @db.DateTime(6)
-    group_role_permissions group_role_permissions[]
+    permission_role        permission_role[]
 }
 
 model positions {
@@ -161,10 +135,10 @@ model roles {
     created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at             DateTime                 @updatedAt
     deleted_at             DateTime?                @db.DateTime(6)
-    group_role_permissions group_role_permissions[]
     user_information       user_information[]
     user_division          user_division[]
     allocations            allocations[]
+    permission_role        permission_role[]
 }
 
 model skills {
@@ -199,20 +173,6 @@ model user_certificates {
     @@index([user_id])
     @@index([issued_at])
     @@index([certificate_id])
-}
-
-model user_group_role {
-    id         Int         @id @default(autoincrement())
-    user_id    Int
-    user       users       @relation(fields: [user_id], references: [id])
-    group_id   Int
-    group      group_roles @relation(fields: [group_id], references: [id])
-    created_at DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime    @updatedAt
-    deleted_at DateTime?   @db.DateTime(6)
-
-    @@index([user_id])
-    @@index([group_id])
 }
 
 model user_information {
@@ -305,20 +265,6 @@ model activity_log {
     updated_at   DateTime @updatedAt
 }
 
-model available_employees {
-    id         Int      @id @default(autoincrement())
-    user_id    Int
-    user       users    @relation(fields: [user_id], references: [id])
-    start_date DateTime @db.Date
-    end_date   DateTime @db.Date
-    free       Int
-    note       String?  @db.VarChar(255)
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([user_id])
-    @@index([start_date, end_date])
-}
 
 model evaluation_histories {
     id         Int      @id @default(autoincrement())
@@ -356,7 +302,9 @@ model files {
 model permission_role {
     id            Int      @id @default(autoincrement())
     permission_id Int
+    permission    permissions @relation(fields: [permission_id], references: [id])
     role_id       Int
+    role          roles       @relation(fields: [role_id], references: [id])
     created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at    DateTime @updatedAt
 
@@ -585,7 +533,6 @@ model projects {
     tasks                tasks[]
     customer_project     customer_project[]
     pm_reports           pm_reports[]
-    over_time_history    over_times_history[]
 
     @@index([deleted_at])
     @@index([division_id])
@@ -652,12 +599,9 @@ model users {
     education             education[]
     experience            experience[]
     user_certificates     user_certificates[]
-    user_group_role       user_group_role[]
     user_information      user_information[]
     user_skills           user_skills[]
     rotation_members      rotation_members[]
-    over_times_history    over_times_history[]
-    user_group            user_group[]
     user_division         user_division[]
     attendance_logs       attendance_logs[]
     attendance_sessions   attendance_sessions[]
@@ -677,7 +621,6 @@ model users {
     divisions_assignments divisions_assignments[]
     team_member_resources team_member_resources[]
     evaluation_histories  evaluation_histories[]
-    available_employees   available_employees[]
     activity_log_subject  activity_log[]          @relation("Subject")
     activity_log_causer   activity_log[]          @relation("Causer")
 }
@@ -862,8 +805,6 @@ model time_sheets {
     early_time          Int? // Phút về sớm
     is_complete         Boolean?              @default(false) // Hoàn thành đủ giờ làm việc (0: chưa, 1: đủ)
     fines               Float? // Tiền phạt
-    group_id            Int?
-    group               groups?               @relation(fields: [group_id], references: [id])
     deleted_at          DateTime?             @db.DateTime()
     created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at          DateTime              @updatedAt
@@ -887,7 +828,6 @@ model time_sheets {
     @@index([work_date])
     @@index([user_id, work_date])
     @@index([day_off_id])
-    @@index([group_id])
     @@index([status])
     @@index([type])
     @@index([work_date, status]) // Để lọc theo ngày và trạng thái
@@ -1018,29 +958,6 @@ model rotation_members {
     @@index([user_id])
 }
 
-model over_times_history {
-    id         Int       @id @default(autoincrement())
-    user_id    Int
-    user       users     @relation(fields: [user_id], references: [id])
-    total      Float?
-    value      Float?
-    date       DateTime
-    project_id Int?
-    project    projects? @relation(fields: [project_id], references: [id])
-    start_time DateTime
-    end_time   DateTime
-    reason     String?
-    deleted_at DateTime? @db.DateTime()
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-
-    @@index([user_id])
-    @@index([project_id])
-    @@index([date])
-    @@index([user_id, date]) // Để lọc overtime theo user và ngày
-    @@index([deleted_at]) // Để tối ưu soft delete queries
-}
-
 model over_times {
     id                 Int       @id @default(autoincrement())
     type               Int?
@@ -1078,38 +995,6 @@ model work_times {
     @@index([deleted_at])
 }
 
-model user_group {
-    id         Int       @id @default(autoincrement())
-    userId     Int
-    user       users     @relation(fields: [userId], references: [id])
-    group_id   Int
-    group      groups    @relation(fields: [group_id], references: [id])
-    date       DateTime
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([userId])
-    @@index([date])
-    @@index([deleted_at])
-}
-
-model groups {
-    id          Int           @id @default(autoincrement())
-    name        String        @db.VarChar(255)
-    location    String        @db.VarChar(255)
-    created_at  DateTime      @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime      @updatedAt
-    deleted_at  DateTime?     @db.DateTime()
-    user_group  user_group[]
-    time_sheets time_sheets[]
-
-    @@index([name])
-    @@index([location])
-    @@index([created_at])
-    @@index([updated_at])
-    @@index([deleted_at])
-}
 
 model user_division {
     id          Int        @id @default(autoincrement())
