@@ -23,18 +23,22 @@ async function createApp() {
       }),
     );
 
-    // CORS Configuration optimized for Vercel
+    // CORS Configuration - Allow all origins
     app.enableCors({
-      origin: process.env.NODE_ENV === 'production' 
-        ? [
-            process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
-            /\.vercel\.app$/,
-            'https://localhost:3000',
-          ].filter(Boolean)
-        : true,
+      origin: true, // Allow all origins
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+      allowedHeaders: [
+        'Content-Type', 
+        'Authorization', 
+        'Accept',
+        'Origin',
+        'X-Requested-With',
+        'Access-Control-Request-Method',
+        'Access-Control-Request-Headers',
+      ],
+      exposedHeaders: ['Content-Range', 'X-Content-Range'],
+      maxAge: 86400, // 24 hours
     });
 
     // Vercel-specific optimizations

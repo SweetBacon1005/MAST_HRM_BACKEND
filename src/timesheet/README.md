@@ -34,8 +34,7 @@ src/timesheet/
 │   └── timesheet-state.enum.ts  # Enum cho trạng thái timesheet
 ├── utils/                        # Utilities
 │   ├── enum-converter.util.ts   # Chuyển đổi enum
-│   ├── query.util.ts           # Query helpers
-│   └── timezone.util.ts        # Timezone utilities
+│   └── query.util.ts           # Query helpers
 ├── timesheet.controller.ts       # API Controller
 ├── timesheet.service.ts         # Business Logic Service
 ├── timesheet.module.ts          # NestJS Module
@@ -51,8 +50,8 @@ src/timesheet/
 POST /timesheet
 {
   "work_date": "2024-01-15",
-  "checkin": "2024-01-15T08:00:00Z",
-  "checkout": "2024-01-15T17:30:00Z",
+  "checkin": "2024-01-15T01:00:00Z", // 8:00 AM +7
+  "checkout": "2024-01-15T10:30:00Z", // 5:30 PM +7
   "note": "Làm việc bình thường"
 }
 ```
@@ -119,8 +118,8 @@ POST /timesheet/day-off-requests
 POST /timesheet/overtime-requests
 {
   "date": "2024-01-15",
-  "start_time": "2024-01-15T18:00:00Z",
-  "end_time": "2024-01-15T20:00:00Z",
+  "start_time": "2024-01-15T11:00:00Z", // 6:00 PM +7
+  "end_time": "2024-01-15T13:00:00Z", // 8:00 PM +7
   "reason": "Hoàn thành dự án urgent",
   "project_id": 123
 }
@@ -190,10 +189,10 @@ enum DayOffType {
 
 ## Utilities
 
-### TimezoneUtil
-- `getCurrentWorkDate()`: Lấy ngày làm việc hiện tại
-- `formatWorkDate()`: Format ngày theo định dạng chuẩn
-- `isSameWorkDate()`: So sánh 2 ngày làm việc
+### Date Utilities
+- Sử dụng UTC (GMT+0) cho tất cả timestamp
+- `new Date().toISOString().split('T')[0]`: Lấy ngày hiện tại
+- Thời gian làm việc: 1:30-10:30 UTC (8:30-17:30 UTC+7)
 
 ### EnumConverter
 - Chuyển đổi giữa enum numbers và string values cho Prisma

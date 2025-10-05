@@ -1,3 +1,4 @@
+import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Injectable,
@@ -11,6 +12,7 @@ import {
   Prisma,
   TimesheetStatus,
 } from '@prisma/client';
+import FormData from 'form-data';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -26,6 +28,7 @@ import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
+import { FaceIdentifiedDto } from './dto/face-identified.dto';
 import { GetScheduleDto } from './dto/get-schedule.dto';
 import {
   AttendanceLogPaginationDto,
@@ -46,12 +49,6 @@ import {
   TimesheetType,
 } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
-import { TimezoneUtil } from './utils/timezone.util';
-import { envConfig } from 'src/config/env.config';
-import { Multer } from 'multer';
-import FormData from 'form-data';
-import { FaceIdentifiedDto } from './dto/face-identified.dto';
-import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class TimesheetService {
@@ -276,7 +273,7 @@ export class TimesheetService {
   // === CHECK-IN/CHECK-OUT ===
 
   async registerFace(userId: number, image: Express.Multer.File) {
-    if (image){
+    if (image) {
       try {
         // Tạo form-data
         const formData = new FormData();
@@ -285,7 +282,7 @@ export class TimesheetService {
           contentType: image.mimetype,
         } as any);
         formData.append('user_id', userId.toString());
-        
+
         // Gửi request
         const response = await this.httpService.axiosRef.post(
           process.env.FACE_IDENTIFICATION_URL + '/add_user',
@@ -296,17 +293,23 @@ export class TimesheetService {
         return response.data;
       } catch (error) {
         console.error(error);
-        throw new BadRequestException(error.response?.data?.error || 'Đăng ký khuôn mặt không thành công');
+        throw new BadRequestException(
+          error.response?.data?.error || 'Đăng ký khuôn mặt không thành công',
+        );
       }
     } else {
       throw new BadRequestException('Ảnh khuôn mặt là bắt buộc');
     }
   }
 
-  async checkin(userId: number, image: Express.Multer.File, checkinDto: CheckinDto) {
-    const today = TimezoneUtil.getCurrentWorkDate();
+  async checkin(
+    userId: number,
+    image: Express.Multer.File,
+    checkinDto: CheckinDto,
+  ) {
+    const today = new Date().toISOString().split('T')[0];
     const checkinTime = new Date();
-    
+
     // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkin_${userId}_${today}`;
 
@@ -339,17 +342,26 @@ export class TimesheetService {
 
           const result = response.data;
 
-          console.log('Face identification result:', result.user_id, userId, typeof result.user_id, typeof userId);
+          console.log(
+            'Face identification result:',
+            result.user_id,
+            userId,
+            typeof result.user_id,
+            typeof userId,
+          );
           if (Number(result.user_id) !== userId) {
-
-            throw new BadRequestException('Xác thực khuôn mặt không thành công');
+            throw new BadRequestException(
+              'Xác thực khuôn mặt không thành công',
+            );
           }
 
           face_identified = result;
-
         } catch (error) {
           console.error(error);
-          throw new BadRequestException(error.response?.data?.error || 'Xác thực khuôn mặt không thành công');
+          throw new BadRequestException(
+            error.response?.data?.error ||
+              'Xác thực khuôn mặt không thành công',
+          );
         }
       }
 
@@ -407,11 +419,14 @@ export class TimesheetService {
         });
       }
 
-      // Tính toán late time (8:30 AM làm mốc)
-      const workStartTime = new Date(today + 'T08:30:00.000Z');
-      const lateTime = checkinTime > workStartTime
-        ? Math.floor((checkinTime.getTime() - workStartTime.getTime()) / (1000 * 60))
-        : 0;
+      // Tính toán late time (8:30 AM UTC+7 = 1:30 AM UTC)
+      const workStartTime = new Date(today + 'T01:30:00.000Z');
+      const lateTime =
+        checkinTime > workStartTime
+          ? Math.floor(
+              (checkinTime.getTime() - workStartTime.getTime()) / (1000 * 60),
+            )
+          : 0;
 
       // Tạo session mới
       const newSession = await tx.attendance_sessions.create({
@@ -461,10 +476,14 @@ export class TimesheetService {
     });
   }
 
-  async checkout(userId: number, image: Express.Multer.File, checkoutDto: CheckoutDto) {
-    const today = TimezoneUtil.getCurrentWorkDate();
+  async checkout(
+    userId: number,
+    image: Express.Multer.File,
+    checkoutDto: CheckoutDto,
+  ) {
+    const today = new Date().toISOString().split('T')[0];
     const checkoutTime = new Date();
-    
+
     // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkout_${userId}_${today}`;
 
@@ -473,7 +492,7 @@ export class TimesheetService {
       const user = await tx.users.findFirst({
         where: QueryUtil.onlyActive({ id: userId }),
       });
-      
+
       if (!user) {
         throw new NotFoundException('Không tìm thấy người dùng');
       }
@@ -498,14 +517,18 @@ export class TimesheetService {
           const result = response.data;
 
           if (Number(result.user_id) !== userId) {
-            throw new BadRequestException('Xác thực khuôn mặt không thành công');
+            throw new BadRequestException(
+              'Xác thực khuôn mặt không thành công',
+            );
           }
 
           face_identified = result;
-
         } catch (error) {
           console.error(error);
-          throw new BadRequestException(error.response?.data?.error || 'Xác thực khuôn mặt không thành công');
+          throw new BadRequestException(
+            error.response?.data?.error ||
+              'Xác thực khuôn mặt không thành công',
+          );
         }
       }
 
@@ -571,14 +594,18 @@ export class TimesheetService {
       }
 
       // Tính toán thời gian làm việc
-      const workEndTime = new Date(today + 'T17:30:00.000Z'); // 5:30 PM
-      const earlyTime = checkoutTime < workEndTime
-        ? Math.floor((workEndTime.getTime() - checkoutTime.getTime()) / (1000 * 60))
-        : 0;
+      const workEndTime = new Date(today + 'T10:30:00.000Z'); // 5:30 PM UTC+7 = 10:30 AM UTC
+      const earlyTime =
+        checkoutTime < workEndTime
+          ? Math.floor(
+              (workEndTime.getTime() - checkoutTime.getTime()) / (1000 * 60),
+            )
+          : 0;
 
       // Tính tổng thời gian làm việc (phút)
       const totalWorkMinutes = Math.floor(
-        (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) / (1000 * 60)
+        (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) /
+          (1000 * 60),
       );
 
       // Trừ thời gian nghỉ trưa (60 phút mặc định)
@@ -645,7 +672,7 @@ export class TimesheetService {
   }
 
   async getTodayAttendance(userId: number) {
-    const today = TimezoneUtil.getCurrentWorkDate();
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
     return this.prisma.time_sheets.findFirst({
       where: QueryUtil.onlyActive({
@@ -1186,12 +1213,12 @@ export class TimesheetService {
 
   async getPersonalSchedule(userId: number, getScheduleDto: GetScheduleDto) {
     const { start_date, end_date } = getScheduleDto;
-    const startDate = start_date || TimezoneUtil.getCurrentWorkDate();
+    const startDate = start_date || new Date().toISOString().split('T')[0];
     const endDate =
       end_date ||
-      TimezoneUtil.formatWorkDate(
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      );
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
 
     // Lấy timesheet - sử dụng work_date thay vì checkin
     const timesheets = await this.prisma.time_sheets.findMany({
@@ -1245,12 +1272,12 @@ export class TimesheetService {
 
   async getTeamSchedule(teamId: number, getScheduleDto: GetScheduleDto) {
     const { start_date, end_date } = getScheduleDto;
-    const startDate = start_date || TimezoneUtil.getCurrentWorkDate();
+    const startDate = start_date || new Date().toISOString().split('T')[0];
     const endDate =
       end_date ||
-      TimezoneUtil.formatWorkDate(
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      );
+      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
 
     // Lấy danh sách thành viên team
     const teamMembers = await this.prisma.user_division.findMany({
@@ -1359,10 +1386,10 @@ export class TimesheetService {
     const { start_date, end_date, division_id, team_id } = reportDto;
     const startDate =
       start_date ||
-      TimezoneUtil.formatWorkDate(
-        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      );
-    const endDate = end_date || TimezoneUtil.getCurrentWorkDate();
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
 
     let userIds: number[] = [];
 
@@ -1450,13 +1477,13 @@ export class TimesheetService {
     }
 
     const startDate = `${reportMonth}-01`;
-    const endDate = TimezoneUtil.formatWorkDate(
-      new Date(
-        parseInt(reportMonth.split('-')[0]),
-        parseInt(reportMonth.split('-')[1]),
-        0,
-      ),
-    );
+    const endDate = new Date(
+      parseInt(reportMonth.split('-')[0]),
+      parseInt(reportMonth.split('-')[1]),
+      0,
+    )
+      .toISOString()
+      .split('T')[0];
 
     const where: Prisma.time_sheetsWhereInput = QueryUtil.onlyActive({
       ...QueryUtil.workDateRange(startDate, endDate),
@@ -1523,10 +1550,10 @@ export class TimesheetService {
   ) {
     const start =
       startDate ||
-      TimezoneUtil.formatWorkDate(
-        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      );
-    const end = endDate || TimezoneUtil.getCurrentWorkDate();
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+    const end = endDate || new Date().toISOString().split('T')[0];
 
     const where: Prisma.time_sheetsWhereInput = QueryUtil.onlyActive({
       ...QueryUtil.workDateRange(start, end),
@@ -1635,7 +1662,8 @@ export class TimesheetService {
     // Đảm bảo work_date khớp với timesheet
     if (
       timesheet &&
-      !TimezoneUtil.isSameWorkDate(workDate, timesheet.work_date || new Date())
+      workDate.toISOString().split('T')[0] !==
+        (timesheet.work_date || new Date()).toISOString().split('T')[0]
     ) {
       throw new BadRequestException('Work_date không khớp với timesheet');
     }

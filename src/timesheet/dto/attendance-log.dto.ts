@@ -28,7 +28,7 @@ export class CreateAttendanceLogDto {
 
   @ApiProperty({
     description: 'Thời gian thực hiện hành động',
-    example: '2024-02-09T08:30:00.000Z',
+    example: '2024-02-09T01:30:00.000Z', // 8:30 AM +7
   })
   @IsNotEmpty()
   @IsDateString()

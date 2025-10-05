@@ -25,18 +25,18 @@ import {
 export class CreateTimesheetDto {
   @ApiProperty({
     description: 'Ngày làm việc (YYYY-MM-DD)',
-    example: '2024-02-09',
+    example: '2025-10-05',
   })
   @IsNotEmpty({ message: 'Ngày làm việc là bắt buộc' })
   @IsString({ message: 'Ngày làm việc phải là chuỗi' })
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'Ngày làm việc phải có định dạng YYYY-MM-DD (VD: 2024-12-21)',
+    message: 'Ngày làm việc phải có định dạng YYYY-MM-DD (VD: 2025-10-05)',
   })
   work_date: string;
 
   @ApiPropertyOptional({
     description: 'Thời gian check-in',
-    example: '2024-02-09T08:30:00.000Z',
+    example: '2025-10-05T01:30:00.000Z', // 8:30 AM +7
   })
   @IsOptional()
   @IsDateString()
@@ -44,7 +44,7 @@ export class CreateTimesheetDto {
 
   @ApiPropertyOptional({
     description: 'Thời gian check-out',
-    example: '2024-02-09T17:30:00.000Z',
+    example: '2025-10-05T10:30:00.000Z', // 5:30 PM +7
   })
   @IsOptional()
   @IsDateString()
@@ -79,7 +79,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Thời gian đi muộn phải là số' })
   @Min(0, { message: 'Thời gian đi muộn không được âm' })
-  @Max(120, { message: 'Thời gian đi muộn không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Thời gian đi muộn không quá 480 phút (8 giờ)' })
   late_time?: number;
 
   @ApiPropertyOptional({
@@ -89,7 +89,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Thời gian đi muộn được duyệt phải là số' })
   @Min(0, { message: 'Thời gian đi muộn được duyệt không được âm' })
-  @Max(120, { message: 'Thời gian đi muộn được duyệt không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Thời gian đi muộn được duyệt không quá 480 phút (8 giờ)' })
   @IsApprovedLateTimeValid('late_time', {
     message: 'Thời gian đi muộn được duyệt không được lớn hơn thời gian đi muộn thực tế',
   })
@@ -102,7 +102,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Thời gian về sớm phải là số' })
   @Min(0, { message: 'Thời gian về sớm không được âm' })
-  @Max(120, { message: 'Thời gian về sớm không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Thời gian về sớm không quá 480 phút (8 giờ)' })
   early_time?: number;
 
   @ApiPropertyOptional({
@@ -146,7 +146,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Giờ làm buổi sáng phải là số' })
   @Min(0, { message: 'Giờ làm buổi sáng không được âm' })
-  @Max(120, { message: 'Giờ làm buổi sáng không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Giờ làm buổi sáng không quá 480 phút (8 giờ)' })
   work_time_morning?: number;
 
   @ApiPropertyOptional({
@@ -156,7 +156,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Giờ làm buổi chiều phải là số' })
   @Min(0, { message: 'Giờ làm buổi chiều không được âm' })
-  @Max(120, { message: 'Giờ làm buổi chiều không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Giờ làm buổi chiều không quá 480 phút (8 giờ)' })
   work_time_afternoon?: number;
 
   @ApiPropertyOptional({
@@ -222,7 +222,7 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Tổng thời gian làm việc phải là số' })
   @Min(0, { message: 'Tổng thời gian làm việc không được âm' })
-  @Max(960, { message: 'Tổng thời gian làm việc không quá 960 phút (16 giờ)' })
+  @Max(960, { message: 'Tổng thời gian làm việc không quá 1920 phút (32 giờ)' })
   total_work_time?: number;
 
   @ApiPropertyOptional({
@@ -232,6 +232,6 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Thời gian nghỉ trưa phải là số' })
   @Min(0, { message: 'Thời gian nghỉ trưa không được âm' })
-  @Max(120, { message: 'Thời gian nghỉ trưa không quá 120 phút (2 giờ)' })
+  @Max(480, { message: 'Thời gian nghỉ trưa không quá 480 phút (8 giờ)' })
   break_time?: number;
 }

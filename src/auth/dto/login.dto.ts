@@ -10,11 +10,11 @@ export class LoginDto {
   email: string;
 
   @ApiProperty({
-    description: 'Mật khẩu (tối thiểu 6 ký tự)',
-    example: '123456',
-    minLength: 6,
+    description: 'Mật khẩu (tối thiểu 8 ký tự)',
+    example: 'Mast@123',
+    minLength: 8,
   })
   @IsString({ message: 'Mật khẩu phải là chuỗi' })
-  @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' })
+  @MinLength(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' })
   password: string;
 }

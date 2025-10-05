@@ -12,13 +12,14 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags,
-  ApiConsumes,
-  ApiBody,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
@@ -59,10 +60,7 @@ import {
 import { UpdateDayOffStatusDto } from './dto/update-day-off-status.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
-import { HttpService } from '@nestjs/axios';
 import { TimesheetService } from './timesheet.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-import multer from 'multer';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
@@ -151,7 +149,7 @@ export class TimesheetController {
   ) {
     return this.timesheetService.registerFace(userId, image);
   }
-  
+
   // === CHECK-IN/CHECK-OUT ===
 
   @Post('checkin')
