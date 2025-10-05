@@ -1,17 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { RemoteType, SessionType } from '@prisma/client';
+import { LocationType, RemoteType, SessionType } from '@prisma/client';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CheckinDto {
   @ApiPropertyOptional({
     description: 'Loại địa điểm',
-    example: 'office',
-    enum: ['office', 'remote', 'client_site'],
+    example: 'OFFICE',
+    enum: ['OFFICE', 'REMOTE', 'CLIENT_SITE'],
   })
   @IsOptional()
   @IsString()
-  @IsIn(['office', 'remote', 'client_site'])
-  location_type?: string;
+  @IsIn(['OFFICE', 'REMOTE', 'CLIENT_SITE'])
+  location_type?: LocationType;
 
   @ApiPropertyOptional({
     description: 'Loại phiên làm việc',

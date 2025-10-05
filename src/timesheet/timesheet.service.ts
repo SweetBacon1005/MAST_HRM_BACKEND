@@ -349,7 +349,7 @@ export class TimesheetService {
           is_open: true,
           checkin_photo: checkinDto.photo_url || null,
           work_date: new Date(today),
-          location_type: checkinDto.location_type || 'office',
+          location_type: checkinDto.location_type || 'OFFICE',
           session_type: checkinDto.session_type || 'WORK',
         },
       });
