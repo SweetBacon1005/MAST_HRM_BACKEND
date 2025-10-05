@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && prisma db push && ts-node prisma/seed.ts",
     "db:push": "prisma db push --accept-data-loss && prisma generate",
     "db:push:force": "prisma db push --force-reset && prisma generate",
     "migrate:dev": "prisma migrate dev",
