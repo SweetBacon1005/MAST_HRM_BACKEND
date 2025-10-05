@@ -102,35 +102,8 @@ export async function seedOrganization(prisma: PrismaClient) {
     )
   );
 
-  // 3. Tạo groups - sử dụng createMany với skipDuplicates
-  console.log('👥 Tạo groups...');
-  const groupData = [
-    {
-      name: 'Hà Nội Office Group',
-      location: 'Hà Nội',
-    },
-    {
-      name: 'TP.HCM Office Group',
-      location: 'TP.Hồ Chí Minh',
-    },
-    {
-      name: 'Đà Nẵng Office Group',
-      location: 'Đà Nẵng',
-    },
-  ];
-
-  await prisma.groups.createMany({
-    data: groupData,
-    skipDuplicates: true,
-  });
-
-  const groups = await prisma.groups.findMany({
-    where: { name: { in: groupData.map(g => g.name) } },
-  });
-
   return {
     divisions,
     teams,
-    groups,
   };
 }

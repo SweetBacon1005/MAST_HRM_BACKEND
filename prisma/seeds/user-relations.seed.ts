@@ -272,28 +272,75 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     skipDuplicates: true,
   });
 
-  // 5. Tạo sample over_times_history - sử dụng createMany
-  console.log('⏰ Tạo overtime history...');
+  // === OVERTIME HISTORY ===
+  console.log('🕐 Seeding overtime history...');
+
   const overtimeHistoryData = [
+    // John Doe overtime
     {
       user_id: users[2].id, // John Doe
       total: 2.5,
       value: 200000, // 200k VND
       date: new Date('2024-01-15'),
-      project_id: projects[0].id,
+      project_id: projects[0].id, // ABC CRM System
       start_time: new Date('2024-01-15T18:00:00.000Z'),
       end_time: new Date('2024-01-15T20:30:00.000Z'),
       reason: 'Fix critical bug before client demo',
     },
+    // Jane Smith overtime
     {
       user_id: users[3].id, // Jane Smith
       total: 3.0,
       value: 240000, // 240k VND
       date: new Date('2024-01-20'),
-      project_id: projects[2].id,
-      start_time: new Date('2024-01-20T18:00:00.000Z'),
-      end_time: new Date('2024-01-20T21:00:00.000Z'),
-      reason: 'Complete UI design for client review',
+      project_id: projects[1].id, // XYZ Banking Mobile App
+      start_time: new Date('2024-01-20T18:30:00.000Z'),
+      end_time: new Date('2024-01-20T21:30:00.000Z'),
+      reason: 'Complete security testing before release',
+    },
+    // Bob Wilson overtime
+    {
+      user_id: users[4].id, // Bob Wilson
+      total: 1.5,
+      value: 120000, // 120k VND
+      date: new Date('2024-01-25'),
+      project_id: projects[0].id, // ABC CRM System
+      start_time: new Date('2024-01-25T17:30:00.000Z'),
+      end_time: new Date('2024-01-25T19:00:00.000Z'),
+      reason: 'Deploy hotfix to production',
+    },
+    // Mike Johnson overtime
+    {
+      user_id: users[5].id, // Mike Johnson
+      total: 4.0,
+      value: 320000, // 320k VND
+      date: new Date('2024-02-01'),
+      project_id: projects[1].id, // XYZ Banking Mobile App
+      start_time: new Date('2024-02-01T18:00:00.000Z'),
+      end_time: new Date('2024-02-01T22:00:00.000Z'),
+      reason: 'Emergency maintenance and data migration',
+    },
+    // John Doe weekend overtime
+    {
+      user_id: users[2].id, // John Doe
+      total: 6.0,
+      value: 480000, // 480k VND
+      date: new Date('2024-02-03'), // Saturday
+      project_id: projects[2].id, // DEF E-commerce Platform
+      start_time: new Date('2024-02-03T09:00:00.000Z'),
+      end_time: new Date('2024-02-03T15:00:00.000Z'),
+      reason: 'Weekend deployment and system monitoring',
+    },
+    // Jane Smith recent overtime
+    {
+      user_id: users[3].id, // Jane Smith
+      total: 2.0,
+      value: 160000, // 160k VND
+      date: new Date('2024-02-10'),
+      project_id: projects[2].id, // DEF E-commerce Platform
+      start_time: new Date('2024-02-10T18:00:00.000Z'),
+      end_time: new Date('2024-02-10T20:00:00.000Z'),
+      reason: 'Performance optimization and bug fixes',
     },
   ];
 

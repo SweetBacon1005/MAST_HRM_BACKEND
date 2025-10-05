@@ -29,7 +29,6 @@ model certificates {
     @@index([certificate_category_id])
 }
 
-
 model education {
     id          Int       @id @default(autoincrement())
     user_id     Int
@@ -61,7 +60,6 @@ model experience {
     @@index([user_id])
 }
 
-
 model divisions {
     id                       Int                        @id @default(autoincrement())
     name                     String
@@ -91,7 +89,6 @@ model divisions {
     @@index([level])
 }
 
-
 model levels {
     id                   Int                    @id @default(autoincrement())
     name                 String                 @db.VarChar(255)
@@ -110,12 +107,12 @@ model migrations {
 }
 
 model permissions {
-    id                     Int                      @id @default(autoincrement())
-    name                   String                   @unique @db.VarChar(255)
-    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at             DateTime                 @updatedAt
-    deleted_at             DateTime?                @db.DateTime(6)
-    permission_role        permission_role[]
+    id              Int               @id @default(autoincrement())
+    name            String            @unique @db.VarChar(255)
+    created_at      DateTime          @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime          @updatedAt
+    deleted_at      DateTime?         @db.DateTime(6)
+    permission_role permission_role[]
 }
 
 model positions {
@@ -130,15 +127,15 @@ model positions {
 }
 
 model roles {
-    id                     Int                      @id @default(autoincrement())
-    name                   String                   @unique @db.VarChar(255)
-    created_at             DateTime                 @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at             DateTime                 @updatedAt
-    deleted_at             DateTime?                @db.DateTime(6)
-    user_information       user_information[]
-    user_division          user_division[]
-    allocations            allocations[]
-    permission_role        permission_role[]
+    id               Int                @id @default(autoincrement())
+    name             String             @unique @db.VarChar(255)
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
+    user_division    user_division[]
+    allocations      allocations[]
+    permission_role  permission_role[]
 }
 
 model skills {
@@ -265,7 +262,6 @@ model activity_log {
     updated_at   DateTime @updatedAt
 }
 
-
 model evaluation_histories {
     id         Int      @id @default(autoincrement())
     user_id    Int
@@ -298,15 +294,14 @@ model files {
     @@index([type])
 }
 
-
 model permission_role {
-    id            Int      @id @default(autoincrement())
+    id            Int         @id @default(autoincrement())
     permission_id Int
     permission    permissions @relation(fields: [permission_id], references: [id])
     role_id       Int
     role          roles       @relation(fields: [role_id], references: [id])
-    created_at    DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime @updatedAt
+    created_at    DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime    @updatedAt
 
     @@index([permission_id])
     @@index([role_id])
@@ -533,6 +528,7 @@ model projects {
     tasks                tasks[]
     customer_project     customer_project[]
     pm_reports           pm_reports[]
+    over_times_history   over_times_history[]
 
     @@index([deleted_at])
     @@index([division_id])
@@ -621,6 +617,7 @@ model users {
     divisions_assignments divisions_assignments[]
     team_member_resources team_member_resources[]
     evaluation_histories  evaluation_histories[]
+    over_times_history    over_times_history[]
     activity_log_subject  activity_log[]          @relation("Subject")
     activity_log_causer   activity_log[]          @relation("Causer")
 }
@@ -958,6 +955,29 @@ model rotation_members {
     @@index([user_id])
 }
 
+model over_times_history {
+    id         Int       @id @default(autoincrement())
+    user_id    Int
+    user       users     @relation(fields: [user_id], references: [id])
+    total      Float?
+    value      Float?
+    date       DateTime
+    project_id Int?
+    project    projects? @relation(fields: [project_id], references: [id])
+    start_time DateTime
+    end_time   DateTime
+    reason     String?
+    deleted_at DateTime? @db.DateTime()
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+
+    @@index([user_id])
+    @@index([project_id])
+    @@index([date])
+    @@index([user_id, date]) // Để lọc overtime theo user và ngày
+    @@index([deleted_at]) // Để tối ưu soft delete queries
+}
+
 model over_times {
     id                 Int       @id @default(autoincrement())
     type               Int?
@@ -994,7 +1014,6 @@ model work_times {
     @@index([status])
     @@index([deleted_at])
 }
-
 
 model user_division {
     id          Int        @id @default(autoincrement())

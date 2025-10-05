@@ -49,41 +49,6 @@ export async function seedBasicData(prisma: PrismaClient) {
   const roles = await prisma.roles.findMany({
     where: { name: { in: roleData.map(r => r.name) } },
   });
-
-  // 3. Tạo group_roles - sử dụng createMany với skipDuplicates
-  console.log('🏷️ Tạo group roles...');
-  const groupRoleData = [
-    {
-      name: 'Super Admin',
-      description: 'Quyền cao nhất trong hệ thống',
-    },
-    {
-      name: 'HR Manager',
-      description: 'Quản lý nhân sự',
-    },
-    {
-      name: 'Project Manager',
-      description: 'Quản lý dự án',
-    },
-    {
-      name: 'Team Lead',
-      description: 'Trưởng nhóm',
-    },
-    {
-      name: 'Employee',
-      description: 'Nhân viên',
-    },
-  ];
-
-  await prisma.group_roles.createMany({
-    data: groupRoleData,
-    skipDuplicates: true,
-  });
-
-  const groupRoles = await prisma.group_roles.findMany({
-    where: { name: { in: groupRoleData.map(gr => gr.name) } },
-  });
-
   // 4. Tạo levels - sử dụng upsert vì có ID cố định
   console.log('📊 Tạo levels...');
   const levelData = [
@@ -153,7 +118,6 @@ export async function seedBasicData(prisma: PrismaClient) {
   return {
     permissions,
     roles,
-    groupRoles,
     levels,
     positions,
     languages,

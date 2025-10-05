@@ -79,9 +79,10 @@ export class AttendanceController {
   @Post('calculate')
   @ApiOperation({
     summary: 'Tính toán chấm công chi tiết với thời gian và phạt',
+    description: 'API này tính toán chi tiết thời gian làm việc, phạt đi muộn/về sớm dựa trên thời gian check-in/out'
   })
   @ApiResponse({ 
-    status: HttpStatus.CREATED, 
+    status: HttpStatus.OK, 
     description: 'Tính toán chấm công thành công',
     schema: {
       example: {
@@ -106,18 +107,14 @@ export class AttendanceController {
     type: ErrorResponseDto
   })
   @ApiUnprocessableEntityResponse({ 
-    description: 'Không thể xử lý yêu cầu',
+    description: 'Không thể xử lý yêu cầu - thời gian không hợp lệ',
     type: ErrorResponseDto
   })
-  @ApiUnauthorizedResponse({ 
-    description: 'Chưa xác thực',
-    type: ErrorResponseDto
-  })
-  @ApiForbiddenResponse({ 
-    description: 'Không có quyền truy cập',
-    type: ErrorResponseDto
-  })
-  calculateAttendance(@Body() attendanceDto: AttendanceCalculationDto, @GetCurrentUser('id') userId: number) {
+  calculateAttendance(
+    @Body() attendanceDto: AttendanceCalculationDto, 
+    @GetCurrentUser('id') userId: number
+  ) {
+    // Gán user_id từ token để đảm bảo security
     attendanceDto.user_id = userId;
     return this.attendanceService.calculateAttendance(attendanceDto);
   }

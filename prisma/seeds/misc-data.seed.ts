@@ -3,7 +3,7 @@ import { HolidayStatus, HolidayType, PrismaClient } from '@prisma/client';
 export async function seedMiscData(prisma: PrismaClient, seedData: any) {
   console.log('📚 Seeding miscellaneous data...');
 
-  const { users, groups } = seedData;
+  const { users } = seedData;
 
   // 1. Tạo education data - sử dụng createMany
   console.log('🎓 Tạo education data...');
@@ -157,56 +157,6 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
     skipDuplicates: true,
   });
 
-  // 4. Tạo children data - sử dụng createMany
-  console.log('👶 Tạo children data...');
-  const childrenData = [
-    {
-      user_id: users[1].id, // HR Manager
-      gender: 'Female',
-      name: 'Nguyễn Minh Anh',
-      birthday: new Date('2018-03-15'),
-      phone: null,
-      is_dependent: true,
-      dependent_start_date: new Date('2018-03-15'),
-      type: 'Daughter',
-    },
-    {
-      user_id: users[1].id, // HR Manager
-      gender: 'Male',
-      name: 'Nguyễn Minh Đức',
-      birthday: new Date('2020-07-20'),
-      phone: null,
-      is_dependent: true,
-      dependent_start_date: new Date('2020-07-20'),
-      type: 'Son',
-    },
-    {
-      user_id: users[4].id, // Mike Johnson
-      gender: 'Male',
-      name: 'Johnson Jr.',
-      birthday: new Date('2019-11-10'),
-      phone: null,
-      is_dependent: true,
-      dependent_start_date: new Date('2019-11-10'),
-      type: 'Son',
-    },
-    {
-      user_id: users[6].id, // David Brown
-      gender: 'Female',
-      name: 'Brown Emma',
-      birthday: new Date('2021-05-05'),
-      phone: null,
-      is_dependent: true,
-      dependent_start_date: new Date('2021-05-05'),
-      type: 'Daughter',
-    },
-  ];
-
-  await prisma.children.createMany({
-    data: childrenData,
-    skipDuplicates: true,
-  });
-
   // 5. Tạo user_skills - sử dụng createMany
   console.log('🎯 Tạo user skills...');
   const userSkillsData = [
@@ -354,59 +304,6 @@ export async function seedMiscData(prisma: PrismaClient, seedData: any) {
 
   await prisma.user_certificates.createMany({
     data: userCertificatesData,
-    skipDuplicates: true,
-  });
-
-  // 7. Gán users vào groups - sử dụng createMany
-  console.log('👥 Gán users vào groups...');
-  const userGroupData = [
-    // Hà Nội group
-    {
-      userId: users[0].id, // Admin
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    {
-      userId: users[1].id, // HR Manager
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    {
-      userId: users[2].id, // John Doe
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    {
-      userId: users[3].id, // Jane Smith
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    {
-      userId: users[5].id, // Sarah Wilson
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    {
-      userId: users[6].id, // David Brown
-      group_id: groups[0].id,
-      date: new Date('2024-01-01'),
-    },
-    // TP.HCM group
-    {
-      userId: users[4].id, // Mike Johnson
-      group_id: groups[1].id,
-      date: new Date('2024-01-01'),
-    },
-    // Đà Nẵng group
-    {
-      userId: users[7].id, // Lisa Davis
-      group_id: groups[2].id,
-      date: new Date('2024-01-01'),
-    },
-  ];
-
-  await prisma.user_group.createMany({
-    data: userGroupData,
     skipDuplicates: true,
   });
 

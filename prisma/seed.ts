@@ -77,7 +77,6 @@ async function main() {
     console.log('📊 Tổng quan dữ liệu đã tạo:');
     console.log(`- ${basicData.permissions.length} permissions`);
     console.log(`- ${basicData.roles.length} roles`);
-    console.log(`- ${basicData.groupRoles.length} group roles`);
     console.log(`- ${basicData.levels.length} levels`);
     console.log(`- ${basicData.positions.length} positions`);
     console.log(`- ${basicData.languages.length} languages`);
@@ -88,7 +87,6 @@ async function main() {
     console.log(`- ${skillsData.certificates.length} certificates`);
     console.log(`- ${orgData.divisions.length} divisions`);
     console.log(`- ${orgData.teams.length} teams`);
-    console.log(`- ${orgData.groups.length} groups`);
     console.log(`- ${scheduleWorksData.scheduleWorks.length} work shifts`);
     console.log(`- ${usersData.users.length} users`);
     console.log(`- ${projectsData.customers.length} customers`);

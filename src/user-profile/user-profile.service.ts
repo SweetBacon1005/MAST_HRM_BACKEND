@@ -9,20 +9,17 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
-import { CreateChildDto } from './dto/create-child.dto';
 import { CreateEducationDto } from './dto/create-education.dto';
 import { CreateExperienceDto } from './dto/create-experience.dto';
 import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
 import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
   CertificatePaginationDto,
-  ChildrenPaginationDto,
   EducationPaginationDto,
   ExperiencePaginationDto,
   ReferencePaginationDto,
   UserSkillPaginationDto,
 } from './dto/pagination-queries.dto';
-import { UpdateChildDto } from './dto/update-child.dto';
 import { UpdateEducationDto } from './dto/update-education.dto';
 import { UpdateExperienceDto } from './dto/update-experience.dto';
 import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
@@ -48,9 +45,6 @@ export class UserProfileService {
             level: true,
             language: true,
           },
-        },
-        children: {
-          where: { deleted_at: null },
         },
         education: {
           where: { deleted_at: null },
@@ -134,7 +128,7 @@ export class UserProfileService {
         where: { id: existingInfo.id },
         data: {
           ...updateDto,
-          status:'ACTIVE',
+          status: 'ACTIVE',
           birthday: updateDto.birthday
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
@@ -154,7 +148,7 @@ export class UserProfileService {
       // Tạo mới thông tin
       return await this.prisma.user_information.create({
         data: {
-          status:'ACTIVE',
+          status: 'ACTIVE',
           user_id: userId,
           email: updateDto.email || '',
           personal_email: updateDto.personal_email || '',
@@ -191,113 +185,6 @@ export class UserProfileService {
         },
       });
     }
-  }
-
-  // Quản lý con cái
-  async createChild(createDto: CreateChildDto) {
-    return await this.prisma.children.create({
-      data: {
-        ...createDto,
-        birthday: new Date(createDto.birthday),
-        dependent_start_date: new Date(createDto.dependent_start_date),
-      },
-    });
-  }
-
-  async getChildren(userId: number) {
-    return await this.prisma.children.findMany({
-      where: {
-        user_id: userId,
-        deleted_at: undefined,
-      },
-    });
-  }
-
-  async getChildrenPaginated(
-    userId: number,
-    paginationDto: ChildrenPaginationDto,
-  ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.childrenWhereInput = {
-      user_id: userId,
-      deleted_at: null,
-    };
-
-    // Thêm filter theo tên con
-    if (paginationDto.name) {
-      where.name = {
-        contains: paginationDto.name,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.children.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-      }),
-      this.prisma.children.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async updateChild(childId: number, updateDto: UpdateChildDto) {
-    const child = await this.prisma.children.findFirst({
-      where: { id: childId, deleted_at: undefined },
-    });
-
-    if (!child) {
-      throw new NotFoundException('Không tìm thấy thông tin con');
-    }
-
-    if (child.user_id !== updateDto.user_id) {
-      throw new ForbiddenException('Bạn không có quyền cập nhật thông tin con');
-    }
-
-    const user = await this.prisma.users.findFirst({
-      where: { id: updateDto.user_id, deleted_at: null },
-    });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-
-    return await this.prisma.children.update({
-      where: { id: childId },
-      data: {
-        ...updateDto,
-        birthday: updateDto.birthday
-          ? new Date(updateDto.birthday).toISOString()
-          : undefined,
-        dependent_start_date: updateDto.dependent_start_date
-          ? new Date(updateDto.dependent_start_date).toISOString()
-          : undefined,
-      },
-    });
-  }
-
-  async deleteChild(childId: number, userId: number) {
-    const child = await this.prisma.children.findFirst({
-      where: { id: childId, deleted_at: undefined, user_id: userId },
-    });
-
-    if (!child) {
-      throw new NotFoundException('Không tìm thấy thông tin con');
-    }
-
-    await this.prisma.children.update({
-      where: { id: childId },
-      data: { deleted_at: new Date() },
-    });
-
-    return { message: 'Xóa thông tin con thành công' };
   }
 
   // Quản lý học vấn

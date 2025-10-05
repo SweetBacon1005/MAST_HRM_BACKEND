@@ -309,47 +309,5 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     )
   );
 
-  // 3. Tạo user_group_role - sử dụng createMany với skipDuplicates
-  console.log('🔐 Tạo user group roles...');
-  const userGroupRoleData = [
-    {
-      user_id: users[0].id,
-      group_id: groupRoles[0].id, // Super Admin
-    },
-    {
-      user_id: users[1].id,
-      group_id: groupRoles[1].id, // HR Manager
-    },
-    {
-      user_id: users[2].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-    {
-      user_id: users[3].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-    {
-      user_id: users[4].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-    {
-      user_id: users[5].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-    {
-      user_id: users[6].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-    {
-      user_id: users[7].id,
-      group_id: groupRoles[4].id, // Employee
-    },
-  ];
-
-  await prisma.user_group_role.createMany({
-    data: userGroupRoleData,
-    skipDuplicates: true,
-  });
-
   return { users };
 }

@@ -19,20 +19,17 @@ import {
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CreateChildDto } from './dto/create-child.dto';
 import { CreateEducationDto } from './dto/create-education.dto';
 import { CreateExperienceDto } from './dto/create-experience.dto';
 import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
 import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
   CertificatePaginationDto,
-  ChildrenPaginationDto,
   EducationPaginationDto,
   ExperiencePaginationDto,
   ReferencePaginationDto,
   UserSkillPaginationDto,
 } from './dto/pagination-queries.dto';
-import { UpdateChildDto } from './dto/update-child.dto';
 import { UpdateEducationDto } from './dto/update-education.dto';
 import { UpdateExperienceDto } from './dto/update-experience.dto';
 import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
@@ -73,77 +70,6 @@ export class UserProfileController {
       userId,
       updateDto,
     );
-  }
-
-  // ===== QUẢN LÝ CON CÁI =====
-  @Post('children')
-  @ApiOperation({ summary: 'Thêm thông tin con' })
-  @ApiResponse({
-    status: 201,
-    description: 'Thêm thông tin con thành công',
-  })
-  async createChild(
-    @GetCurrentUser('id') userId: number,
-    @Body() createDto: CreateChildDto,
-  ) {
-    createDto.user_id = userId;
-    return await this.userProfileService.createChild(createDto);
-  }
-
-  @Get('children')
-  @ApiOperation({ summary: 'Lấy danh sách con cái' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách con cái',
-  })
-  async getChildren(@GetCurrentUser('id') userId: number) {
-    return await this.userProfileService.getChildren(userId);
-  }
-
-  @Get('children/paginated')
-  @ApiOperation({ summary: 'Lấy danh sách con cái có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách con cái có phân trang',
-  })
-  async getChildrenPaginated(
-    @GetCurrentUser('id') userId: number,
-    @Query() paginationDto: ChildrenPaginationDto,
-  ) {
-    return await this.userProfileService.getChildrenPaginated(
-      userId,
-      paginationDto,
-    );
-  }
-
-  @Patch('children/:id')
-  @ApiOperation({ summary: 'Cập nhật thông tin con' })
-  @ApiParam({ name: 'id', description: 'ID của con' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật thành công',
-  })
-  async updateChild(
-    @Param('id', ParseIntPipe) childId: number,
-    @Body() updateDto: UpdateChildDto,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    updateDto.user_id = userId;
-    return await this.userProfileService.updateChild(childId, updateDto);
-  }
-
-  @Delete('children/:id')
-  @ApiOperation({ summary: 'Xóa thông tin con' })
-  @ApiParam({ name: 'id', description: 'ID của con' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xóa thành công',
-  })
-  async deleteChild(
-    @Param('id', ParseIntPipe) childId: number,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    return await this.userProfileService.deleteChild(childId, userId);
   }
 
   // ===== QUẢN LÝ HỌC VẤN =====
@@ -365,7 +291,10 @@ export class UserProfileController {
     @Param('id', ParseIntPipe) certificateId: number,
     @GetCurrentUser('id') userId: number,
   ) {
-    return await this.userProfileService.deleteUserCertificate(certificateId, userId);
+    return await this.userProfileService.deleteUserCertificate(
+      certificateId,
+      userId,
+    );
   }
 
   // ===== QUẢN LÝ KỸ NĂNG =====
@@ -472,9 +401,7 @@ export class UserProfileController {
     status: 200,
     description: 'Danh sách vị trí có phân trang',
   })
-  async getPositionsPaginated(
-    @Query() paginationDto: ReferencePaginationDto,
-  ) {
+  async getPositionsPaginated(@Query() paginationDto: ReferencePaginationDto) {
     return await this.userProfileService.getPositionsPaginated(paginationDto);
   }
 
