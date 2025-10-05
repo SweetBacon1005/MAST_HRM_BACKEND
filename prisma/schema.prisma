@@ -352,13 +352,6 @@ model files {
     @@index([type])
 }
 
-model permissions_groups {
-    id         Int      @id @default(autoincrement())
-    name       String   @unique @db.VarChar(255)
-    order      Int
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-}
 
 model permission_role {
     id            Int      @id @default(autoincrement())
@@ -1083,17 +1076,6 @@ model work_times {
     @@index([startDate])
     @@index([status])
     @@index([deleted_at])
-}
-
-model validate_request {
-    id         Int      @id @default(autoincrement())
-    name       String
-    api        String
-    created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime @updatedAt
-
-    @@index([name])
-    @@index([api])
 }
 
 model user_group {
