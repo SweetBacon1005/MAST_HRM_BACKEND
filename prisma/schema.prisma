@@ -116,6 +116,8 @@ model divisions {
     user_division     user_division[]
     rotation_member   rotation_members[]
     projects          projects[]
+    divisions_assignments divisions_assignments[]
+    divisions_monthly_counts divisions_monthly_counts[]
 
     @@index([parent_id])
     @@index([type])
@@ -143,6 +145,7 @@ model levels {
     updated_at       DateTime           @updatedAt
     deleted_at       DateTime?          @db.DateTime(6)
     user_information user_information[]
+    evaluation_histories evaluation_histories[]
 }
 
 model migrations {
@@ -311,23 +314,20 @@ model activity_log {
     subject_type String   @db.VarChar(255)
     event        String   @db.VarChar(255)
     subject_id   Int
+    subject      users    @relation("Subject", fields: [subject_id], references: [id])
     causer_type  String   @db.VarChar(255)
     causer_id    Int
+    causer       users    @relation("Causer", fields: [causer_id], references: [id])
     properties   Json
     batch_uuid   String   @db.Char(36)
     created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at   DateTime @updatedAt
-
-    @@index([log_name])
-    @@index([event])
-    @@index([subject_type, subject_id])
-    @@index([causer_type, causer_id])
-    @@index([batch_uuid])
 }
 
 model available_employees {
     id         Int      @id @default(autoincrement())
     user_id    Int
+    user       users    @relation(fields: [user_id], references: [id])
     start_date DateTime @db.Date
     end_date   DateTime @db.Date
     free       Int
@@ -342,9 +342,11 @@ model available_employees {
 model evaluation_histories {
     id         Int      @id @default(autoincrement())
     user_id    Int
+    user       users    @relation(fields: [user_id], references: [id])
     date       DateTime @db.Date
     point      Float    @db.Double
     level_id   Int
+    level      levels   @relation(fields: [level_id], references: [id])
     note       String?  @db.MediumText
     created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at DateTime @updatedAt
@@ -353,7 +355,7 @@ model evaluation_histories {
     @@index([level_id])
     @@index([date])
 }
-
+//delete
 model files {
     id            Int      @id @default(autoincrement())
     name          String   @db.VarChar(255)
@@ -497,7 +499,7 @@ model deliverables {
     @@index([status])
     @@index([expected_date])
 }
-
+//maybe delete
 model requirement_changes {
     id            Int             @id @default(autoincrement())
     title         String          @db.VarChar(255)
@@ -507,7 +509,7 @@ model requirement_changes {
     updated_at    DateTime        @updatedAt
     file_evidence file_evidence[]
 }
-
+//maybe delete
 model file_evidence {
     id                    Int                 @id @default(autoincrement())
     requirement_change_id Int
@@ -521,7 +523,7 @@ model file_evidence {
     @@index([requirement_change_id])
     @@index([file_type])
 }
-
+//delete
 model jobs {
     id           Int      @id @default(autoincrement())
     queue        String   @db.VarChar(255)
@@ -557,7 +559,7 @@ model milestones {
     @@index([type])
     @@index([expected_date])
 }
-
+//delete
 model password_resets {
     id         Int      @id @default(autoincrement())
     email      String   @db.VarChar(255)
@@ -585,6 +587,8 @@ model otp_codes {
     @@index([expires_at])
 }
 
+
+//delete
 model penalties {
     id             Int              @id @default(autoincrement())
     name           String           @db.VarChar(255)
@@ -669,6 +673,7 @@ model projects {
     daily_reports        daily_reports[]
     stages               stages[]
     tasks                tasks[]
+    //delete
     task_backlogs        tasks[]              @relation("TaskBacklog")
     customer_project     customer_project[]
     pm_reports           pm_reports[]
@@ -729,6 +734,7 @@ model tasks {
     id                 Int      @id @default(autoincrement())
     project_id         Int
     project            projects @relation(fields: [project_id], references: [id])
+    //delete
     backlog_project_id Int
     backlog_project    projects @relation("TaskBacklog", fields: [backlog_project_id], references: [id])
     issue_id           Int
@@ -786,6 +792,12 @@ model users {
     user_devices        user_devices[]
     daily_reports       daily_reports[]
     children            children[]
+    divisions_assignments divisions_assignments[]
+    team_member_resources team_member_resources[]
+    evaluation_histories evaluation_histories[]
+    available_employees available_employees[]
+    activity_log_subject activity_log[] @relation("Subject")
+    activity_log_causer activity_log[] @relation("Causer")
 }
 
 model users_unpaid_leave {
@@ -814,6 +826,8 @@ model working_times {
     @@index([date])
 }
 
+
+//delete
 model block_times {
     id                   Int       @id @default(autoincrement())
     block                Int
@@ -860,6 +874,8 @@ model contracts {
     deleted_at        DateTime?       @db.DateTime()
     work_times        work_times[]
     day_offs          day_offs[]
+    divisions_assignments divisions_assignments[]
+    team_member_resources team_member_resources[]
 
     @@index([user_id])
     @@index([contract_category])
@@ -868,6 +884,8 @@ model contracts {
     @@index([deleted_at])
 }
 
+
+//delete
 model courses {
     id                  Int       @id @default(autoincrement())
     name                String    @db.VarChar(255)
@@ -904,11 +922,13 @@ model day_offs {
     approved_at      DateTime?      @db.DateTime() // Thời gian duyệt
     rejected_reason  String?        @db.Text // Lý do từ chối
     is_past          Boolean        @default(false) // Nghỉ phép bù (đã làm trước)
+    //delete
     contract_id      Int? // không sử dụng
     contract         contracts?     @relation(fields: [contract_id], references: [id])
     created_at       DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at       DateTime       @updatedAt
     deleted_at       DateTime?      @db.DateTime()
+    time_sheets      time_sheets[]
 
     @@index([user_id])
     @@index([status])
@@ -925,10 +945,13 @@ model day_offs {
 model divisions_assignments {
     id          Int      @id @default(autoincrement())
     division_id Int
+    division    divisions @relation(fields: [division_id], references: [id])
     user_id     Int
+    user        users    @relation(fields: [user_id], references: [id])
     start_date  DateTime @db.Date
     end_date    DateTime @db.Date
     contract_id Int?
+    contract    contracts? @relation(fields: [contract_id], references: [id])
     note        String?  @db.MediumText
     created_at  DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at  DateTime @updatedAt
@@ -941,6 +964,7 @@ model divisions_assignments {
 model divisions_monthly_counts {
     id           Int       @id @default(autoincrement())
     division_id  Int
+    division     divisions @relation(fields: [division_id], references: [id])
     total_member Int
     date         DateTime  @db.Date
     created_at   DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
@@ -949,7 +973,7 @@ model divisions_monthly_counts {
 
     @@index([division_id, date])
 }
-
+//delete
 model divisions_master {
     id                Int       @id @default(autoincrement())
     name              String    @db.VarChar(255)
@@ -958,6 +982,7 @@ model divisions_master {
     status            Int?      @db.TinyInt
     level             Int?
     address           String?   @db.VarChar(255)
+    //delete
     parent_id         Int?
     founding_at       DateTime  @db.Date
     description       String?   @db.Text
@@ -998,12 +1023,14 @@ model time_sheets {
     checkout            DateTime?             @db.DateTime() // Thời gian check out
     checkin_checkout    String?
     day_off_id          Int?
+    day_off             day_offs?             @relation(fields: [day_off_id], references: [id])
     late_time           Int? // Phút đi muộn
     late_time_approved  Int? // Phút đi muộn được duyệt
     early_time          Int? // Phút về sớm
     is_complete         Boolean?              @default(false) // Hoàn thành đủ giờ làm việc (0: chưa, 1: đủ)
     fines               Float? // Tiền phạt
     group_id            Int?
+    group               groups?               @relation(fields: [group_id], references: [id])
     deleted_at          DateTime?             @db.DateTime()
     created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at          DateTime              @updatedAt
@@ -1107,8 +1134,11 @@ model attendance_logs {
 model team_member_resources {
     id          Int      @id @default(autoincrement())
     team_id     Int
+    team        teams    @relation(fields: [team_id], references: [id])
     user_id     Int
+    user        users    @relation(fields: [user_id], references: [id])
     contract_id Int
+    contract    contracts? @relation(fields: [contract_id], references: [id])
     start_date  DateTime
     end_date    DateTime
     note        String?
@@ -1119,7 +1149,6 @@ model team_member_resources {
     @@index([user_id])
     @@index([contract_id])
 }
-
 model schedule_works {
     id                   Int            @id @default(autoincrement())
     start_date           DateTime
@@ -1178,7 +1207,7 @@ model over_times_history {
     @@index([user_id, date]) // Để lọc overtime theo user và ngày
     @@index([deleted_at]) // Để tối ưu soft delete queries
 }
-
+//maybe delete
 model over_times {
     id                 Int       @id @default(autoincrement())
     type               Int?
@@ -1251,6 +1280,7 @@ model groups {
     updated_at DateTime     @updatedAt
     deleted_at DateTime?    @db.DateTime()
     user_group user_group[]
+    time_sheets time_sheets[]
 
     @@index([name])
     @@index([location])
@@ -1289,6 +1319,7 @@ model teams {
     deleted_at    DateTime?       @db.DateTime()
     user_division user_division[]
     projects      projects[]
+    team_member_resources team_member_resources[]
 
     @@index([name])
     @@index([created_at])
