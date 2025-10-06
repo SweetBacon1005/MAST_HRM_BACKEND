@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -11,26 +13,31 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
-  HttpStatus,
-  DefaultValuePipe,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
-  ApiParam,
-  ApiBadRequestResponse,
-  ApiNotFoundResponse,
-  ApiUnauthorizedResponse,
-  ApiForbiddenResponse,
-  ApiConflictResponse,
-  ApiUnprocessableEntityResponse,
+  ApiUnprocessableEntityResponse
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import {
+  ErrorResponseDto,
+  ValidationErrorResponseDto,
+} from '../common/dto/error-response.dto';
+import {
+  buildPaginationQuery,
+  buildPaginationResponse,
+} from '../common/utils/pagination.util';
 import { AttendanceService } from './attendance.service';
 import {
   AttendanceCalculationDto,
@@ -47,17 +54,9 @@ import {
   RemoteWorkRequestDto,
 } from './dto/leave-management.dto';
 import {
-  WorkShiftPaginationDto,
   PenaltyRulePaginationDto,
+  WorkShiftPaginationDto,
 } from './dto/pagination-queries.dto';
-import {
-  buildPaginationQuery,
-  buildPaginationResponse,
-} from '../common/utils/pagination.util';
-import {
-  ErrorResponseDto,
-  ValidationErrorResponseDto,
-} from '../common/dto/error-response.dto';
 
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
@@ -334,18 +333,6 @@ export class AttendanceController {
     return this.attendanceService.getAttendanceDashboard(dashboardDto);
   }
 
-  @Get('dashboard/my-team')
-  @ApiOperation({ summary: 'Dashboard chấm công team của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy dashboard team thành công' })
-  @Roles('team_leader', 'manager')
-  getMyTeamDashboard(
-    @GetCurrentUser('id') userId: number,
-    @Query() dashboardDto: AttendanceDashboardDto,
-  ) {
-    // Lấy team_id từ thông tin user (cần implement logic lấy team)
-    // Tạm thời return dashboard chung
-    return this.attendanceService.getAttendanceDashboard(dashboardDto);
-  }
 
   // === BÁO CÁO CHI TIẾT ===
 
@@ -383,71 +370,6 @@ export class AttendanceController {
     };
 
     return this.attendanceService.generateAttendanceReport(personalReportDto);
-  }
-
-  // === THỐNG KÊ NÂNG CAO ===
-
-  @Get('statistics/violations')
-  @ApiOperation({ summary: 'Thống kê vi phạm chấm công' })
-  @ApiResponse({ status: 200, description: 'Lấy thống kê vi phạm thành công' })
-  @Roles('manager', 'admin', 'hr')
-  getViolationStatistics(
-    @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string,
-    @Query('division_id', ParseIntPipe) divisionId?: number,
-    @Query('team_id', ParseIntPipe) teamId?: number,
-  ) {
-    const dashboardDto: AttendanceDashboardDto = {
-      start_date: startDate,
-      end_date: endDate,
-      division_id: divisionId,
-      team_id: teamId,
-    };
-
-    return this.attendanceService.getAttendanceDashboard(dashboardDto);
-  }
-
-  @Get('statistics/work-patterns')
-  @ApiOperation({ summary: 'Thống kê mô hình làm việc (onsite/remote)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thống kê mô hình làm việc thành công',
-  })
-  @Roles('manager', 'admin', 'hr')
-  getWorkPatternStatistics(
-    @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string,
-    @Query('user_ids') userIds?: string, // comma-separated string
-  ) {
-    const parsedUserIds = userIds
-      ? userIds.split(',').map((id) => parseInt(id))
-      : undefined;
-
-    const reportDto: AttendanceReportDto = {
-      report_type: 'summary',
-      user_ids: parsedUserIds,
-    };
-
-    return this.attendanceService.generateAttendanceReport(reportDto);
-  }
-
-  @Get('statistics/productivity')
-  @ApiOperation({ summary: 'Thống kê hiệu suất làm việc' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thống kê hiệu suất thành công',
-  })
-  @Roles('manager', 'admin', 'hr')
-  getProductivityStatistics(
-    @Query('period_type') periodType?: string,
-    @Query('division_id', ParseIntPipe) divisionId?: number,
-  ) {
-    const dashboardDto: AttendanceDashboardDto = {
-      period_type: periodType || 'monthly',
-      division_id: divisionId,
-    };
-
-    return this.attendanceService.getAttendanceDashboard(dashboardDto);
   }
 
   // === QUẢN LÝ QUY ĐỊNH PHẠT ===

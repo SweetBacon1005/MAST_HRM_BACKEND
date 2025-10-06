@@ -313,167 +313,172 @@ export class TimesheetService {
     // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkin_${userId}_${today}`;
 
-    return this.prisma.$transaction(async (tx) => {
-      // Kiểm tra user tồn tại
-      const user = await tx.users.findFirst({
-        where: QueryUtil.onlyActive({ id: userId }),
-      });
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Kiểm tra user tồn tại
+        const user = await tx.users.findFirst({
+          where: QueryUtil.onlyActive({ id: userId }),
+        });
 
-      if (!user) {
-        throw new NotFoundException('Không tìm thấy người dùng');
-      }
+        if (!user) {
+          throw new NotFoundException('Không tìm thấy người dùng');
+        }
 
-      let face_identified: FaceIdentifiedDto | null = null;
-      if (image) {
-        try {
-          // Tạo form-data
-          const formData = new FormData();
-          formData.append('image', image.buffer, {
-            filename: image.originalname,
-            contentType: image.mimetype,
-          } as any);
+        let face_identified: FaceIdentifiedDto | null = null;
+        if (image) {
+          try {
+            // Tạo form-data
+            const formData = new FormData();
+            formData.append('image', image.buffer, {
+              filename: image.originalname,
+              contentType: image.mimetype,
+            } as any);
 
-          // Gửi request
-          const response = await this.httpService.axiosRef.post(
-            process.env.FACE_IDENTIFICATION_URL + '/identify',
-            formData,
-            { headers: formData.getHeaders() },
-          );
+            // Gửi request
+            const response = await this.httpService.axiosRef.post(
+              process.env.FACE_IDENTIFICATION_URL + '/identify',
+              formData,
+              { headers: formData.getHeaders() },
+            );
 
-          const result = response.data;
+            const result = response.data;
 
-          console.log(
-            'Face identification result:',
-            result.user_id,
-            userId,
-            typeof result.user_id,
-            typeof userId,
-          );
-          if (Number(result.user_id) !== userId) {
+            console.log(
+              'Face identification result:',
+              result.user_id,
+              userId,
+              typeof result.user_id,
+              typeof userId,
+            );
+            if (Number(result.user_id) !== userId) {
+              throw new BadRequestException(
+                'Xác thực khuôn mặt không thành công',
+              );
+            }
+
+            face_identified = result;
+          } catch (error) {
+            console.error(error);
             throw new BadRequestException(
-              'Xác thực khuôn mặt không thành công',
+              error.response?.data?.error ||
+                'Xác thực khuôn mặt không thành công',
             );
           }
+        }
 
-          face_identified = result;
-        } catch (error) {
-          console.error(error);
+        if (!face_identified) {
+          throw new BadRequestException('Xác thực khuôn mặt không thành công');
+        }
+
+        // Kiểm tra idempotency - nếu đã có log check-in hôm nay thì trả về lỗi
+        const existingCheckin = await tx.attendance_logs.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            action_type: 'checkin',
+            work_date: new Date(today),
+          }),
+          include: {
+            timesheet: true,
+          },
+        });
+
+        if (existingCheckin) {
+          throw new BadRequestException('Bạn đã check-in hôm nay rồi');
+        }
+
+        // Kiểm tra session đang mở
+        const openSession = await tx.attendance_sessions.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            is_open: true,
+          }),
+        });
+
+        if (openSession) {
           throw new BadRequestException(
-            error.response?.data?.error ||
-              'Xác thực khuôn mặt không thành công',
+            'Bạn đang có session làm việc mở. Vui lòng check-out trước khi check-in lại.',
           );
         }
-      }
 
-      if (!face_identified) {
-        throw new BadRequestException('Xác thực khuôn mặt không thành công');
-      }
-
-      // Kiểm tra idempotency - nếu đã có log check-in hôm nay thì trả về lỗi
-      const existingCheckin = await tx.attendance_logs.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          action_type: 'checkin',
-          work_date: new Date(today),
-        }),
-        include: {
-          timesheet: true,
-        },
-      });
-
-      if (existingCheckin) {
-        throw new BadRequestException('Bạn đã check-in hôm nay rồi');
-      }
-
-      // Kiểm tra session đang mở
-      const openSession = await tx.attendance_sessions.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          is_open: true,
-        }),
-      });
-
-      if (openSession) {
-        throw new BadRequestException(
-          'Bạn đang có session làm việc mở. Vui lòng check-out trước khi check-in lại.',
-        );
-      }
-
-      // Tìm hoặc tạo timesheet cho hôm nay
-      let timesheet = await tx.time_sheets.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          work_date: new Date(today),
-        }),
-      });
-
-      if (!timesheet) {
-        timesheet = await tx.time_sheets.create({
-          data: {
+        // Tìm hoặc tạo timesheet cho hôm nay
+        let timesheet = await tx.time_sheets.findFirst({
+          where: QueryUtil.onlyActive({
             user_id: userId,
             work_date: new Date(today),
-            status: 'PENDING',
-            type: 'NORMAL',
+          }),
+        });
+
+        if (!timesheet) {
+          timesheet = await tx.time_sheets.create({
+            data: {
+              user_id: userId,
+              work_date: new Date(today),
+              status: 'PENDING',
+              type: 'NORMAL',
+              remote: checkinDto.remote || 'OFFICE',
+            },
+          });
+        }
+
+        // Tính toán late time (8:30 AM UTC+7 = 1:30 AM UTC)
+        const workStartTime = new Date(today + 'T01:30:00.000Z');
+        const lateTime =
+          checkinTime > workStartTime
+            ? Math.floor(
+                (checkinTime.getTime() - workStartTime.getTime()) / (1000 * 60),
+              )
+            : 0;
+
+        // Tạo session mới
+        const newSession = await tx.attendance_sessions.create({
+          data: {
+            user_id: userId,
+            timesheet_id: timesheet.id,
+            checkin_time: checkinTime,
+            is_open: true,
+            checkin_photo: checkinDto.photo_url || null,
+            work_date: new Date(today),
+            location_type: checkinDto.location_type || 'OFFICE',
+            session_type: checkinDto.session_type || 'WORK',
+          },
+        });
+
+        // Tạo attendance log
+        const attendanceLog = await tx.attendance_logs.create({
+          data: {
+            user_id: userId,
+            timesheet_id: timesheet.id,
+            action_type: 'checkin',
+            timestamp: checkinTime,
+            work_date: new Date(today),
+            location_type: checkinDto.location_type || 'OFFICE',
+            photo_url: face_identified.captured_image_url,
+            itempodency_key: idempotencyKey,
+            status: 'APPROVED',
+          },
+        });
+
+        // Cập nhật timesheet với thông tin check-in
+        const updatedTimesheet = await tx.time_sheets.update({
+          where: { id: timesheet.id },
+          data: {
+            checkin: checkinTime,
+            late_time: lateTime,
             remote: checkinDto.remote || 'OFFICE',
           },
         });
-      }
 
-      // Tính toán late time (8:30 AM UTC+7 = 1:30 AM UTC)
-      const workStartTime = new Date(today + 'T01:30:00.000Z');
-      const lateTime =
-        checkinTime > workStartTime
-          ? Math.floor(
-              (checkinTime.getTime() - workStartTime.getTime()) / (1000 * 60),
-            )
-          : 0;
-
-      // Tạo session mới
-      const newSession = await tx.attendance_sessions.create({
-        data: {
-          user_id: userId,
-          timesheet_id: timesheet.id,
-          checkin_time: checkinTime,
-          is_open: true,
-          checkin_photo: checkinDto.photo_url || null,
-          work_date: new Date(today),
-          location_type: checkinDto.location_type || 'OFFICE',
-          session_type: checkinDto.session_type || 'WORK',
-        },
-      });
-
-      // Tạo attendance log
-      const attendanceLog = await tx.attendance_logs.create({
-        data: {
-          user_id: userId,
-          timesheet_id: timesheet.id,
-          action_type: 'checkin',
-          timestamp: checkinTime,
-          work_date: new Date(today),
-          location_type: checkinDto.location_type || 'OFFICE',
-          photo_url: face_identified.captured_image_url,
-          itempodency_key: idempotencyKey,
-          status: 'APPROVED',
-        },
-      });
-
-      // Cập nhật timesheet với thông tin check-in
-      const updatedTimesheet = await tx.time_sheets.update({
-        where: { id: timesheet.id },
-        data: {
-          checkin: checkinTime,
-          late_time: lateTime,
-          remote: checkinDto.remote || 'OFFICE',
-        },
-      });
-
-      return {
-        timesheet: updatedTimesheet,
-        attendance_log: attendanceLog,
-        session: newSession,
-        message: 'Check-in thành công',
-      };
-    });
+        return {
+          timesheet: updatedTimesheet,
+          attendance_log: attendanceLog,
+          session: newSession,
+          message: 'Check-in thành công',
+        };
+      },
+      {
+        timeout: 30000, // 30 seconds timeout
+      },
+    );
   }
 
   async checkout(
@@ -487,188 +492,195 @@ export class TimesheetService {
     // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkout_${userId}_${today}`;
 
-    return this.prisma.$transaction(async (tx) => {
-      // Kiểm tra user tồn tại
-      const user = await tx.users.findFirst({
-        where: QueryUtil.onlyActive({ id: userId }),
-      });
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Kiểm tra user tồn tại
+        const user = await tx.users.findFirst({
+          where: QueryUtil.onlyActive({ id: userId }),
+        });
 
-      if (!user) {
-        throw new NotFoundException('Không tìm thấy người dùng');
-      }
+        if (!user) {
+          throw new NotFoundException('Không tìm thấy người dùng');
+        }
 
-      let face_identified: FaceIdentifiedDto | null = null;
-      if (image) {
-        try {
-          // Tạo form-data
-          const formData = new FormData();
-          formData.append('image', image.buffer, {
-            filename: image.originalname,
-            contentType: image.mimetype,
-          } as any);
+        let face_identified: FaceIdentifiedDto | null = null;
+        if (image) {
+          try {
+            // Tạo form-data
+            const formData = new FormData();
+            formData.append('image', image.buffer, {
+              filename: image.originalname,
+              contentType: image.mimetype,
+            } as any);
 
-          // Gửi request
-          const response = await this.httpService.axiosRef.post(
-            process.env.FACE_IDENTIFICATION_URL + '/identify',
-            formData,
-            { headers: formData.getHeaders() },
-          );
+            // Gửi request
+            const response = await this.httpService.axiosRef.post(
+              process.env.FACE_IDENTIFICATION_URL + '/identify',
+              formData,
+              { headers: formData.getHeaders() },
+            );
 
-          const result = response.data;
+            const result = response.data;
 
-          if (Number(result.user_id) !== userId) {
+            if (Number(result.user_id) !== userId) {
+              throw new BadRequestException(
+                'Xác thực khuôn mặt không thành công',
+              );
+            }
+
+            face_identified = result;
+          } catch (error) {
+            console.error(error);
             throw new BadRequestException(
-              'Xác thực khuôn mặt không thành công',
+              error.response?.data?.error ||
+                'Xác thực khuôn mặt không thành công',
             );
           }
+        }
 
-          face_identified = result;
-        } catch (error) {
-          console.error(error);
+        if (!face_identified) {
+          throw new BadRequestException('Xác thực khuôn mặt không thành công');
+        }
+
+        // Kiểm tra đã check-in hôm nay chưa
+        const existingCheckin = await tx.attendance_logs.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            action_type: 'checkin',
+            work_date: new Date(today),
+          }),
+        });
+
+        if (!existingCheckin) {
+          throw new BadRequestException('Bạn chưa check-in hôm nay');
+        }
+
+        // Kiểm tra đã check-out chưa
+        const existingCheckout = await tx.attendance_logs.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            action_type: 'checkout',
+            work_date: new Date(today),
+          }),
+        });
+
+        if (existingCheckout) {
+          throw new BadRequestException('Bạn đã check-out hôm nay rồi');
+        }
+
+        // Tìm session đang mở để checkout
+        const openSession = await tx.attendance_sessions.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            work_date: new Date(today),
+            is_open: true,
+          }),
+        });
+
+        if (!openSession) {
           throw new BadRequestException(
-            error.response?.data?.error ||
-              'Xác thực khuôn mặt không thành công',
+            'Không tìm thấy phiên làm việc đang mở. Vui lòng liên hệ quản trị viên.',
           );
         }
-      }
 
-      if (!face_identified) {
-        throw new BadRequestException('Xác thực khuôn mặt không thành công');
-      }
+        // Tìm timesheet hôm nay
+        const todayTimesheet = await tx.time_sheets.findFirst({
+          where: QueryUtil.onlyActive({
+            user_id: userId,
+            work_date: new Date(today),
+          }),
+        });
 
-      // Kiểm tra đã check-in hôm nay chưa
-      const existingCheckin = await tx.attendance_logs.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          action_type: 'checkin',
-          work_date: new Date(today),
-        }),
-      });
+        if (!todayTimesheet) {
+          throw new BadRequestException('Không tìm thấy timesheet hôm nay');
+        }
 
-      if (!existingCheckin) {
-        throw new BadRequestException('Bạn chưa check-in hôm nay');
-      }
+        if (!todayTimesheet.checkin) {
+          throw new BadRequestException(
+            'Timesheet không có thông tin check-in',
+          );
+        }
 
-      // Kiểm tra đã check-out chưa
-      const existingCheckout = await tx.attendance_logs.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          action_type: 'checkout',
-          work_date: new Date(today),
-        }),
-      });
+        // Tính toán thời gian làm việc
+        const workEndTime = new Date(today + 'T10:30:00.000Z'); // 5:30 PM UTC+7 = 10:30 AM UTC
+        const earlyTime =
+          checkoutTime < workEndTime
+            ? Math.floor(
+                (workEndTime.getTime() - checkoutTime.getTime()) / (1000 * 60),
+              )
+            : 0;
 
-      if (existingCheckout) {
-        throw new BadRequestException('Bạn đã check-out hôm nay rồi');
-      }
-
-      // Tìm session đang mở để checkout
-      const openSession = await tx.attendance_sessions.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          work_date: new Date(today),
-          is_open: true,
-        }),
-      });
-
-      if (!openSession) {
-        throw new BadRequestException(
-          'Không tìm thấy phiên làm việc đang mở. Vui lòng liên hệ quản trị viên.',
+        // Tính tổng thời gian làm việc (phút)
+        const totalWorkMinutes = Math.floor(
+          (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) /
+            (1000 * 60),
         );
-      }
 
-      // Tìm timesheet hôm nay
-      const todayTimesheet = await tx.time_sheets.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: userId,
-          work_date: new Date(today),
-        }),
-      });
+        // Trừ thời gian nghỉ trưa (60 phút mặc định)
+        const breakTime = 60;
+        const netWorkMinutes = Math.max(0, totalWorkMinutes - breakTime);
 
-      if (!todayTimesheet) {
-        throw new BadRequestException('Không tìm thấy timesheet hôm nay');
-      }
+        // Phân chia thời gian sáng/chiều (4 giờ sáng = 240 phút)
+        const workTimeMorning = Math.min(240, netWorkMinutes);
+        const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
 
-      if (!todayTimesheet.checkin) {
-        throw new BadRequestException('Timesheet không có thông tin check-in');
-      }
+        // Cập nhật session với thông tin checkout
+        await tx.attendance_sessions.update({
+          where: { id: openSession.id },
+          data: {
+            checkout_time: checkoutTime,
+            checkout_photo: checkoutDto.photo_url || null,
+            is_open: false, // Đóng session khi checkout
+          },
+        });
 
-      // Tính toán thời gian làm việc
-      const workEndTime = new Date(today + 'T10:30:00.000Z'); // 5:30 PM UTC+7 = 10:30 AM UTC
-      const earlyTime =
-        checkoutTime < workEndTime
-          ? Math.floor(
-              (workEndTime.getTime() - checkoutTime.getTime()) / (1000 * 60),
-            )
-          : 0;
+        // Tạo attendance log
+        const attendanceLog = await tx.attendance_logs.create({
+          data: {
+            user_id: userId,
+            timesheet_id: todayTimesheet.id,
+            action_type: 'checkout',
+            timestamp: checkoutTime,
+            work_date: new Date(today),
+            location_type: checkoutDto.location_type || 'OFFICE',
+            photo_url: face_identified.captured_image_url,
+            itempodency_key: idempotencyKey,
+            status: 'APPROVED',
+          },
+        });
 
-      // Tính tổng thời gian làm việc (phút)
-      const totalWorkMinutes = Math.floor(
-        (checkoutTime.getTime() - todayTimesheet.checkin.getTime()) /
-          (1000 * 60),
-      );
+        // Cập nhật timesheet với thông tin checkout và thời gian làm việc
+        const updatedTimesheet = await tx.time_sheets.update({
+          where: { id: todayTimesheet.id },
+          data: {
+            checkout: checkoutTime,
+            early_time: earlyTime,
+            work_time_morning: workTimeMorning,
+            work_time_afternoon: workTimeAfternoon,
+            total_work_time: workTimeMorning + workTimeAfternoon,
+            break_time: breakTime,
+            is_complete: true,
+          },
+        });
 
-      // Trừ thời gian nghỉ trưa (60 phút mặc định)
-      const breakTime = 60;
-      const netWorkMinutes = Math.max(0, totalWorkMinutes - breakTime);
-
-      // Phân chia thời gian sáng/chiều (4 giờ sáng = 240 phút)
-      const workTimeMorning = Math.min(240, netWorkMinutes);
-      const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
-
-      // Cập nhật session với thông tin checkout
-      await tx.attendance_sessions.update({
-        where: { id: openSession.id },
-        data: {
-          checkout_time: checkoutTime,
-          checkout_photo: checkoutDto.photo_url || null,
-          is_open: false, // Đóng session khi checkout
-        },
-      });
-
-      // Tạo attendance log
-      const attendanceLog = await tx.attendance_logs.create({
-        data: {
-          user_id: userId,
-          timesheet_id: todayTimesheet.id,
-          action_type: 'checkout',
-          timestamp: checkoutTime,
-          work_date: new Date(today),
-          location_type: checkoutDto.location_type || 'OFFICE',
-          photo_url: face_identified.captured_image_url,
-          itempodency_key: idempotencyKey,
-          status: 'APPROVED',
-        },
-      });
-
-      // Cập nhật timesheet với thông tin checkout và thời gian làm việc
-      const updatedTimesheet = await tx.time_sheets.update({
-        where: { id: todayTimesheet.id },
-        data: {
-          checkout: checkoutTime,
-          early_time: earlyTime,
-          work_time_morning: workTimeMorning,
-          work_time_afternoon: workTimeAfternoon,
-          total_work_time: workTimeMorning + workTimeAfternoon,
-          break_time: breakTime,
-          is_complete: true,
-        },
-      });
-
-      return {
-        timesheet: updatedTimesheet,
-        attendance_log: attendanceLog,
-        session: openSession,
-        work_summary: {
-          total_minutes: totalWorkMinutes,
-          net_work_minutes: netWorkMinutes,
-          break_minutes: breakTime,
-          morning_minutes: workTimeMorning,
-          afternoon_minutes: workTimeAfternoon,
-        },
-        message: 'Check-out thành công',
-      };
-    });
+        return {
+          timesheet: updatedTimesheet,
+          attendance_log: attendanceLog,
+          session: openSession,
+          work_summary: {
+            total_minutes: totalWorkMinutes,
+            net_work_minutes: netWorkMinutes,
+            break_minutes: breakTime,
+            morning_minutes: workTimeMorning,
+            afternoon_minutes: workTimeAfternoon,
+          },
+          message: 'Check-out thành công',
+        };
+      },
+      {
+        timeout: 30000, // 30 seconds timeout
+      },
+    );
   }
 
   async getTodayAttendance(userId: number) {
@@ -1589,9 +1601,8 @@ export class TimesheetService {
         total_days: timesheets.length,
         on_time: timesheets.filter((t) => !t.late_time || t.late_time === 0)
           .length,
-        late: timesheets.filter((t) => t.late_time && t.late_time > 0).length,
-        early_leave: timesheets.filter((t) => t.early_time && t.early_time > 0)
-          .length,
+        late: timesheets.reduce((sum, t) => sum + (t.late_time || 0), 0),
+        early_leave: timesheets.reduce((sum, t) => sum + (t.early_time || 0), 0),
         remote_days: timesheets.filter((t) => t.remote === 'REMOTE').length,
       },
       leave: {

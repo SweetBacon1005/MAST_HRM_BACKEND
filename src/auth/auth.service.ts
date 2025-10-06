@@ -166,29 +166,60 @@ export class AuthService {
       const { password: _, ...result } = user;
       return {
         ...result,
-        join_date: null,
-        today_attendance: null,
+        join_date: user.created_at,
+        today_attendance: {
+          checkin: null,
+          checkout: null,
+          total_work_time: 0,
+          status: 'PENDING',
+          late_time: 0,
+          early_time: 0,
+          is_complete: false,
+          has_attendance: false,
+        },
         remaining_leave_days: 0,
+        annual_leave_quota: 12,
+        used_leave_days: 0,
         assigned_devices: [],
+        organization: {
+          position_id: null,
+          level_id: null,
+          office_id: null,
+          role_id: null,
+          division_id: null,
+          team_id: null,
+        },
       };
     }
   }
 
   private async getUserAdditionalInfo(userId: number): Promise<any> {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayStart = new Date(today.toISOString().split('T')[0] + 'T00:00:00.000Z');
+    const todayEnd = new Date(today.toISOString().split('T')[0] + 'T23:59:59.999Z');
 
     // Tháng hiện tại để tính leave days
-    const currentMonth = new Date();
-    currentMonth.setDate(1);
-    currentMonth.setHours(0, 0, 0, 0);
-    const nextMonth = new Date(currentMonth);
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
 
     // Thực hiện tất cả queries song song để tối ưu performance
-    const [firstContract, todayTimesheet, usedLeaveDays, assignedDevices] = await Promise.all([
+    const [userInfo, firstContract, todayTimesheet, usedLeaveDays, assignedDevices, userDivision] = await Promise.all([
+      // Lấy thông tin user cơ bản
+      this.prisma.user_information.findFirst({
+        where: {
+          user_id: userId,
+          deleted_at: null,
+        },
+        select: {
+          position_id: true,
+          level_id: true,
+          office_id: true,
+          role_id: true,
+        },
+      }),
+
       // Lấy thời gian gia nhập công ty từ contract đầu tiên
       this.prisma.contracts.findFirst({
         where: {
@@ -208,8 +239,8 @@ export class AuthService {
         where: {
           user_id: userId,
           work_date: {
-            gte: today,
-            lt: tomorrow,
+            gte: todayStart,
+            lte: todayEnd,
           },
           deleted_at: null,
         },
@@ -218,6 +249,9 @@ export class AuthService {
           checkout: true,
           total_work_time: true,
           status: true,
+          late_time: true,
+          early_time: true,
+          is_complete: true,
         },
       }),
 
@@ -226,8 +260,8 @@ export class AuthService {
         where: {
           user_id: userId,
           start_date: {
-            gte: currentMonth,
-            lt: nextMonth,
+            gte: monthStart,
+            lte: monthEnd,
           },
           status: 'APPROVED',
           type: 'PAID',
@@ -257,33 +291,64 @@ export class AuthService {
           assigned_date: 'desc',
         },
       }),
+
+      // Lấy thông tin division và team từ user_division
+      this.prisma.user_division.findFirst({
+        where: {
+          userId: userId,
+        },
+        select: {
+          divisionId: true,
+          teamId: true,
+          role_id: true,
+        },
+      }),
     ]);
 
-    // Giả sử mỗi tháng có 2.5 ngày phép (có thể config)
-    const monthlyLeaveQuota = 2.5;
+    // Tính số ngày phép còn lại (mặc định 12 ngày/năm)
+    const annualLeaveQuota = 12;
+    const monthlyLeaveQuota = annualLeaveQuota / 12; // Chia đều theo tháng
     const usedLeave = usedLeaveDays._sum.total || 0;
     const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
 
     // Format assigned devices
     const formattedDevices = assignedDevices.map((device) => ({
       id: device.id,
-      name: device.device_name,
+      name: device.device_name || 'Unknown Device',
       type: device.device_type?.toLowerCase() || 'unknown',
-      serial: device.device_serial,
+      serial: device.device_serial || 'N/A',
       assigned_date: device.assigned_date,
-      notes: device.notes,
+      notes: device.notes || '',
     }));
 
+    // Xác định join_date từ contract đầu tiên
+    const joinDate = firstContract?.start_date || null;
+
     return {
-      join_date: firstContract?.start_date || null,
+      join_date: joinDate,
       today_attendance: {
         checkin: todayTimesheet?.checkin || null,
         checkout: todayTimesheet?.checkout || null,
         total_work_time: todayTimesheet?.total_work_time || 0,
-        status: todayTimesheet?.status || null,
+        status: todayTimesheet?.status || 'PENDING',
+        late_time: todayTimesheet?.late_time || 0,
+        early_time: todayTimesheet?.early_time || 0,
+        is_complete: todayTimesheet?.is_complete || false,
+        has_attendance: !!todayTimesheet,
       },
-      remaining_leave_days: remainingLeave,
+      remaining_leave_days: Math.round(remainingLeave * 10) / 10, // Làm tròn 1 chữ số thập phân
+      annual_leave_quota: annualLeaveQuota,
+      used_leave_days: usedLeave,
       assigned_devices: formattedDevices,
+      // Thêm thông tin tổ chức
+      organization: {
+        position_id: userInfo?.position_id || null,
+        level_id: userInfo?.level_id || null,
+        office_id: userInfo?.office_id || null,
+        role_id: userInfo?.role_id || null,
+        division_id: userDivision?.divisionId || null,
+        team_id: userDivision?.teamId || null,
+      },
     };
   }
 

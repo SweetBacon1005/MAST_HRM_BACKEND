@@ -4,8 +4,9 @@ import * as bcrypt from 'bcryptjs';
 export async function seedUsers(prisma: PrismaClient, seedData: any) {
   console.log('👤 Seeding users...');
 
-  const { roles, groupRoles } = seedData;
+  const { roles } = seedData;
   const hashedPassword = await bcrypt.hash('123456', 10);
+  const mastPassword = await bcrypt.hash('Mast@123', 10);
 
   // 1. Tạo users - sử dụng upsert vì cần email unique
   console.log('👤 Tạo users...');
@@ -56,6 +57,12 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       name: 'Lisa Davis',
       email: 'lisa.davis@company.com',
       password: hashedPassword,
+      email_verified_at: new Date(),
+    },
+    {
+      name: 'User Example',
+      email: 'user@example.com',
+      password: mastPassword,
       email_verified_at: new Date(),
     },
   ];
@@ -295,6 +302,34 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       expertise: 'UI/UX Design',
       technique: 'Figma, Adobe XD, Sketch',
       main_task: 'UI/UX Design',
+      language_id: 1, // Vietnamese
+    },
+    {
+      status: 'ACTIVE' as const,
+      user_id: users[8].id,
+      email: 'user@example.com',
+      personal_email: 'user.personal@gmail.com',
+      nationality: 'Vietnamese',
+      name: 'User Example',
+      code: 'EMP009',
+      avatar: '/avatars/user.jpg',
+      gender: 'Male',
+      marital: 'Single',
+      birthday: new Date('1995-01-01'),
+      position_id: 1, // Backend Developer
+      office_id: 1,
+      address: '123 Example St, Hà Nội',
+      temp_address: '123 Example St, Hà Nội',
+      phone: '+84901234575',
+      tax_code: 'TAX009',
+      role_id: roles[5].id, // employee
+      description: 'Example User',
+      level_id: 3, // Junior
+      note: 'Example user for testing',
+      overview: 'New employee for testing purposes',
+      expertise: 'General',
+      technique: 'Various technologies',
+      main_task: 'General tasks',
       language_id: 1, // Vietnamese
     },
   ];

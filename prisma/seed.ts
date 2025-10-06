@@ -5,6 +5,7 @@ import { seedBasicData } from './seeds/basic-data.seed';
 import { seedSkillsAndCertificates } from './seeds/skills-certificates.seed';
 import { seedOrganization } from './seeds/organization.seed';
 import { seedUsers } from './seeds/users.seed';
+import { seedContracts } from './seeds/contracts.seed';
 import { seedProjects } from './seeds/projects.seed';
 import { seedUserRelations } from './seeds/user-relations.seed';
 import { seedMiscData } from './seeds/misc-data.seed';
@@ -40,11 +41,15 @@ async function main() {
     const usersData = await seedUsers(prisma, basicData);
     console.log('✅ Users data seeded successfully!\n');
 
-    // 6. Seed projects, customers, and stages
+    // 6. Seed contracts
+    const contractsData = await seedContracts(prisma);
+    console.log('✅ Contracts data seeded successfully!\n');
+
+    // 7. Seed projects, customers, and stages
     const projectsData = await seedProjects(prisma);
     console.log('✅ Projects data seeded successfully!\n');
 
-    // 7. Seed user relationships (divisions, allocations, timesheets, reports)
+    // 8. Seed user relationships (divisions, allocations, timesheets, reports)
     await seedUserRelations(prisma, {
       ...usersData,
       ...basicData,
