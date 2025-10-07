@@ -12,6 +12,7 @@ import { seedMiscData } from './seeds/misc-data.seed';
 import { seedDayOffs } from './seeds/day-offs.seed';
 import { seedScheduleWorks } from './seeds/schedule-works.seed';
 import { seedUserDevices } from './seeds/user-devices.seed';
+import { seedRequests } from './seeds/requests.seed';
 
 const prisma = new PrismaClient();
 
@@ -74,6 +75,10 @@ async function main() {
     await seedUserDevices();
     console.log('✅ User devices seeded successfully!\n');
 
+    // 11. Seed requests for user@example.com
+    await seedRequests(prisma, usersData);
+    console.log('✅ Requests data seeded successfully!\n');
+
     // Summary
     console.log('🎉 =================================');
     console.log('✅ SEED DATABASE HOÀN THÀNH!');
@@ -106,6 +111,7 @@ async function main() {
     console.log('🔑 Thông tin đăng nhập:');
     console.log('Admin: admin@company.com / 123456');
     console.log('HR Manager: hr.manager@company.com / 123456');
+    console.log('Test User: user@example.com / Mast@123 (có sample requests)');
     console.log('Developers: john.doe@company.com / 123456');
     console.log('            jane.smith@company.com / 123456');
     console.log('            mike.johnson@company.com / 123456');
@@ -122,7 +128,8 @@ async function main() {
     console.log('✓ Kỹ năng và chứng chỉ');
     console.log('✓ Học vấn và kinh nghiệm làm việc');
     console.log('✓ Ngày nghỉ lễ và thông tin gia đình');
-    console.log('✓ Lịch sử tăng ca và nhóm làm việc\n');
+    console.log('✓ Lịch sử tăng ca và nhóm làm việc');
+    console.log('✓ Sample requests cho user@example.com (remote work, day-off, overtime)\n');
 
     console.log('📁 Cấu trúc seed files (đã tối ưu hóa):');
     console.log('├── prisma/seed.ts (main file)');
@@ -136,7 +143,8 @@ async function main() {
     console.log('    ├── user-relations.seed.ts ⚡ (tối ưu hóa)');
     console.log('    ├── misc-data.seed.ts ⚡ (tối ưu hóa)');
     console.log('    ├── day-offs.seed.ts ⚡ (createMany + skipDuplicates)');
-    console.log('    └── user-devices.seed.ts ⚡ (createMany + skipDuplicates)');
+    console.log('    ├── user-devices.seed.ts ⚡ (createMany + skipDuplicates)');
+    console.log('    └── requests.seed.ts ⚡ (sample requests for testing)');
     console.log('\n🚀 Tối ưu hóa đã áp dụng:');
     console.log('• createMany() với skipDuplicates: true cho dữ liệu không cần update');
     console.log('• upsert() batch cho dữ liệu có ID cố định');

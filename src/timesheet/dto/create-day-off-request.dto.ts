@@ -110,12 +110,4 @@ export class CreateDayOffRequestDto {
   @IsOptional()
   @IsBoolean()
   is_past?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'ID hợp đồng',
-    example: 10,
-  })
-  @IsOptional()
-  @IsNumber()
-  contract_id?: number;
 }

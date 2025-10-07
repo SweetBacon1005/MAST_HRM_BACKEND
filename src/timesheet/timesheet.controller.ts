@@ -36,9 +36,7 @@ import {
   UpdateAttendanceLogDto,
 } from './dto/attendance-log.dto';
 import { CheckinDto, CheckoutDto } from './dto/checkin-checkout.dto';
-import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
-import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
 import {
   BulkLockTimesheetsDto,
@@ -48,16 +46,13 @@ import {
 import { GetScheduleDto } from './dto/get-schedule.dto';
 import {
   AttendanceLogPaginationDto,
-  DayOffRequestPaginationDto,
   HolidayPaginationDto,
-  OvertimeRequestPaginationDto,
   TimesheetPaginationDto,
 } from './dto/pagination-queries.dto';
 import {
   TimesheetReportDto,
   WorkingTimeReportDto,
 } from './dto/timesheet-report.dto';
-import { UpdateDayOffStatusDto } from './dto/update-day-off-status.dto';
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { TimesheetService } from './timesheet.service';
@@ -193,61 +188,8 @@ export class TimesheetController {
     return this.timesheetService.getTodayAttendance(userId);
   }
 
-  // === DAY OFF REQUESTS ===
-
-  @Post('day-off-requests')
-  @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
-  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
-  createDayOffRequest(
-    @Body() createDayOffRequestDto: CreateDayOffRequestDto,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    createDayOffRequestDto.user_id = userId;
-    return this.timesheetService.createDayOffRequest(createDayOffRequestDto);
-  }
-
-  @Get('day-off-requests/my')
-  @ApiOperation({ summary: 'Lấy danh sách đơn nghỉ phép của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyDayOffRequests(@GetCurrentUser('id') userId: number) {
-    return this.timesheetService.findAllDayOffRequests(userId);
-  }
-
-  @Get('day-off-requests/my/paginated')
-  @ApiOperation({
-    summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyDayOffRequestsPaginated(
-    @GetCurrentUser('id') userId: number,
-    @Query() paginationDto: DayOffRequestPaginationDto,
-  ) {
-    return this.timesheetService.findMyDayOffRequestsPaginated(
-      userId,
-      paginationDto,
-    );
-  }
-
-  @Patch('day-off-requests/:id/status')
-  @ApiOperation({
-    summary: 'Cập nhật trạng thái đơn nghỉ phép (Duyệt/Từ chối)',
-  })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy đơn nghỉ phép' })
-  @Roles('manager', 'admin')
-  updateDayOffRequestStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateStatusDto: UpdateDayOffStatusDto,
-    @GetCurrentUser('id') approverId: number,
-  ) {
-    return this.timesheetService.updateDayOffRequestStatus(
-      id,
-      updateStatusDto.status,
-      approverId,
-      updateStatusDto.rejected_reason,
-    );
-  }
+  // === DAY OFF INFO (Read-only) ===
+  // Note: Day-off requests are now handled by /requests module
 
   @Get('day-off-info/:date')
   @ApiOperation({ summary: 'Lấy thông tin nghỉ phép của một ngày' })
@@ -259,42 +201,8 @@ export class TimesheetController {
     return this.timesheetService.getDayOffInfo(userId, date);
   }
 
-  // === OVERTIME REQUESTS ===
-
-  @Post('overtime-requests')
-  @ApiOperation({ summary: 'Tạo đơn xin làm thêm giờ' })
-  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
-  createOvertimeRequest(
-    @Body() createOvertimeRequestDto: CreateOvertimeRequestDto,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    createOvertimeRequestDto.user_id = userId;
-    return this.timesheetService.createOvertimeRequest(
-      createOvertimeRequestDto,
-    );
-  }
-
-  @Get('overtime-requests/my')
-  @ApiOperation({ summary: 'Lấy danh sách đơn làm thêm giờ của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyOvertimeRequests(@GetCurrentUser('id') userId: number) {
-    return this.timesheetService.findAllOvertimeRequests(userId);
-  }
-
-  @Get('overtime-requests/my/paginated')
-  @ApiOperation({
-    summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyOvertimeRequestsPaginated(
-    @GetCurrentUser('id') userId: number,
-    @Query() paginationDto: OvertimeRequestPaginationDto,
-  ) {
-    return this.timesheetService.findMyOvertimeRequestsPaginated(
-      userId,
-      paginationDto,
-    );
-  }
+  // === OVERTIME INFO (Read-only) ===
+  // Note: Overtime requests are now handled by /requests module
 
   // === SCHEDULE MANAGEMENT ===
 

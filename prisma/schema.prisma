@@ -584,42 +584,45 @@ model tasks {
 }
 
 model users {
-    id                    Int                     @id @default(autoincrement())
-    name                  String?                 @db.VarChar(255)
-    email                 String                  @unique @db.VarChar(255)
-    email_verified_at     DateTime                @db.DateTime()
-    password              String?                 @db.VarChar(255)
-    created_at            DateTime                @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at            DateTime                @updatedAt
-    deleted_at            DateTime?               @db.DateTime()
-    education             education[]
-    experience            experience[]
-    user_certificates     user_certificates[]
-    user_information      user_information[]
-    user_skills           user_skills[]
-    rotation_members      rotation_members[]
-    user_division         user_division[]
-    attendance_logs       attendance_logs[]
-    attendance_sessions   attendance_sessions[]
-    day_offs              day_offs[]              @relation("user")
-    users_unpaid_leave    users_unpaid_leave[]
-    approved_by_user      day_offs[]              @relation("approved_by_user")
-    working_times         working_times[]
-    project_role_user     project_role_user[]
-    time_sheets           time_sheets[]
-    contracts             contracts[]
-    work_times            work_times[]
-    tasks                 tasks[]
-    allocations           allocations[]
-    pm_reports            pm_reports[]
-    user_devices          user_devices[]
-    daily_reports         daily_reports[]
-    divisions_assignments divisions_assignments[]
-    team_member_resources team_member_resources[]
-    evaluation_histories  evaluation_histories[]
-    over_times_history    over_times_history[]
-    activity_log_subject  activity_log[]          @relation("Subject")
-    activity_log_causer   activity_log[]          @relation("Causer")
+    id                            Int                     @id @default(autoincrement())
+    name                          String?                 @db.VarChar(255)
+    email                         String                  @unique @db.VarChar(255)
+    email_verified_at             DateTime                @db.DateTime()
+    password                      String?                 @db.VarChar(255)
+    created_at                    DateTime                @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at                    DateTime                @updatedAt
+    deleted_at                    DateTime?               @db.DateTime()
+    education                     education[]
+    experience                    experience[]
+    user_certificates             user_certificates[]
+    user_information              user_information[]
+    user_skills                   user_skills[]
+    rotation_members              rotation_members[]
+    user_division                 user_division[]
+    attendance_logs               attendance_logs[]
+    attendance_sessions           attendance_sessions[]
+    day_offs                      day_offs[]              @relation("user")
+    users_unpaid_leave            users_unpaid_leave[]
+    approved_by_user              day_offs[]              @relation("approved_by_user")
+    working_times                 working_times[]
+    project_role_user             project_role_user[]
+    time_sheets                   time_sheets[]
+    contracts                     contracts[]
+    work_times                    work_times[]
+    tasks                         tasks[]
+    allocations                   allocations[]
+    pm_reports                    pm_reports[]
+    user_devices                  user_devices[]
+    daily_reports                 daily_reports[]
+    divisions_assignments         divisions_assignments[]
+    team_member_resources         team_member_resources[]
+    evaluation_histories          evaluation_histories[]
+    activity_log_subject          activity_log[]          @relation("Subject")
+    activity_log_causer           activity_log[]          @relation("Causer")
+    remote_work_requests          remote_work_requests[]
+    approved_remote_work_requests remote_work_requests[]  @relation("RemoteWorkApprover")
+    over_times_history_approved   over_times_history[]    @relation("approved_by_user")
+    over_times_history_subject    over_times_history[]    @relation("user")
 }
 
 model users_unpaid_leave {
@@ -956,20 +959,25 @@ model rotation_members {
 }
 
 model over_times_history {
-    id         Int       @id @default(autoincrement())
-    user_id    Int
-    user       users     @relation(fields: [user_id], references: [id])
-    total      Float?
-    value      Float?
-    date       DateTime
-    project_id Int?
-    project    projects? @relation(fields: [project_id], references: [id])
-    start_time DateTime
-    end_time   DateTime
-    reason     String?
-    deleted_at DateTime? @db.DateTime()
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
+    id               Int       @id @default(autoincrement())
+    user_id          Int
+    user             users     @relation("user", fields: [user_id], references: [id])
+    total            Float?
+    value            Float?
+    date             DateTime
+    approved_by      Int?
+    approved_by_user users?    @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at      DateTime? @db.DateTime()
+    rejected_reason  String?   @db.Text
+    status           TimesheetStatus? @default(PENDING)
+    project_id       Int?
+    project          projects? @relation(fields: [project_id], references: [id])
+    start_time       DateTime
+    end_time         DateTime
+    reason           String?
+    deleted_at       DateTime? @db.DateTime()
+    created_at       DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime  @updatedAt
 
     @@index([user_id])
     @@index([project_id])
@@ -1287,4 +1295,32 @@ enum IndustryType {
     FINANCE
     MANUFACTURING
     OTHER
+}
+
+model remote_work_requests {
+    id               Int             @id @default(autoincrement())
+    user_id          Int
+    user             users           @relation(fields: [user_id], references: [id])
+    work_date        DateTime        @db.Date
+    remote_type      RemoteType      @default(REMOTE)
+    reason           String?         @db.VarChar(500)
+    note             String?         @db.Text
+    status           TimesheetStatus @default(PENDING)
+    approved_by      Int?
+    approved_by_user users?          @relation("RemoteWorkApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?       @db.DateTime()
+    rejected_reason  String?         @db.Text
+    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime        @updatedAt
+    deleted_at       DateTime?       @db.DateTime()
+
+    @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_active")
+    @@index([user_id])
+    @@index([work_date])
+    @@index([status])
+    @@index([user_id, work_date])
+    @@index([deleted_at])
+    @@index([approved_by])
+    @@index([created_at])
+    @@index([remote_type])
 }

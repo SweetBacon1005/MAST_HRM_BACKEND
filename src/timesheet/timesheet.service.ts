@@ -7,7 +7,6 @@ import {
 import {
   DayOffDuration,
   DayOffStatus,
-  DayOffType,
   HolidayStatus,
   Prisma,
   TimesheetStatus,
@@ -24,17 +23,13 @@ import {
   UpdateAttendanceLogDto,
 } from './dto/attendance-log.dto';
 import { CheckinDto, CheckoutDto } from './dto/checkin-checkout.dto';
-import { CreateDayOffRequestDto } from './dto/create-day-off-request.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
-import { CreateOvertimeRequestDto } from './dto/create-overtime-request.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
 import { FaceIdentifiedDto } from './dto/face-identified.dto';
 import { GetScheduleDto } from './dto/get-schedule.dto';
 import {
   AttendanceLogPaginationDto,
-  DayOffRequestPaginationDto,
   HolidayPaginationDto,
-  OvertimeRequestPaginationDto,
   TimesheetPaginationDto,
 } from './dto/pagination-queries.dto';
 import {
@@ -694,237 +689,6 @@ export class TimesheetService {
     });
   }
 
-  // === DAY OFF REQUESTS ===
-
-  async createDayOffRequest(createDayOffRequestDto: CreateDayOffRequestDto) {
-    // Kiểm tra user tồn tại
-    const user = await this.prisma.users.findFirst({
-      where: QueryUtil.onlyActive({ id: createDayOffRequestDto.user_id }),
-    });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-
-    const contract = await this.prisma.contracts.findFirst({
-      where: QueryUtil.onlyActive({
-        user_id: createDayOffRequestDto.user_id,
-        start_date: {
-          lte: new Date(createDayOffRequestDto.start_date),
-        },
-        end_date: {
-          gte: new Date(createDayOffRequestDto.end_date),
-        },
-      }),
-    });
-    if (!contract) {
-      throw new NotFoundException('Không tìm thấy hợp đồng');
-    }
-
-    // Validate dates
-    const startDate = new Date(createDayOffRequestDto.start_date);
-    const endDate = new Date(createDayOffRequestDto.end_date);
-
-    if (startDate > endDate) {
-      throw new BadRequestException('Ngày bắt đầu không thể sau ngày kết thúc');
-    }
-
-    // Kiểm tra trùng lặp nghỉ phép
-    const existingDayOff = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({
-        user_id: createDayOffRequestDto.user_id,
-        OR: [
-          {
-            start_date: {
-              lte: endDate,
-            },
-            end_date: {
-              gte: startDate,
-            },
-          },
-        ],
-        status: {
-          in: [DayOffStatus.PENDING, DayOffStatus.APPROVED],
-        },
-      }),
-    });
-
-    if (existingDayOff) {
-      throw new BadRequestException(
-        'Đã có đơn nghỉ phép trong khoảng thời gian này',
-      );
-    }
-
-    const { is_past, ...rest } = createDayOffRequestDto;
-
-    return this.prisma.day_offs.create({
-      data: {
-        ...rest,
-        start_date: startDate,
-        end_date: endDate,
-        duration: createDayOffRequestDto.duration,
-        type: createDayOffRequestDto.type,
-        is_past: is_past ? true : false,
-        status: 'PENDING',
-      },
-    });
-  }
-
-  async findAllDayOffRequests(userId: number) {
-    return this.prisma.day_offs.findMany({
-      where: QueryUtil.onlyActive({ user_id: userId }),
-      orderBy: { created_at: 'desc' },
-    });
-  }
-
-  async findMyDayOffRequestsPaginated(
-    userId: number,
-    paginationDto: DayOffRequestPaginationDto,
-  ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.day_offsWhereInput = QueryUtil.onlyActive({
-      user_id: userId,
-    });
-
-    // Thêm filter theo status
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
-    }
-
-    // Thêm filter theo leave_type
-    if (paginationDto.leave_type) {
-      where.type = paginationDto.leave_type;
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.day_offs.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: { name: true, email: true },
-          },
-        },
-      }),
-      this.prisma.day_offs.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async updateDayOffRequestStatus(
-    id: number,
-    status: DayOffStatus,
-    approverId?: number,
-    rejectedReason?: string,
-  ) {
-    const dayOff = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({ id }),
-    });
-
-    if (!dayOff) {
-      throw new NotFoundException('Không tìm thấy đơn nghỉ phép');
-    }
-
-    const updateData: Prisma.day_offsUpdateInput = { status };
-
-    if (status === DayOffStatus.APPROVED) {
-      updateData.approved_by_user = { connect: { id: approverId } };
-      updateData.approved_at = new Date();
-
-      // Tự động tạo timesheet khi duyệt nghỉ phép
-      await this.createTimesheetsForDayOff(dayOff);
-    } else if (status === DayOffStatus.REJECTED) {
-      updateData.rejected_reason = rejectedReason;
-      if (!rejectedReason) {
-        throw new BadRequestException(
-          'Lý do từ chối là bắt buộc khi từ chối đơn nghỉ phép',
-        );
-      }
-    } else {
-      throw new BadRequestException(
-        'Trạng thái chỉ được là APPROVED (duyệt) hoặc REJECTED (từ chối)',
-      );
-    }
-
-    return this.prisma.day_offs.update({
-      where: { id },
-      data: updateData,
-    });
-  }
-
-  /**
-   * Tự động tạo timesheet khi duyệt nghỉ phép
-   */
-  private async createTimesheetsForDayOff(dayOff: any) {
-    const startDate = new Date(dayOff.start_date);
-    const endDate = new Date(dayOff.end_date);
-
-    // Tạo timesheet cho từng ngày nghỉ
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      // Kiểm tra xem đã có timesheet chưa
-      const existingTimesheet = await this.prisma.time_sheets.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: dayOff.user_id,
-          work_date: new Date(currentDate),
-        }),
-      });
-
-      if (!existingTimesheet) {
-        // Tính toán work time dựa vào duration
-        const workHours = DayOffCalculator.calculateWorkHours(dayOff.duration);
-
-        await this.prisma.time_sheets.create({
-          data: {
-            user_id: dayOff.user_id,
-            work_date: new Date(currentDate),
-            day_off_id: dayOff.id,
-            status: 'APPROVED', // Tự động approved vì đã được duyệt nghỉ phép
-            type: 'NORMAL', // Default type for day off
-            work_time_morning: workHours.morningHours,
-            work_time_afternoon: workHours.afternoonHours,
-            total_work_time: workHours.totalHours,
-            is_complete: dayOff.duration === 'FULL_DAY' ? false : true, // Nếu nghỉ cả ngày thì không complete
-            paid_leave: dayOff.type === DayOffType.PAID ? dayOff.reason : null,
-            unpaid_leave:
-              dayOff.type === DayOffType.UNPAID ? dayOff.reason : null,
-          },
-        });
-      } else {
-        // Cập nhật timesheet hiện tại với thông tin nghỉ phép
-        const workHours = DayOffCalculator.calculateWorkHours(dayOff.duration);
-
-        await this.prisma.time_sheets.update({
-          where: { id: existingTimesheet.id },
-          data: {
-            day_off_id: dayOff.id,
-            work_time_morning: workHours.morningHours,
-            work_time_afternoon: workHours.afternoonHours,
-            total_work_time: workHours.totalHours,
-            paid_leave:
-              dayOff.type === DayOffType.PAID
-                ? dayOff.reason
-                : existingTimesheet.paid_leave,
-            unpaid_leave:
-              dayOff.type === DayOffType.UNPAID
-                ? dayOff.reason
-                : existingTimesheet.unpaid_leave,
-          },
-        });
-      }
-
-      // Chuyển sang ngày tiếp theo
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-  }
   /**
    * Kiểm tra xem ngày có nghỉ phép không và loại nghỉ phép
    */
@@ -982,82 +746,8 @@ export class TimesheetService {
     };
   }
 
-  // === OVERTIME REQUESTS ===
-
-  async createOvertimeRequest(
-    createOvertimeRequestDto: CreateOvertimeRequestDto,
-  ) {
-    // Kiểm tra user tồn tại
-    const user = await this.prisma.users.findFirst({
-      where: QueryUtil.onlyActive({ id: createOvertimeRequestDto.user_id }),
-    });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-
-    return this.prisma.over_times_history.create({
-      data: {
-        ...createOvertimeRequestDto,
-        date: createOvertimeRequestDto.date
-          ? new Date(createOvertimeRequestDto.date)
-          : new Date(),
-        start_time: createOvertimeRequestDto.start_time
-          ? new Date(createOvertimeRequestDto.start_time)
-          : new Date(),
-        end_time: createOvertimeRequestDto.end_time
-          ? new Date(createOvertimeRequestDto.end_time)
-          : new Date(),
-      },
-    });
-  }
-
-  async findAllOvertimeRequests(userId: number) {
-    return this.prisma.over_times_history.findMany({
-      where: QueryUtil.onlyActive({ user_id: userId }),
-      orderBy: { created_at: 'desc' },
-    });
-  }
-
-  async findMyOvertimeRequestsPaginated(
-    userId: number,
-    paginationDto: OvertimeRequestPaginationDto,
-  ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.over_times_historyWhereInput = QueryUtil.onlyActive({
-      user_id: userId,
-    });
-
-    // Thêm filter theo ngày
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.over_times_history.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: { name: true, email: true },
-          },
-        },
-      }),
-      this.prisma.over_times_history.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
+  // === OVERTIME INFO (Read-only methods) ===
+  // Note: Overtime request creation/management moved to /requests module
 
   // === HOLIDAYS MANAGEMENT ===
 
@@ -1602,7 +1292,10 @@ export class TimesheetService {
         on_time: timesheets.filter((t) => !t.late_time || t.late_time === 0)
           .length,
         late: timesheets.reduce((sum, t) => sum + (t.late_time || 0), 0),
-        early_leave: timesheets.reduce((sum, t) => sum + (t.early_time || 0), 0),
+        early_leave: timesheets.reduce(
+          (sum, t) => sum + (t.early_time || 0),
+          0,
+        ),
         remote_days: timesheets.filter((t) => t.remote === 'REMOTE').length,
       },
       leave: {

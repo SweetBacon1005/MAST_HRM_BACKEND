@@ -49,10 +49,7 @@ import {
   AttendanceReportDto,
   PenaltyReportDto,
 } from './dto/dashboard.dto';
-import {
-  CreateLeaveRequestDto,
-  RemoteWorkRequestDto,
-} from './dto/leave-management.dto';
+// Leave and remote work request DTOs moved to /requests module
 import {
   PenaltyRulePaginationDto,
   WorkShiftPaginationDto,
@@ -193,75 +190,8 @@ export class AttendanceController {
     return this.attendanceService.updateWorkShift(id, workShiftDto);
   }
 
-  // === QUẢN LÝ NGHỈ PHÉP NÂNG CAO ===
-
-  @Post('leave-requests')
-  @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép chi tiết' })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
-    description: 'Tạo đơn nghỉ phép thành công',
-    schema: {
-      example: {
-        id: 1,
-        user_id: 1,
-        total: 3,
-        status: 'PENDING',
-        type: 'PAID',
-        start_date: '2024-01-15',
-        end_date: '2024-01-17',
-        is_past: false
-      }
-    }
-  })
-  @ApiBadRequestResponse({
-    description: 'Dữ liệu đầu vào không hợp lệ hoặc số ngày phép không đủ',
-    type: ValidationErrorResponseDto
-  })
-  @ApiConflictResponse({
-    description: 'Đã có đơn nghỉ phép trùng thời gian',
-    type: ErrorResponseDto
-  })
-  @ApiNotFoundResponse({
-    description: 'Không tìm thấy người dùng',
-    type: ErrorResponseDto
-  })
-  createLeaveRequest(@Body() leaveRequestDto: CreateLeaveRequestDto) {
-    return this.attendanceService.createLeaveRequest(leaveRequestDto);
-  }
-
-  @Post('remote-work-requests')
-  @ApiOperation({ summary: 'Tạo yêu cầu làm việc từ xa' })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
-    description: 'Tạo yêu cầu làm việc từ xa thành công',
-    schema: {
-      example: {
-        id: 1,
-        user_id: 1,
-        checkin: '2024-01-15T08:00:00Z',
-        checkout: '2024-01-15T17:30:00Z',
-        remote: 'REMOTE',
-        status: 'PENDING',
-        work_time_morning: 240,
-        work_time_afternoon: 240
-      }
-    }
-  })
-  @ApiBadRequestResponse({ 
-    description: 'Dữ liệu đầu vào không hợp lệ',
-    type: ValidationErrorResponseDto
-  })
-  @ApiConflictResponse({ 
-    description: 'Đã có yêu cầu làm việc từ xa cho ngày này',
-    type: ErrorResponseDto
-  })
-  @ApiNotFoundResponse({
-    description: 'Không tìm thấy người dùng',
-    type: ErrorResponseDto
-  })
-  createRemoteWorkRequest(@Body() remoteWorkDto: RemoteWorkRequestDto) {
-    return this.attendanceService.createRemoteWorkRequest(remoteWorkDto);
-  }
+  // === LEAVE BALANCE MANAGEMENT ===
+  // Note: Leave requests and remote work requests moved to /requests module
 
   @Get('leave-balance/:userId/:year')
   @ApiOperation({ summary: 'Xem số dư phép năm của nhân viên' })
