@@ -1250,72 +1250,150 @@ export class TimesheetService {
     startDate?: string,
     endDate?: string,
   ) {
-    const start =
-      startDate ||
-      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
-    const end = endDate || new Date().toISOString().split('T')[0];
+    // Mặc định lấy thống kê tháng hiện tại
+    const now = new Date();
+    const defaultStartDate = startDate || 
+      new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const defaultEndDate = endDate || 
+      new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
     const where: Prisma.time_sheetsWhereInput = QueryUtil.onlyActive({
-      ...QueryUtil.workDateRange(start, end),
+      ...QueryUtil.workDateRange(defaultStartDate, defaultEndDate),
     });
 
     if (userId) {
       where.user_id = Number(userId);
     }
 
+    // Lấy timesheets trong khoảng thời gian
     const timesheets = await this.prisma.time_sheets.findMany({
       where,
+      orderBy: { work_date: 'desc' },
     });
 
-    const dayOffs = await this.prisma.day_offs.findMany({
-      where: QueryUtil.onlyActive({
-        ...(userId && { user_id: Number(userId) }),
-        status: DayOffStatus.APPROVED, // Approved
-      }),
-    });
-
-    const overtimes = await this.prisma.over_times_history.findMany({
+    // Lấy overtime requests đã được approve
+    const overtimeRequests = await this.prisma.over_times_history.findMany({
       where: QueryUtil.onlyActive({
         ...(userId && { user_id: Number(userId) }),
         date: {
-          gte: new Date(start),
-          lte: new Date(end),
+          gte: new Date(defaultStartDate),
+          lte: new Date(defaultEndDate),
         },
+        status: 'APPROVED',
       }),
     });
 
+    // Lấy day-off requests đã được approve
+    const dayOffRequests = await this.prisma.day_offs.findMany({
+      where: QueryUtil.onlyActive({
+        ...(userId && { user_id: Number(userId) }),
+        start_date: {
+          gte: new Date(defaultStartDate),
+        },
+        end_date: {
+          lte: new Date(defaultEndDate),
+        },
+        status: 'APPROVED',
+      }),
+    });
+
+    // Tính toán thống kê attendance
+    const totalDays = timesheets.length;
+    const completeDays = timesheets.filter(t => t.is_complete).length;
+    const lateDays = timesheets.filter(t => t.late_time && t.late_time > 0).length;
+    const earlyLeaveDays = timesheets.filter(t => t.early_time && t.early_time > 0).length;
+    const totalLateMinutes = timesheets.reduce((sum, t) => sum + (t.late_time || 0), 0);
+    const totalEarlyMinutes = timesheets.reduce((sum, t) => sum + (t.early_time || 0), 0);
+
+    // Tính toán thống kê overtime
+    const totalOvertimeHours = overtimeRequests.reduce((sum, ot) => sum + (ot.total || 0), 0);
+    const overtimeCount = overtimeRequests.length;
+
+    // Tính toán thống kê leave (chuyển từ ngày sang giờ, 1 ngày = 8 giờ)
+    const paidLeaveHours = dayOffRequests
+      .filter(d => d.type === 'PAID')
+      .reduce((sum, d) => sum + (d.total || 0), 0) * 8;
+    const unpaidLeaveHours = dayOffRequests
+      .filter(d => d.type === 'UNPAID')
+      .reduce((sum, d) => sum + (d.total || 0), 0) * 8;
+
+    // Tính tổng số ngày làm việc trong tháng (trừ cuối tuần)
+    const workingDaysInMonth = this.calculateWorkingDaysInMonth(defaultStartDate, defaultEndDate);
+
+    // Tính thời gian vi phạm (tổng thời gian muộn + về sớm)
+    const totalViolationMinutes = totalLateMinutes + totalEarlyMinutes;
+
     return {
-      attendance: {
-        total_days: timesheets.length,
-        on_time: timesheets.filter((t) => !t.late_time || t.late_time === 0)
-          .length,
-        late: timesheets.reduce((sum, t) => sum + (t.late_time || 0), 0),
-        early_leave: timesheets.reduce(
-          (sum, t) => sum + (t.early_time || 0),
-          0,
-        ),
-        remote_days: timesheets.filter((t) => t.remote === 'REMOTE').length,
+      period: {
+        start_date: defaultStartDate,
+        end_date: defaultEndDate,
       },
-      leave: {
-        total_days_off: dayOffs.reduce((sum, dayOff) => sum + dayOff.total, 0),
-        paid_leave: dayOffs
-          .filter((d) => d.type === 'PAID')
-          .reduce((sum, dayOff) => sum + dayOff.total, 0),
-        unpaid_leave: dayOffs
-          .filter((d) => d.type === 'UNPAID')
-          .reduce((sum, dayOff) => sum + dayOff.total, 0),
-        sick_leave: dayOffs
-          .filter((d) => d.type === 'SICK')
-          .reduce((sum, dayOff) => sum + dayOff.total, 0),
+      // Tổng số công (số ngày đã chấm công / tổng ngày làm việc trong tháng)
+      total_work_days: `${completeDays}/${workingDaysInMonth}`,
+      
+      // Số giờ làm thêm
+      overtime_hours: totalOvertimeHours,
+      
+      // Số phút muộn
+      late_minutes: totalLateMinutes,
+      
+      // Thời gian vi phạm (muộn + về sớm, format: "X/Y" với X là số ngày vi phạm, Y là tổng ngày)
+      violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
+      
+      // Nghỉ có phép (giờ)
+      paid_leave_hours: paidLeaveHours,
+      
+      // Nghỉ không phép (giờ)  
+      unpaid_leave_hours: unpaidLeaveHours,
+
+      // Thông tin chi tiết (để tương thích với code cũ)
+      attendance: {
+        total_days: `${completeDays}/${workingDaysInMonth}`,
+        complete_days: completeDays,
+        working_days_in_month: workingDaysInMonth,
+        late: totalLateMinutes,
+        late_days: lateDays,
+        early_leave: `${earlyLeaveDays}/${totalDays}`,
+        early_leave_days: earlyLeaveDays,
+        early_leave_minutes: totalEarlyMinutes,
       },
       overtime: {
-        total_hours: overtimes.reduce((sum, ot) => sum + (ot.total || 0), 0),
-        total_sessions: overtimes.length,
+        total_hours: totalOvertimeHours,
+        total_requests: overtimeCount,
       },
-      period: { start_date: start, end_date: end },
+      leave: {
+        paid_leave: paidLeaveHours / 8, // Trả về số ngày
+        unpaid_leave: unpaidLeaveHours / 8, // Trả về số ngày
+        total_leave_requests: dayOffRequests.length,
+      },
+      summary: {
+        attendance_rate: workingDaysInMonth > 0 ? 
+          Math.round((completeDays / workingDaysInMonth) * 100) : 0,
+        punctuality_rate: totalDays > 0 ? 
+          Math.round(((totalDays - lateDays) / totalDays) * 100) : 100,
+      },
     };
+  }
+
+  /**
+   * Tính số ngày làm việc trong khoảng thời gian (trừ cuối tuần)
+   */
+  private calculateWorkingDaysInMonth(startDate: string, endDate: string): number {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let workingDays = 0;
+    
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const dayOfWeek = currentDate.getDay();
+      // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    return workingDays;
   }
 
   // === ATTENDANCE LOGS MANAGEMENT ===
