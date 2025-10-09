@@ -56,15 +56,13 @@ export class UpdateUserInformationDto {
   @IsDateString()
   birthday?: string;
 
-  @ApiProperty({ description: 'ID vị trí công việc' })
+  @ApiProperty({
+    description: 'ID vị trí công việc',
+    example: 1,
+  })
   @IsOptional()
   @IsInt()
   position_id?: number;
-
-  @ApiProperty({ description: 'ID văn phòng' })
-  @IsOptional()
-  @IsInt()
-  office_id?: number;
 
   @ApiProperty({
     description: 'Địa chỉ thường trú',
@@ -92,7 +90,7 @@ export class UpdateUserInformationDto {
   @IsString()
   tax_code?: string;
 
-  @ApiProperty({ description: 'ID vai trò' })
+  @ApiProperty({ description: 'ID vai trò', example: 1 })
   @IsOptional()
   @IsInt()
   role_id?: number;
@@ -110,20 +108,10 @@ export class UpdateUserInformationDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ description: 'ID cấp độ' })
+  @ApiProperty({ description: 'ID cấp độ', example: 1 })
   @IsOptional()
   @IsInt()
   level_id?: number;
-
-  @ApiProperty({ description: 'Mã số bảo hiểm xã hội', example: '1234567890' })
-  @IsOptional()
-  @IsString()
-  social_insurance_code?: string;
-
-  @ApiProperty({ description: 'ID nhà cung cấp', example: 'provider123' })
-  @IsOptional()
-  @IsString()
-  provider_id?: string;
 
   @ApiProperty({ description: 'Ghi chú', example: 'Ghi chú về nhân viên' })
   @IsOptional()
@@ -134,11 +122,6 @@ export class UpdateUserInformationDto {
   @IsOptional()
   @IsString()
   overview?: string;
-
-  @ApiProperty({ description: 'Loại thị trường', example: 'Trong nước' })
-  @IsOptional()
-  @IsString()
-  market_type?: string;
 
   @ApiProperty({ description: 'Chuyên môn', example: 'Phát triển web' })
   @IsOptional()
@@ -158,7 +141,7 @@ export class UpdateUserInformationDto {
   @IsString()
   main_task?: string;
 
-  @ApiProperty({ description: 'ID ngôn ngữ' })
+  @ApiProperty({ description: 'ID ngôn ngữ', example: 1 })
   @IsOptional()
   @IsInt()
   language_id?: number;

@@ -1,9 +1,10 @@
 import { DayOffStatus, TimesheetStatus } from '@prisma/client';
 
 export enum RequestType {
-  DAY_OFF = 'DAY_OFF',
-  OVERTIME = 'OVERTIME',
-  REMOTE_WORK = 'REMOTE_WORK',
+  DAY_OFF = 'day-off',
+  OVERTIME = 'overtime',
+  REMOTE_WORK = 'remote-work',
+  LATE_EARLY = 'late-early',
 }
 
 export enum RequestStatus {
@@ -54,10 +55,20 @@ export interface RemoteWorkRequestResponse extends BaseRequestResponse {
   note?: string;
 }
 
+export interface LateEarlyRequestResponse extends BaseRequestResponse {
+  type: RequestType.LATE_EARLY;
+  work_date: Date;
+  request_type: 'LATE' | 'EARLY' | 'BOTH';
+  late_minutes?: number;
+  early_minutes?: number;
+  reason: string;
+}
+
 export type RequestResponse = 
   | DayOffRequestResponse 
   | OvertimeRequestResponse 
-  | RemoteWorkRequestResponse;
+  | RemoteWorkRequestResponse
+  | LateEarlyRequestResponse;
 
 export interface RequestValidationResult {
   isValid: boolean;

@@ -438,27 +438,6 @@ export class TimesheetController {
     return this.timesheetService.createDailyTimesheet(userId, body.date);
   }
 
-  @Post('daily/bulk-create')
-  @ApiOperation({ summary: 'Tạo timesheet hàng loạt (Admin only)' })
-  @ApiResponse({ status: 201, description: 'Tạo timesheet thành công' })
-  @Roles('admin', 'hr')
-  createBulkDailyTimesheets(
-    @Body('work_date', WorkDateValidationPipe) workDate: string,
-    @Body('user_ids') userIds?: number[],
-  ) {
-    return this.timesheetService.createBulkDailyTimesheets(workDate, userIds);
-  }
-
-  @Post('cronjob/auto-create-daily')
-  @ApiOperation({ summary: 'Tạo timesheet tự động hàng ngày (Cronjob only)' })
-  @ApiResponse({ status: 201, description: 'Tạo timesheet tự động thành công' })
-  @ApiResponse({ status: 400, description: 'Lỗi khi tạo timesheet' })
-  @Public() // Không cần auth cho cronjob
-  autoDailyTimesheetCreation(
-    @Body(DateRangeValidationPipe) body: SingleDateQueryDto,
-  ) {
-    return this.timesheetService.autoDailyTimesheetCreation(body.date);
-  }
 
   // === TIMESHEET STATE MANAGEMENT ===
 
@@ -510,19 +489,4 @@ export class TimesheetController {
     return this.timesheetService.lockTimesheet(id, lockerId);
   }
 
-  @Post('bulk-lock')
-  @ApiOperation({
-    summary: 'Khóa hàng loạt timesheet theo kỳ lương (Admin only)',
-  })
-  @ApiResponse({ status: 200, description: 'Khóa thành công' })
-  @Roles('admin', 'hr')
-  bulkLockTimesheets(
-    @Body(DateRangeValidationPipe) body: BulkLockTimesheetsDto,
-  ) {
-    return this.timesheetService.bulkLockTimesheets(
-      body.start_date,
-      body.end_date,
-      body.user_ids,
-    );
-  }
 }

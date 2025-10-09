@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { ScheduleAutomationService } from './services/schedule-automation.service';
 import { LeaveManagementModule } from '../leave-management/leave-management.module';
-import { RequestsController } from './requests.controller';
-import { RequestsService } from './requests.service';
 
 @Module({
   imports: [LeaveManagementModule],
-  controllers: [RequestsController],
   providers: [
+    ScheduleAutomationService,
     PrismaService,
-    RequestsService,
   ],
-  exports: [RequestsService],
+  exports: [ScheduleAutomationService],
 })
-export class RequestsModule {}
+export class SchedulerModule {}

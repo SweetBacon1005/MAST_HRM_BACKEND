@@ -187,14 +187,13 @@ model user_information {
     birthday       DateTime              @db.Date()
     position_id    Int
     position       positions             @relation(fields: [position_id], references: [id])
-    office_id      Int
     address        String                @db.VarChar(255)
     temp_address   String                @db.VarChar(255)
     phone          String                @db.VarChar(255)
     tax_code       String                @db.VarChar(255)
     role_id        Int
     role           roles                 @relation(fields: [role_id], references: [id])
-    status         UserInformationStatus
+    status         UserInformationStatus @default(ACTIVE)
     description    String                @db.VarChar(255)
     level_id       Int
     level          levels                @relation(fields: [level_id], references: [id])
@@ -211,7 +210,6 @@ model user_information {
 
     @@index([user_id])
     @@index([position_id])
-    @@index([office_id])
     @@index([role_id])
     @@index([level_id])
     @@index([language_id])
@@ -602,7 +600,6 @@ model users {
     attendance_logs               attendance_logs[]
     attendance_sessions           attendance_sessions[]
     day_offs                      day_offs[]              @relation("user")
-    users_unpaid_leave            users_unpaid_leave[]
     approved_by_user              day_offs[]              @relation("approved_by_user")
     working_times                 working_times[]
     project_role_user             project_role_user[]
@@ -623,15 +620,10 @@ model users {
     approved_remote_work_requests remote_work_requests[]  @relation("RemoteWorkApprover")
     over_times_history_approved   over_times_history[]    @relation("approved_by_user")
     over_times_history_subject    over_times_history[]    @relation("user")
-}
-
-model users_unpaid_leave {
-    id         Int      @id @default(autoincrement())
-    user_id    Int
-    user       users    @relation(fields: [user_id], references: [id])
-    start_date DateTime @db.Date
-    end_date   DateTime @db.Date
-    reason     String?  @db.VarChar(1000)
+    user_leave_balance            user_leave_balances?
+    leave_transactions            leave_transactions[]
+    late_early_requests           late_early_requests[]
+    approved_late_early_requests  late_early_requests[]   @relation("LateEarlyApprover")
 }
 
 model working_times {
@@ -707,26 +699,29 @@ model contracts {
 }
 
 model day_offs {
-    id               Int            @id @default(autoincrement())
-    user_id          Int
-    user             users          @relation("user", fields: [user_id], references: [id])
-    start_date       DateTime       @db.Date // Ngày bắt đầu nghỉ
-    end_date         DateTime       @db.Date // Ngày kết thúc nghỉ
-    duration         DayOffDuration @default(FULL_DAY)
-    total            Float // Số ngày nghỉ (0.5 cho nửa ngày, 1 cho cả ngày)
-    status           DayOffStatus   @default(PENDING)
-    type             DayOffType     @default(PAID)
-    reason           String?        @db.Text // Lý do nghỉ phép
-    note             String?        @db.Text // Ghi chú thêm
-    approved_by      Int? // ID người duyệt
-    approved_by_user users?         @relation("approved_by_user", fields: [approved_by], references: [id])
-    approved_at      DateTime?      @db.DateTime() // Thời gian duyệt
-    rejected_reason  String?        @db.Text // Lý do từ chối
-    is_past          Boolean        @default(false) // Nghỉ phép bù (đã làm trước)
-    created_at       DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime       @updatedAt
-    deleted_at       DateTime?      @db.DateTime()
-    time_sheets      time_sheets[]
+    id                       Int                  @id @default(autoincrement())
+    user_id                  Int
+    user                     users                @relation("user", fields: [user_id], references: [id])
+    start_date               DateTime             @db.Date // Ngày bắt đầu nghỉ
+    end_date                 DateTime             @db.Date // Ngày kết thúc nghỉ
+    duration                 DayOffDuration       @default(FULL_DAY)
+    total                    Float // Số ngày nghỉ (0.5 cho nửa ngày, 1 cho cả ngày)
+    status                   DayOffStatus         @default(PENDING)
+    type                     DayOffType           @default(PAID)
+    reason                   String?              @db.Text // Lý do nghỉ phép
+    note                     String?              @db.Text // Ghi chú thêm
+    approved_by              Int? // ID người duyệt
+    approved_by_user         users?               @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at              DateTime?            @db.DateTime() // Thời gian duyệt
+    rejected_reason          String?              @db.Text // Lý do từ chối
+    is_past                  Boolean              @default(false) // Nghỉ phép bù (đã làm trước)
+    balance_deducted         Boolean              @default(false) // Đã trừ leave balance chưa
+    deduction_transaction_id Int? // ID của leave transaction khi trừ balance
+    created_at               DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at               DateTime             @updatedAt
+    deleted_at               DateTime?            @db.DateTime()
+    time_sheets              time_sheets[]
+    leave_transactions       leave_transactions[] @relation("DayOffTransactions")
 
     @@index([user_id])
     @@index([status])
@@ -737,6 +732,8 @@ model day_offs {
     @@index([duration]) // Để lọc theo loại nghỉ (cả ngày/nửa ngày)
     @@index([deleted_at]) // Để tối ưu soft delete queries
     @@index([approved_by])
+    @@index([balance_deducted]) // Để tìm các đơn đã/chưa trừ balance
+    @@index([deduction_transaction_id]) // Để link với transaction
 }
 
 model divisions_assignments {
@@ -803,6 +800,7 @@ model time_sheets {
     late_time           Int? // Phút đi muộn
     late_time_approved  Int? // Phút đi muộn được duyệt
     early_time          Int? // Phút về sớm
+    early_time_approved Int? // Phút về sớm được duyệt
     is_complete         Boolean?              @default(false) // Hoàn thành đủ giờ làm việc (0: chưa, 1: đủ)
     fines               Float? // Tiền phạt
     deleted_at          DateTime?             @db.DateTime()
@@ -815,13 +813,12 @@ model time_sheets {
     request_type        TimesheetRequestType? @default(NORMAL) // Loại yêu cầu
     request_late        String? // Lý do xin phép đi muộn
     request_early       String? // Lý do xin phép về sớm
-    paid_leave          String? // Nghỉ phép có lương
-    unpaid_leave        String? // Nghỉ phép không lương
     remote              RemoteType?           @default(OFFICE) // Làm việc từ xa (0: office, 1: remote, 2: hybrid)
     total_work_time     Int? // Tổng thời gian làm việc (phút)
     break_time          Int? // Thời gian nghỉ trưa (phút)
     attendance_logs     attendance_logs[] // Relation với attendance_logs
     attendance_sessions attendance_sessions[] // Relation với attendance_sessions
+    late_early_requests late_early_requests[] // Relation với late_early_requests
 
     @@unique([user_id, work_date]) // Mỗi user chỉ có 1 timesheet/ngày
     @@index([user_id])
@@ -959,25 +956,25 @@ model rotation_members {
 }
 
 model over_times_history {
-    id               Int       @id @default(autoincrement())
+    id               Int              @id @default(autoincrement())
     user_id          Int
-    user             users     @relation("user", fields: [user_id], references: [id])
+    user             users            @relation("user", fields: [user_id], references: [id])
     total            Float?
     value            Float?
     date             DateTime
     approved_by      Int?
-    approved_by_user users?    @relation("approved_by_user", fields: [approved_by], references: [id])
-    approved_at      DateTime? @db.DateTime()
-    rejected_reason  String?   @db.Text
+    approved_by_user users?           @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at      DateTime?        @db.DateTime()
+    rejected_reason  String?          @db.Text
     status           TimesheetStatus? @default(PENDING)
     project_id       Int?
-    project          projects? @relation(fields: [project_id], references: [id])
+    project          projects?        @relation(fields: [project_id], references: [id])
     start_time       DateTime
     end_time         DateTime
     reason           String?
-    deleted_at       DateTime? @db.DateTime()
-    created_at       DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime  @updatedAt
+    deleted_at       DateTime?        @db.DateTime()
+    created_at       DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime         @updatedAt
 
     @@index([user_id])
     @@index([project_id])
@@ -1297,6 +1294,20 @@ enum IndustryType {
     OTHER
 }
 
+enum LeaveTransactionType {
+    EARNED // Cộng phép (hàng tháng)
+    USED // Sử dụng phép
+    ADJUSTED // Điều chỉnh thủ công
+    CARRIED_OVER // Chuyển từ năm trước
+    EXPIRED // Hết hạn
+}
+
+enum LateEarlyType {
+    LATE // Chỉ đi muộn
+    EARLY // Chỉ về sớm
+    BOTH // Cả đi muộn và về sớm
+}
+
 model remote_work_requests {
     id               Int             @id @default(autoincrement())
     user_id          Int
@@ -1323,4 +1334,79 @@ model remote_work_requests {
     @@index([approved_by])
     @@index([created_at])
     @@index([remote_type])
+}
+
+model user_leave_balances {
+    id                      Int       @id @default(autoincrement())
+    user_id                 Int       @unique
+    user                    users     @relation(fields: [user_id], references: [id])
+    paid_leave_balance      Float     @default(0) // Số ngày phép có lương còn lại
+    unpaid_leave_balance    Float     @default(0) // Số ngày phép không lương còn lại
+    annual_paid_leave_quota Float     @default(36) // Hạn mức phép có lương/năm (3*12)
+    carry_over_days         Float     @default(0) // Số ngày phép chuyển từ năm trước
+    last_reset_date         DateTime? @db.Date // Lần cuối reset (đầu năm)
+    created_at              DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at              DateTime  @updatedAt
+    deleted_at              DateTime? @db.DateTime()
+
+    @@index([user_id])
+    @@index([deleted_at])
+}
+
+model leave_transactions {
+    id               Int                  @id @default(autoincrement())
+    user_id          Int
+    user             users                @relation(fields: [user_id], references: [id])
+    transaction_type LeaveTransactionType // EARNED, USED, ADJUSTED, CARRIED_OVER, EXPIRED
+    leave_type       DayOffType // PAID, UNPAID, etc.
+    amount           Float // Số ngày (+ là cộng, - là trừ)
+    balance_after    Float // Số dư sau giao dịch
+    reference_id     Int? // Link tới day_offs.id hoặc system job
+    reference_type   String? // 'day_off', 'monthly_accrual', 'manual_adjustment'
+    day_off_id       Int? // Direct reference to day_offs
+    day_off          day_offs?            @relation("DayOffTransactions", fields: [day_off_id], references: [id])
+    description      String?              @db.Text // Mô tả giao dịch
+    created_at       DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime             @updatedAt
+    deleted_at       DateTime?            @db.DateTime()
+
+    @@index([user_id])
+    @@index([transaction_type])
+    @@index([leave_type])
+    @@index([created_at])
+    @@index([reference_id, reference_type])
+    @@index([user_id, created_at])
+    @@index([deleted_at])
+    @@index([day_off_id]) // Index cho day_off relation
+}
+
+model late_early_requests {
+    id               Int             @id @default(autoincrement())
+    user_id          Int
+    user             users           @relation(fields: [user_id], references: [id])
+    work_date        DateTime        @db.Date // Ngày làm việc
+    request_type     LateEarlyType // LATE, EARLY, BOTH
+    late_minutes     Int? // Số phút đi muộn (nếu có)
+    early_minutes    Int? // Số phút về sớm (nếu có)
+    reason           String          @db.Text // Lý do
+    status           TimesheetStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+    approved_by      Int? // ID người duyệt
+    approved_by_user users?          @relation("LateEarlyApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?       @db.DateTime() // Thời gian duyệt
+    rejected_reason  String?         @db.Text // Lý do từ chối
+    timesheet_id     Int? // Link tới timesheet
+    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
+    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime        @updatedAt
+    deleted_at       DateTime?       @db.DateTime()
+
+    @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_late_early")
+    @@index([user_id])
+    @@index([work_date])
+    @@index([status])
+    @@index([request_type])
+    @@index([user_id, work_date])
+    @@index([deleted_at])
+    @@index([approved_by])
+    @@index([timesheet_id])
 }

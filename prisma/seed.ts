@@ -13,6 +13,7 @@ import { seedDayOffs } from './seeds/day-offs.seed';
 import { seedScheduleWorks } from './seeds/schedule-works.seed';
 import { seedUserDevices } from './seeds/user-devices.seed';
 import { seedRequests } from './seeds/requests.seed';
+import { seedLateEarlyRequests } from './seeds/late-early-requests.seed';
 
 const prisma = new PrismaClient();
 
@@ -79,6 +80,10 @@ async function main() {
     await seedRequests(prisma, usersData);
     console.log('✅ Requests data seeded successfully!\n');
 
+    // 12. Seed late/early requests
+    await seedLateEarlyRequests();
+    console.log('✅ Late/early requests data seeded successfully!\n');
+
     // Summary
     console.log('🎉 =================================');
     console.log('✅ SEED DATABASE HOÀN THÀNH!');
@@ -129,7 +134,7 @@ async function main() {
     console.log('✓ Học vấn và kinh nghiệm làm việc');
     console.log('✓ Ngày nghỉ lễ và thông tin gia đình');
     console.log('✓ Lịch sử tăng ca và nhóm làm việc');
-    console.log('✓ Sample requests cho user@example.com (remote work, day-off, overtime)\n');
+    console.log('✓ Sample requests cho user@example.com (remote work, day-off, overtime, late/early)\n');
 
     console.log('📁 Cấu trúc seed files (đã tối ưu hóa):');
     console.log('├── prisma/seed.ts (main file)');

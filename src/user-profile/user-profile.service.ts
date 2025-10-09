@@ -33,10 +33,7 @@ export class UserProfileService {
   // Xem thông tin cá nhân
   async getUserProfile(userId: number) {
     const userProfile = await this.prisma.users.findFirst({
-      where: {
-        id: userId,
-        deleted_at: undefined,
-      },
+      where: { id: userId, deleted_at: null },
       include: {
         user_information: {
           include: {
@@ -104,22 +101,24 @@ export class UserProfileService {
     }
 
     const level = await this.prisma.levels.findFirst({
-      where: { id: updateDto.level_id, deleted_at: null },
+      where: { id: updateDto.level_id, ...{ deleted_at: null } },
     });
     if (!level) {
       throw new NotFoundException('Không tìm thấy trình độ');
     }
 
     const language = await this.prisma.languages.findFirst({
-      where: { id: updateDto.language_id, deleted_at: null },
+      where: { id: updateDto.language_id, ...{ deleted_at: null } },
     });
     if (!language) {
       throw new NotFoundException('Không tìm thấy ngôn ngữ');
     }
 
+    const { position_id, role_id, level_id, language_id, ...rest } = updateDto;
+
     // Kiểm tra xem user_information đã tồn tại chưa
     const existingInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: userId, deleted_at: undefined },
+      where: { user_id: userId, ...{ deleted_at: null } },
     });
 
     if (existingInfo) {
@@ -127,15 +126,30 @@ export class UserProfileService {
       return await this.prisma.user_information.update({
         where: { id: existingInfo.id },
         data: {
-          ...updateDto,
+          marital: updateDto.marital || '',
+          nationality: updateDto.nationality || '',
+          name: updateDto.name || '',
+          code: updateDto.code || '',
+          avatar: updateDto.avatar || '',
+          gender: updateDto.gender || '',
           status: 'ACTIVE',
           birthday: updateDto.birthday
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
-          position_id: position.id,
-          role_id: role.id,
-          level_id: level.id,
-          language_id: language.id,
+          address: updateDto.address || '',
+          temp_address: updateDto.temp_address || '',
+          phone: updateDto.phone || '',
+          tax_code: updateDto.tax_code || '',
+          description: updateDto.description || '',
+          note: updateDto.note || '',
+          overview: updateDto.overview || '',
+          expertise: updateDto.expertise || '',
+          technique: updateDto.technique || '',
+          main_task: updateDto.main_task || '',
+          position: { connect: { id: position.id } },
+          role: { connect: { id: role.id } },
+          level: { connect: { id: level.id } },
+          language: { connect: { id: language.id } },
         },
         include: {
           position: true,
@@ -162,7 +176,6 @@ export class UserProfileService {
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
           position_id: updateDto.position_id || 1,
-          office_id: updateDto.office_id || 1,
           address: updateDto.address || '',
           temp_address: updateDto.temp_address || '',
           phone: updateDto.phone || '',
@@ -202,7 +215,7 @@ export class UserProfileService {
     return await this.prisma.education.findMany({
       where: {
         user_id: userId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
       },
       orderBy: { start_date: 'desc' },
     });
@@ -255,7 +268,7 @@ export class UserProfileService {
     const education = await this.prisma.education.findFirst({
       where: {
         id: educationId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
         user_id: updateDto.user_id,
       },
     });
@@ -265,7 +278,7 @@ export class UserProfileService {
     }
 
     const user = await this.prisma.users.findFirst({
-      where: { id: updateDto.user_id, deleted_at: null },
+      where: { id: updateDto.user_id, ...{ deleted_at: null } },
     });
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
@@ -287,7 +300,7 @@ export class UserProfileService {
 
   async deleteEducation(educationId: number, userId: number) {
     const education = await this.prisma.education.findFirst({
-      where: { id: educationId, deleted_at: undefined, user_id: userId },
+      where: { id: educationId, user_id: userId, deleted_at: null },
     });
 
     if (!education) {
@@ -317,7 +330,7 @@ export class UserProfileService {
     return await this.prisma.experience.findMany({
       where: {
         user_id: userId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
       },
       orderBy: { start_date: 'desc' },
     });
@@ -327,7 +340,7 @@ export class UserProfileService {
     const experience = await this.prisma.experience.findFirst({
       where: {
         id: experienceId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
         user_id: updateDto.user_id,
       },
     });
@@ -352,7 +365,7 @@ export class UserProfileService {
 
   async deleteExperience(experienceId: number, userId: number) {
     const experience = await this.prisma.experience.findFirst({
-      where: { id: experienceId, deleted_at: undefined, user_id: userId },
+      where: { id: experienceId, user_id: userId, deleted_at: null },
     });
 
     if (!experience) {
@@ -384,7 +397,7 @@ export class UserProfileService {
     return await this.prisma.user_certificates.findMany({
       where: {
         user_id: userId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
       },
       orderBy: { issued_at: 'desc' },
     });
@@ -397,7 +410,7 @@ export class UserProfileService {
     const certificate = await this.prisma.user_certificates.findFirst({
       where: {
         id: certificateId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
         user_id: updateDto.user_id,
       },
     });
@@ -430,7 +443,7 @@ export class UserProfileService {
 
   async deleteUserCertificate(certificateId: number, userId: number) {
     const certificate = await this.prisma.user_certificates.findFirst({
-      where: { id: certificateId, deleted_at: undefined },
+      where: { id: certificateId, deleted_at: null },
     });
 
     if (!certificate) {
@@ -454,7 +467,7 @@ export class UserProfileService {
   // Quản lý kỹ năng
   async createUserSkill(createDto: CreateUserSkillDto) {
     const skill = await this.prisma.skills.findFirst({
-      where: { id: createDto.skill_id, deleted_at: undefined },
+      where: { id: createDto.skill_id, deleted_at: null },
     });
 
     if (!skill) {
@@ -462,7 +475,7 @@ export class UserProfileService {
     }
 
     const user = await this.prisma.users.findFirst({
-      where: { id: createDto.user_id, deleted_at: undefined },
+      where: { id: createDto.user_id, deleted_at: null },
     });
 
     if (!user) {
@@ -489,7 +502,7 @@ export class UserProfileService {
     return await this.prisma.user_skills.findMany({
       where: {
         user_id: userId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
       },
       include: {
         skill: {
@@ -504,7 +517,7 @@ export class UserProfileService {
 
   async updateUserSkill(userSkillId: number, updateDto: UpdateUserSkillDto) {
     const userSkill = await this.prisma.user_skills.findFirst({
-      where: { id: userSkillId, deleted_at: undefined },
+      where: { id: userSkillId, deleted_at: null },
     });
 
     if (!userSkill) {
@@ -518,7 +531,7 @@ export class UserProfileService {
     }
 
     const skill = await this.prisma.skills.findFirst({
-      where: { id: updateDto.skill_id, deleted_at: undefined },
+      where: { id: updateDto.skill_id, deleted_at: null },
     });
 
     if (!skill) {
@@ -544,7 +557,7 @@ export class UserProfileService {
 
   async deleteUserSkill(userSkillId: number, userId: number) {
     const userSkill = await this.prisma.user_skills.findFirst({
-      where: { id: userSkillId, deleted_at: undefined },
+      where: { id: userSkillId, deleted_at: null },
     });
 
     if (!userSkill) {
@@ -568,7 +581,7 @@ export class UserProfileService {
     return await this.prisma.skills.findMany({
       where: {
         position_id: positionId,
-        deleted_at: undefined,
+        ...{ deleted_at: null },
       },
       include: {
         position: true,
@@ -579,25 +592,25 @@ export class UserProfileService {
   // Lấy danh sách các tham chiếu (positions, offices, roles, levels, languages)
   async getPositions() {
     return await this.prisma.positions.findMany({
-      where: { deleted_at: undefined },
+      where: { deleted_at: null },
     });
   }
 
   async getRoles() {
     return await this.prisma.roles.findMany({
-      where: { deleted_at: undefined },
+      where: { deleted_at: null },
     });
   }
 
   async getLevels() {
     return await this.prisma.levels.findMany({
-      where: { deleted_at: undefined },
+      where: { deleted_at: null },
     });
   }
 
   async getLanguages() {
     return await this.prisma.languages.findMany({
-      where: { deleted_at: undefined },
+      where: { deleted_at: null },
     });
   }
 
@@ -605,7 +618,7 @@ export class UserProfileService {
   async updateAvatar(userId: number, avatarUrl: string) {
     // Kiểm tra user có tồn tại không
     const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: undefined },
+      where: { id: userId, ...{ deleted_at: null } },
     });
 
     if (!user) {
@@ -614,7 +627,7 @@ export class UserProfileService {
 
     // Lưu thông tin avatar vào database
     const userInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: userId, deleted_at: undefined },
+      where: { user_id: userId, ...{ deleted_at: null } },
     });
 
     if (userInfo) {
@@ -649,7 +662,6 @@ export class UserProfileService {
           marital: '',
           birthday: new Date(),
           position_id: 1, // Default position
-          office_id: 1, // Default office
           address: '',
           temp_address: '',
           phone: '',
