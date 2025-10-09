@@ -66,35 +66,31 @@ export class TimesheetService {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    const dayoff = await this.prisma.day_offs.findFirst({
+    // Kiểm tra xem có day-off được duyệt cho ngày này không
+    const approvedDayOff = await this.prisma.day_offs.findFirst({
       where: {
         user_id: userId,
-        start_date: {
-          gte: new Date(createTimesheetDto.work_date),
-          lte: new Date(createTimesheetDto.work_date),
-        },
-        end_date: {
-          gte: new Date(createTimesheetDto.work_date),
-          lte: new Date(createTimesheetDto.work_date),
-        },
+        start_date: { lte: new Date(createTimesheetDto.work_date) },
+        end_date: { gte: new Date(createTimesheetDto.work_date) },
+        status: DayOffStatus.APPROVED,
         deleted_at: null,
       },
     });
 
-    // Kiểm tra trạng thái nghỉ phép cho ngày này
-    if (dayoff) {
-      switch (dayoff.status) {
-        case DayOffStatus.APPROVED:
-          throw new BadRequestException('Ngày này đã có nghỉ phép được duyệt');
-        case DayOffStatus.REJECTED:
-          throw new BadRequestException('Ngày này đã có nghỉ phép bị từ chối');
-        case DayOffStatus.PENDING:
-          break;
-        default:
-          throw new BadRequestException('Ngày này đã có nghỉ phép khác');
+    // Nếu có day-off được duyệt, cần kiểm tra xem có cần attendance không
+    if (approvedDayOff) {
+      const needsAttendance = DayOffCalculator.needsAttendance(
+        approvedDayOff.duration as DayOffDuration,
+      );
+      
+      if (!needsAttendance) {
+        throw new BadRequestException(
+          'Ngày này đã có nghỉ phép toàn thời gian được duyệt, không cần tạo timesheet',
+        );
       }
-    } else {
-      throw new BadRequestException('Ngày này chưa có nghỉ phép');
+      
+      // Nếu là nghỉ nửa ngày, cho phép tạo timesheet nhưng link với day-off
+      console.log(`Tạo timesheet cho nghỉ phép nửa ngày: ${approvedDayOff.duration}`);
     }
 
     // Kiểm tra đã tồn tại timesheet cho ngày này chưa
@@ -126,6 +122,7 @@ export class TimesheetService {
         type: createTimesheetDto.type,
         remote: createTimesheetDto.remote,
         request_type: createTimesheetDto.request_type,
+        day_off_id: approvedDayOff?.id || null, // Link với day-off nếu có
       },
     });
   }
@@ -1268,6 +1265,16 @@ export class TimesheetService {
     // Lấy timesheets trong khoảng thời gian
     const timesheets = await this.prisma.time_sheets.findMany({
       where,
+      include: {
+        day_off: {
+          select: {
+            type: true,
+            duration: true,
+            total: true,
+            status: true,
+          },
+        },
+      },
       orderBy: { work_date: 'desc' },
     });
 
@@ -1283,19 +1290,44 @@ export class TimesheetService {
       }),
     });
 
-    // Lấy day-off requests đã được approve
+    // Lấy day-off requests trong khoảng thời gian (sửa logic query)
     const dayOffRequests = await this.prisma.day_offs.findMany({
       where: QueryUtil.onlyActive({
         ...(userId && { user_id: Number(userId) }),
-        start_date: {
-          gte: new Date(defaultStartDate),
-        },
-        end_date: {
-          lte: new Date(defaultEndDate),
-        },
+        OR: [
+          // Day-off bắt đầu trong khoảng thời gian
+          {
+            start_date: {
+              gte: new Date(defaultStartDate),
+              lte: new Date(defaultEndDate),
+            },
+          },
+          // Day-off kết thúc trong khoảng thời gian
+          {
+            end_date: {
+              gte: new Date(defaultStartDate),
+              lte: new Date(defaultEndDate),
+            },
+          },
+          // Day-off bao trùm cả khoảng thời gian
+          {
+            AND: [
+              { start_date: { lte: new Date(defaultStartDate) } },
+              { end_date: { gte: new Date(defaultEndDate) } },
+            ],
+          },
+        ],
         status: 'APPROVED',
       }),
     });
+
+    // Lấy leave balance hiện tại nếu có userId
+    let currentLeaveBalance: any = null;
+    if (userId) {
+      currentLeaveBalance = await this.prisma.user_leave_balances.findUnique({
+        where: { user_id: Number(userId) },
+      });
+    }
 
     // Tính toán thống kê attendance
     const totalDays = timesheets.length;
@@ -1309,46 +1341,53 @@ export class TimesheetService {
     const totalOvertimeHours = overtimeRequests.reduce((sum, ot) => sum + (ot.total || 0), 0);
     const overtimeCount = overtimeRequests.length;
 
-    // Tính toán thống kê leave (chuyển từ ngày sang giờ, 1 ngày = 8 giờ)
-    const paidLeaveHours = dayOffRequests
-      .filter(d => d.type === 'PAID')
-      .reduce((sum, d) => sum + (d.total || 0), 0) * 8;
-    const unpaidLeaveHours = dayOffRequests
-      .filter(d => d.type === 'UNPAID')
-      .reduce((sum, d) => sum + (d.total || 0), 0) * 8;
+    // Tính toán thống kê leave - chỉ tính những ngày thực sự trong khoảng thời gian
+    let paidLeaveDays = 0;
+    let unpaidLeaveDays = 0;
+    
+    const startDateObj = new Date(defaultStartDate);
+    const endDateObj = new Date(defaultEndDate);
+    
+    dayOffRequests.forEach(dayOff => {
+      // Tính số ngày leave thực sự trong khoảng thời gian query
+      const leaveStart = new Date(Math.max(dayOff.start_date.getTime(), startDateObj.getTime()));
+      const leaveEnd = new Date(Math.min(dayOff.end_date.getTime(), endDateObj.getTime()));
+      
+      if (leaveStart <= leaveEnd) {
+        const leaveDaysInPeriod = Math.ceil((leaveEnd.getTime() - leaveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const actualLeaveDays = Math.min(leaveDaysInPeriod, dayOff.total || 0);
+        
+        if (dayOff.type === 'PAID') {
+          paidLeaveDays += actualLeaveDays;
+        } else {
+          unpaidLeaveDays += actualLeaveDays;
+        }
+      }
+    });
 
-    // Tính tổng số ngày làm việc trong tháng (trừ cuối tuần)
+    // Tính tổng số ngày làm việc trong tháng (trừ cuối tuần và ngày lễ)
     const workingDaysInMonth = this.calculateWorkingDaysInMonth(defaultStartDate, defaultEndDate);
 
-    // Tính thời gian vi phạm (tổng thời gian muộn + về sớm)
-    const totalViolationMinutes = totalLateMinutes + totalEarlyMinutes;
+    // Tính số ngày có timesheet vs số ngày cần làm việc (trừ đi ngày nghỉ phép toàn thời gian)
+    const fullDayOffCount = timesheets.filter(t => 
+      t.day_off && t.day_off.duration === 'FULL_DAY'
+    ).length;
+    const expectedWorkDays = workingDaysInMonth - fullDayOffCount;
 
     return {
       period: {
         start_date: defaultStartDate,
         end_date: defaultEndDate,
       },
-      // Tổng số công (số ngày đã chấm công / tổng ngày làm việc trong tháng)
-      total_work_days: `${completeDays}/${workingDaysInMonth}`,
-      
-      // Số giờ làm thêm
+      total_work_days: `${completeDays}/${expectedWorkDays}`,
       overtime_hours: totalOvertimeHours,
-      
-      // Số phút muộn
       late_minutes: totalLateMinutes,
-      
-      // Thời gian vi phạm (muộn + về sớm, format: "X/Y" với X là số ngày vi phạm, Y là tổng ngày)
       violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
-      
-      // Nghỉ có phép (giờ)
-      paid_leave_hours: paidLeaveHours,
-      
-      // Nghỉ không phép (giờ)  
-      unpaid_leave_hours: unpaidLeaveHours,
+      paid_leave_hours: paidLeaveDays * 8, // Trả về giờ để tương thích
+      unpaid_leave_hours: unpaidLeaveDays * 8, // Trả về giờ để tương thích
 
-      // Thông tin chi tiết (để tương thích với code cũ)
       attendance: {
-        total_days: `${completeDays}/${workingDaysInMonth}`,
+        total_days: `${completeDays}/${expectedWorkDays}`,
         complete_days: completeDays,
         working_days_in_month: workingDaysInMonth,
         late: totalLateMinutes,
@@ -1362,13 +1401,13 @@ export class TimesheetService {
         total_requests: overtimeCount,
       },
       leave: {
-        paid_leave: paidLeaveHours / 8, // Trả về số ngày
-        unpaid_leave: unpaidLeaveHours / 8, // Trả về số ngày
+        paid_leave: paidLeaveDays, // Số ngày
+        unpaid_leave: unpaidLeaveDays, // Số ngày
         total_leave_requests: dayOffRequests.length,
       },
       summary: {
-        attendance_rate: workingDaysInMonth > 0 ? 
-          Math.round((completeDays / workingDaysInMonth) * 100) : 0,
+        attendance_rate: expectedWorkDays > 0 ? 
+          Math.round((completeDays / expectedWorkDays) * 100) : 0,
         punctuality_rate: totalDays > 0 ? 
           Math.round(((totalDays - lateDays) / totalDays) * 100) : 100,
       },
@@ -1395,7 +1434,6 @@ export class TimesheetService {
     
     return workingDays;
   }
-
   // === ATTENDANCE LOGS MANAGEMENT ===
 
   async createAttendanceLog(
@@ -1804,208 +1842,5 @@ export class TimesheetService {
         // Có thể thêm trường locked_by: lockerId, locked_at: new Date() nếu cần
       },
     });
-  }
-
-  /**
-   * Khóa hàng loạt timesheet theo kỳ lương
-   */
-  async bulkLockTimesheets(
-    startDate: string,
-    endDate: string,
-    userIds?: number[],
-  ) {
-    const where: any = QueryUtil.onlyActive({
-      status: TimesheetStatus.APPROVED,
-      ...QueryUtil.workDateRange(startDate, endDate),
-    });
-
-    if (userIds?.length) {
-      where.user_id = { in: userIds };
-    }
-
-    const result = await this.prisma.time_sheets.updateMany({
-      where,
-      data: {
-        status: 'APPROVED', // LOCKED maps to APPROVED in new schema
-      },
-    });
-
-    return {
-      message: `Đã khóa ${result.count} timesheet`,
-      locked_count: result.count,
-    };
-  }
-
-  async createBulkDailyTimesheets(workDate: string, userIds?: number[]) {
-    const targetDate = new Date(workDate);
-
-    // Nếu không có userIds thì lấy tất cả user active
-    let targetUserIds = userIds;
-    if (!targetUserIds || targetUserIds.length === 0) {
-      const activeUsers = await this.prisma.users.findMany({
-        where: QueryUtil.onlyActive({}),
-        select: { id: true },
-      });
-      targetUserIds = activeUsers.map((u) => u.id);
-    }
-
-    // Lọc ra những user chưa có timesheet cho ngày này
-    const existingTimesheets = await this.prisma.time_sheets.findMany({
-      where: QueryUtil.onlyActive({
-        user_id: { in: targetUserIds },
-        work_date: targetDate,
-      }),
-      select: { user_id: true },
-    });
-
-    const existingUserIds = existingTimesheets.map((t) => t.user_id);
-    const newUserIds = targetUserIds.filter(
-      (id) => !existingUserIds.includes(id),
-    );
-
-    if (newUserIds.length === 0) {
-      return {
-        message: 'Tất cả user đã có timesheet cho ngày này',
-        created: 0,
-      };
-    }
-
-    // Tạo timesheet cho các user chưa có
-    const createData = newUserIds.map((userId) => ({
-      user_id: userId,
-      work_date: targetDate,
-      status: TimesheetStatus.PENDING,
-      type: TimesheetType.NORMAL,
-    }));
-
-    await this.prisma.time_sheets.createMany({
-      data: createData,
-    });
-
-    return {
-      message: `Đã tạo ${newUserIds.length} timesheet`,
-      created: newUserIds.length,
-      user_ids: newUserIds,
-    };
-  }
-
-  /**
-   * Tự động tạo timesheet hàng ngày cho cronjob
-   * Chỉ tạo cho ngày làm việc (thứ 2-6), bỏ qua cuối tuần và ngày lễ
-   */
-  async autoDailyTimesheetCreation(date?: string) {
-    const targetDate = date ? new Date(date) : new Date();
-    const dayOfWeek = targetDate.getDay(); // 0 = Chủ nhật, 1 = Thứ 2, ..., 6 = Thứ 7
-
-    // Bỏ qua cuối tuần (Chủ nhật = 0, Thứ 7 = 6)
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      return {
-        message: 'Bỏ qua cuối tuần, không tạo timesheet',
-        created: 0,
-        skipped_reason: 'weekend',
-        date: targetDate.toISOString().split('T')[0],
-      };
-    }
-
-    // Kiểm tra ngày lễ
-    const holiday = await this.prisma.holidays.findFirst({
-      where: {
-        start_date: {
-          lte: targetDate,
-        },
-        end_date: {
-          gte: targetDate,
-        },
-        deleted_at: null,
-      },
-    });
-
-    if (holiday) {
-      return {
-        message: `Bỏ qua ngày lễ: ${holiday.name}`,
-        created: 0,
-        skipped_reason: 'holiday',
-        holiday_name: holiday.name,
-        date: targetDate.toISOString().split('T')[0],
-      };
-    }
-
-    // Lấy tất cả user active (không bao gồm admin nếu không cần)
-    const activeUsers = await this.prisma.users.findMany({
-      where: QueryUtil.onlyActive({}),
-      include: {
-        user_information: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    // Lọc user cần tạo timesheet (có thể exclude một số role)
-    const eligibleUsers = activeUsers.filter((_user) => {
-      // Có thể thêm logic filter theo role, department, etc.
-      return true; // Tạm thời cho tất cả user
-    });
-
-    const userIds = eligibleUsers.map((u) => u.id);
-
-    if (userIds.length === 0) {
-      return {
-        message: 'Không có user nào cần tạo timesheet',
-        created: 0,
-        date: targetDate.toISOString().split('T')[0],
-      };
-    }
-
-    // Kiểm tra user nào đã có timesheet
-    const existingTimesheets = await this.prisma.time_sheets.findMany({
-      where: QueryUtil.onlyActive({
-        user_id: { in: userIds },
-        work_date: targetDate,
-      }),
-      select: { user_id: true },
-    });
-
-    const existingUserIds = existingTimesheets.map((t) => t.user_id);
-    const newUserIds = userIds.filter((id) => !existingUserIds.includes(id));
-
-    if (newUserIds.length === 0) {
-      return {
-        message: 'Tất cả user đã có timesheet cho ngày này',
-        created: 0,
-        already_exists: existingUserIds.length,
-        date: targetDate.toISOString().split('T')[0],
-      };
-    }
-
-    // Tạo timesheet cho các user chưa có
-    const createData = newUserIds.map((userId) => ({
-      user_id: userId,
-      work_date: targetDate,
-      status: TimesheetStatus.PENDING,
-      type: TimesheetType.NORMAL,
-      created_at: new Date(),
-      updated_at: new Date(),
-    }));
-
-    try {
-      await this.prisma.time_sheets.createMany({
-        data: createData,
-      });
-
-      return {
-        message: `Cronjob: Đã tạo ${newUserIds.length} timesheet tự động`,
-        created: newUserIds.length,
-        already_exists: existingUserIds.length,
-        total_users: userIds.length,
-        date: targetDate.toISOString().split('T')[0],
-        created_for_users: newUserIds,
-      };
-    } catch (error) {
-      throw new BadRequestException(
-        `Lỗi khi tạo timesheet tự động: ${error.message}`,
-      );
-    }
   }
 }

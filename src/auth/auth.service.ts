@@ -215,7 +215,6 @@ export class AuthService {
         select: {
           position_id: true,
           level_id: true,
-          office_id: true,
           role_id: true,
         },
       }),
@@ -344,7 +343,6 @@ export class AuthService {
       organization: {
         position_id: userInfo?.position_id || null,
         level_id: userInfo?.level_id || null,
-        office_id: userInfo?.office_id || null,
         role_id: userInfo?.role_id || null,
         division_id: userDivision?.divisionId || null,
         team_id: userDivision?.teamId || null,

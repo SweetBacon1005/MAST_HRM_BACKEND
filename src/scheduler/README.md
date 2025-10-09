@@ -22,9 +22,19 @@ src/scheduler/
 ### 2. Monthly Paid Leave Addition
 - **Thời gian**: Ngày cuối tháng 23:30 (giờ VN)
 - **Mục đích**: Cộng 3 ngày phép có lương cho tất cả nhân viên
-- **Logic**: Tạo bản ghi trong bảng `day_offs`
+- **Logic**: Sử dụng `LeaveBalanceService` để cập nhật `user_leave_balances` và tạo `leave_transactions`
 
-### 3. Work Shift Management
+### 3. Annual Leave Balance Reset
+- **Thời gian**: 1/1 hàng năm 01:00 (giờ VN)
+- **Mục đích**: Reset số dư phép đầu năm với carry-over (tối đa 12 ngày)
+- **Logic**: Chuyển phép năm cũ, hết hạn phần vượt quá
+
+### 4. Initialize Leave Balance for New Users
+- **Thời gian**: Ngày 1 hàng tháng 05:00 (giờ VN)
+- **Mục đích**: Tạo leave balance cho user mới chưa có
+- **Logic**: Kiểm tra và tạo bản ghi `user_leave_balances` cho user active
+
+### 5. Work Shift Management
 - **Extend Expiring Shifts**: Mỗi ngày 02:00 - Gia hạn ca sắp hết hạn
 - **Weekly Overtime Shifts**: Chủ nhật 01:00 - Tạo ca tăng ca tuần tới
 - **Cleanup Expired Shifts**: Ngày 1 hàng tháng 03:00 - Dọn dẹp ca cũ

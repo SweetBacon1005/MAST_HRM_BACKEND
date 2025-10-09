@@ -191,21 +191,8 @@ export class CreateTimesheetDto {
   @IsString()
   request_early?: string;
 
-  @ApiPropertyOptional({
-    description: 'Nghỉ phép có lương',
-    example: 'Nghỉ phép năm',
-  })
-  @IsOptional()
-  @IsString()
-  paid_leave?: string;
-
-  @ApiPropertyOptional({
-    description: 'Nghỉ phép không lương',
-    example: 'Nghỉ việc riêng',
-  })
-  @IsOptional()
-  @IsString()
-  unpaid_leave?: string;
+  // paid_leave và unpaid_leave đã được thay thế bởi day_off_id relation
+  // Thông tin leave được quản lý thông qua day_offs table
 
   @ApiPropertyOptional({
     description: 'Làm việc từ xa (OFFICE, REMOTE, HYBRID) ',

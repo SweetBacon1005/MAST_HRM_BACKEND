@@ -93,7 +93,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1990-01-15'),
       position_id: 8, // Project Manager
-      office_id: 1, // Hà Nội Office
       address: '123 Main St, Hà Nội',
       temp_address: '123 Main St, Hà Nội',
       phone: '+84901234567',
@@ -121,7 +120,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Married',
       birthday: new Date('1988-03-20'),
       position_id: 8, // Project Manager
-      office_id: 1,
       address: '456 HR St, Hà Nội',
       temp_address: '456 HR St, Hà Nội',
       phone: '+84901234568',
@@ -149,7 +147,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1995-07-10'),
       position_id: 1, // Backend Developer
-      office_id: 1,
       address: '789 Dev St, Hà Nội',
       temp_address: '789 Dev St, Hà Nội',
       phone: '+84901234569',
@@ -177,7 +174,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1993-11-25'),
       position_id: 2, // Frontend Developer
-      office_id: 1,
       address: '321 Frontend Ave, Hà Nội',
       temp_address: '321 Frontend Ave, Hà Nội',
       phone: '+84901234570',
@@ -205,7 +201,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Married',
       birthday: new Date('1992-05-18'),
       position_id: 4, // Mobile Developer
-      office_id: 2,
       address: '654 Mobile St, TP.HCM',
       temp_address: '654 Mobile St, TP.HCM',
       phone: '+84901234571',
@@ -233,7 +228,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1994-09-12'),
       position_id: 5, // QA Tester
-      office_id: 1,
       address: '987 QA Lane, Hà Nội',
       temp_address: '987 QA Lane, Hà Nội',
       phone: '+84901234572',
@@ -261,7 +255,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Married',
       birthday: new Date('1991-12-03'),
       position_id: 6, // DevOps Engineer
-      office_id: 1,
       address: '147 DevOps Rd, Hà Nội',
       temp_address: '147 DevOps Rd, Hà Nội',
       phone: '+84901234573',
@@ -289,7 +282,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1996-04-28'),
       position_id: 7, // UI/UX Designer
-      office_id: 3,
       address: '258 Design St, Đà Nẵng',
       temp_address: '258 Design St, Đà Nẵng',
       phone: '+84901234574',
@@ -317,7 +309,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       marital: 'Single',
       birthday: new Date('1995-01-01'),
       position_id: 1, // Backend Developer
-      office_id: 1,
       address: '123 Example St, Hà Nội',
       temp_address: '123 Example St, Hà Nội',
       phone: '+84901234575',

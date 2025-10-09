@@ -71,15 +71,29 @@ export async function seedOrganization(prisma: PrismaClient) {
     },
   ];
 
-  const divisions = await Promise.all(
-    divisionData.map(division =>
-      prisma.divisions.upsert({
-        where: { id: division.id },
-        update: {},
-        create: division,
-      })
-    )
-  );
+  // Tạo divisions theo thứ tự level để tránh lỗi foreign key
+  // Level 1 (parent divisions) trước
+  const level1Divisions = divisionData.filter(d => d.level === 1);
+  const level2Divisions = divisionData.filter(d => d.level === 2);
+
+  // Tạo level 1 divisions trước (không có parent_id)
+  await prisma.divisions.createMany({
+    data: level1Divisions,
+    skipDuplicates: true,
+  });
+
+  // Tạo level 2 divisions sau (có parent_id)
+  await prisma.divisions.createMany({
+    data: level2Divisions,
+    skipDuplicates: true,
+  });
+
+  // Lấy tất cả divisions đã tạo
+  const divisions = await prisma.divisions.findMany({
+    where: {
+      id: { in: divisionData.map(d => d.id) }
+    }
+  });
 
   // 2. Tạo teams - sử dụng upsert vì có ID cố định
   console.log('👨‍💻 Tạo teams...');
@@ -92,15 +106,18 @@ export async function seedOrganization(prisma: PrismaClient) {
     { id: 6, name: 'UI/UX Team' },
   ];
 
-  const teams = await Promise.all(
-    teamData.map(team =>
-      prisma.teams.upsert({
-        where: { id: team.id },
-        update: {},
-        create: team,
-      })
-    )
-  );
+  // Tạo teams với createMany để tối ưu
+  await prisma.teams.createMany({
+    data: teamData,
+    skipDuplicates: true,
+  });
+
+  // Lấy tất cả teams đã tạo
+  const teams = await prisma.teams.findMany({
+    where: {
+      id: { in: teamData.map(t => t.id) }
+    }
+  });
 
   return {
     divisions,

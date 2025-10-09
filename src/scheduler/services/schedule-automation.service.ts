@@ -1,13 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
-import { WorkShiftType, RemoteType, DayOffStatus, DayOffType } from '@prisma/client';
+import { WorkShiftType, RemoteType, DayOffStatus, DayOffType, LeaveTransactionType } from '@prisma/client';
+import { LeaveBalanceService } from '../../leave-management/services/leave-balance.service';
 
 @Injectable()
 export class ScheduleAutomationService {
   private readonly logger = new Logger(ScheduleAutomationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private leaveBalanceService: LeaveBalanceService,
+  ) {}
 
   // Chạy hàng ngày lúc 2:00 AM - Gia hạn ca làm việc sắp hết hạn
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
@@ -192,16 +196,10 @@ export class ScheduleAutomationService {
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
 
-      // Lấy tất cả user đang hoạt động (có contract active)
+      // Lấy tất cả user đang hoạt động
       const activeUsers = await this.prisma.users.findMany({
         where: {
           deleted_at: null,
-          contracts: {
-            some: {
-              status: 'ACTIVE',
-              deleted_at: null,
-            },
-          },
         },
         select: {
           id: true,
@@ -289,6 +287,82 @@ export class ScheduleAutomationService {
         return;
       }
 
+      // Lấy tất cả user đang hoạt động
+      const activeUsers = await this.prisma.users.findMany({
+        where: {
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      const monthlyLeaveDescription = `Phép tích lũy tháng ${currentMonth}/${currentYear}`;
+
+      // Kiểm tra user nào đã được cộng phép tháng này
+      const existingTransactions = await this.prisma.leave_transactions.findMany({
+        where: {
+          transaction_type: LeaveTransactionType.EARNED,
+          leave_type: DayOffType.PAID,
+          description: monthlyLeaveDescription,
+          deleted_at: null,
+          user_id: {
+            in: activeUsers.map(user => user.id),
+          },
+        },
+        select: {
+          user_id: true,
+        },
+      });
+
+      const existingUserIds = new Set(existingTransactions.map(tx => tx.user_id));
+      
+      // Lọc ra những user chưa được cộng phép tháng này
+      const usersNeedLeave = activeUsers.filter(user => !existingUserIds.has(user.id));
+
+      let updatedCount = 0;
+
+      // Xử lý từng user để đảm bảo tạo leave balance nếu chưa có
+      for (const user of usersNeedLeave) {
+        try {
+          // Đảm bảo user có leave balance
+          await this.leaveBalanceService.getOrCreateLeaveBalance(user.id);
+          
+          // Cộng 3 ngày phép
+          await this.leaveBalanceService.addLeaveBalance(
+            user.id,
+            3, // 3 ngày
+            DayOffType.PAID,
+            LeaveTransactionType.EARNED,
+            monthlyLeaveDescription,
+            undefined, // Không có reference_id
+            'monthly_accrual', // reference_type
+          );
+          
+          updatedCount++;
+        } catch (error) {
+          this.logger.error(`❌ Error adding leave for user ${user.id} (${user.name}):`, error);
+        }
+      }
+
+      this.logger.log(`🎉 Monthly paid leave addition completed: ${updatedCount} users updated with +3 days paid leave`);
+    } catch (error) {
+      this.logger.error('❌ Error adding monthly paid leave:', error);
+    }
+  }
+
+  // Chạy vào ngày 1/1 hàng năm lúc 1:00 AM theo giờ Việt Nam - Reset leave balance đầu năm
+  @Cron('0 1 1 1 *', {
+    timeZone: 'Asia/Ho_Chi_Minh'
+  })
+  async resetAnnualLeaveBalance() {
+    this.logger.log('🔄 Resetting annual leave balance for all active users...');
+
+    try {
       // Lấy tất cả user đang hoạt động (có contract active)
       const activeUsers = await this.prisma.users.findMany({
         where: {
@@ -307,60 +381,44 @@ export class ScheduleAutomationService {
         },
       });
 
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth() + 1;
-      const monthlyLeaveReason = `Cộng phép tháng ${currentMonth}/${currentYear}`;
+      let processedCount = 0;
+      let errorCount = 0;
 
-      // Lấy danh sách user đã được cộng phép tháng này
-      const existingMonthlyLeaves = await this.prisma.day_offs.findMany({
-        where: {
-          type: DayOffType.PAID,
-          reason: monthlyLeaveReason,
-          deleted_at: null,
-          user_id: {
-            in: activeUsers.map(user => user.id),
-          },
-        },
-        select: {
-          user_id: true,
-        },
-      });
-
-      const existingLeaveUserIds = new Set(existingMonthlyLeaves.map(leave => leave.user_id));
-      
-      // Lọc ra những user chưa được cộng phép tháng này
-      const usersNeedLeave = activeUsers.filter(user => !existingLeaveUserIds.has(user.id));
-
-      let updatedCount = 0;
-
-      if (usersNeedLeave.length > 0) {
-        // Tạo bản ghi day_off hàng loạt
-        const leavesToCreate = usersNeedLeave.map(user => ({
-          user_id: user.id,
-          type: DayOffType.PAID,
-          start_date: today,
-          end_date: today,
-          total: 3, // 3 ngày
-          reason: monthlyLeaveReason,
-          note: 'Phép tích lũy hàng tháng - tự động cộng bởi hệ thống',
-          status: DayOffStatus.APPROVED,
-          approved_by: null, // System generated
-          approved_at: new Date(),
-        }));
-
-        const result = await this.prisma.day_offs.createMany({
-          data: leavesToCreate,
-          skipDuplicates: true,
-        });
-
-        updatedCount = result.count;
-        
-        this.logger.debug(`✅ Added 3 days paid leave for users: ${usersNeedLeave.map(u => u.name).join(', ')} for month ${currentMonth}/${currentYear}`);
+      // Xử lý từng user
+      for (const user of activeUsers) {
+        try {
+          // Đảm bảo user có leave balance
+          await this.leaveBalanceService.getOrCreateLeaveBalance(user.id);
+          
+          // Reset annual leave balance
+          await this.leaveBalanceService.resetAnnualLeaveBalance(user.id);
+          
+          processedCount++;
+        } catch (error) {
+          this.logger.error(`❌ Error resetting leave balance for user ${user.id} (${user.name}):`, error);
+          errorCount++;
+        }
       }
 
-      this.logger.log(`🎉 Monthly paid leave addition completed: ${updatedCount} users updated with +3 days paid leave`);
+      this.logger.log(`🎉 Annual leave balance reset completed: ${processedCount} processed, ${errorCount} errors`);
     } catch (error) {
-      this.logger.error('❌ Error adding monthly paid leave:', error);
+      this.logger.error('❌ Error resetting annual leave balance:', error);
+    }
+  }
+
+  // Chạy vào ngày 1 hàng tháng lúc 5:00 AM - Initialize leave balance cho user mới
+  @Cron('0 5 1 * *', {
+    timeZone: 'Asia/Ho_Chi_Minh'
+  })
+  async initializeNewUserLeaveBalance() {
+    this.logger.log('🆕 Initializing leave balance for new users...');
+
+    try {
+      const result = await this.leaveBalanceService.initializeLeaveBalanceForAllUsers();
+      
+      this.logger.log(`🎉 Leave balance initialization completed: ${result.createdCount} created, ${result.skippedCount} skipped`);
+    } catch (error) {
+      this.logger.error('❌ Error initializing leave balance:', error);
     }
   }
 

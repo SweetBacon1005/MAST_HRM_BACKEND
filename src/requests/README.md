@@ -1,151 +1,168 @@
-# Requests Module
+# 📋 Requests Module - API Documentation
 
-Module quản lý tất cả các loại request trong hệ thống HRM.
+## 🎯 Tổng quan
 
-## 📋 Tổng quan
-
-Module này được tách riêng từ timesheet module để quản lý tập trung tất cả các loại request:
-- **Remote Work Requests**: Đơn xin làm việc từ xa
-- **Day Off Requests**: Đơn xin nghỉ phép  
-- **Overtime Requests**: Đơn xin làm thêm giờ
-
-## 🏗️ Kiến trúc
-
-### Base Request Service
-- `BaseRequestService<TCreateDto, TEntity>`: Abstract class chứa logic chung
-- Cung cấp workflow approve/reject chuẩn hóa
-- Validation và notification hooks
-
-### Specific Services
-- `RemoteWorkRequestService`: Xử lý remote work requests
-- `DayOffRequestService`: Xử lý day-off requests (wrapper cho logic cũ)
-- `OvertimeRequestService`: Xử lý overtime requests (wrapper cho logic cũ)
-
-### Main Service
-- `RequestsService`: Orchestrator cho tất cả request types
-- Cung cấp unified API cho controller
+Module Requests cung cấp API tổng hợp để quản lý tất cả các loại request trong hệ thống HRM:
+- **Remote Work Requests** - Yêu cầu làm việc từ xa
+- **Day-off Requests** - Yêu cầu nghỉ phép
+- **Overtime Requests** - Yêu cầu tăng ca
+- **Late/Early Requests** - Yêu cầu đi muộn/về sớm
 
 ## 🚀 API Endpoints
 
-### Overview
-- `GET /requests/my/all` - Lấy tất cả requests của user
-- `GET /requests/my/stats` - Thống kê requests của user
+### 📝 Tạo Requests
 
-### Remote Work Requests
-- `POST /requests/remote-work` - Tạo đơn remote work
-- `GET /requests/remote-work/my` - Danh sách remote work requests
-- `GET /requests/remote-work/my/paginated` - Danh sách có phân trang
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/requests/remote-work` | Tạo yêu cầu làm việc từ xa |
+| `POST` | `/requests/day-off` | Tạo yêu cầu nghỉ phép |
+| `POST` | `/requests/overtime` | Tạo yêu cầu tăng ca |
+| `POST` | `/requests/late-early` | Tạo yêu cầu đi muộn/về sớm |
 
-### Approval (Manager/Admin only)
-- `PATCH /requests/:type/:id/approve` - Duyệt request
-- `PATCH /requests/:type/:id/reject` - Từ chối request
+### 📊 Lấy danh sách Requests
 
-## 📊 Database Schema
+| Method | Endpoint | Description | Roles |
+|--------|----------|-------------|-------|
+| `GET` | `/requests/remote-work` | Lấy tất cả remote work requests | Admin/Manager |
+| `GET` | `/requests/remote-work/my` | Lấy remote work requests của tôi | User |
+| `GET` | `/requests/day-off` | Lấy tất cả day-off requests | Admin/Manager |
+| `GET` | `/requests/day-off/my` | Lấy day-off requests của tôi | User |
+| `GET` | `/requests/overtime` | Lấy tất cả overtime requests | Admin/Manager |
+| `GET` | `/requests/overtime/my` | Lấy overtime requests của tôi | User |
+| `GET` | `/requests/late-early` | Lấy tất cả late/early requests | Admin/Manager |
+| `GET` | `/requests/late-early/my` | Lấy late/early requests của tôi | User |
 
-### remote_work_requests
-```sql
-CREATE TABLE remote_work_requests (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  user_id INT NOT NULL,
-  work_date DATE NOT NULL,
-  remote_type ENUM('OFFICE','REMOTE','HYBRID') DEFAULT 'REMOTE',
-  reason VARCHAR(500),
-  note TEXT,
-  status ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
-  approved_by INT,
-  approved_at DATETIME,
-  rejected_reason TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted_at DATETIME,
-  
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (approved_by) REFERENCES users(id),
-  UNIQUE KEY unique_user_work_date_active (user_id, work_date, deleted_at)
-);
-```
+### ✅ Duyệt/Từ chối Requests (Universal API)
 
-## 🔄 Request Workflow
+| Method | Endpoint | Description | Roles |
+|--------|----------|-------------|-------|
+| `POST` | `/requests/:type/:id/approve` | Duyệt request (tất cả loại) | Admin/Manager |
+| `POST` | `/requests/:type/:id/reject` | Từ chối request (tất cả loại) | Admin/Manager |
 
-### 1. Tạo Request
-```typescript
-// User tạo request
-const request = await service.createRequestEntity(dto);
-```
+**Supported Types:**
+- `remote-work` - Remote work requests
+- `day-off` - Day-off requests  
+- `overtime` - Overtime requests
+- `late-early` - Late/Early requests
 
-### 2. Validation
-```typescript
-// Tự động validate
-const validation = await service.validateRequest(dto);
-if (!validation.isValid) {
-  throw new BadRequestException(validation.errors.join(', '));
+### 💰 Leave Balance Management
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/requests/leave-balance` | Lấy thông tin leave balance của tôi |
+| `GET` | `/requests/leave-balance/transactions` | Lấy lịch sử giao dịch leave balance |
+| `POST` | `/requests/leave-balance/check` | Kiểm tra có đủ leave balance không |
+
+## 📝 Request Examples
+
+### 1. Tạo Late/Early Request
+
+```bash
+POST /requests/late-early
+Content-Type: application/json
+
+{
+  "user_id": 1,
+  "work_date": "2024-01-15",
+  "request_type": "LATE",
+  "late_minutes": 30,
+  "reason": "Tắc đường do mưa lớn"
 }
 ```
 
-### 3. Approval Process
-```typescript
-// Manager/Admin approve
-const result = await service.approveRequest(id, approverId);
+### 2. Duyệt Request (Universal)
 
-// Tự động trigger post-approval actions
-await service.onRequestApproved(request);
+```bash
+POST /requests/late-early/1/approve
+Authorization: Bearer <token>
 ```
 
-### 4. Integration với Timesheet
-- **Remote Work**: Tự động cập nhật `timesheet.remote` field
-- **Day Off**: Tự động tạo timesheet với day_off_id
-- **Overtime**: Tự động tạo/cập nhật timesheet với type='OVERTIME'
+### 3. Từ chối Request (Universal)
 
-## 🎯 Lợi ích của kiến trúc mới
+```bash
+POST /requests/day-off/5/reject
+Content-Type: application/json
+Authorization: Bearer <token>
 
-### ✅ Ưu điểm
-1. **Tách biệt concerns**: Request logic tách khỏi timesheet
-2. **Chuẩn hóa workflow**: Tất cả request đều có chung approval flow
-3. **Dễ mở rộng**: Thêm request type mới chỉ cần extend BaseRequestService
-4. **Maintainable**: Code tổ chức rõ ràng, dễ debug
-5. **Reusable**: Base service có thể tái sử dụng cho các request khác
-
-### 🔧 Extensibility
-Để thêm request type mới:
-
-```typescript
-// 1. Tạo DTO
-export class CreateNewRequestDto { ... }
-
-// 2. Extend BaseRequestService
-@Injectable()
-export class NewRequestService extends BaseRequestService<CreateNewRequestDto, NewRequest> {
-  getRequestType() { return RequestType.NEW_TYPE; }
-  getTableName() { return 'new_requests'; }
-  
-  async validateRequest(dto) { ... }
-  async createRequestEntity(dto) { ... }
+{
+  "rejected_reason": "Không có lý do chính đáng"
 }
-
-// 3. Thêm vào RequestsService
-// 4. Thêm endpoints vào controller
 ```
 
-## 📝 Migration Notes
+### 4. Lấy danh sách với Pagination
 
-### Từ Timesheet Module
-- Day-off và Overtime requests vẫn sử dụng logic cũ (wrapper)
-- Remote work requests là implementation mới hoàn toàn
-- API endpoints cũ vẫn hoạt động bình thường
+```bash
+GET /requests/late-early/my?limit=20&offset=0
+Authorization: Bearer <token>
+```
 
-### Database Changes
-- Thêm bảng `remote_work_requests`
-- Cập nhật `users` table với relations mới
-- Không ảnh hưởng đến data hiện tại
+## 🔧 Business Logic
 
-## 🚦 Status
+### Late/Early Request Validation
+- ✅ Không được tạo request trùng ngày
+- ✅ Không được tạo request cho ngày quá xa (>7 ngày)
+- ✅ Validate minutes theo request_type:
+  - `LATE`: Bắt buộc có `late_minutes`
+  - `EARLY`: Bắt buộc có `early_minutes`  
+  - `BOTH`: Bắt buộc có cả hai
 
-- ✅ Base Request Service
-- ✅ Remote Work Requests (full implementation)
-- ✅ Day Off Requests (wrapper)  
-- ✅ Overtime Requests (wrapper)
-- ✅ Unified API endpoints
-- ✅ Database schema
-- ⏳ Statistics & reporting
-- ⏳ Notification system
-- ⏳ Advanced filtering
+### Day-off Request với Leave Balance
+- ✅ Kiểm tra `paid_leave_balance` trước khi tạo PAID request
+- ✅ Tự động trừ balance khi approve PAID request
+- ✅ Tự động hoàn trả balance khi reject đã approve PAID request
+- ✅ Tạo `leave_transactions` để audit trail
+
+### Auto Integration
+- ✅ Tự động tạo timesheets cho day-off requests
+- ✅ Tự động cập nhật `late_time_approved`, `early_time_approved` trong timesheets
+- ✅ Link requests với timesheets tương ứng
+
+## 📊 Response Format
+
+Tất cả API đều trả về format chuẩn:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "current_page": 1,
+    "per_page": 50,
+    "total": 100,
+    "total_pages": 2,
+    "has_next_page": true,
+    "has_prev_page": false
+  }
+}
+```
+
+## 🔐 Authorization
+
+- **User**: Chỉ có thể tạo và xem requests của mình
+- **Admin/Manager**: Có thể xem tất cả requests và approve/reject
+- **JWT Token**: Bắt buộc cho tất cả endpoints
+
+## 🌱 Seed Data
+
+Hệ thống đã có sẵn sample data cho user `user@example.com`:
+- Remote work requests
+- Day-off requests  
+- Overtime requests
+- Late/early requests
+
+## 🚀 Deployment
+
+1. **Database Migration:**
+   ```bash
+   npx prisma migrate dev --name add_late_early_requests
+   ```
+
+2. **Seed Data:**
+   ```bash
+   npx prisma db seed
+   ```
+
+3. **Build & Start:**
+   ```bash
+   npm run build
+   npm run start:prod
+   ```

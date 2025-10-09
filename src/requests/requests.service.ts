@@ -21,12 +21,18 @@ import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto
 import { RequestPaginationDto, RemoteWorkRequestPaginationDto } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
+import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
+import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { ApprovalResult, RequestType } from './interfaces/request.interface';
+import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 
 @Injectable()
 export class RequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly leaveBalanceService: LeaveBalanceService,
+  ) {}
 
   // === COMMON UTILITIES ===
 
@@ -185,6 +191,17 @@ export class RequestsService {
       throw new BadRequestException(
         'Đã có đơn nghỉ phép trong khoảng thời gian này',
       );
+    }
+
+    // Kiểm tra leave balance cho phép có lương
+    if (dto.type === DayOffType.PAID) {
+      const leaveBalance = await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
+      
+      if (leaveBalance.paid_leave_balance < dto.total) {
+        throw new BadRequestException(
+          `Không đủ số dư phép có lương. Hiện có: ${leaveBalance.paid_leave_balance} ngày, cần: ${dto.total} ngày`,
+        );
+      }
     }
 
     const { is_past, ...rest } = dto;
@@ -414,58 +431,6 @@ export class RequestsService {
     };
   }
 
-  // === APPROVAL METHODS ===
-
-  async approveRequest(
-    requestType: RequestType,
-    requestId: number,
-    approverId: number,
-  ): Promise<ApprovalResult> {
-    await this.validateUser(approverId);
-
-    switch (requestType) {
-      case RequestType.REMOTE_WORK:
-        return await this.approveRemoteWorkRequest(requestId, approverId);
-      case RequestType.DAY_OFF:
-        return await this.approveDayOffRequest(requestId, approverId);
-      case RequestType.OVERTIME:
-        return await this.approveOvertimeRequest(requestId, approverId);
-      default:
-        throw new BadRequestException(
-          `Unsupported request type: ${requestType}`,
-        );
-    }
-  }
-
-  async rejectRequest(
-    requestType: RequestType,
-    requestId: number,
-    rejectorId: number,
-    reason: string,
-  ): Promise<ApprovalResult> {
-    await this.validateUser(rejectorId);
-
-    if (!reason || reason.trim().length === 0) {
-      throw new BadRequestException('Lý do từ chối là bắt buộc');
-    }
-
-    switch (requestType) {
-      case RequestType.REMOTE_WORK:
-        return await this.rejectRemoteWorkRequest(
-          requestId,
-          rejectorId,
-          reason,
-        );
-      case RequestType.DAY_OFF:
-        return await this.rejectDayOffRequest(requestId, rejectorId, reason);
-      case RequestType.OVERTIME:
-        return await this.rejectOvertimeRequest(requestId, rejectorId, reason);
-      default:
-        throw new BadRequestException(
-          `Unsupported request type: ${requestType}`,
-        );
-    }
-  }
 
   // === PRIVATE APPROVAL METHODS ===
 
@@ -559,23 +524,38 @@ export class RequestsService {
       );
     }
 
-    const updatedRequest = await this.prisma.day_offs.update({
-      where: { id },
-      data: {
-        status: DayOffStatus.APPROVED,
-        approved_by: approverId,
-        approved_at: new Date(),
-      },
+    // Sử dụng transaction để đảm bảo data consistency
+    return await this.prisma.$transaction(async (tx) => {
+      // Cập nhật request status
+      const updatedRequest = await tx.day_offs.update({
+        where: { id },
+        data: {
+          status: DayOffStatus.APPROVED,
+          approved_by: approverId,
+          approved_at: new Date(),
+        },
+      });
+
+      // Trừ leave balance cho phép có lương
+      if (request.type === DayOffType.PAID) {
+        await this.leaveBalanceService.deductLeaveBalance(
+          request.user_id,
+          request.total,
+          DayOffType.PAID,
+          request.id,
+          `Sử dụng phép: ${request.reason || 'Nghỉ phép'}`,
+        );
+      }
+
+      // Auto create timesheets
+      await this.createTimesheetsForDayOff(updatedRequest);
+
+      return {
+        success: true,
+        message: 'Đã duyệt day-off request thành công',
+        data: updatedRequest,
+      };
     });
-
-    // Auto create timesheets
-    await this.createTimesheetsForDayOff(updatedRequest);
-
-    return {
-      success: true,
-      message: 'Đã duyệt day-off request thành công',
-      data: updatedRequest,
-    };
   }
 
   private async rejectDayOffRequest(
@@ -591,26 +571,41 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy day-off request');
     }
 
-    if (request.status !== DayOffStatus.PENDING) {
+    if (request.status !== DayOffStatus.PENDING && request.status !== DayOffStatus.APPROVED) {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
     }
 
-    const updatedRequest = await this.prisma.day_offs.update({
-      where: { id },
-      data: {
-        status: DayOffStatus.REJECTED,
-        rejected_reason: reason,
-        updated_at: new Date(),
-      },
-    });
+    // Sử dụng transaction để đảm bảo data consistency
+    return await this.prisma.$transaction(async (tx) => {
+      // Cập nhật request status
+      const updatedRequest = await tx.day_offs.update({
+        where: { id },
+        data: {
+          status: DayOffStatus.REJECTED,
+          rejected_reason: reason,
+          updated_at: new Date(),
+        },
+      });
 
-    return {
-      success: true,
-      message: 'Đã từ chối day-off request',
-      data: updatedRequest,
-    };
+      // Hoàn trả leave balance nếu đã được duyệt trước đó (và đã trừ balance)
+      if (request.status === DayOffStatus.APPROVED && request.type === DayOffType.PAID) {
+        await this.leaveBalanceService.refundLeaveBalance(
+          request.user_id,
+          request.total,
+          DayOffType.PAID,
+          request.id,
+          `Hoàn trả phép do từ chối đơn: ${reason}`,
+        );
+      }
+
+      return {
+        success: true,
+        message: 'Đã từ chối day-off request',
+        data: updatedRequest,
+      };
+    });
   }
 
   private async approveOvertimeRequest(
@@ -742,9 +737,7 @@ export class RequestsService {
             work_time_afternoon: workHours.afternoonHours,
             total_work_time: workHours.totalHours,
             is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
-            paid_leave: dayOff.type === DayOffType.PAID ? dayOff.reason : null,
-            unpaid_leave:
-              dayOff.type === DayOffType.UNPAID ? dayOff.reason : null,
+            // paid_leave và unpaid_leave info được lấy từ day_off relation
           },
         });
       } else {
@@ -755,14 +748,7 @@ export class RequestsService {
             work_time_morning: workHours.morningHours,
             work_time_afternoon: workHours.afternoonHours,
             total_work_time: workHours.totalHours,
-            paid_leave:
-              dayOff.type === DayOffType.PAID
-                ? dayOff.reason
-                : existingTimesheet.paid_leave,
-            unpaid_leave:
-              dayOff.type === DayOffType.UNPAID
-                ? dayOff.reason
-                : existingTimesheet.unpaid_leave,
+            // paid_leave và unpaid_leave info được lấy từ day_off relation
           },
         });
       }
@@ -813,6 +799,307 @@ export class RequestsService {
           afternoonHours: 4 * 60,
           totalHours: 8 * 60,
         };
+    }
+  }
+
+  // === LEAVE BALANCE METHODS ===
+
+  /**
+   * Lấy thông tin leave balance của user
+   */
+  async getMyLeaveBalance(userId: number) {
+    await this.validateUser(userId);
+    return await this.leaveBalanceService.getLeaveBalanceStats(userId);
+  }
+
+  /**
+   * Lấy lịch sử giao dịch leave balance
+   */
+  async getMyLeaveTransactionHistory(
+    userId: number,
+    limit: number = 50,
+    offset: number = 0,
+  ) {
+    await this.validateUser(userId);
+    return await this.leaveBalanceService.getLeaveTransactionHistory(userId, limit, offset);
+  }
+
+  /**
+   * Kiểm tra có đủ leave balance để tạo đơn không
+   */
+  async checkLeaveBalanceAvailability(
+    userId: number,
+    leaveType: DayOffType,
+    requestedDays: number,
+  ) {
+    await this.validateUser(userId);
+    
+    const balance = await this.leaveBalanceService.getOrCreateLeaveBalance(userId);
+    
+    let availableDays = 0;
+    let balanceType = '';
+    
+    if (leaveType === DayOffType.PAID) {
+      availableDays = balance.paid_leave_balance;
+      balanceType = 'phép có lương';
+    } else {
+      availableDays = balance.unpaid_leave_balance;
+      balanceType = 'phép không lương';
+    }
+    
+    const isAvailable = availableDays >= requestedDays;
+    
+    return {
+      available: isAvailable,
+      current_balance: availableDays,
+      requested_days: requestedDays,
+      remaining_after_request: isAvailable ? availableDays - requestedDays : availableDays,
+      balance_type: balanceType,
+      message: isAvailable 
+        ? `Đủ số dư ${balanceType}` 
+        : `Không đủ số dư ${balanceType}. Hiện có: ${availableDays}, cần: ${requestedDays}`,
+    };
+  }
+
+  // === LATE/EARLY REQUEST METHODS ===
+
+  async createLateEarlyRequest(
+    dto: CreateLateEarlyRequestDto,
+  ): Promise<LateEarlyRequestResponseDto> {
+    await this.validateUser(dto.user_id);
+
+    const workDate = new Date(dto.work_date);
+
+    // Check existing request for the same date
+    const existingRequest = await this.prisma.late_early_requests.findFirst({
+      where: QueryUtil.onlyActive({
+        user_id: dto.user_id,
+        work_date: workDate,
+      }),
+    });
+
+    if (existingRequest) {
+      throw new BadRequestException(
+        'Đã có request đi muộn/về sớm cho ngày này',
+      );
+    }
+
+    // Validate minutes based on request type
+    if (dto.request_type === 'LATE' && !dto.late_minutes) {
+      throw new BadRequestException('Số phút đi muộn là bắt buộc');
+    }
+    if (dto.request_type === 'EARLY' && !dto.early_minutes) {
+      throw new BadRequestException('Số phút về sớm là bắt buộc');
+    }
+    if (dto.request_type === 'BOTH' && (!dto.late_minutes || !dto.early_minutes)) {
+      throw new BadRequestException('Cả số phút đi muộn và về sớm đều là bắt buộc');
+    }
+
+    const result = await this.prisma.late_early_requests.create({
+      data: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: dto.request_type,
+        late_minutes: dto.late_minutes || undefined,
+        early_minutes: dto.early_minutes || undefined,
+        reason: dto.reason,
+        status: 'PENDING',
+      },
+    });
+
+    return {
+      ...result,
+      late_minutes: result.late_minutes ?? undefined,
+      early_minutes: result.early_minutes ?? undefined,
+    } as LateEarlyRequestResponseDto;
+  }
+
+  async getLateEarlyRequests(
+    userId?: number,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<any> {
+    const { skip, take } = buildPaginationQuery({ page: Math.floor(offset / limit) + 1, limit });
+
+    const whereClause = QueryUtil.onlyActive(
+      userId ? { user_id: userId } : {},
+    );
+
+    const [requests, total] = await Promise.all([
+      this.prisma.late_early_requests.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          approved_by_user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.late_early_requests.count({ where: whereClause }),
+    ]);
+
+    const page = Math.floor(offset / limit) + 1;
+    return buildPaginationResponse(requests, total, page, limit);
+  }
+
+  async getMyLateEarlyRequests(
+    userId: number,
+    limit: number = 50,
+    offset: number = 0,
+  ): Promise<any> {
+    return this.getLateEarlyRequests(userId, limit, offset);
+  }
+
+  async approveLateEarlyRequest(
+    id: number,
+    approverId: number,
+  ): Promise<ApprovalResult> {
+    const request = await this.prisma.late_early_requests.findFirst({
+      where: QueryUtil.onlyActive({ id }),
+    });
+
+    if (!request) {
+      throw new NotFoundException('Không tìm thấy late/early request');
+    }
+
+    const updatedRequest = await this.prisma.late_early_requests.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        approved_by: approverId,
+        approved_at: new Date(),
+      },
+    });
+
+    // TODO: Tích hợp với timesheet - cập nhật approved late/early time
+    await this.updateTimesheetWithApprovedLateEarly(updatedRequest);
+
+    return {
+      success: true,
+      message: 'Đã duyệt late/early request thành công',
+      data: updatedRequest,
+    };
+  }
+
+  async rejectLateEarlyRequest(
+    id: number,
+    approverId: number,
+    rejectedReason: string,
+  ): Promise<ApprovalResult> {
+    const request = await this.prisma.late_early_requests.findFirst({
+      where: QueryUtil.onlyActive({ id }),
+    });
+
+    if (!request) {
+      throw new NotFoundException('Không tìm thấy late/early request');
+    }
+
+    const updatedRequest = await this.prisma.late_early_requests.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        approved_by: approverId,
+        approved_at: new Date(),
+        rejected_reason: rejectedReason,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Đã từ chối late/early request thành công',
+      data: updatedRequest,
+    };
+  }
+
+  private async updateTimesheetWithApprovedLateEarly(
+    request: any,
+  ): Promise<void> {
+    // Tìm timesheet tương ứng
+    const timesheet = await this.prisma.time_sheets.findFirst({
+      where: QueryUtil.onlyActive({
+        user_id: request.user_id,
+        work_date: request.work_date,
+      }),
+    });
+
+    if (timesheet) {
+      // Cập nhật approved late/early time
+      const updateData: any = {};
+      
+      if (request.late_minutes) {
+        updateData.late_time_approved = request.late_minutes;
+      }
+      
+      if (request.early_minutes) {
+        updateData.early_time_approved = request.early_minutes;
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.time_sheets.update({
+          where: { id: timesheet.id },
+          data: updateData,
+        });
+      }
+
+      // Link request với timesheet
+      await this.prisma.late_early_requests.update({
+        where: { id: request.id },
+        data: { timesheet_id: timesheet.id },
+      });
+    }
+  }
+
+  // === UNIVERSAL APPROVE/REJECT METHODS ===
+
+  async approveRequest(
+    type: RequestType,
+    id: number,
+    approverId: number,
+  ): Promise<ApprovalResult> {
+    switch (type) {
+      case RequestType.DAY_OFF:
+        return await this.approveDayOffRequest(id, approverId);
+      case RequestType.OVERTIME:
+        return await this.approveOvertimeRequest(id, approverId);
+      case RequestType.REMOTE_WORK:
+        return await this.approveRemoteWorkRequest(id, approverId);
+      case RequestType.LATE_EARLY:
+        return await this.approveLateEarlyRequest(id, approverId);
+      default:
+        throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
+    }
+  }
+
+  async rejectRequest(
+    type: RequestType,
+    id: number,
+    approverId: number,
+    rejectedReason: string,
+  ): Promise<ApprovalResult> {
+    switch (type) {
+      case RequestType.DAY_OFF:
+        return await this.rejectDayOffRequest(id, approverId, rejectedReason);
+      case RequestType.OVERTIME:
+        return await this.rejectOvertimeRequest(id, approverId, rejectedReason);
+      case RequestType.REMOTE_WORK:
+        return await this.rejectRemoteWorkRequest(id, approverId, rejectedReason);
+      case RequestType.LATE_EARLY:
+        return await this.rejectLateEarlyRequest(id, approverId, rejectedReason);
+      default:
+        throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
     }
   }
 }

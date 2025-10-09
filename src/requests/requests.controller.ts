@@ -11,8 +11,10 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -22,12 +24,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { RequestPaginationDto, RemoteWorkRequestPaginationDto } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { RequestType } from './interfaces/request.interface';
-import { RequestTypeValidationPipe } from './pipes/request-type-validation.pipe';
 import { RequestsService } from './requests.service';
 
 @ApiTags('Requests')
@@ -135,63 +137,163 @@ export class RequestsController {
     return await this.requestsService.findMyOvertimeRequests(userId, paginationDto);
   }
 
-  // === APPROVAL ENDPOINTS (Manager/Admin only) ===
 
-  @Patch(':type/:id/approve')
-  @ApiOperation({ summary: 'Duyệt request (Manager/Admin only)' })
-  @ApiParam({
-    name: 'type',
-    enum: RequestType,
-    description: 'Loại request',
-    example: RequestType.DAY_OFF,
+  // === LEAVE BALANCE ENDPOINTS ===
+
+  @Get('leave-balance')
+  @ApiOperation({ summary: 'Lấy thông tin leave balance của tôi' })
+  @ApiResponse({ status: 200, description: 'Thành công' })
+  async getMyLeaveBalance(@GetCurrentUser('id') userId: number) {
+    return await this.requestsService.getMyLeaveBalance(userId);
+  }
+
+  @Get('leave-balance/transactions')
+  @ApiOperation({ summary: 'Lấy lịch sử giao dịch leave balance' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiResponse({ status: 200, description: 'Thành công' })
+  async getMyLeaveTransactionHistory(
+    @GetCurrentUser('id') userId: number,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return await this.requestsService.getMyLeaveTransactionHistory(
+      userId,
+      limit || 50,
+      offset || 0,
+    );
+  }
+
+  @Post('leave-balance/check')
+  @ApiOperation({ summary: 'Kiểm tra có đủ leave balance để tạo đơn không' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        leave_type: { 
+          type: 'string', 
+          enum: ['PAID', 'UNPAID'], 
+          example: 'PAID' 
+        },
+        requested_days: { 
+          type: 'number', 
+          example: 2 
+        },
+      },
+      required: ['leave_type', 'requested_days'],
+    },
   })
-  @ApiParam({
-    name: 'id',
-    description: 'ID của request',
-    example: 1,
+  @ApiResponse({ status: 200, description: 'Thành công' })
+  async checkLeaveBalanceAvailability(
+    @GetCurrentUser('id') userId: number,
+    @Body('leave_type') leaveType: 'PAID' | 'UNPAID',
+    @Body('requested_days') requestedDays: number,
+  ) {
+    return await this.requestsService.checkLeaveBalanceAvailability(
+      userId,
+      leaveType as any,
+      requestedDays,
+    );
+  }
+
+  // === LATE/EARLY REQUEST ENDPOINTS ===
+
+  @Post('late-early')
+  @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
+  @ApiResponse({ status: 201, description: 'Tạo thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  async createLateEarlyRequest(@Body() dto: CreateLateEarlyRequestDto, @GetCurrentUser('id') userId: number) {
+    dto.user_id = userId;
+    return await this.requestsService.createLateEarlyRequest(dto);
+  }
+
+  @Get('late-early')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Lấy danh sách tất cả late/early requests (Admin/Manager)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiResponse({ status: 200, description: 'Thành công' })
+  async getAllLateEarlyRequests(
+    @GetCurrentUser('id') userId: number,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return await this.requestsService.getLateEarlyRequests(
+      undefined,
+      limit || 50,
+      offset || 0,
+    );
+  }
+
+  @Get('late-early/my')
+  @ApiOperation({ summary: 'Lấy danh sách late/early requests của tôi' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiResponse({ status: 200, description: 'Thành công' })
+  async getMyLateEarlyRequests(
+    @GetCurrentUser('id') userId: number,
+    @Query('limit') limit?: number,
+    @Query('offset') offset?: number,
+  ) {
+    return await this.requestsService.getMyLateEarlyRequests(
+      userId,
+      limit || 50,
+      offset || 0,
+    );
+  }
+
+  // === UNIVERSAL APPROVE/REJECT ENDPOINTS ===
+
+  @Post(':type/:id/approve')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Duyệt request (tất cả loại)' })
+  @ApiParam({ 
+    name: 'type', 
+    description: 'Loại request', 
+    enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
+    example: 'day-off' 
   })
+  @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiResponse({ status: 200, description: 'Duyệt thành công' })
-  @ApiResponse({ status: 400, description: 'Loại request không hợp lệ' })
-  @ApiResponse({ status: 403, description: 'Không có quyền' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
-  @Roles('manager', 'admin', 'hr')
   async approveRequest(
-    @Param('type', RequestTypeValidationPipe) type: RequestType,
+    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
   ) {
-    return await this.requestsService.approveRequest(type, id, approverId);
+    return await this.requestsService.approveRequest(type as RequestType, id, approverId);
   }
 
-  @Patch(':type/:id/reject')
-  @ApiOperation({ summary: 'Từ chối request (Manager/Admin only)' })
-  @ApiParam({
-    name: 'type',
-    enum: RequestType,
-    description: 'Loại request',
-    example: RequestType.OVERTIME,
+  @Post(':type/:id/reject')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Từ chối request (tất cả loại)' })
+  @ApiParam({ 
+    name: 'type', 
+    description: 'Loại request', 
+    enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
+    example: 'day-off' 
   })
-  @ApiParam({
-    name: 'id',
-    description: 'ID của request',
-    example: 1,
+  @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        rejected_reason: {
+          type: 'string',
+          example: 'Không có lý do chính đáng',
+        },
+      },
+      required: ['rejected_reason'],
+    },
   })
   @ApiResponse({ status: 200, description: 'Từ chối thành công' })
-  @ApiResponse({ status: 400, description: 'Loại request không hợp lệ' })
-  @ApiResponse({ status: 403, description: 'Không có quyền' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
-  @Roles('manager', 'admin', 'hr')
   async rejectRequest(
-    @Param('type', RequestTypeValidationPipe) type: RequestType,
+    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early',
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') rejectorId: number,
-    @Body('reason') reason: string,
+    @GetCurrentUser('id') approverId: number,
+    @Body('rejected_reason') rejectedReason: string,
   ) {
-    return await this.requestsService.rejectRequest(
-      type,
-      id,
-      rejectorId,
-      reason,
-    );
+    return await this.requestsService.rejectRequest(type as RequestType, id, approverId, rejectedReason);
   }
 }
