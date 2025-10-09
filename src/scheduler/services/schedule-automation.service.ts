@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
-import { WorkShiftType } from '@prisma/client';
+import { WorkShiftType, RemoteType, DayOffStatus, DayOffType } from '@prisma/client';
 
 @Injectable()
 export class ScheduleAutomationService {
@@ -179,6 +179,189 @@ export class ScheduleAutomationService {
     nextMonday.setHours(0, 0, 0, 0);
     
     return nextMonday;
+  }
+
+  // Chạy hàng ngày lúc 12:00 AM (00:00) theo giờ Việt Nam - Tạo timesheet cho ngày hôm đó
+  @Cron('0 0 * * *', {
+    timeZone: 'Asia/Ho_Chi_Minh'
+  })
+  async createDailyTimesheets() {
+    this.logger.log('📋 Creating daily timesheets for all active users...');
+
+    try {
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+
+      // Lấy tất cả user đang hoạt động (có contract active)
+      const activeUsers = await this.prisma.users.findMany({
+        where: {
+          deleted_at: null,
+          contracts: {
+            some: {
+              status: 'ACTIVE',
+              deleted_at: null,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      // Kiểm tra xem hôm nay có phải ngày làm việc không (thứ 2-6)
+      const dayOfWeek = today.getDay();
+      const isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
+
+      if (!isWorkingDay) {
+        this.logger.log('📅 Today is weekend, skipping timesheet creation');
+        return;
+      }
+
+      // Lấy danh sách user đã có timesheet hôm nay
+      const existingTimesheets = await this.prisma.time_sheets.findMany({
+        where: {
+          work_date: new Date(todayString),
+          deleted_at: null,
+          user_id: {
+            in: activeUsers.map(user => user.id),
+          },
+        },
+        select: {
+          user_id: true,
+        },
+      });
+
+      const existingUserIds = new Set(existingTimesheets.map(ts => ts.user_id));
+      
+      // Lọc ra những user chưa có timesheet
+      const usersNeedTimesheet = activeUsers.filter(user => !existingUserIds.has(user.id));
+
+      let createdCount = 0;
+      let skippedCount = existingUserIds.size;
+
+      if (usersNeedTimesheet.length > 0) {
+        // Tạo timesheet hàng loạt
+        const timesheetsToCreate = usersNeedTimesheet.map(user => ({
+          user_id: user.id,
+          work_date: new Date(todayString),
+          is_complete: false,
+          remote: RemoteType.OFFICE, // Mặc định là làm việc tại văn phòng
+          total_work_time: 0,
+          late_time: 0,
+          early_time: 0,
+        }));
+
+        const result = await this.prisma.time_sheets.createMany({
+          data: timesheetsToCreate,
+          skipDuplicates: true,
+        });
+
+        createdCount = result.count;
+        
+        this.logger.debug(`✅ Created timesheets for users: ${usersNeedTimesheet.map(u => u.name).join(', ')}`);
+      }
+
+      this.logger.log(`🎉 Daily timesheet creation completed: ${createdCount} created, ${skippedCount} skipped`);
+    } catch (error) {
+      this.logger.error('❌ Error creating daily timesheets:', error);
+    }
+  }
+
+  // Chạy vào ngày cuối tháng lúc 11:30 PM theo giờ Việt Nam - Cộng thêm 3 ngày nghỉ phép có lương
+  @Cron('30 23 28-31 * *', {
+    timeZone: 'Asia/Ho_Chi_Minh'
+  })
+  async addMonthlyPaidLeave() {
+    this.logger.log('🏖️ Adding monthly paid leave days for all active users...');
+
+    try {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      // Kiểm tra xem ngày mai có phải ngày đầu tháng không
+      const isLastDayOfMonth = tomorrow.getDate() === 1;
+
+      if (!isLastDayOfMonth) {
+        this.logger.log('📅 Not the last day of month, skipping paid leave addition');
+        return;
+      }
+
+      // Lấy tất cả user đang hoạt động (có contract active)
+      const activeUsers = await this.prisma.users.findMany({
+        where: {
+          deleted_at: null,
+          contracts: {
+            some: {
+              status: 'ACTIVE',
+              deleted_at: null,
+            },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+      const monthlyLeaveReason = `Cộng phép tháng ${currentMonth}/${currentYear}`;
+
+      // Lấy danh sách user đã được cộng phép tháng này
+      const existingMonthlyLeaves = await this.prisma.day_offs.findMany({
+        where: {
+          type: DayOffType.PAID,
+          reason: monthlyLeaveReason,
+          deleted_at: null,
+          user_id: {
+            in: activeUsers.map(user => user.id),
+          },
+        },
+        select: {
+          user_id: true,
+        },
+      });
+
+      const existingLeaveUserIds = new Set(existingMonthlyLeaves.map(leave => leave.user_id));
+      
+      // Lọc ra những user chưa được cộng phép tháng này
+      const usersNeedLeave = activeUsers.filter(user => !existingLeaveUserIds.has(user.id));
+
+      let updatedCount = 0;
+
+      if (usersNeedLeave.length > 0) {
+        // Tạo bản ghi day_off hàng loạt
+        const leavesToCreate = usersNeedLeave.map(user => ({
+          user_id: user.id,
+          type: DayOffType.PAID,
+          start_date: today,
+          end_date: today,
+          total: 3, // 3 ngày
+          reason: monthlyLeaveReason,
+          note: 'Phép tích lũy hàng tháng - tự động cộng bởi hệ thống',
+          status: DayOffStatus.APPROVED,
+          approved_by: null, // System generated
+          approved_at: new Date(),
+        }));
+
+        const result = await this.prisma.day_offs.createMany({
+          data: leavesToCreate,
+          skipDuplicates: true,
+        });
+
+        updatedCount = result.count;
+        
+        this.logger.debug(`✅ Added 3 days paid leave for users: ${usersNeedLeave.map(u => u.name).join(', ')} for month ${currentMonth}/${currentYear}`);
+      }
+
+      this.logger.log(`🎉 Monthly paid leave addition completed: ${updatedCount} users updated with +3 days paid leave`);
+    } catch (error) {
+      this.logger.error('❌ Error adding monthly paid leave:', error);
+    }
   }
 
   private getWeekNumber(date: Date): number {
