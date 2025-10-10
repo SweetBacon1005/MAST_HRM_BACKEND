@@ -15,7 +15,8 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokensDto } from './dto/tokens.dto';
-// import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
 import { OtpType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { OtpService } from './services/otp.service';
@@ -429,6 +430,102 @@ export class AuthService {
     await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
 
     return { message: 'Đặt lại mật khẩu thành công' };
+  }
+
+  async verifyOTP(verifyOtpDto: VerifyOtpDto): Promise<{ message: string; isValid: boolean; resetToken?: string }> {
+    const { email, otp } = verifyOtpDto;
+
+    // Kiểm tra email có tồn tại không
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Email không tồn tại trong hệ thống');
+    }
+
+    // Kiểm tra user có bị xóa không
+    if (user.deleted_at) {
+      throw new NotFoundException('Tài khoản đã bị xóa');
+    }
+
+    // Xác thực OTP và đánh dấu đã sử dụng
+    const isValidOTP = await this.otpService.verifyOTP(
+      email,
+      otp,
+      OtpType.PASSWORD_RESET,
+    );
+
+    if (!isValidOTP) {
+      return {
+        message: 'Mã OTP không hợp lệ hoặc đã hết hạn',
+        isValid: false,
+      };
+    }
+
+    // Tạo temporary reset token có thời hạn 15 phút
+    const resetToken = this.jwtService.sign(
+      { 
+        email, 
+        purpose: 'password_reset',
+        userId: user.id 
+      },
+      { 
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '15m' 
+      }
+    );
+
+    return {
+      message: 'Mã OTP hợp lệ',
+      isValid: true,
+      resetToken,
+    };
+  }
+
+  async resetPasswordWithToken(
+    resetPasswordWithTokenDto: ResetPasswordWithTokenDto,
+  ): Promise<{ message: string }> {
+    const { email, resetToken, newPassword } = resetPasswordWithTokenDto;
+
+    try {
+      // Xác thực reset token
+      const decoded = this.jwtService.verify(resetToken, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+
+      // Kiểm tra token có đúng purpose và email không
+      if (decoded.purpose !== 'password_reset' || decoded.email !== email) {
+        throw new BadRequestException('Token không hợp lệ');
+      }
+
+      // Kiểm tra user có tồn tại không
+      const user = await this.usersService.findByEmail(email);
+      if (!user) {
+        throw new NotFoundException('Email không tồn tại trong hệ thống');
+      }
+
+      // Kiểm tra user có bị xóa không
+      if (user.deleted_at) {
+        throw new NotFoundException('Tài khoản đã bị xóa');
+      }
+
+      // Validate mật khẩu mới
+      this.validatePasswordStrength(newPassword);
+
+      // Mã hóa mật khẩu mới
+      const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+      // Cập nhật mật khẩu
+      await this.usersService.updatePassword(user.id, hashedPassword);
+
+      // Cleanup tất cả OTP của user này sau khi reset thành công
+      await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
+
+      return { message: 'Đặt lại mật khẩu thành công' };
+    } catch (error) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
+      }
+      throw error;
+    }
   }
 
   async changePassword(

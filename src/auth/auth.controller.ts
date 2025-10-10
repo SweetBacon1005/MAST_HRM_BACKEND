@@ -24,6 +24,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { SendChangePasswordOtpDto } from './dto/send-change-password-otp.dto';
 import { ChangePasswordWithOtpDto } from './dto/change-password-with-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Public } from './decorators/public.decorator';
@@ -182,6 +184,58 @@ export class AuthController {
   }
 
   @Public()
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác thực mã OTP cho forgot password' })
+  @ApiBody({ type: VerifyOtpDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Xác thực OTP thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Mã OTP hợp lệ',
+        },
+        isValid: {
+          type: 'boolean',
+          example: true,
+        },
+        resetToken: {
+          type: 'string',
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+          description: 'Token để reset password (có thời hạn 15 phút)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Mã OTP không hợp lệ hoặc đã hết hạn',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Mã OTP không hợp lệ hoặc đã hết hạn',
+        },
+        isValid: {
+          type: 'boolean',
+          example: false,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Email không tồn tại trong hệ thống',
+  })
+  async verifyOTP(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyOTP(verifyOtpDto);
+  }
+
+  @Public()
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Đặt lại mật khẩu với mã OTP' })
@@ -209,6 +263,36 @@ export class AuthController {
   })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Public()
+  @Post('reset-password-with-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đặt lại mật khẩu với reset token từ verify OTP' })
+  @ApiBody({ type: ResetPasswordWithTokenDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Đặt lại mật khẩu thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Đặt lại mật khẩu thành công',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Token không hợp lệ hoặc đã hết hạn',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Email không tồn tại trong hệ thống',
+  })
+  async resetPasswordWithToken(@Body() resetPasswordWithTokenDto: ResetPasswordWithTokenDto) {
+    return this.authService.resetPasswordWithToken(resetPasswordWithTokenDto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -63,6 +63,22 @@ export class OtpService {
     return true;
   }
 
+  async checkOTP(email: string, code: string, type: OtpType): Promise<boolean> {
+    const otp = await this.prisma.otp_codes.findFirst({
+      where: {
+        email,
+        code,
+        type,
+        is_used: false,
+        expires_at: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    return !!otp;
+  }
+
   async cleanupExpiredOTPs(email: string, type: OtpType): Promise<void> {
     await this.prisma.otp_codes.deleteMany({
       where: {
