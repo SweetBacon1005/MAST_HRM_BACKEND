@@ -259,7 +259,7 @@ export class AuthService {
       this.prisma.day_offs.aggregate({
         where: {
           user_id: userId,
-          start_date: {
+          work_date: {
             gte: monthStart,
             lte: monthEnd,
           },
@@ -267,8 +267,8 @@ export class AuthService {
           type: 'PAID',
           deleted_at: null,
         },
-        _sum: {
-          total: true,
+        _count: {
+          id: true,
         },
       }),
 
@@ -308,7 +308,7 @@ export class AuthService {
     // Tính số ngày phép còn lại (mặc định 12 ngày/năm)
     const annualLeaveQuota = 12;
     const monthlyLeaveQuota = annualLeaveQuota / 12; // Chia đều theo tháng
-    const usedLeave = usedLeaveDays._sum.total || 0;
+    const usedLeave = usedLeaveDays._count.id || 0;
     const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
 
     // Format assigned devices

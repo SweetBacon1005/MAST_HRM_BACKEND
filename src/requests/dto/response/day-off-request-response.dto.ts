@@ -15,16 +15,10 @@ export class DayOffRequestResponseDto {
   user_id: number;
 
   @ApiProperty({
-    description: 'Ngày bắt đầu nghỉ phép',
+    description: 'Ngày nghỉ phép',
     example: '2024-02-09',
   })
-  start_date: Date;
-
-  @ApiProperty({
-    description: 'Ngày kết thúc nghỉ phép',
-    example: '2024-02-09',
-  })
-  end_date: Date;
+  work_date: Date;
 
   @ApiProperty({
     description: 'Thời lượng nghỉ phép',
@@ -34,10 +28,10 @@ export class DayOffRequestResponseDto {
   duration: DayOffDuration;
 
   @ApiProperty({
-    description: 'Tổng số ngày nghỉ',
-    example: 1,
+    description: 'Tiêu đề đơn xin nghỉ',
+    example: 'Xin nghỉ phép năm',
   })
-  total: number;
+  title: string;
 
   @ApiProperty({
     description: 'Trạng thái của request',
@@ -58,12 +52,6 @@ export class DayOffRequestResponseDto {
     example: 'Nghỉ phép năm',
   })
   reason: string | null;
-
-  @ApiPropertyOptional({
-    description: 'Ghi chú thêm',
-    example: 'Đã lên kế hoạch từ trước',
-  })
-  note: string | null;
 
   @ApiPropertyOptional({
     description: 'ID người duyệt',

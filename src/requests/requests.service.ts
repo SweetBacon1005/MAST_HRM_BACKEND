@@ -14,18 +14,20 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
+import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
-import { QueryUtil } from '../timesheet/utils/query.util';
-import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
-import { RequestPaginationDto, RemoteWorkRequestPaginationDto } from './dto/request-pagination.dto';
-import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
-import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
+import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import {
+  RemoteWorkRequestPaginationDto,
+  RequestPaginationDto,
+} from './dto/request-pagination.dto';
+import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-response.dto';
+import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { ApprovalResult, RequestType } from './interfaces/request.interface';
-import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 
 @Injectable()
 export class RequestsService {
@@ -38,7 +40,7 @@ export class RequestsService {
 
   private async validateUser(userId: number): Promise<void> {
     const user = await this.prisma.users.findFirst({
-      where: QueryUtil.onlyActive({ id: userId }),
+      where: { id: userId, deleted_at: null },
     });
 
     if (!user) {
@@ -75,10 +77,11 @@ export class RequestsService {
 
     // Check existing request
     const existingRequest = await this.prisma.remote_work_requests.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: dto.user_id,
         work_date: workDate,
-      }),
+        deleted_at: null,
+      },
     });
 
     if (existingRequest) {
@@ -89,12 +92,12 @@ export class RequestsService {
 
     // Check day-off conflict
     const dayOff = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: dto.user_id,
-        start_date: { lte: workDate },
-        end_date: { gte: workDate },
+        work_date: workDate,
         status: 'APPROVED',
-      }),
+        deleted_at: null,
+      },
     });
 
     if (dayOff) {
@@ -114,20 +117,19 @@ export class RequestsService {
         user_id: dto.user_id,
         work_date: workDate,
         remote_type: dto.remote_type,
+        title: dto.title,
         reason: dto.reason,
-        note: dto.note,
         status: TimesheetStatus.PENDING,
       },
     });
   }
 
-  async findMyRemoteWorkRequests(
-    userId: number,
+  async findAllRemoteWorkRequests(
     paginationDto: RemoteWorkRequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = QueryUtil.onlyActive({ user_id: userId });
+    const where: any = { deleted_at: null };
 
     if (paginationDto.status) where.status = paginationDto.status;
     if (paginationDto.remote_type)
@@ -161,6 +163,45 @@ export class RequestsService {
     );
   }
 
+  async findMyRemoteWorkRequests(
+    userId: number,
+    paginationDto: RemoteWorkRequestPaginationDto = {},
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const where: any = { user_id: userId, deleted_at: null };
+
+    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.remote_type)
+      where.remote_type = paginationDto.remote_type;
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: { select: { name: true, email: true } },
+          approved_by_user: { select: { name: true, email: true } },
+        },
+      }),
+      this.prisma.remote_work_requests.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
 
   // === DAY OFF REQUESTS ===
 
@@ -169,37 +210,33 @@ export class RequestsService {
   ): Promise<DayOffRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
-    const startDate = new Date(dto.start_date);
-    const endDate = new Date(dto.end_date);
-    this.validateDateRange(startDate, endDate);
+    const workDate = new Date(dto.work_date);
 
     // Check overlapping
     const existingDayOff = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: dto.user_id,
-        OR: [
-          {
-            start_date: { lte: endDate },
-            end_date: { gte: startDate },
-          },
-        ],
+        work_date: workDate,
+        deleted_at: null,
         status: { in: [DayOffStatus.PENDING, DayOffStatus.APPROVED] },
-      }),
+      },
     });
 
     if (existingDayOff) {
-      throw new BadRequestException(
-        'Đã có đơn nghỉ phép trong khoảng thời gian này',
-      );
+      throw new BadRequestException('Đã có đơn nghỉ phép trong ngày này');
     }
+
+    // Tính số ngày nghỉ dựa trên duration
+    const dayOffAmount = dto.duration === 'FULL_DAY' ? 1 : 0.5;
 
     // Kiểm tra leave balance cho phép có lương
     if (dto.type === DayOffType.PAID) {
-      const leaveBalance = await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
-      
-      if (leaveBalance.paid_leave_balance < dto.total) {
+      const leaveBalance =
+        await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
+
+      if (leaveBalance.paid_leave_balance < dayOffAmount) {
         throw new BadRequestException(
-          `Không đủ số dư phép có lương. Hiện có: ${leaveBalance.paid_leave_balance} ngày, cần: ${dto.total} ngày`,
+          `Không đủ số dư phép có lương. Hiện có: ${leaveBalance.paid_leave_balance} ngày, cần: ${dayOffAmount} ngày`,
         );
       }
     }
@@ -209,8 +246,7 @@ export class RequestsService {
     return await this.prisma.day_offs.create({
       data: {
         ...rest,
-        start_date: startDate,
-        end_date: endDate,
+        work_date: workDate,
         duration: dto.duration,
         type: dto.type,
         is_past: is_past ? true : false,
@@ -219,17 +255,54 @@ export class RequestsService {
     });
   }
 
+  async findAllDayOffRequests(
+    paginationDto: RequestPaginationDto = {},
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const where: any = { deleted_at: null };
+
+    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.day_offs.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: { select: { name: true, email: true } },
+          approved_by_user: { select: { name: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async findMyDayOffRequests(
     userId: number,
     paginationDto: RequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = QueryUtil.onlyActive({ user_id: userId });
+    const where: any = { user_id: userId };
 
     if (paginationDto.status) where.status = paginationDto.status;
     if (paginationDto.start_date && paginationDto.end_date) {
-      where.start_date = {
+      where.work_date = {
         gte: new Date(paginationDto.start_date),
         lte: new Date(paginationDto.end_date),
       };
@@ -264,58 +337,112 @@ export class RequestsService {
   ): Promise<OvertimeRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
-    const startTime = new Date(dto.start_time);
-    const endTime = new Date(dto.end_time);
+    const workDate = new Date(dto.work_date);
 
-    // Note: Validation cho thời gian đã được xử lý ở DTO level
-
-    // Validate project if provided
-    if (dto.project_id) {
-      const project = await this.prisma.projects.findFirst({
-        where: QueryUtil.onlyActive({ id: dto.project_id }),
-      });
-      if (!project) {
-        throw new BadRequestException('Không tìm thấy dự án');
-      }
+    // Validate project (bắt buộc theo UI)
+    const project = await this.prisma.projects.findFirst({
+      where: { id: dto.project_id, deleted_at: null },
+    });
+    if (!project) {
+      throw new BadRequestException('Không tìm thấy dự án được chọn');
     }
 
-    // Check overlapping với các request đang pending hoặc approved
+
+    // Check existing overtime request for the same date
     const existingOvertime = await this.prisma.over_times_history.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: dto.user_id,
-        date: new Date(dto.date),
+        work_date: workDate,
+        deleted_at: null,
         status: { in: [TimesheetStatus.PENDING, TimesheetStatus.APPROVED] },
-        OR: [
-          {
-            start_time: { lt: endTime },
-            end_time: { gt: startTime },
-          },
-        ],
-      }),
+      },
     });
 
     if (existingOvertime) {
+      throw new BadRequestException('Đã có đơn làm tăng ca cho ngày này');
+    }
+
+    // Calculate total hours from time strings
+    const [startHour, startMinute] = dto.start_time.split(':').map(Number);
+    const [endHour, endMinute] = dto.end_time.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+    const totalHours = (endMinutes - startMinutes) / 60;
+
+    // Validate working hours (không thể làm tăng ca trong giờ hành chính)
+    const normalWorkStart = 8 * 60; // 08:00
+    const normalWorkEnd = 17 * 60; // 17:00
+    
+    if (startMinutes < normalWorkEnd && endMinutes > normalWorkStart) {
       throw new BadRequestException(
-        'Đã có đơn làm thêm giờ trong khoảng thời gian này',
+        'Thời gian tăng ca không được trùng với giờ hành chính (08:00 - 17:00)'
       );
     }
 
-    const totalHours =
-      (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+    // Tạm thời không tính toán rate phức tạp, để null hoặc 0
+    const hourlyRate = null;
+    const totalAmount = null;
 
-    return await this.prisma.over_times_history.create({
+    const result = await this.prisma.over_times_history.create({
       data: {
         user_id: dto.user_id,
-        date: dto.date ? new Date(dto.date) : new Date(),
-        start_time: startTime,
-        end_time: endTime,
-        total: totalHours,
-        value: dto.value,
+        work_date: workDate,
+        title: dto.title,
+        start_time: new Date(`${workDate.toISOString().split('T')[0]} ${dto.start_time}`),
+        end_time: new Date(`${workDate.toISOString().split('T')[0]} ${dto.end_time}`),
+        total_hours: totalHours,
+        hourly_rate: hourlyRate, // Tính từ bảng over_times và user level
+        total_amount: totalAmount, // Tính từ total_hours * hourly_rate
         project_id: dto.project_id,
         reason: dto.reason,
-        status: TimesheetStatus.PENDING, // Set default status
+        status: TimesheetStatus.PENDING,
       },
     });
+
+    // Convert start_time and end_time from Date to string for response
+    return {
+      ...result,
+      start_time: result.start_time.toTimeString().slice(0, 5), // HH:mm format
+      end_time: result.end_time.toTimeString().slice(0, 5), // HH:mm format
+    } as OvertimeRequestResponseDto;
+  }
+
+  async findAllOvertimeRequests(
+    paginationDto: RequestPaginationDto = {},
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const where: any = { deleted_at: null };
+
+    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.over_times_history.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: { select: { name: true, email: true } },
+          project: { select: { name: true, code: true } },
+          approved_by_user: { select: { name: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async findMyOvertimeRequests(
@@ -324,11 +451,11 @@ export class RequestsService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = QueryUtil.onlyActive({ user_id: userId });
+    const where: any = { user_id: userId, deleted_at: null };
 
     if (paginationDto.status) where.status = paginationDto.status;
     if (paginationDto.start_date && paginationDto.end_date) {
-      where.date = {
+      where.work_date = {
         gte: new Date(paginationDto.start_date),
         lte: new Date(paginationDto.end_date),
       };
@@ -359,39 +486,245 @@ export class RequestsService {
 
   // === OVERVIEW METHODS ===
 
+  async getAllRequests(paginationDto: RequestPaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    // Build where conditions for filtering
+    const whereConditions: any = { deleted_at: null };
+    
+    if (paginationDto.status) {
+      whereConditions.status = paginationDto.status;
+    }
+    
+    const dateFilter = paginationDto.start_date && paginationDto.end_date ? {
+      gte: new Date(paginationDto.start_date),
+      lte: new Date(paginationDto.end_date),
+    } : undefined;
+
+    // Get all requests from different tables with unified structure
+    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          project: { select: { name: true, code: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
+
+    // Combine and format all requests with type information
+    const allRequests = [
+      ...remoteWorkData.map(req => ({
+        ...req,
+        request_type: 'REMOTE_WORK' as const,
+      })),
+      ...dayOffData.map(req => ({
+        ...req,
+        request_type: 'DAY_OFF' as const,
+      })),
+      ...overtimeData.map(req => ({
+        ...req,
+        request_type: 'OVERTIME' as const,
+        start_time: req.start_time?.toTimeString().slice(0, 5),
+        end_time: req.end_time?.toTimeString().slice(0, 5),
+      })),
+      ...lateEarlyData.map(req => ({
+        ...req,
+        request_type: 'LATE_EARLY' as const,
+      })),
+    ];
+
+    // Sort by created_at desc (or other criteria)
+    const sortField = orderBy && typeof orderBy === 'object' && orderBy.created_at 
+      ? 'created_at' 
+      : 'created_at';
+    const sortOrder = orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc' 
+      ? 'asc' 
+      : 'desc';
+
+    allRequests.sort((a, b) => {
+      const aDate = new Date(a[sortField]).getTime();
+      const bDate = new Date(b[sortField]).getTime();
+      return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+    });
+
+    // Apply pagination to the combined results
+    const total = allRequests.length;
+    const paginatedRequests = allRequests.slice(skip, skip + take);
+
+    return buildPaginationResponse(
+      paginatedRequests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async getAllMyRequests(
     userId: number,
     paginationDto: RequestPaginationDto = {},
   ) {
-    const [remoteWorkRequests, dayOffRequests, overtimeRequests] =
-      await Promise.all([
-        this.findMyRemoteWorkRequests(userId, paginationDto),
-        this.findMyDayOffRequests(userId, paginationDto),
-        this.findMyOvertimeRequests(userId, paginationDto),
-      ]);
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    return {
-      remote_work: remoteWorkRequests,
-      day_offs: dayOffRequests,
-      overtimes: overtimeRequests,
-    };
+    // Build where conditions for filtering
+    const whereConditions: any = { user_id: userId, deleted_at: null };
+    
+    if (paginationDto.status) {
+      whereConditions.status = paginationDto.status;
+    }
+    
+    const dateFilter = paginationDto.start_date && paginationDto.end_date ? {
+      gte: new Date(paginationDto.start_date),
+      lte: new Date(paginationDto.end_date),
+    } : undefined;
+
+    // Get all requests from different tables with unified structure
+    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          project: { select: { name: true, code: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
+
+    // Combine and format all requests with type information
+    const allRequests = [
+      ...remoteWorkData.map(req => ({
+        ...req,
+        request_type: 'REMOTE_WORK' as const,
+      })),
+      ...dayOffData.map(req => ({
+        ...req,
+        request_type: 'DAY_OFF' as const,
+      })),
+      ...overtimeData.map(req => ({
+        ...req,
+        request_type: 'OVERTIME' as const,
+        start_time: req.start_time?.toTimeString().slice(0, 5),
+        end_time: req.end_time?.toTimeString().slice(0, 5),
+      })),
+      ...lateEarlyData.map(req => ({
+        ...req,
+        request_type: 'LATE_EARLY' as const,
+      })),
+    ];
+
+    // Sort by created_at desc (or other criteria)
+    const sortField = orderBy && typeof orderBy === 'object' && orderBy.created_at 
+      ? 'created_at' 
+      : 'created_at';
+    const sortOrder = orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc' 
+      ? 'asc' 
+      : 'desc';
+
+    allRequests.sort((a, b) => {
+      const aDate = new Date(a[sortField]).getTime();
+      const bDate = new Date(b[sortField]).getTime();
+      return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+    });
+
+    // Apply pagination to the combined results
+    const total = allRequests.length;
+    const paginatedRequests = allRequests.slice(skip, skip + take);
+
+    return buildPaginationResponse(
+      paginatedRequests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async getMyRequestsStats(userId: number) {
-    const [remoteWork, dayOffs, overtimes] = await Promise.all([
+    const [remoteWork, dayOffs, overtimes, lateEarly] = await Promise.all([
       this.prisma.remote_work_requests.groupBy({
         by: ['status'],
-        where: QueryUtil.onlyActive({ user_id: userId }),
+        where: { user_id: userId, deleted_at: null },
         _count: { status: true },
       }),
       this.prisma.day_offs.groupBy({
         by: ['status'],
-        where: QueryUtil.onlyActive({ user_id: userId }),
+        where: { user_id: userId, deleted_at: null },
         _count: { status: true },
       }),
       this.prisma.over_times_history.groupBy({
         by: ['status'],
-        where: QueryUtil.onlyActive({ user_id: userId }),
+        where: { user_id: userId, deleted_at: null },
+        _count: { status: true },
+      }),
+      this.prisma.late_early_requests.groupBy({
+        by: ['status'],
+        where: { user_id: userId, deleted_at: null },
         _count: { status: true },
       }),
     ]);
@@ -410,27 +743,37 @@ export class RequestsService {
     const remoteWorkStats = getStatusCounts(remoteWork);
     const dayOffStats = getStatusCounts(dayOffs);
     const overtimeStats = getStatusCounts(overtimes);
+    const lateEarlyStats = getStatusCounts(lateEarly);
 
     return {
-      total: remoteWorkStats.total + dayOffStats.total + overtimeStats.total,
+      total:
+        remoteWorkStats.total +
+        dayOffStats.total +
+        overtimeStats.total +
+        lateEarlyStats.total,
       pending:
-        remoteWorkStats.pending + dayOffStats.pending + overtimeStats.pending,
+        remoteWorkStats.pending +
+        dayOffStats.pending +
+        overtimeStats.pending +
+        lateEarlyStats.pending,
       approved:
         remoteWorkStats.approved +
         dayOffStats.approved +
-        overtimeStats.approved,
+        overtimeStats.approved +
+        lateEarlyStats.approved,
       rejected:
         remoteWorkStats.rejected +
         dayOffStats.rejected +
-        overtimeStats.rejected,
+        overtimeStats.rejected +
+        lateEarlyStats.rejected,
       by_type: {
         [RequestType.REMOTE_WORK]: remoteWorkStats,
         [RequestType.DAY_OFF]: dayOffStats,
         [RequestType.OVERTIME]: overtimeStats,
+        [RequestType.LATE_EARLY]: lateEarlyStats,
       },
     };
   }
-
 
   // === PRIVATE APPROVAL METHODS ===
 
@@ -439,7 +782,7 @@ export class RequestsService {
     approverId: number,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -477,7 +820,7 @@ export class RequestsService {
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -511,7 +854,7 @@ export class RequestsService {
     approverId: number,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -538,9 +881,10 @@ export class RequestsService {
 
       // Trừ leave balance cho phép có lương
       if (request.type === DayOffType.PAID) {
+        const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
         await this.leaveBalanceService.deductLeaveBalance(
           request.user_id,
-          request.total,
+          dayOffAmount,
           DayOffType.PAID,
           request.id,
           `Sử dụng phép: ${request.reason || 'Nghỉ phép'}`,
@@ -564,14 +908,17 @@ export class RequestsService {
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
       throw new NotFoundException('Không tìm thấy day-off request');
     }
 
-    if (request.status !== DayOffStatus.PENDING && request.status !== DayOffStatus.APPROVED) {
+    if (
+      request.status !== DayOffStatus.PENDING &&
+      request.status !== DayOffStatus.APPROVED
+    ) {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
@@ -590,10 +937,14 @@ export class RequestsService {
       });
 
       // Hoàn trả leave balance nếu đã được duyệt trước đó (và đã trừ balance)
-      if (request.status === DayOffStatus.APPROVED && request.type === DayOffType.PAID) {
+      if (
+        request.status === DayOffStatus.APPROVED &&
+        request.type === DayOffType.PAID
+      ) {
+        const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
         await this.leaveBalanceService.refundLeaveBalance(
           request.user_id,
-          request.total,
+          dayOffAmount,
           DayOffType.PAID,
           request.id,
           `Hoàn trả phép do từ chối đơn: ${reason}`,
@@ -613,7 +964,7 @@ export class RequestsService {
     approverId: number,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -635,8 +986,7 @@ export class RequestsService {
       },
     });
 
-    // Auto update timesheet
-    await this.updateTimesheetWithOvertime(updatedRequest);
+    // Note: Timesheet update logic can be added here if needed
 
     return {
       success: true,
@@ -651,7 +1001,7 @@ export class RequestsService {
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -686,10 +1036,11 @@ export class RequestsService {
     request: RemoteWorkRequestResponseDto,
   ) {
     let timesheet = await this.prisma.time_sheets.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: request.user_id,
         work_date: request.work_date,
-      }),
+        deleted_at: null,
+      },
     });
 
     if (!timesheet) {
@@ -711,94 +1062,50 @@ export class RequestsService {
   }
 
   private async createTimesheetsForDayOff(dayOff: DayOffRequestResponseDto) {
-    const startDate = new Date(dayOff.start_date);
-    const endDate = new Date(dayOff.end_date);
-    const currentDate = new Date(startDate);
+    const workDate = new Date(dayOff.work_date);
 
-    while (currentDate <= endDate) {
-      const existingTimesheet = await this.prisma.time_sheets.findFirst({
-        where: QueryUtil.onlyActive({
-          user_id: dayOff.user_id,
-          work_date: new Date(currentDate),
-        }),
-      });
-
-      const workHours = this.calculateWorkHours(dayOff.duration);
-
-      if (!existingTimesheet) {
-        await this.prisma.time_sheets.create({
-          data: {
-            user_id: dayOff.user_id,
-            work_date: new Date(currentDate),
-            day_off_id: dayOff.id,
-            status: 'APPROVED',
-            type: 'NORMAL',
-            work_time_morning: workHours.morningHours,
-            work_time_afternoon: workHours.afternoonHours,
-            total_work_time: workHours.totalHours,
-            is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
-            // paid_leave và unpaid_leave info được lấy từ day_off relation
-          },
-        });
-      } else {
-        await this.prisma.time_sheets.update({
-          where: { id: existingTimesheet.id },
-          data: {
-            day_off_id: dayOff.id,
-            work_time_morning: workHours.morningHours,
-            work_time_afternoon: workHours.afternoonHours,
-            total_work_time: workHours.totalHours,
-            // paid_leave và unpaid_leave info được lấy từ day_off relation
-          },
-        });
-      }
-
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-  }
-
-  private async updateTimesheetWithOvertime(
-    request: OvertimeRequestResponseDto,
-  ) {
-    const timesheet = await this.prisma.time_sheets.findFirst({
-      where: QueryUtil.onlyActive({
-        user_id: request.user_id,
-        work_date: request.date,
-      }),
+    const existingTimesheet = await this.prisma.time_sheets.findFirst({
+      where: {
+        user_id: dayOff.user_id,
+        work_date: workDate,
+        deleted_at: null,
+      },
     });
 
-    if (timesheet) {
-      await this.prisma.time_sheets.update({
-        where: { id: timesheet.id },
-        data: { type: 'OVERTIME' },
-      });
-    } else {
+    // Calculate work hours based on duration
+    const workHours =
+      dayOff.duration === 'FULL_DAY'
+        ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
+        : dayOff.duration === 'MORNING'
+          ? { morningHours: 0, afternoonHours: 4 * 60, totalHours: 4 * 60 }
+          : { morningHours: 4 * 60, afternoonHours: 0, totalHours: 4 * 60 };
+
+    if (!existingTimesheet) {
       await this.prisma.time_sheets.create({
         data: {
-          user_id: request.user_id,
-          work_date: request.date,
-          type: 'OVERTIME',
+          user_id: dayOff.user_id,
+          work_date: workDate,
+          day_off_id: dayOff.id,
           status: 'APPROVED',
-          total_work_time: (request.total || 0) * 60,
+          type: 'NORMAL',
+          work_time_morning: workHours.morningHours,
+          work_time_afternoon: workHours.afternoonHours,
+          total_work_time: workHours.totalHours,
+          is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
+          // paid_leave và unpaid_leave info được lấy từ day_off relation
         },
       });
-    }
-  }
-
-  private calculateWorkHours(duration: string) {
-    switch (duration) {
-      case 'FULL_DAY':
-        return { morningHours: 0, afternoonHours: 0, totalHours: 0 };
-      case 'MORNING':
-        return { morningHours: 0, afternoonHours: 4 * 60, totalHours: 4 * 60 };
-      case 'AFTERNOON':
-        return { morningHours: 4 * 60, afternoonHours: 0, totalHours: 4 * 60 };
-      default:
-        return {
-          morningHours: 4 * 60,
-          afternoonHours: 4 * 60,
-          totalHours: 8 * 60,
-        };
+    } else {
+      await this.prisma.time_sheets.update({
+        where: { id: existingTimesheet.id },
+        data: {
+          day_off_id: dayOff.id,
+          work_time_morning: workHours.morningHours,
+          work_time_afternoon: workHours.afternoonHours,
+          total_work_time: workHours.totalHours,
+          // paid_leave và unpaid_leave info được lấy từ day_off relation
+        },
+      });
     }
   }
 
@@ -821,7 +1128,11 @@ export class RequestsService {
     offset: number = 0,
   ) {
     await this.validateUser(userId);
-    return await this.leaveBalanceService.getLeaveTransactionHistory(userId, limit, offset);
+    return await this.leaveBalanceService.getLeaveTransactionHistory(
+      userId,
+      limit,
+      offset,
+    );
   }
 
   /**
@@ -833,12 +1144,13 @@ export class RequestsService {
     requestedDays: number,
   ) {
     await this.validateUser(userId);
-    
-    const balance = await this.leaveBalanceService.getOrCreateLeaveBalance(userId);
-    
+
+    const balance =
+      await this.leaveBalanceService.getOrCreateLeaveBalance(userId);
+
     let availableDays = 0;
     let balanceType = '';
-    
+
     if (leaveType === DayOffType.PAID) {
       availableDays = balance.paid_leave_balance;
       balanceType = 'phép có lương';
@@ -846,17 +1158,19 @@ export class RequestsService {
       availableDays = balance.unpaid_leave_balance;
       balanceType = 'phép không lương';
     }
-    
+
     const isAvailable = availableDays >= requestedDays;
-    
+
     return {
       available: isAvailable,
       current_balance: availableDays,
       requested_days: requestedDays,
-      remaining_after_request: isAvailable ? availableDays - requestedDays : availableDays,
+      remaining_after_request: isAvailable
+        ? availableDays - requestedDays
+        : availableDays,
       balance_type: balanceType,
-      message: isAvailable 
-        ? `Đủ số dư ${balanceType}` 
+      message: isAvailable
+        ? `Đủ số dư ${balanceType}`
         : `Không đủ số dư ${balanceType}. Hiện có: ${availableDays}, cần: ${requestedDays}`,
     };
   }
@@ -872,10 +1186,11 @@ export class RequestsService {
 
     // Check existing request for the same date
     const existingRequest = await this.prisma.late_early_requests.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: dto.user_id,
         work_date: workDate,
-      }),
+        deleted_at: null,
+      },
     });
 
     if (existingRequest) {
@@ -891,8 +1206,13 @@ export class RequestsService {
     if (dto.request_type === 'EARLY' && !dto.early_minutes) {
       throw new BadRequestException('Số phút về sớm là bắt buộc');
     }
-    if (dto.request_type === 'BOTH' && (!dto.late_minutes || !dto.early_minutes)) {
-      throw new BadRequestException('Cả số phút đi muộn và về sớm đều là bắt buộc');
+    if (
+      dto.request_type === 'BOTH' &&
+      (!dto.late_minutes || !dto.early_minutes)
+    ) {
+      throw new BadRequestException(
+        'Cả số phút đi muộn và về sớm đều là bắt buộc',
+      );
     }
 
     const result = await this.prisma.late_early_requests.create({
@@ -900,6 +1220,7 @@ export class RequestsService {
         user_id: dto.user_id,
         work_date: workDate,
         request_type: dto.request_type,
+        title: dto.title,
         late_minutes: dto.late_minutes || undefined,
         early_minutes: dto.early_minutes || undefined,
         reason: dto.reason,
@@ -914,16 +1235,62 @@ export class RequestsService {
     } as LateEarlyRequestResponseDto;
   }
 
+  async findAllLateEarlyRequests(
+    paginationDto: RequestPaginationDto = {},
+  ): Promise<any> {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const where: any = { deleted_at: null };
+
+    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prisma.late_early_requests.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          approved_by_user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: orderBy || { created_at: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.late_early_requests.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      requests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async getLateEarlyRequests(
     userId?: number,
-    limit: number = 50,
-    offset: number = 0,
+    paginationDto: RequestPaginationDto = {},
   ): Promise<any> {
-    const { skip, take } = buildPaginationQuery({ page: Math.floor(offset / limit) + 1, limit });
+    const { skip, take } = buildPaginationQuery(paginationDto);
 
-    const whereClause = QueryUtil.onlyActive(
-      userId ? { user_id: userId } : {},
-    );
+    const whereClause = { user_id: userId, deleted_at: null };
 
     const [requests, total] = await Promise.all([
       this.prisma.late_early_requests.findMany({
@@ -951,16 +1318,19 @@ export class RequestsService {
       this.prisma.late_early_requests.count({ where: whereClause }),
     ]);
 
-    const page = Math.floor(offset / limit) + 1;
-    return buildPaginationResponse(requests, total, page, limit);
+    return buildPaginationResponse(
+      requests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
-  async getMyLateEarlyRequests(
+  async findMyLateEarlyRequests(
     userId: number,
-    limit: number = 50,
-    offset: number = 0,
+    paginationDto: RequestPaginationDto = {},
   ): Promise<any> {
-    return this.getLateEarlyRequests(userId, limit, offset);
+    return this.getLateEarlyRequests(userId, paginationDto);
   }
 
   async approveLateEarlyRequest(
@@ -968,7 +1338,7 @@ export class RequestsService {
     approverId: number,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -1000,7 +1370,7 @@ export class RequestsService {
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
-      where: QueryUtil.onlyActive({ id }),
+      where: { id, deleted_at: null },
     });
 
     if (!request) {
@@ -1029,24 +1399,25 @@ export class RequestsService {
   ): Promise<void> {
     // Tìm timesheet tương ứng
     const timesheet = await this.prisma.time_sheets.findFirst({
-      where: QueryUtil.onlyActive({
+      where: {
         user_id: request.user_id,
         work_date: request.work_date,
-      }),
+        deleted_at: null,
+      },
     });
 
     if (timesheet) {
       // Cập nhật approved late/early time
       const updateData: any = {};
-      
+
       if (request.late_minutes) {
         updateData.late_time_approved = request.late_minutes;
       }
-      
+
       if (request.early_minutes) {
         updateData.early_time_approved = request.early_minutes;
       }
-      
+
       if (Object.keys(updateData).length > 0) {
         await this.prisma.time_sheets.update({
           where: { id: timesheet.id },
@@ -1095,9 +1466,17 @@ export class RequestsService {
       case RequestType.OVERTIME:
         return await this.rejectOvertimeRequest(id, approverId, rejectedReason);
       case RequestType.REMOTE_WORK:
-        return await this.rejectRemoteWorkRequest(id, approverId, rejectedReason);
+        return await this.rejectRemoteWorkRequest(
+          id,
+          approverId,
+          rejectedReason,
+        );
       case RequestType.LATE_EARLY:
-        return await this.rejectLateEarlyRequest(id, approverId, rejectedReason);
+        return await this.rejectLateEarlyRequest(
+          id,
+          approverId,
+          rejectedReason,
+        );
       default:
         throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
     }

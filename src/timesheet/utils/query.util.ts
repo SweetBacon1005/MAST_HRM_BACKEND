@@ -2,15 +2,6 @@
  * Query utilities for consistent database operations
  */
 export class QueryUtil {
-  /**
-   * Thêm điều kiện soft delete cho where clause
-   */
-  static onlyActive(where: any = {}): any {
-    return {
-      ...where,
-      deleted_at: null,
-    };
-  }
 
   /**
    * Tạo where clause cho khoảng ngày làm việc

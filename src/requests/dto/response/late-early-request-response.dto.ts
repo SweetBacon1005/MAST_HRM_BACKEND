@@ -28,6 +28,12 @@ export class LateEarlyRequestResponseDto {
   request_type: LateEarlyType;
 
   @ApiProperty({
+    description: 'Tiêu đề đơn xin đi muộn/về sớm',
+    example: 'Xin phép đi muộn do tắc đường',
+  })
+  title: string;
+
+  @ApiProperty({
     description: 'Số phút đi muộn',
     example: 30,
     nullable: true,

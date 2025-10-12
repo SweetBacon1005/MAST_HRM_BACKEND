@@ -21,23 +21,15 @@ export class CreateDayOffRequestDto {
   user_id: number;
 
   @ApiProperty({
-    description: 'Ngày bắt đầu nghỉ',
+    description: 'Ngày nghỉ',
     example: '2024-02-15',
   })
   @IsNotEmpty()
   @IsDateString()
-  start_date: string;
+  work_date: string;
 
   @ApiProperty({
-    description: 'Ngày kết thúc nghỉ',
-    example: '2024-02-17',
-  })
-  @IsNotEmpty()
-  @IsDateString()
-  end_date: string;
-
-  @ApiProperty({
-    description: '',
+    description: 'Thời lượng nghỉ phép',
     example: DayOffDuration.FULL_DAY,
     enum: [
       DayOffDuration.FULL_DAY,
@@ -55,12 +47,12 @@ export class CreateDayOffRequestDto {
   duration: DayOffDuration;
 
   @ApiProperty({
-    description: 'Tổng số ngày nghỉ (0.5 cho nửa ngày, 1 cho cả ngày)',
-    example: 3,
+    description: 'Tiêu đề đơn xin nghỉ',
+    example: 'Xin nghỉ phép năm',
   })
   @IsNotEmpty()
-  @IsNumber()
-  total: number;
+  @IsString()
+  title: string;
 
   @ApiProperty({
     description:
@@ -94,14 +86,6 @@ export class CreateDayOffRequestDto {
   @IsNotEmpty()
   @IsString()
   reason: string;
-
-  @ApiPropertyOptional({
-    description: 'Ghi chú thêm',
-    example: 'Sẽ hoàn thành công việc trước khi nghỉ',
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
 
   @ApiPropertyOptional({
     description: 'Có phải nghỉ bù không (TRUE: có, FALSE: không)',
