@@ -29,7 +29,9 @@ import {
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import {
   ErrorResponseDto,
   ValidationErrorResponseDto,
@@ -57,7 +59,7 @@ import {
 
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @UsePipes(new ValidationPipe({ 
   transform: true, 
   whitelist: true, 
@@ -73,6 +75,7 @@ export class AttendanceController {
   // === TÍNH TOÁN CHẤM CÔNG CHI TIẾT ===
 
   @Post('calculate')
+  @RequirePermission('attendance.read')
   @ApiOperation({
     summary: 'Tính toán chấm công chi tiết với thời gian và phạt',
     description: 'API này tính toán chi tiết thời gian làm việc, phạt đi muộn/về sớm dựa trên thời gian check-in/out'
@@ -116,6 +119,7 @@ export class AttendanceController {
   }
 
   @Post('calculate-penalty')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Tính toán phạt đi muộn, về sớm' })
   @ApiResponse({ 
     status: HttpStatus.OK, 

@@ -24,7 +24,9 @@ import {
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import {
   DateRangeValidationPipe,
   DateValidationPipe,
@@ -59,7 +61,7 @@ import { TimesheetService } from './timesheet.service';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('timesheet')
 export class TimesheetController {
   constructor(private readonly timesheetService: TimesheetService) {}
@@ -67,6 +69,7 @@ export class TimesheetController {
   // === TIMESHEET MANAGEMENT ===
 
   @Post()
+  @RequirePermission('timesheet.create')
   @ApiOperation({ summary: 'Tạo timesheet mới' })
   @ApiResponse({ status: 201, description: 'Tạo timesheet thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
@@ -78,6 +81,7 @@ export class TimesheetController {
   }
 
   @Get('my-timesheets')
+  @RequirePermission('timesheet.read')
   @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   findMyTimesheets(

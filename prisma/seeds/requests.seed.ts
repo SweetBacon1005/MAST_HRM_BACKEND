@@ -34,7 +34,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       work_date: new Date('2024-12-10'),
       remote_type: RemoteType.REMOTE,
       reason: 'Cần tập trung làm việc ở nhà để hoàn thành dự án',
-      note: 'Sẽ online đầy đủ trong giờ làm việc',
       status: TimesheetStatus.PENDING,
     },
     {
@@ -42,7 +41,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       work_date: new Date('2024-12-12'),
       remote_type: RemoteType.HYBRID,
       reason: 'Làm việc hybrid để cân bằng hiệu suất',
-      note: 'Sáng làm ở nhà, chiều vào văn phòng',
       status: TimesheetStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-08T09:00:00Z'),
@@ -52,7 +50,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       work_date: new Date('2024-12-15'),
       remote_type: RemoteType.REMOTE,
       reason: 'Có việc cá nhân cần xử lý',
-      note: 'Cam kết hoàn thành đầy đủ công việc',
       status: TimesheetStatus.REJECTED,
       rejected_reason: 'Tuần này đã có quá nhiều người remote work',
       updated_at: new Date('2024-12-09T10:30:00Z'),
@@ -87,7 +84,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total: 1,
       type: DayOffType.PAID,
       reason: 'Nghỉ phép năm',
-      note: 'Đã lên kế hoạch từ trước',
       status: DayOffStatus.PENDING,
       is_past: false,
     },
@@ -99,7 +95,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total: 2,
       type: DayOffType.PAID,
       reason: 'Nghỉ lễ Giáng sinh',
-      note: 'Nghỉ lễ cùng gia đình',
       status: DayOffStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-08T14:00:00Z'),
@@ -113,7 +108,6 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total: 0.5,
       type: DayOffType.UNPAID,
       reason: 'Khám sức khỏe định kỳ',
-      note: 'Khám sức khỏe tại bệnh viện',
       status: DayOffStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-11-10T11:00:00Z'),

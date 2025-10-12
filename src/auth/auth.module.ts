@@ -9,6 +9,8 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
+import { PermissionService } from './services/permission.service';
+import { PermissionHelperService } from './services/permission-helper.service';
 import { EmailService } from '../common/services/email.service';
 import { PrismaService } from 'src/database/prisma.service';
 
@@ -28,7 +30,7 @@ import { PrismaService } from 'src/database/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy, OtpService, EmailService, PrismaService],
-  exports: [AuthService],
+  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy, OtpService, PermissionService, PermissionHelperService, EmailService, PrismaService],
+  exports: [AuthService, PermissionService, PermissionHelperService],
 })
 export class AuthModule {}

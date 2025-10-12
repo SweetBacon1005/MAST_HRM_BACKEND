@@ -5,8 +5,8 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
   console.log('👤 Seeding users...');
 
   const { roles } = seedData;
-  const hashedPassword = await bcrypt.hash('123456', 10);
-  const mastPassword = await bcrypt.hash('Mast@123', 10);
+  const hashedPassword = await bcrypt.hash('Mast@123', 12);
+  const mastPassword = await bcrypt.hash('Mast@123', 12);
 
   // 1. Tạo users - sử dụng upsert vì cần email unique
   console.log('👤 Tạo users...');
@@ -68,13 +68,13 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
   ];
 
   const users = await Promise.all(
-    userData.map(user =>
+    userData.map((user) =>
       prisma.users.upsert({
         where: { email: user.email },
         update: {},
         create: user,
-      })
-    )
+      }),
+    ),
   );
 
   // 2. Tạo user_information - sử dụng upsert vì có user_id unique
@@ -326,13 +326,13 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
   ];
 
   await Promise.all(
-    userInfoData.map(userInfo =>
+    userInfoData.map((userInfo) =>
       prisma.user_information.upsert({
         where: { user_id: userInfo.user_id },
         update: {},
         create: userInfo,
-      })
-    )
+      }),
+    ),
   );
 
   return { users };

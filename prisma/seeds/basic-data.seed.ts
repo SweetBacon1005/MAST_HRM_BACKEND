@@ -1,55 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
 export async function seedBasicData(prisma: PrismaClient) {
-  console.log('📝 Seeding basic data...');
-
-  // 1. Tạo permissions - sử dụng createMany với skipDuplicates
-  console.log('📝 Tạo permissions...');
-  const permissionData = [
-    { name: 'user.read' },
-    { name: 'user.create' },
-    { name: 'user.update' },
-    { name: 'user.delete' },
-    { name: 'project.read' },
-    { name: 'project.create' },
-    { name: 'project.update' },
-    { name: 'project.delete' },
-    { name: 'timesheet.read' },
-    { name: 'timesheet.create' },
-    { name: 'attendance.read' },
-    { name: 'attendance.manage' },
-  ];
-
-  await prisma.permissions.createMany({
-    data: permissionData,
-    skipDuplicates: true,
-  });
-
-  // Lấy lại permissions để trả về
-  const permissions = await prisma.permissions.findMany({
-    where: { name: { in: permissionData.map(p => p.name) } },
-  });
-
-  // 2. Tạo roles - sử dụng createMany với skipDuplicates
-  console.log('👥 Tạo roles...');
-  const roleData = [
-    { name: 'admin' },
-    { name: 'manager' },
-    { name: 'team_leader' },
-    { name: 'developer' },
-    { name: 'tester' },
-    { name: 'employee' },
-  ];
-
-  await prisma.roles.createMany({
-    data: roleData,
-    skipDuplicates: true,
-  });
-
-  const roles = await prisma.roles.findMany({
-    where: { name: { in: roleData.map(r => r.name) } },
-  });
-  // 4. Tạo levels - sử dụng upsert vì có ID cố định
+  console.log('📝 Seeding basic data (levels, positions, languages)...');
+  
+  // 1. Tạo levels - sử dụng upsert vì có ID cố định
   console.log('📊 Tạo levels...');
   const levelData = [
     { id: 1, name: 'Intern', coefficient: 0.5 },
@@ -71,7 +25,7 @@ export async function seedBasicData(prisma: PrismaClient) {
     )
   );
 
-  // 5. Tạo positions - sử dụng upsert vì có ID cố định
+  // 2. Tạo positions - sử dụng upsert vì có ID cố định
   console.log('💼 Tạo positions...');
   const positionData = [
     { id: 1, name: 'Backend Developer', is_active_project: true },
@@ -96,7 +50,7 @@ export async function seedBasicData(prisma: PrismaClient) {
     )
   );
 
-  // 6. Tạo languages - sử dụng upsert vì có ID cố định
+  // 3. Tạo languages - sử dụng upsert vì có ID cố định
   console.log('🌍 Tạo languages...');
   const languageData = [
     { id: 1, name: 'Vietnamese' },
@@ -116,8 +70,6 @@ export async function seedBasicData(prisma: PrismaClient) {
   );
 
   return {
-    permissions,
-    roles,
     levels,
     positions,
     languages,

@@ -21,15 +21,18 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 
 @ApiTags('users')
 @Controller('users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @RequirePermission('user.create')
   @ApiOperation({ summary: 'Tạo user mới' })
   @ApiResponse({
     status: 201,
@@ -44,6 +47,7 @@ export class UsersController {
   }
 
   @Get()
+  @RequirePermission('user.read')
   @ApiOperation({ summary: 'Lấy danh sách tất cả users' })
   @ApiResponse({
     status: 200,
@@ -79,6 +83,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @RequirePermission('user.update')
   @ApiOperation({ summary: 'Cập nhật thông tin user' })
   @ApiParam({ name: 'id', description: 'ID của user' })
   @ApiResponse({
@@ -94,6 +99,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @RequirePermission('user.delete')
   @ApiOperation({ summary: 'Xóa user' })
   @ApiParam({ name: 'id', description: 'ID của user' })
   @ApiResponse({

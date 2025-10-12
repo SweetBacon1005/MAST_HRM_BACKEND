@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 // Import all seed functions
 import { seedBasicData } from './seeds/basic-data.seed';
+import { seedRBAC } from './seeds/rbac.seed';
 import { seedSkillsAndCertificates } from './seeds/skills-certificates.seed';
 import { seedOrganization } from './seeds/organization.seed';
 import { seedUsers } from './seeds/users.seed';
@@ -23,64 +24,70 @@ async function main() {
   console.log('⚡ Tối ưu hóa: createMany + skipDuplicates + upsert batch\n');
 
   try {
-    // 1. Seed basic data (roles, permissions, levels, positions, offices, languages)
+    // 1. Seed basic data (levels, positions, languages)
     const basicData = await seedBasicData(prisma);
     console.log('✅ Basic data seeded successfully!\n');
 
-    // 2. Seed skills and certificates
+    // 2. Seed RBAC (roles, permissions, role-permission assignments)
+    const rbacData = await seedRBAC(prisma);
+    console.log('✅ RBAC data seeded successfully!\n');
+
+    // 3. Seed skills and certificates
     const skillsData = await seedSkillsAndCertificates(prisma);
     console.log('✅ Skills and certificates seeded successfully!\n');
 
-    // 3. Seed organization structure (divisions, teams, groups)
+    // 4. Seed organization structure (divisions, teams, groups)
     const orgData = await seedOrganization(prisma);
     console.log('✅ Organization data seeded successfully!\n');
 
-    // 4. Seed schedule works (work shifts)
+    // 5. Seed schedule works (work shifts)
     const scheduleWorksData = await seedScheduleWorks(prisma);
     console.log('✅ Schedule works data seeded successfully!\n');
 
-    // 5. Seed users and user information
-    const usersData = await seedUsers(prisma, basicData);
+    // 6. Seed users and user information
+    const usersData = await seedUsers(prisma, { ...basicData, ...rbacData });
     console.log('✅ Users data seeded successfully!\n');
 
-    // 6. Seed contracts
+    // 7. Seed contracts
     const contractsData = await seedContracts(prisma);
     console.log('✅ Contracts data seeded successfully!\n');
 
-    // 7. Seed projects, customers, and stages
+    // 8. Seed projects, customers, and stages
     const projectsData = await seedProjects(prisma);
     console.log('✅ Projects data seeded successfully!\n');
 
-    // 8. Seed user relationships (divisions, allocations, timesheets, reports)
+    // 9. Seed user relationships (divisions, allocations, timesheets, reports)
     await seedUserRelations(prisma, {
       ...usersData,
       ...basicData,
+      ...rbacData,
       ...projectsData,
     });
     console.log('✅ User relationships seeded successfully!\n');
 
-    // 8. Seed miscellaneous data (education, experience, holidays, children, etc.)
+    // 10. Seed miscellaneous data (education, experience, holidays, children, etc.)
     await seedMiscData(prisma, {
       ...usersData,
       ...skillsData,
       ...basicData,
+      ...rbacData,
       ...orgData,
     });
     console.log('✅ Miscellaneous data seeded successfully!\n');
 
-    // 9. Seed day offs
+    // 11. Seed day offs
     const dayOffsData = await seedDayOffs(prisma, usersData);
     console.log('✅ Day offs data seeded successfully!\n');
 
-    // 10. Seed user devices
+    // 12. Seed user devices
     await seedUserDevices();
     console.log('✅ User devices seeded successfully!\n');
 
-    // 11. Seed requests for user@example.com
+    // 13. Seed requests for user@example.com
     await seedRequests(prisma, usersData);
     console.log('✅ Requests data seeded successfully!\n');
 
-    // 12. Seed late/early requests
+    // 14. Seed late/early requests
     await seedLateEarlyRequests();
     console.log('✅ Late/early requests data seeded successfully!\n');
 
@@ -90,8 +97,9 @@ async function main() {
     console.log('🎉 =================================\n');
 
     console.log('📊 Tổng quan dữ liệu đã tạo:');
-    console.log(`- ${basicData.permissions.length} permissions`);
-    console.log(`- ${basicData.roles.length} roles`);
+    console.log(`- ${rbacData.permissions.length} permissions`);
+    console.log(`- ${rbacData.roles.length} roles`);
+    console.log(`- ${rbacData.permissionRoleCount} permission-role assignments`);
     console.log(`- ${basicData.levels.length} levels`);
     console.log(`- ${basicData.positions.length} positions`);
     console.log(`- ${basicData.languages.length} languages`);

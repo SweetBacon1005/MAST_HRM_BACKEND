@@ -19,6 +19,8 @@ import {
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { CreateEducationDto } from './dto/create-education.dto';
 import { CreateExperienceDto } from './dto/create-experience.dto';
 import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
@@ -40,13 +42,14 @@ import { UserProfileService } from './user-profile.service';
 
 @ApiTags('user-profile')
 @Controller('user-profile')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class UserProfileController {
   constructor(private readonly userProfileService: UserProfileService) {}
 
   // ===== THÔNG TIN CÁ NHÂN =====
   @Get()
+  @RequirePermission('user.read')
   @ApiOperation({ summary: 'Xem thông tin cá nhân của user hiện tại' })
   @ApiResponse({
     status: 200,
@@ -57,6 +60,7 @@ export class UserProfileController {
   }
 
   @Patch('information')
+  @RequirePermission('user.profile.update')
   @ApiOperation({ summary: 'Cập nhật thông tin cá nhân' })
   @ApiResponse({
     status: 200,
@@ -74,6 +78,7 @@ export class UserProfileController {
 
   // ===== QUẢN LÝ HỌC VẤN =====
   @Post('education')
+  @RequirePermission('user.profile.update')
   @ApiOperation({ summary: 'Thêm thông tin học vấn' })
   @ApiResponse({
     status: 201,
@@ -437,6 +442,7 @@ export class UserProfileController {
 
   // ===== CẬP NHẬT AVATAR =====
   @Patch('avatar')
+  @RequirePermission('user.profile.update')
   @ApiOperation({ summary: 'Cập nhật avatar URL từ S3' })
   @ApiResponse({
     status: 200,
