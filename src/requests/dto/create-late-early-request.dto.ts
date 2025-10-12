@@ -37,6 +37,14 @@ export class CreateLateEarlyRequestDto {
   request_type: LateEarlyType;
 
   @ApiProperty({
+    description: 'Tiêu đề đơn xin đi muộn/về sớm',
+    example: 'Xin phép đi muộn do tắc đường',
+  })
+  @IsNotEmpty({ message: 'Tiêu đề không được để trống' })
+  @IsString({ message: 'Tiêu đề phải là chuỗi ký tự' })
+  title: string;
+
+  @ApiProperty({
     description:
       'Số phút đi muộn (bắt buộc nếu request_type là LATE hoặc BOTH)',
     example: 30,

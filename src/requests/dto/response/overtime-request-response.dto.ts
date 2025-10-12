@@ -15,34 +15,46 @@ export class OvertimeRequestResponseDto {
   user_id: number;
 
   @ApiProperty({
-    description: 'Ngày làm thêm giờ',
+    description: 'Ngày làm tăng ca',
     example: '2024-02-09',
   })
-  date: Date;
+  work_date: Date;
 
   @ApiProperty({
-    description: 'Thời gian bắt đầu',
-    example: '2024-02-09T11:00:00.000Z',
+    description: 'Tiêu đề đơn xin tăng ca',
+    example: 'Xin tăng ca để hoàn thành dự án',
   })
-  start_time: Date;
+  title: string;
 
   @ApiProperty({
-    description: 'Thời gian kết thúc',
-    example: '2024-02-09T14:00:00.000Z',
+    description: 'Thời gian bắt đầu (HH:mm)',
+    example: '18:00',
   })
-  end_time: Date;
+  start_time: string;
+
+  @ApiProperty({
+    description: 'Thời gian kết thúc (HH:mm)',
+    example: '21:00',
+  })
+  end_time: string;
 
   @ApiPropertyOptional({
-    description: 'Tổng số giờ làm thêm',
+    description: 'Tổng số giờ tăng ca',
     example: 3,
   })
-  total: number | null;
+  total_hours: number | null;
 
   @ApiPropertyOptional({
-    description: 'Giá trị tiền làm thêm giờ',
+    description: 'Mức lương theo giờ',
     example: 150000,
   })
-  value: number | null;
+  hourly_rate: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Tổng tiền tăng ca',
+    example: 450000,
+  })
+  total_amount: number | null;
 
   @ApiPropertyOptional({
     description: 'ID dự án',
