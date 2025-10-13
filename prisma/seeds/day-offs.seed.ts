@@ -10,30 +10,40 @@ export async function seedDayOffs(prisma: PrismaClient, seedData: any) {
     // John Doe - Nghỉ phép có lương
     {
       user_id: users[2].id,
-      start_date: new Date('2024-03-15'),
-      end_date: new Date('2024-03-15'),
+      work_date: new Date('2024-03-15'),
       duration: 'FULL_DAY' as const,
-      total: 1.0,
+      title: 'Xin nghỉ phép năm',
       status: 'APPROVED' as const,
       type: 'PAID' as const,
       reason: 'Nghỉ phép năm',
-      note: 'Đã có kế hoạch từ trước',
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-03-10T10:00:00Z'),
       rejected_reason: null,
       is_past: false,
     },
-    // Jane Smith - Nghỉ ốm
+    // Jane Smith - Nghỉ ốm (ngày 1)
     {
       user_id: users[3].id,
-      start_date: new Date('2024-02-20'),
-      end_date: new Date('2024-02-21'),
+      work_date: new Date('2024-02-20'),
       duration: 'FULL_DAY' as const,
-      total: 2.0,
+      title: 'Xin nghỉ ốm',
       status: 'APPROVED' as const,
       type: 'SICK' as const,
       reason: 'Ốm cảm cúm',
-      note: 'Có giấy bác sĩ',
+      approved_by: users[1].id, // HR Manager
+      approved_at: new Date('2024-02-19T14:30:00Z'),
+      rejected_reason: null,
+      is_past: false,
+    },
+    // Jane Smith - Nghỉ ốm (ngày 2)
+    {
+      user_id: users[3].id,
+      work_date: new Date('2024-02-21'),
+      duration: 'FULL_DAY' as const,
+      title: 'Xin nghỉ ốm (tiếp tục)',
+      status: 'APPROVED' as const,
+      type: 'SICK' as const,
+      reason: 'Ốm cảm cúm (tiếp tục)',
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-02-19T14:30:00Z'),
       rejected_reason: null,
@@ -42,14 +52,12 @@ export async function seedDayOffs(prisma: PrismaClient, seedData: any) {
     // Mike Johnson - Nghỉ buổi sáng
     {
       user_id: users[4].id,
-      start_date: new Date('2024-04-05'),
-      end_date: new Date('2024-04-05'),
+      work_date: new Date('2024-04-05'),
       duration: 'MORNING' as const,
-      total: 0.5,
+      title: 'Xin nghỉ buổi sáng để khám sức khỏe',
       status: 'PENDING' as const,
       type: 'PERSONAL' as const,
       reason: 'Đi khám sức khỏe định kỳ',
-      note: 'Hẹn bác sĩ lúc 8h sáng',
       approved_by: null,
       approved_at: null,
       rejected_reason: null,
@@ -58,14 +66,12 @@ export async function seedDayOffs(prisma: PrismaClient, seedData: any) {
     // Sarah Wilson - Nghỉ không lương
     {
       user_id: users[5].id,
-      start_date: new Date('2024-05-10'),
-      end_date: new Date('2024-05-12'),
+      work_date: new Date('2024-05-10'),
       duration: 'FULL_DAY' as const,
-      total: 3.0,
+      title: 'Xin nghỉ không lương để du lịch',
       status: 'REJECTED' as const,
       type: 'UNPAID' as const,
       reason: 'Du lịch cá nhân',
-      note: 'Kế hoạch du lịch gia đình',
       approved_by: users[1].id, // HR Manager
       approved_at: null,
       rejected_reason: 'Không đủ thời gian nghỉ phép trong năm',
@@ -74,14 +80,12 @@ export async function seedDayOffs(prisma: PrismaClient, seedData: any) {
     // David Brown - Nghỉ bù
     {
       user_id: users[6].id,
-      start_date: new Date('2024-01-22'),
-      end_date: new Date('2024-01-22'),
+      work_date: new Date('2024-01-22'),
       duration: 'AFTERNOON' as const,
-      total: 0.5,
+      title: 'Xin nghỉ bù buổi chiều',
       status: 'APPROVED' as const,
       type: 'COMPENSATORY' as const,
       reason: 'Nghỉ bù do làm overtime cuối tuần',
-      note: 'Đã làm thêm giờ ngày 20/01',
       approved_by: users[2].id, // Team Leader
       approved_at: new Date('2024-01-20T16:00:00Z'),
       rejected_reason: null,

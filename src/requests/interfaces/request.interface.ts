@@ -27,10 +27,9 @@ export interface BaseRequestResponse {
 
 export interface DayOffRequestResponse extends BaseRequestResponse {
   type: RequestType.DAY_OFF;
-  start_date: Date;
-  end_date: Date;
+  work_date: Date;
   duration: string;
-  total: number;
+  title: string;
   reason?: string;
   note?: string;
   is_past: boolean;
@@ -38,11 +37,13 @@ export interface DayOffRequestResponse extends BaseRequestResponse {
 
 export interface OvertimeRequestResponse extends BaseRequestResponse {
   type: RequestType.OVERTIME;
-  date: Date;
-  start_time: Date;
-  end_time: Date;
-  total?: number;
-  value?: number;
+  work_date: Date;
+  title: string;
+  start_time: string;
+  end_time: string;
+  total_hours?: number;
+  hourly_rate?: number;
+  total_amount?: number;
   project_id?: number;
   reason?: string;
 }
@@ -51,14 +52,15 @@ export interface RemoteWorkRequestResponse extends BaseRequestResponse {
   type: RequestType.REMOTE_WORK;
   work_date: Date;
   remote_type: 'REMOTE' | 'HYBRID';
+  title: string;
   reason?: string;
-  note?: string;
 }
 
 export interface LateEarlyRequestResponse extends BaseRequestResponse {
   type: RequestType.LATE_EARLY;
   work_date: Date;
   request_type: 'LATE' | 'EARLY' | 'BOTH';
+  title: string;
   late_minutes?: number;
   early_minutes?: number;
   reason: string;

@@ -27,17 +27,17 @@ export class RemoteWorkRequestResponseDto {
   })
   remote_type: RemoteType;
 
+  @ApiProperty({
+    description: 'Tiêu đề đơn xin làm từ xa',
+    example: 'Xin làm việc từ xa để tập trung hoàn thành dự án',
+  })
+  title: string;
+
   @ApiPropertyOptional({
     description: 'Lý do làm việc từ xa',
     example: 'Cần tập trung làm việc ở nhà để hoàn thành dự án',
   })
   reason: string | null;
-
-  @ApiPropertyOptional({
-    description: 'Ghi chú thêm',
-    example: 'Sẽ online đầy đủ trong giờ làm việc',
-  })
-  note: string | null;
 
   @ApiProperty({
     description: 'Trạng thái của request',

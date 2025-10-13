@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Patch,
   Post,
   Query,
   UseGuards,
@@ -25,9 +24,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
-import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
-import { RequestPaginationDto, RemoteWorkRequestPaginationDto } from './dto/request-pagination.dto';
+import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import {
+  RemoteWorkRequestPaginationDto,
+  RequestPaginationDto,
+} from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
@@ -42,6 +44,17 @@ export class RequestsController {
   constructor(private readonly requestsService: RequestsService) {}
 
   // === OVERVIEW ENDPOINTS ===
+
+  @Get()
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({
+    summary:
+      'Lấy tất cả requests từ mọi loại có phân trang thống nhất (Admin/Manager)',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async getAllRequests(@Query() paginationDto: RequestPaginationDto) {
+    return await this.requestsService.getAllRequests(paginationDto);
+  }
 
   @Get('my/all')
   @RequirePermission('request.read')
@@ -77,16 +90,33 @@ export class RequestsController {
     );
   }
 
+  @Get('remote-work')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({
+    summary:
+      'Lấy danh sách tất cả đơn remote work có phân trang (Admin/Manager)',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async findAllRemoteWorkRequests(
+    @Query() paginationDto: RemoteWorkRequestPaginationDto,
+  ) {
+    return await this.requestsService.findAllRemoteWorkRequests(paginationDto);
+  }
+
   @Get('remote-work/my')
-  @ApiOperation({ summary: 'Lấy danh sách đơn remote work của tôi có phân trang' })
+  @ApiOperation({
+    summary: 'Lấy danh sách đơn remote work của tôi có phân trang',
+  })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyRemoteWorkRequests(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
   ) {
-    return await this.requestsService.findMyRemoteWorkRequests(userId, paginationDto);
+    return await this.requestsService.findMyRemoteWorkRequests(
+      userId,
+      paginationDto,
+    );
   }
-
 
   // === DAY OFF REQUESTS ===
 
@@ -104,14 +134,29 @@ export class RequestsController {
     );
   }
 
+  @Get('day-off')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({
+    summary: 'Lấy danh sách tất cả đơn nghỉ phép có phân trang (Admin/Manager)',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async findAllDayOffRequests(@Query() paginationDto: RequestPaginationDto) {
+    return await this.requestsService.findAllDayOffRequests(paginationDto);
+  }
+
   @Get('day-off/my')
-  @ApiOperation({ summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang' })
+  @ApiOperation({
+    summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
+  })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyDayOffRequests(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findMyDayOffRequests(userId, paginationDto);
+    return await this.requestsService.findMyDayOffRequests(
+      userId,
+      paginationDto,
+    );
   }
 
   // === OVERTIME REQUESTS ===
@@ -130,16 +175,31 @@ export class RequestsController {
     );
   }
 
+  @Get('overtime')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({
+    summary:
+      'Lấy danh sách tất cả đơn làm thêm giờ có phân trang (Admin/Manager)',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async findAllOvertimeRequests(@Query() paginationDto: RequestPaginationDto) {
+    return await this.requestsService.findAllOvertimeRequests(paginationDto);
+  }
+
   @Get('overtime/my')
-  @ApiOperation({ summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang' })
+  @ApiOperation({
+    summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
+  })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyOvertimeRequests(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findMyOvertimeRequests(userId, paginationDto);
+    return await this.requestsService.findMyOvertimeRequests(
+      userId,
+      paginationDto,
+    );
   }
-
 
   // === LEAVE BALANCE ENDPOINTS ===
 
@@ -173,14 +233,14 @@ export class RequestsController {
     schema: {
       type: 'object',
       properties: {
-        leave_type: { 
-          type: 'string', 
-          enum: ['PAID', 'UNPAID'], 
-          example: 'PAID' 
+        leave_type: {
+          type: 'string',
+          enum: ['PAID', 'UNPAID'],
+          example: 'PAID',
         },
-        requested_days: { 
-          type: 'number', 
-          example: 2 
+        requested_days: {
+          type: 'number',
+          example: 2,
         },
       },
       required: ['leave_type', 'requested_days'],
@@ -205,43 +265,37 @@ export class RequestsController {
   @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
   @ApiResponse({ status: 201, description: 'Tạo thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  async createLateEarlyRequest(@Body() dto: CreateLateEarlyRequestDto, @GetCurrentUser('id') userId: number) {
+  async createLateEarlyRequest(
+    @Body() dto: CreateLateEarlyRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
     dto.user_id = userId;
     return await this.requestsService.createLateEarlyRequest(dto);
   }
 
   @Get('late-early')
   @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Lấy danh sách tất cả late/early requests (Admin/Manager)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
-  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOperation({
+    summary:
+      'Lấy danh sách tất cả late/early requests có phân trang (Admin/Manager)',
+  })
   @ApiResponse({ status: 200, description: 'Thành công' })
-  async getAllLateEarlyRequests(
-    @GetCurrentUser('id') userId: number,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
-    return await this.requestsService.getLateEarlyRequests(
-      undefined,
-      limit || 50,
-      offset || 0,
-    );
+  async getAllLateEarlyRequests(@Query() paginationDto: RequestPaginationDto) {
+    return await this.requestsService.findAllLateEarlyRequests(paginationDto);
   }
 
   @Get('late-early/my')
-  @ApiOperation({ summary: 'Lấy danh sách late/early requests của tôi' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
-  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
+  @ApiOperation({
+    summary: 'Lấy danh sách late/early requests của tôi có phân trang',
+  })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLateEarlyRequests(
     @GetCurrentUser('id') userId: number,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
+    @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.getMyLateEarlyRequests(
+    return await this.requestsService.findMyLateEarlyRequests(
       userId,
-      limit || 50,
-      offset || 0,
+      paginationDto,
     );
   }
 
@@ -250,11 +304,11 @@ export class RequestsController {
   @Post(':type/:id/approve')
   @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Duyệt request (tất cả loại)' })
-  @ApiParam({ 
-    name: 'type', 
-    description: 'Loại request', 
+  @ApiParam({
+    name: 'type',
+    description: 'Loại request',
     enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
-    example: 'day-off' 
+    example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiResponse({ status: 200, description: 'Duyệt thành công' })
@@ -264,17 +318,21 @@ export class RequestsController {
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
   ) {
-    return await this.requestsService.approveRequest(type as RequestType, id, approverId);
+    return await this.requestsService.approveRequest(
+      type as RequestType,
+      id,
+      approverId,
+    );
   }
 
   @Post(':type/:id/reject')
   @Roles('ADMIN', 'MANAGER')
   @ApiOperation({ summary: 'Từ chối request (tất cả loại)' })
-  @ApiParam({ 
-    name: 'type', 
-    description: 'Loại request', 
+  @ApiParam({
+    name: 'type',
+    description: 'Loại request',
     enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
-    example: 'day-off' 
+    example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiBody({
@@ -297,6 +355,11 @@ export class RequestsController {
     @GetCurrentUser('id') approverId: number,
     @Body('rejected_reason') rejectedReason: string,
   ) {
-    return await this.requestsService.rejectRequest(type as RequestType, id, approverId, rejectedReason);
+    return await this.requestsService.rejectRequest(
+      type as RequestType,
+      id,
+      approverId,
+      rejectedReason,
+    );
   }
 }
