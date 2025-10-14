@@ -36,15 +36,27 @@ export function buildPaginationResponse<T>(
   page: number,
   limit: number,
 ) {
+  const totalPages = Math.ceil(total / limit);
   return {
     data,
     pagination: {
       current_page: page,
       per_page: limit,
       total,
-      total_pages: Math.ceil(total / limit),
-      has_next_page: page < Math.ceil(total / limit),
+      total_pages: totalPages,
+      has_next_page: page < totalPages,
       has_prev_page: page > 1,
     },
   };
+}
+
+// Helper function để chuẩn hóa việc gọi buildPaginationResponse
+export function buildPaginationResponseFromDto<T>(
+  data: T[],
+  total: number,
+  paginationDto: PaginationOptions,
+) {
+  const page = paginationDto.page || 1;
+  const limit = paginationDto.limit || 10;
+  return buildPaginationResponse(data, total, page, limit);
 }

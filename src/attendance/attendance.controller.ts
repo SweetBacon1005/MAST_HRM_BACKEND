@@ -29,7 +29,9 @@ import {
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import {
   ErrorResponseDto,
   ValidationErrorResponseDto,
@@ -57,7 +59,7 @@ import {
 
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @UsePipes(new ValidationPipe({ 
   transform: true, 
   whitelist: true, 
@@ -73,6 +75,7 @@ export class AttendanceController {
   // === TÍNH TOÁN CHẤM CÔNG CHI TIẾT ===
 
   @Post('calculate')
+  @RequirePermission('attendance.read')
   @ApiOperation({
     summary: 'Tính toán chấm công chi tiết với thời gian và phạt',
     description: 'API này tính toán chi tiết thời gian làm việc, phạt đi muộn/về sớm dựa trên thời gian check-in/out'
@@ -116,6 +119,7 @@ export class AttendanceController {
   }
 
   @Post('calculate-penalty')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Tính toán phạt đi muộn, về sớm' })
   @ApiResponse({ 
     status: HttpStatus.OK, 
@@ -159,16 +163,9 @@ export class AttendanceController {
   }
 
   @Get('work-shifts')
-  @ApiOperation({ summary: 'Lấy danh sách tất cả ca làm việc' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAllWorkShifts() {
-    return this.attendanceService.getAllWorkShifts();
-  }
-
-  @Get('work-shifts/paginated')
   @ApiOperation({ summary: 'Lấy danh sách ca làm việc có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAllWorkShiftsPaginated(@Query() paginationDto: WorkShiftPaginationDto) {
+  getAllWorkShifts(@Query() paginationDto: WorkShiftPaginationDto) {
     return this.attendanceService.getAllWorkShiftsPaginated(paginationDto);
   }
 
@@ -305,24 +302,9 @@ export class AttendanceController {
   // === QUẢN LÝ QUY ĐỊNH PHẠT ===
 
   @Get('penalty-rules')
-  @ApiOperation({ summary: 'Lấy danh sách quy định phạt' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRules() {
-    // Lấy từ bảng block_times
-    const blockTimes = await this.attendanceService[
-      'prisma'
-    ].block_times.findMany({
-      where: { deleted_at: null },
-      orderBy: { block: 'asc' },
-    });
-
-    return blockTimes;
-  }
-
-  @Get('penalty-rules/paginated')
   @ApiOperation({ summary: 'Lấy danh sách quy định phạt có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRulesPaginated(
+  async getPenaltyRules(
     @Query() paginationDto: PenaltyRulePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);

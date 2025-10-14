@@ -28,8 +28,10 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { PermissionGuard } from './guards/permission.guard';
 import { Public } from './decorators/public.decorator';
 import { GetCurrentUser } from './decorators/get-current-user.decorator';
+import { RequirePermission } from './decorators/require-permission.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -295,7 +297,8 @@ export class AuthController {
     return this.authService.resetPasswordWithToken(resetPasswordWithTokenDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission('user.profile.update')
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('JWT-auth')

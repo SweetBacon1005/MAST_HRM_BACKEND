@@ -1,0 +1,245 @@
+import { PrismaClient } from '@prisma/client';
+
+export async function seedRBAC(prisma: PrismaClient) {
+  console.log('🔐 Seeding RBAC (Roles, Permissions & Assignments)...');
+
+  // 1. Tạo permissions chi tiết theo modules
+  console.log('📝 Tạo permissions...');
+  const permissionData = [
+    // User Management
+    { name: 'user.read', description: 'Xem thông tin người dùng' },
+    { name: 'user.create', description: 'Tạo người dùng mới' },
+    { name: 'user.update', description: 'Cập nhật thông tin người dùng' },
+    { name: 'user.delete', description: 'Xóa người dùng' },
+    { name: 'user.profile.update', description: 'Cập nhật profile cá nhân' },
+    
+    // Project Management
+    { name: 'project.read', description: 'Xem dự án' },
+    { name: 'project.create', description: 'Tạo dự án mới' },
+    { name: 'project.update', description: 'Cập nhật dự án' },
+    { name: 'project.delete', description: 'Xóa dự án' },
+    { name: 'project.assign', description: 'Phân công nhân viên vào dự án' },
+    
+    // Timesheet Management
+    { name: 'timesheet.read', description: 'Xem timesheet' },
+    { name: 'timesheet.create', description: 'Tạo timesheet' },
+    { name: 'timesheet.update', description: 'Cập nhật timesheet' },
+    { name: 'timesheet.delete', description: 'Xóa timesheet' },
+    { name: 'timesheet.approve', description: 'Duyệt timesheet' },
+    { name: 'timesheet.statistics', description: 'Xem thống kê timesheet' },
+    
+    // Attendance Management
+    { name: 'attendance.read', description: 'Xem chấm công' },
+    { name: 'attendance.manage', description: 'Quản lý chấm công' },
+    { name: 'attendance.checkin', description: 'Check in/out' },
+    { name: 'attendance.statistics', description: 'Xem thống kê chấm công' },
+    
+    // Leave Management
+    { name: 'leave.read', description: 'Xem đơn nghỉ phép' },
+    { name: 'leave.create', description: 'Tạo đơn nghỉ phép' },
+    { name: 'leave.approve', description: 'Duyệt đơn nghỉ phép' },
+    { name: 'leave.balance.manage', description: 'Quản lý số dư nghỉ phép' },
+    
+    // Request Management (Remote, Overtime, Late/Early)
+    { name: 'request.read', description: 'Xem các đơn yêu cầu' },
+    { name: 'request.create', description: 'Tạo đơn yêu cầu' },
+    { name: 'request.approve', description: 'Duyệt đơn yêu cầu' },
+    { name: 'request.reject', description: 'Từ chối đơn yêu cầu' },
+    
+    // Report & Analytics
+    { name: 'report.read', description: 'Xem báo cáo' },
+    { name: 'report.export', description: 'Xuất báo cáo' },
+    { name: 'analytics.view', description: 'Xem phân tích dữ liệu' },
+    
+    // System Administration
+    { name: 'system.admin', description: 'Quản trị hệ thống' },
+    { name: 'system.config', description: 'Cấu hình hệ thống' },
+    { name: 'system.backup', description: 'Sao lưu dữ liệu' },
+    
+    // Organization Management
+    { name: 'organization.read', description: 'Xem cơ cấu tổ chức' },
+    { name: 'organization.manage', description: 'Quản lý cơ cấu tổ chức' },
+    { name: 'division.manage', description: 'Quản lý phòng ban' },
+    { name: 'team.manage', description: 'Quản lý team' },
+    
+    // Contract & Device Management
+    { name: 'contract.read', description: 'Xem hợp đồng' },
+    { name: 'contract.manage', description: 'Quản lý hợp đồng' },
+    { name: 'device.read', description: 'Xem thiết bị' },
+    { name: 'device.manage', description: 'Quản lý thiết bị' },
+  ];
+
+  await prisma.permissions.createMany({
+    data: permissionData.map(p => ({ name: p.name })),
+    skipDuplicates: true,
+  });
+
+  const permissions = await prisma.permissions.findMany({
+    where: { name: { in: permissionData.map(p => p.name) } },
+  });
+
+  // 2. Tạo roles với mô tả chi tiết
+  console.log('👥 Tạo roles...');
+  const roleData = [
+    { name: 'super_admin', description: 'Quản trị viên tối cao - toàn quyền hệ thống' },
+    { name: 'admin', description: 'Quản trị viên - quản lý toàn bộ hệ thống' },
+    { name: 'hr_manager', description: 'Quản lý nhân sự - quản lý nhân viên và chấm công' },
+    { name: 'project_manager', description: 'Quản lý dự án - quản lý dự án và phân công' },
+    { name: 'division_head', description: 'Trưởng phòng ban - quản lý phòng ban và nhân viên' },
+    { name: 'team_leader', description: 'Trưởng nhóm - quản lý team và duyệt đơn' },
+    { name: 'employee', description: 'Nhân viên - quyền cơ bản' },
+  ];
+
+  await prisma.roles.createMany({
+    data: roleData.map(r => ({ name: r.name })),
+    skipDuplicates: true,
+  });
+
+  const roles = await prisma.roles.findMany({
+    where: { name: { in: roleData.map(r => r.name) } },
+  });
+
+  // 3. Gán permissions cho roles
+  console.log('🔗 Gán permissions cho roles...');
+
+  // Helper function để tìm permission và role ID
+  const getPermissionId = (name: string) => permissions.find(p => p.name === name)?.id;
+  const getRoleId = (name: string) => roles.find(r => r.name === name)?.id;
+
+  // Permission assignments cho từng role
+  const rolePermissions = [
+    // SUPER ADMIN - Toàn quyền
+    {
+      role: 'super_admin',
+      permissions: permissionData.map(p => p.name), // Tất cả permissions
+    },
+
+    // ADMIN - Gần như toàn quyền, trừ một số system admin
+    {
+      role: 'admin',
+      permissions: [
+        'user.read', 'user.create', 'user.update', 'user.delete',
+        'project.read', 'project.create', 'project.update', 'project.delete', 'project.assign',
+        'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.delete', 'timesheet.approve', 'timesheet.statistics',
+        'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'leave.read', 'leave.create', 'leave.approve', 'leave.balance.manage',
+        'request.read', 'request.create', 'request.approve', 'request.reject',
+        'report.read', 'report.export', 'analytics.view',
+        'organization.read', 'organization.manage', 'division.manage', 'team.manage',
+        'contract.read', 'contract.manage', 'device.read', 'device.manage',
+      ],
+    },
+
+    // HR MANAGER - Quản lý nhân sự
+    {
+      role: 'hr_manager',
+      permissions: [
+        'user.read', 'user.create', 'user.update', 'user.profile.update',
+        'timesheet.read', 'timesheet.statistics',
+        'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'leave.read', 'leave.approve', 'leave.balance.manage',
+        'request.read', 'request.approve', 'request.reject',
+        'report.read', 'report.export',
+        'organization.read', 'division.manage', 'team.manage',
+        'contract.read', 'contract.manage', 'device.read', 'device.manage',
+      ],
+    },
+
+    // PROJECT MANAGER - Quản lý dự án
+    {
+      role: 'project_manager',
+      permissions: [
+        'user.read', 'user.profile.update',
+        'project.read', 'project.create', 'project.update', 'project.assign',
+        'timesheet.read', 'timesheet.approve', 'timesheet.statistics',
+        'attendance.read', 'attendance.statistics',
+        'leave.read', 'leave.approve',
+        'request.read', 'request.approve', 'request.reject',
+        'report.read', 'report.export', 'analytics.view',
+        'organization.read',
+      ],
+    },
+
+    // DIVISION HEAD - Trưởng phòng ban
+    {
+      role: 'division_head',
+      permissions: [
+        'user.read', 'user.update', 'user.profile.update',
+        'project.read', 'project.update', 'project.assign',
+        'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.approve', 'timesheet.statistics',
+        'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'leave.read', 'leave.create', 'leave.approve',
+        'request.read', 'request.create', 'request.approve', 'request.reject',
+        'report.read', 'report.export', 'analytics.view',
+        'organization.read', 'division.manage', 'team.manage',
+        'contract.read', 'device.read',
+      ],
+    },
+
+    // TEAM LEADER - Trưởng nhóm
+    {
+      role: 'team_leader',
+      permissions: [
+        'user.read', 'user.profile.update',
+        'project.read', 'project.update',
+        'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.approve',
+        'attendance.read', 'attendance.checkin',
+        'leave.read', 'leave.create', 'leave.approve',
+        'request.read', 'request.create', 'request.approve', 'request.reject',
+        'report.read',
+        'organization.read', 'team.manage',
+      ],
+    },
+
+    // EMPLOYEE - Nhân viên cơ bản
+    {
+      role: 'employee',
+      permissions: [
+        'user.read', 'user.profile.update',
+        'project.read',
+        'timesheet.read', 'timesheet.create', 'timesheet.update',
+        'attendance.read', 'attendance.checkin',
+        'leave.read', 'leave.create',
+        'request.read', 'request.create',
+        'organization.read',
+      ],
+    },
+  ];
+
+  // Tạo permission_role records
+  const permissionRoleData: Array<{ permission_id: number; role_id: number }> = [];
+
+  for (const rolePermission of rolePermissions) {
+    const roleId = getRoleId(rolePermission.role);
+    if (!roleId) continue;
+
+    for (const permissionName of rolePermission.permissions) {
+      const permissionId = getPermissionId(permissionName);
+      if (permissionId) {
+        permissionRoleData.push({
+          permission_id: permissionId,
+          role_id: roleId,
+        });
+      }
+    }
+  }
+
+  // Xóa các permission_role cũ để tránh duplicate
+  await prisma.permission_role.deleteMany({});
+
+  // Tạo mới permission_role
+  await prisma.permission_role.createMany({
+    data: permissionRoleData,
+    skipDuplicates: true,
+  });
+
+  console.log(`✅ Đã tạo ${permissions.length} permissions`);
+  console.log(`✅ Đã tạo ${roles.length} roles`);
+  console.log(`✅ Đã gán ${permissionRoleData.length} permission-role relationships`);
+
+  return {
+    permissions,
+    roles,
+    permissionRoleCount: permissionRoleData.length,
+  };
+}

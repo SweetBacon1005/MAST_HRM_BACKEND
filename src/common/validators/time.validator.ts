@@ -8,7 +8,7 @@ import {
  * Validates time string format HH:MM-HH:MM (e.g., "08:30-17:30")
  */
 export function IsTimeRange(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isTimeRange',
       target: object.constructor,
@@ -47,7 +47,7 @@ export function IsTimeRange(validationOptions?: ValidationOptions) {
  * Validates work time in minutes (reasonable range: 0-960 minutes = 16 hours)
  */
 export function IsWorkTimeMinutes(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isWorkTimeMinutes',
       target: object.constructor,
@@ -76,7 +76,7 @@ export function IsWorkTimeMinutes(validationOptions?: ValidationOptions) {
  * Validates late/early time in minutes (reasonable range: 0-480 minutes = 8 hours)
  */
 export function IsLateEarlyTime(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isLateEarlyTime',
       target: object.constructor,
@@ -105,7 +105,7 @@ export function IsLateEarlyTime(validationOptions?: ValidationOptions) {
  * Validates break time in minutes (reasonable range: 0-120 minutes = 2 hours)
  */
 export function IsBreakTime(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isBreakTime',
       target: object.constructor,
@@ -134,7 +134,7 @@ export function IsBreakTime(validationOptions?: ValidationOptions) {
  * Validates fines amount (reasonable range: 0-10,000,000 VND)
  */
 export function IsFinesAmount(validationOptions?: ValidationOptions) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isFinesAmount',
       target: object.constructor,
@@ -166,7 +166,7 @@ export function IsCheckoutAfterCheckin(
   checkinProperty: string,
   validationOptions?: ValidationOptions,
 ) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isCheckoutAfterCheckin',
       target: object.constructor,
@@ -201,7 +201,7 @@ export function IsApprovedLateTimeValid(
   lateTimeProperty: string,
   validationOptions?: ValidationOptions,
 ) {
-  return function (object: Object, propertyName: string) {
+  return function (object: object, propertyName: string) {
     registerDecorator({
       name: 'isApprovedLateTimeValid',
       target: object.constructor,

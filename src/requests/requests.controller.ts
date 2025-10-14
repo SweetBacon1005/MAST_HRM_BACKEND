@@ -19,7 +19,9 @@ import {
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
@@ -38,7 +40,7 @@ import { RequestsService } from './requests.service';
 
 @ApiTags('Requests')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('requests')
 export class RequestsController {
   constructor(private readonly requestsService: RequestsService) {}
@@ -57,9 +59,8 @@ export class RequestsController {
   }
 
   @Get('my/all')
-  @ApiOperation({
-    summary: 'Lấy tất cả requests của tôi có phân trang thống nhất',
-  })
+  @RequirePermission('request.read')
+  @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllMyRequests(
     @GetCurrentUser('id') userId: number,

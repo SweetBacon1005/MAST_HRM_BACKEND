@@ -887,4 +887,64 @@ export class UserProfileService {
       paginationDto.limit || 10,
     );
   }
+
+  async getLevelsPaginated(paginationDto: ReferencePaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: Prisma.levelsWhereInput = { deleted_at: null };
+
+    // Thêm filter theo search
+    if (paginationDto.search) {
+      where.name = {
+        contains: paginationDto.search,
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.levels.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+      }),
+      this.prisma.levels.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getLanguagesPaginated(paginationDto: ReferencePaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const where: Prisma.languagesWhereInput = { deleted_at: null };
+
+    // Thêm filter theo search
+    if (paginationDto.search) {
+      where.name = {
+        contains: paginationDto.search,
+      };
+    }
+
+    // Lấy dữ liệu và đếm tổng
+    const [data, total] = await Promise.all([
+      this.prisma.languages.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+      }),
+      this.prisma.languages.count({ where }),
+    ]);
+
+    return buildPaginationResponse(
+      data,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
 }

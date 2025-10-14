@@ -11,10 +11,14 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
 import { EmailService } from '../common/services/email.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { PermissionModule } from './permission.module';
+import { DivisionRolesGuard } from './guards/division-roles.guard';
+import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
 
 @Module({
   imports: [
     UsersModule,
+    PermissionModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -28,7 +32,21 @@ import { PrismaService } from 'src/database/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy, OtpService, EmailService, PrismaService],
-  exports: [AuthService],
+  providers: [
+    AuthService, 
+    LocalStrategy, 
+    JwtStrategy, 
+    JwtRefreshStrategy, 
+    OtpService, 
+    EmailService, 
+    PrismaService,
+    DivisionRolesGuard,
+    EnhancedRolesGuard,
+  ],
+  exports: [
+    AuthService, 
+    DivisionRolesGuard,
+    EnhancedRolesGuard,
+  ],
 })
 export class AuthModule {}

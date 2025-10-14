@@ -24,7 +24,9 @@ import {
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import {
   DateRangeValidationPipe,
   DateValidationPipe,
@@ -59,7 +61,7 @@ import { TimesheetService } from './timesheet.service';
 
 @ApiTags('Timesheet')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('timesheet')
 export class TimesheetController {
   constructor(private readonly timesheetService: TimesheetService) {}
@@ -67,6 +69,7 @@ export class TimesheetController {
   // === TIMESHEET MANAGEMENT ===
 
   @Post()
+  @RequirePermission('timesheet.create')
   @ApiOperation({ summary: 'Tạo timesheet mới' })
   @ApiResponse({ status: 201, description: 'Tạo timesheet thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
@@ -78,23 +81,10 @@ export class TimesheetController {
   }
 
   @Get('my-timesheets')
-  @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyTimesheets(
-    @GetCurrentUser('id') userId: number,
-    @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
-  ) {
-    return this.timesheetService.findAllTimesheets(
-      userId,
-      dateRange.start_date,
-      dateRange.end_date,
-    );
-  }
-
-  @Get('my-timesheets/paginated')
+  @RequirePermission('timesheet.read')
   @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyTimesheetsPaginated(
+  findMyTimesheets(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: TimesheetPaginationDto,
   ) {
@@ -238,17 +228,9 @@ export class TimesheetController {
   }
 
   @Get('holidays')
-  @ApiOperation({ summary: 'Lấy danh sách ngày lễ theo năm' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findAllHolidays(@Param('year') year: string) {
-    console.log(year);
-    return this.timesheetService.findAllHolidays(year);
-  }
-
-  @Get('holidays/paginated')
   @ApiOperation({ summary: 'Lấy danh sách ngày lễ có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findAllHolidaysPaginated(@Query() paginationDto: HolidayPaginationDto) {
+  findAllHolidays(@Query() paginationDto: HolidayPaginationDto) {
     return this.timesheetService.findAllHolidaysPaginated(paginationDto);
   }
 
@@ -349,24 +331,9 @@ export class TimesheetController {
   }
 
   @Get('attendance-logs')
-  @ApiOperation({ summary: 'Lấy danh sách logs chấm công' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAttendanceLogs(
-    @GetCurrentUser('id') currentUserId: number,
-    @GetCurrentUser('roles') userRoles: string[],
-    @Query() queryDto: AttendanceLogQueryDto,
-  ) {
-    return this.timesheetService.getAttendanceLogs(
-      currentUserId,
-      queryDto,
-      userRoles,
-    );
-  }
-
-  @Get('attendance-logs/paginated')
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAttendanceLogsPaginated(
+  getAttendanceLogs(
     @GetCurrentUser('id') currentUserId: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: AttendanceLogPaginationDto,

@@ -237,7 +237,7 @@ export class ScheduleAutomationService {
       const usersNeedTimesheet = activeUsers.filter(user => !existingUserIds.has(user.id));
 
       let createdCount = 0;
-      let skippedCount = existingUserIds.size;
+      const skippedCount = existingUserIds.size;
 
       if (usersNeedTimesheet.length > 0) {
         // Tạo timesheet hàng loạt
