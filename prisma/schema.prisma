@@ -624,6 +624,8 @@ model users {
     leave_transactions            leave_transactions[]
     late_early_requests           late_early_requests[]
     approved_late_early_requests  late_early_requests[]   @relation("LateEarlyApprover")
+    forgot_checkin_requests       forgot_checkin_requests[]
+    approved_forgot_checkin_requests forgot_checkin_requests[] @relation("ForgotCheckinApprover")
 }
 
 model working_times {
@@ -785,48 +787,85 @@ model holidays {
 }
 
 model time_sheets {
-    id                  Int                   @id @default(autoincrement())
-    user_id             Int
-    user                users                 @relation(fields: [user_id], references: [id])
-    work_date           DateTime              @db.Date // Ngày làm việc
-    checkin             DateTime?             @db.DateTime() // Thời gian check in
-    checkout            DateTime?             @db.DateTime() // Thời gian check out
-    checkin_checkout    String?
-    day_off_id          Int?
-    day_off             day_offs?             @relation(fields: [day_off_id], references: [id])
-    late_time           Int? // Phút đi muộn
-    late_time_approved  Int? // Phút đi muộn được duyệt
-    early_time          Int? // Phút về sớm
-    early_time_approved Int? // Phút về sớm được duyệt
-    is_complete         Boolean?              @default(false) // Hoàn thành đủ giờ làm việc (0: chưa, 1: đủ)
-    fines               Float? // Tiền phạt
-    deleted_at          DateTime?             @db.DateTime()
-    created_at          DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at          DateTime              @updatedAt
-    type                TimesheetType?        @default(NORMAL) // Loại timesheet (1: normal, 2: overtime, 3: holiday)
+    id       Int      @id @default(autoincrement())
+    user_id  Int
+    user     users    @relation(fields: [user_id], references: [id])
+    
+    // === BASIC INFO ===
+    work_date DateTime @db.Date // Ngày làm việc
+    type      TimesheetType? @default(NORMAL) // Loại timesheet: NORMAL, OVERTIME, HOLIDAY
+    status    TimesheetStatus? @default(PENDING) // Trạng thái: PENDING, APPROVED, REJECTED
+    
+    // === ATTENDANCE TIME ===
+    checkin  DateTime? @db.DateTime() // Thời gian check in
+    checkout DateTime? @db.DateTime() // Thời gian check out
+    checkin_checkout String?
+    
+    // === WORK TIME CALCULATION ===
     work_time_morning   Int? // Phút làm việc buổi sáng
-    work_time_afternoon Int? // Phút làm việc buổi chiều
-    status              TimesheetStatus?      @default(PENDING) // Trạng thái (0: pending, 1: approved, 2: rejected)
-    request_type        TimesheetRequestType? @default(NORMAL) // Loại yêu cầu
-    request_late        String? // Lý do xin phép đi muộn
-    request_early       String? // Lý do xin phép về sớm
-    remote              RemoteType?           @default(OFFICE) // Làm việc từ xa (0: office, 1: remote, 2: hybrid)
+    work_time_afternoon Int? // Phút làm việc buổi chiều  
     total_work_time     Int? // Tổng thời gian làm việc (phút)
     break_time          Int? // Thời gian nghỉ trưa (phút)
-    attendance_logs     attendance_logs[] // Relation với attendance_logs
-    attendance_sessions attendance_sessions[] // Relation với attendance_sessions
-    late_early_requests late_early_requests[] // Relation với late_early_requests
+    
+    // === LATE/EARLY TRACKING ===
+    late_time           Int? // Phút đi muộn (tính toán tự động)
+    late_time_approved  Int? // Phút đi muộn được duyệt (từ late_early_requests)
+    early_time          Int? // Phút về sớm (tính toán tự động)
+    early_time_approved Int? // Phút về sớm được duyệt (từ late_early_requests)
+    
+    // === WORK LOCATION ===
+    remote RemoteType? @default(OFFICE) // Làm việc từ xa: OFFICE, REMOTE, HYBRID
+    
+    // === DAY OFF INTEGRATION ===
+    day_off_id Int?
+    day_off    day_offs? @relation(fields: [day_off_id], references: [id])
+    
+    // === REQUEST STATUS FLAGS ===
+    has_forgot_checkin_request Boolean? @default(false) // Có đơn xin bổ sung chấm công
+    has_late_early_request     Boolean? @default(false) // Có đơn xin đi muộn về sớm
+    has_remote_work_request    Boolean? @default(false) // Có đơn xin làm từ xa
+    forgot_checkin_approved    Boolean? @default(false) // Đơn bổ sung chấm công đã được duyệt
+    late_early_approved        Boolean? @default(false) // Đơn đi muộn về sớm đã được duyệt
+    remote_work_approved       Boolean? @default(false) // Đơn làm từ xa đã được duyệt
+    
+    // === BUSINESS LOGIC ===
+    is_complete Boolean? @default(false) // Hoàn thành đủ giờ làm việc
+    fines       Float? // Tiền phạt do đi muộn/về sớm
+    
+    // === AUDIT FIELDS ===
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime()
+    
+    // === RELATIONS ===
+    attendance_logs         attendance_logs[] // Relation với attendance_logs
+    attendance_sessions     attendance_sessions[] // Relation với attendance_sessions
+    late_early_requests     late_early_requests[] // Relation với late_early_requests
+    forgot_checkin_requests forgot_checkin_requests[] // Relation với forgot_checkin_requests
+    remote_work_requests    remote_work_requests[] // Relation với remote_work_requests
 
+    // === CONSTRAINTS & INDEXES ===
     @@unique([user_id, work_date]) // Mỗi user chỉ có 1 timesheet/ngày
+    
+    // Core indexes
     @@index([user_id])
     @@index([work_date])
     @@index([user_id, work_date])
-    @@index([day_off_id])
     @@index([status])
     @@index([type])
-    @@index([work_date, status]) // Để lọc theo ngày và trạng thái
-    @@index([user_id, status]) // Để lọc theo user và trạng thái
-    @@index([deleted_at]) // Để tối ưu soft delete queries
+    @@index([deleted_at])
+    
+    // Business logic indexes
+    @@index([work_date, status]) // Lọc theo ngày và trạng thái
+    @@index([user_id, status]) // Lọc theo user và trạng thái
+    @@index([user_id, work_date, status]) // Composite cho queries phức tạp
+    @@index([day_off_id])
+    @@index([remote]) // Lọc theo loại remote work
+    @@index([has_forgot_checkin_request]) // Tìm timesheet có đơn forgot checkin
+    @@index([has_late_early_request]) // Tìm timesheet có đơn late/early
+    @@index([has_remote_work_request]) // Tìm timesheet có đơn remote work
+    @@index([work_date, remote]) // Lọc remote work theo ngày
+    @@index([user_id, type, work_date]) // Lọc theo user và loại timesheet
 }
 
 model attendance_sessions {
@@ -1316,6 +1355,7 @@ model remote_work_requests {
     user             users           @relation(fields: [user_id], references: [id])
     work_date        DateTime        @db.Date
     remote_type      RemoteType      @default(REMOTE)
+    duration         DayOffDuration  @default(FULL_DAY) // Thời gian làm từ xa: cả ngày, sáng, chiều
     title            String          @db.VarChar(255) // Tiêu đề đơn xin làm từ xa
     reason           String?         @db.Text // Lý do làm từ xa
     status           TimesheetStatus @default(PENDING)
@@ -1323,6 +1363,8 @@ model remote_work_requests {
     approved_by_user users?          @relation("RemoteWorkApprover", fields: [approved_by], references: [id])
     approved_at      DateTime?       @db.DateTime()
     rejected_reason  String?         @db.Text
+    timesheet_id     Int? // Link tới timesheet
+    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
     created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at       DateTime        @updatedAt
     deleted_at       DateTime?       @db.DateTime()
@@ -1336,6 +1378,8 @@ model remote_work_requests {
     @@index([approved_by])
     @@index([created_at])
     @@index([remote_type])
+    @@index([duration])
+    @@index([timesheet_id])
 }
 
 model user_leave_balances {
@@ -1408,6 +1452,36 @@ model late_early_requests {
     @@index([work_date])
     @@index([status])
     @@index([request_type])
+    @@index([user_id, work_date])
+    @@index([deleted_at])
+    @@index([approved_by])
+    @@index([timesheet_id])
+}
+
+model forgot_checkin_requests {
+    id               Int             @id @default(autoincrement())
+    user_id          Int
+    user             users           @relation(fields: [user_id], references: [id])
+    work_date        DateTime        @db.Date // Ngày quên chấm công
+    checkin_time     DateTime?       @db.DateTime() // Thời gian checkin thực tế
+    checkout_time    DateTime?       @db.DateTime() // Thời gian checkout thực tế
+    title            String          @db.VarChar(255) // Tiêu đề đơn xin bổ sung chấm công
+    reason           String          @db.Text // Lý do quên chấm công
+    status           TimesheetStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+    approved_by      Int? // ID người duyệt
+    approved_by_user users?          @relation("ForgotCheckinApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?       @db.DateTime() // Thời gian duyệt
+    rejected_reason  String?         @db.Text // Lý do từ chối
+    timesheet_id     Int? // Link tới timesheet
+    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
+    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime        @updatedAt
+    deleted_at       DateTime?       @db.DateTime()
+
+    @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_forgot_checkin")
+    @@index([user_id])
+    @@index([work_date])
+    @@index([status])
     @@index([user_id, work_date])
     @@index([deleted_at])
     @@index([approved_by])

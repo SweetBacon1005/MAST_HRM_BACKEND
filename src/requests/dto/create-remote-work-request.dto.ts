@@ -1,5 +1,5 @@
 import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RemoteType } from '@prisma/client';
+import { RemoteType, DayOffDuration } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -31,6 +31,15 @@ export class CreateRemoteWorkRequestDto {
   @IsNotEmpty({ message: 'Loại remote là bắt buộc' })
   @IsEnum(RemoteType, { message: 'Loại remote không hợp lệ' })
   remote_type: RemoteType;
+
+  @ApiProperty({
+    description: 'Thời gian làm từ xa trong ngày',
+    enum: DayOffDuration,
+    example: DayOffDuration.FULL_DAY,
+  })
+  @IsNotEmpty({ message: 'Thời gian làm từ xa là bắt buộc' })
+  @IsEnum(DayOffDuration, { message: 'Thời gian làm từ xa không hợp lệ' })
+  duration: DayOffDuration;
 
   @ApiProperty({
     description: 'Tiêu đề đơn xin làm từ xa',
