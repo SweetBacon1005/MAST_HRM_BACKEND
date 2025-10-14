@@ -13,6 +13,8 @@ import { PermissionService } from './services/permission.service';
 import { PermissionHelperService } from './services/permission-helper.service';
 import { EmailService } from '../common/services/email.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { DivisionRolesGuard } from './guards/division-roles.guard';
+import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
 
 @Module({
   imports: [
@@ -30,7 +32,25 @@ import { PrismaService } from 'src/database/prisma.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, JwtRefreshStrategy, OtpService, PermissionService, PermissionHelperService, EmailService, PrismaService],
-  exports: [AuthService, PermissionService, PermissionHelperService],
+  providers: [
+    AuthService, 
+    LocalStrategy, 
+    JwtStrategy, 
+    JwtRefreshStrategy, 
+    OtpService, 
+    PermissionService, 
+    PermissionHelperService, 
+    EmailService, 
+    PrismaService,
+    DivisionRolesGuard,
+    EnhancedRolesGuard,
+  ],
+  exports: [
+    AuthService, 
+    PermissionService, 
+    PermissionHelperService, 
+    DivisionRolesGuard,
+    EnhancedRolesGuard,
+  ],
 })
 export class AuthModule {}
