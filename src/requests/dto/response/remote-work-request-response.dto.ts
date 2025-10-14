@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RemoteType, TimesheetStatus } from '@prisma/client';
+import { RemoteType, TimesheetStatus, DayOffDuration } from '@prisma/client';
 
 export class RemoteWorkRequestResponseDto {
   @ApiProperty({
@@ -26,6 +26,13 @@ export class RemoteWorkRequestResponseDto {
     example: RemoteType.REMOTE,
   })
   remote_type: RemoteType;
+
+  @ApiProperty({
+    description: 'Thời gian làm từ xa trong ngày',
+    enum: DayOffDuration,
+    example: DayOffDuration.FULL_DAY,
+  })
+  duration: DayOffDuration;
 
   @ApiProperty({
     description: 'Tiêu đề đơn xin làm từ xa',

@@ -26,6 +26,7 @@ import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import {
   RemoteWorkRequestPaginationDto,
   RequestPaginationDto,
@@ -33,6 +34,7 @@ import {
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
+import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { RequestType } from './interfaces/request.interface';
 import { RequestsService } from './requests.service';
 
@@ -307,14 +309,14 @@ export class RequestsController {
   @ApiParam({
     name: 'type',
     description: 'Loại request',
-    enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
+    enum: ['remote-work', 'day-off', 'overtime', 'late-early', 'forgot-checkin'],
     example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiResponse({ status: 200, description: 'Duyệt thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async approveRequest(
-    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early',
+    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early' | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
   ) {
@@ -331,7 +333,7 @@ export class RequestsController {
   @ApiParam({
     name: 'type',
     description: 'Loại request',
-    enum: ['remote-work', 'day-off', 'overtime', 'late-early'],
+    enum: ['remote-work', 'day-off', 'overtime', 'late-early', 'forgot-checkin'],
     example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
@@ -350,7 +352,7 @@ export class RequestsController {
   @ApiResponse({ status: 200, description: 'Từ chối thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async rejectRequest(
-    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early',
+    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early' | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
     @Body('rejected_reason') rejectedReason: string,
@@ -362,4 +364,54 @@ export class RequestsController {
       rejectedReason,
     );
   }
+
+  // ==================== FORGOT CHECKIN ENDPOINTS ====================
+
+  @Post('forgot-checkin')
+  @ApiOperation({ summary: 'Tạo đơn xin bổ sung chấm công' })
+  @ApiBody({ type: CreateForgotCheckinRequestDto })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Tạo đơn thành công',
+    type: ForgotCheckinRequestResponseDto 
+  })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  async createForgotCheckinRequest(
+    @Body() dto: CreateForgotCheckinRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    dto.user_id = userId;
+    return await this.requestsService.createForgotCheckinRequest(dto);
+  }
+
+  @Get('forgot-checkin')
+  @Roles('ADMIN', 'MANAGER')
+  @ApiOperation({ summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Manager)' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
+  @ApiQuery({ name: 'start_date', required: false, type: String })
+  @ApiQuery({ name: 'end_date', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async getAllForgotCheckinRequests(
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    return await this.requestsService.findAllForgotCheckinRequests(paginationDto);
+  }
+
+  @Get('forgot-checkin/my')
+  @ApiOperation({ summary: 'Lấy đơn xin bổ sung chấm công của tôi' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
+  @ApiQuery({ name: 'start_date', required: false, type: String })
+  @ApiQuery({ name: 'end_date', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  async getMyForgotCheckinRequests(
+    @GetCurrentUser('id') userId: number,
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    return await this.requestsService.findMyForgotCheckinRequests(userId, paginationDto);
+  }
+
 }

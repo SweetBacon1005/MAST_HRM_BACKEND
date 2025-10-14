@@ -5,6 +5,7 @@ export enum RequestType {
   OVERTIME = 'overtime',
   REMOTE_WORK = 'remote-work',
   LATE_EARLY = 'late-early',
+  FORGOT_CHECKIN = 'forgot-checkin',
 }
 
 export enum RequestStatus {
@@ -66,11 +67,22 @@ export interface LateEarlyRequestResponse extends BaseRequestResponse {
   reason: string;
 }
 
+export interface ForgotCheckinRequestResponse extends BaseRequestResponse {
+  type: RequestType.FORGOT_CHECKIN;
+  work_date: Date;
+  checkin_time?: string;
+  checkout_time?: string;
+  title: string;
+  reason: string;
+  timesheet_id?: number;
+}
+
 export type RequestResponse = 
   | DayOffRequestResponse 
   | OvertimeRequestResponse 
   | RemoteWorkRequestResponse
-  | LateEarlyRequestResponse;
+  | LateEarlyRequestResponse
+  | ForgotCheckinRequestResponse;
 
 export interface RequestValidationResult {
   isValid: boolean;
