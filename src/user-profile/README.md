@@ -381,32 +381,26 @@ interface Experience {
 - `PUT /user-profile/information` - Cập nhật thông tin cá nhân
 - `POST /user-profile/upload-avatar` - Upload avatar
 
-### Children Management
-- `GET /user-profile/children` - Lấy danh sách con (paginated)
-- `POST /user-profile/children` - Thêm thông tin con
-- `PUT /user-profile/children/:id` - Cập nhật thông tin con
-- `DELETE /user-profile/children/:id` - Xóa thông tin con
-
 ### Education Management
-- `GET /user-profile/education` - Lấy danh sách học vấn (paginated)
+- `GET /user-profile/education` - Lấy danh sách học vấn (có phân trang)
 - `POST /user-profile/education` - Thêm học vấn
 - `PUT /user-profile/education/:id` - Cập nhật học vấn
 - `DELETE /user-profile/education/:id` - Xóa học vấn
 
 ### Experience Management
-- `GET /user-profile/experience` - Lấy danh sách kinh nghiệm (paginated)
+- `GET /user-profile/experience` - Lấy danh sách kinh nghiệm (có phân trang)
 - `POST /user-profile/experience` - Thêm kinh nghiệm
 - `PUT /user-profile/experience/:id` - Cập nhật kinh nghiệm
 - `DELETE /user-profile/experience/:id` - Xóa kinh nghiệm
 
 ### Certificate Management
-- `GET /user-profile/certificates` - Lấy danh sách chứng chỉ (paginated)
+- `GET /user-profile/certificates` - Lấy danh sách chứng chỉ (có phân trang)
 - `POST /user-profile/certificates` - Thêm chứng chỉ
 - `PUT /user-profile/certificates/:id` - Cập nhật chứng chỉ
 - `DELETE /user-profile/certificates/:id` - Xóa chứng chỉ
 
 ### Skill Management
-- `GET /user-profile/skills` - Lấy danh sách kỹ năng (paginated)
+- `GET /user-profile/skills` - Lấy danh sách kỹ năng (có phân trang)
 - `POST /user-profile/skills` - Thêm kỹ năng
 - `PUT /user-profile/skills/:id` - Cập nhật kỹ năng
 - `DELETE /user-profile/skills/:id` - Xóa kỹ năng

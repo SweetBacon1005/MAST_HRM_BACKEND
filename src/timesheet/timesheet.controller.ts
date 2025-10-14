@@ -82,23 +82,9 @@ export class TimesheetController {
 
   @Get('my-timesheets')
   @RequirePermission('timesheet.read')
-  @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyTimesheets(
-    @GetCurrentUser('id') userId: number,
-    @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
-  ) {
-    return this.timesheetService.findAllTimesheets(
-      userId,
-      dateRange.start_date,
-      dateRange.end_date,
-    );
-  }
-
-  @Get('my-timesheets/paginated')
   @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findMyTimesheetsPaginated(
+  findMyTimesheets(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: TimesheetPaginationDto,
   ) {
@@ -242,17 +228,9 @@ export class TimesheetController {
   }
 
   @Get('holidays')
-  @ApiOperation({ summary: 'Lấy danh sách ngày lễ theo năm' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findAllHolidays(@Param('year') year: string) {
-    console.log(year);
-    return this.timesheetService.findAllHolidays(year);
-  }
-
-  @Get('holidays/paginated')
   @ApiOperation({ summary: 'Lấy danh sách ngày lễ có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  findAllHolidaysPaginated(@Query() paginationDto: HolidayPaginationDto) {
+  findAllHolidays(@Query() paginationDto: HolidayPaginationDto) {
     return this.timesheetService.findAllHolidaysPaginated(paginationDto);
   }
 
@@ -353,24 +331,9 @@ export class TimesheetController {
   }
 
   @Get('attendance-logs')
-  @ApiOperation({ summary: 'Lấy danh sách logs chấm công' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAttendanceLogs(
-    @GetCurrentUser('id') currentUserId: number,
-    @GetCurrentUser('roles') userRoles: string[],
-    @Query() queryDto: AttendanceLogQueryDto,
-  ) {
-    return this.timesheetService.getAttendanceLogs(
-      currentUserId,
-      queryDto,
-      userRoles,
-    );
-  }
-
-  @Get('attendance-logs/paginated')
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAttendanceLogsPaginated(
+  getAttendanceLogs(
     @GetCurrentUser('id') currentUserId: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: AttendanceLogPaginationDto,

@@ -48,22 +48,12 @@ export class UsersController {
 
   @Get()
   @RequirePermission('user.read')
-  @ApiOperation({ summary: 'Lấy danh sách tất cả users' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách users',
-  })
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @Get('paginated')
   @ApiOperation({ summary: 'Lấy danh sách users có phân trang' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách users có phân trang',
   })
-  findAllPaginated(@Query() paginationDto: UsersPaginationDto) {
+  findAll(@Query() paginationDto: UsersPaginationDto) {
     return this.usersService.findAllPaginated(paginationDto);
   }
 

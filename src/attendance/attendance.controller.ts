@@ -163,16 +163,9 @@ export class AttendanceController {
   }
 
   @Get('work-shifts')
-  @ApiOperation({ summary: 'Lấy danh sách tất cả ca làm việc' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAllWorkShifts() {
-    return this.attendanceService.getAllWorkShifts();
-  }
-
-  @Get('work-shifts/paginated')
   @ApiOperation({ summary: 'Lấy danh sách ca làm việc có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getAllWorkShiftsPaginated(@Query() paginationDto: WorkShiftPaginationDto) {
+  getAllWorkShifts(@Query() paginationDto: WorkShiftPaginationDto) {
     return this.attendanceService.getAllWorkShiftsPaginated(paginationDto);
   }
 
@@ -309,24 +302,9 @@ export class AttendanceController {
   // === QUẢN LÝ QUY ĐỊNH PHẠT ===
 
   @Get('penalty-rules')
-  @ApiOperation({ summary: 'Lấy danh sách quy định phạt' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRules() {
-    // Lấy từ bảng block_times
-    const blockTimes = await this.attendanceService[
-      'prisma'
-    ].block_times.findMany({
-      where: { deleted_at: null },
-      orderBy: { block: 'asc' },
-    });
-
-    return blockTimes;
-  }
-
-  @Get('penalty-rules/paginated')
   @ApiOperation({ summary: 'Lấy danh sách quy định phạt có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRulesPaginated(
+  async getPenaltyRules(
     @Query() paginationDto: PenaltyRulePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);

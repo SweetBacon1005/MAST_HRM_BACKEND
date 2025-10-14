@@ -1416,7 +1416,7 @@ export class RequestsService {
     userId?: number,
     paginationDto: RequestPaginationDto = {},
   ): Promise<any> {
-    const { skip, take } = buildPaginationQuery(paginationDto);
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const whereClause = { user_id: userId, deleted_at: null };
 
@@ -1439,7 +1439,7 @@ export class RequestsService {
             },
           },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: orderBy || { created_at: 'desc' },
         skip,
         take,
       }),
