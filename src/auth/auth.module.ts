@@ -9,16 +9,16 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
-import { PermissionService } from './services/permission.service';
-import { PermissionHelperService } from './services/permission-helper.service';
 import { EmailService } from '../common/services/email.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { PermissionModule } from './permission.module';
 import { DivisionRolesGuard } from './guards/division-roles.guard';
 import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
 
 @Module({
   imports: [
     UsersModule,
+    PermissionModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -38,8 +38,6 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     JwtStrategy, 
     JwtRefreshStrategy, 
     OtpService, 
-    PermissionService, 
-    PermissionHelperService, 
     EmailService, 
     PrismaService,
     DivisionRolesGuard,
@@ -47,8 +45,6 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
   ],
   exports: [
     AuthService, 
-    PermissionService, 
-    PermissionHelperService, 
     DivisionRolesGuard,
     EnhancedRolesGuard,
   ],
