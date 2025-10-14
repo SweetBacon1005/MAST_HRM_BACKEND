@@ -17,6 +17,7 @@ import { PrismaService } from '../database/prisma.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
+import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
 import {
@@ -24,6 +25,7 @@ import {
   RequestPaginationDto,
 } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
+import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
@@ -112,14 +114,41 @@ export class RequestsService {
       );
     }
 
+    // Tìm hoặc tạo timesheet cho ngày đó
+    let timesheet = await this.prisma.time_sheets.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+      },
+    });
+
+    if (!timesheet) {
+      timesheet = await this.prisma.time_sheets.create({
+        data: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          status: TimesheetStatus.PENDING,
+          type: 'NORMAL',
+        },
+      });
+    }
+
+    // Cập nhật timesheet để đánh dấu có đơn xin làm từ xa
+    await this.prisma.time_sheets.update({
+      where: { id: timesheet.id },
+      data: { has_remote_work_request: true },
+    });
+
     return await this.prisma.remote_work_requests.create({
       data: {
         user_id: dto.user_id,
         work_date: workDate,
         remote_type: dto.remote_type,
+        duration: dto.duration,
         title: dto.title,
         reason: dto.reason,
         status: TimesheetStatus.PENDING,
+        timesheet_id: timesheet.id,
       },
     });
   }
@@ -255,9 +284,7 @@ export class RequestsService {
     });
   }
 
-  async findAllDayOffRequests(
-    paginationDto: RequestPaginationDto = {},
-  ) {
+  async findAllDayOffRequests(paginationDto: RequestPaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const where: any = { deleted_at: null };
@@ -347,7 +374,6 @@ export class RequestsService {
       throw new BadRequestException('Không tìm thấy dự án được chọn');
     }
 
-
     // Check existing overtime request for the same date
     const existingOvertime = await this.prisma.over_times_history.findFirst({
       where: {
@@ -372,10 +398,10 @@ export class RequestsService {
     // Validate working hours (không thể làm tăng ca trong giờ hành chính)
     const normalWorkStart = 8 * 60; // 08:00
     const normalWorkEnd = 17 * 60; // 17:00
-    
+
     if (startMinutes < normalWorkEnd && endMinutes > normalWorkStart) {
       throw new BadRequestException(
-        'Thời gian tăng ca không được trùng với giờ hành chính (08:00 - 17:00)'
+        'Thời gian tăng ca không được trùng với giờ hành chính (08:00 - 17:00)',
       );
     }
 
@@ -388,8 +414,12 @@ export class RequestsService {
         user_id: dto.user_id,
         work_date: workDate,
         title: dto.title,
-        start_time: new Date(`${workDate.toISOString().split('T')[0]} ${dto.start_time}`),
-        end_time: new Date(`${workDate.toISOString().split('T')[0]} ${dto.end_time}`),
+        start_time: new Date(
+          `${workDate.toISOString().split('T')[0]} ${dto.start_time}`,
+        ),
+        end_time: new Date(
+          `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
+        ),
         total_hours: totalHours,
         hourly_rate: hourlyRate, // Tính từ bảng over_times và user level
         total_amount: totalAmount, // Tính từ total_hours * hourly_rate
@@ -407,9 +437,7 @@ export class RequestsService {
     } as OvertimeRequestResponseDto;
   }
 
-  async findAllOvertimeRequests(
-    paginationDto: RequestPaginationDto = {},
-  ) {
+  async findAllOvertimeRequests(paginationDto: RequestPaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const where: any = { deleted_at: null };
@@ -491,90 +519,112 @@ export class RequestsService {
 
     // Build where conditions for filtering
     const whereConditions: any = { deleted_at: null };
-    
+
     if (paginationDto.status) {
       whereConditions.status = paginationDto.status;
     }
-    
-    const dateFilter = paginationDto.start_date && paginationDto.end_date ? {
-      gte: new Date(paginationDto.start_date),
-      lte: new Date(paginationDto.end_date),
-    } : undefined;
+
+    const dateFilter =
+      paginationDto.start_date && paginationDto.end_date
+        ? {
+            gte: new Date(paginationDto.start_date),
+            lte: new Date(paginationDto.end_date),
+          }
+        : undefined;
 
     // Get all requests from different tables with unified structure
-    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.day_offs.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          project: { select: { name: true, code: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-    ]);
+    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData, forgotCheckinData] =
+      await Promise.all([
+        this.prisma.remote_work_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.day_offs.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.over_times_history.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            project: { select: { name: true, code: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.late_early_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.forgot_checkin_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+      ]);
 
     // Combine and format all requests with type information
     const allRequests = [
-      ...remoteWorkData.map(req => ({
+      ...remoteWorkData.map((req) => ({
         ...req,
         request_type: 'REMOTE_WORK' as const,
       })),
-      ...dayOffData.map(req => ({
+      ...dayOffData.map((req) => ({
         ...req,
         request_type: 'DAY_OFF' as const,
       })),
-      ...overtimeData.map(req => ({
+      ...overtimeData.map((req) => ({
         ...req,
         request_type: 'OVERTIME' as const,
         start_time: req.start_time?.toTimeString().slice(0, 5),
         end_time: req.end_time?.toTimeString().slice(0, 5),
       })),
-      ...lateEarlyData.map(req => ({
+      ...lateEarlyData.map((req) => ({
         ...req,
         request_type: 'LATE_EARLY' as const,
+      })),
+      ...forgotCheckinData.map((req) => ({
+        ...req,
+        request_type: 'FORGOT_CHECKIN' as const,
+        checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
+        checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
       })),
     ];
 
     // Sort by created_at desc (or other criteria)
-    const sortField = orderBy && typeof orderBy === 'object' && orderBy.created_at 
-      ? 'created_at' 
-      : 'created_at';
-    const sortOrder = orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc' 
-      ? 'asc' 
-      : 'desc';
+    const sortField =
+      orderBy && typeof orderBy === 'object' && orderBy.created_at
+        ? 'created_at'
+        : 'created_at';
+    const sortOrder =
+      orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc'
+        ? 'asc'
+        : 'desc';
 
     allRequests.sort((a, b) => {
       const aDate = new Date(a[sortField]).getTime();
@@ -602,90 +652,112 @@ export class RequestsService {
 
     // Build where conditions for filtering
     const whereConditions: any = { user_id: userId, deleted_at: null };
-    
+
     if (paginationDto.status) {
       whereConditions.status = paginationDto.status;
     }
-    
-    const dateFilter = paginationDto.start_date && paginationDto.end_date ? {
-      gte: new Date(paginationDto.start_date),
-      lte: new Date(paginationDto.end_date),
-    } : undefined;
+
+    const dateFilter =
+      paginationDto.start_date && paginationDto.end_date
+        ? {
+            gte: new Date(paginationDto.start_date),
+            lte: new Date(paginationDto.end_date),
+          }
+        : undefined;
 
     // Get all requests from different tables with unified structure
-    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.day_offs.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          project: { select: { name: true, code: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
-        },
-      }),
-    ]);
+    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData, forgotCheckinData] =
+      await Promise.all([
+        this.prisma.remote_work_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.day_offs.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.over_times_history.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            project: { select: { name: true, code: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.late_early_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        this.prisma.forgot_checkin_requests.findMany({
+          where: {
+            ...whereConditions,
+            ...(dateFilter && { work_date: dateFilter }),
+          },
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+            approved_by_user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+      ]);
 
     // Combine and format all requests with type information
     const allRequests = [
-      ...remoteWorkData.map(req => ({
+      ...remoteWorkData.map((req) => ({
         ...req,
         request_type: 'REMOTE_WORK' as const,
       })),
-      ...dayOffData.map(req => ({
+      ...dayOffData.map((req) => ({
         ...req,
         request_type: 'DAY_OFF' as const,
       })),
-      ...overtimeData.map(req => ({
+      ...overtimeData.map((req) => ({
         ...req,
         request_type: 'OVERTIME' as const,
         start_time: req.start_time?.toTimeString().slice(0, 5),
         end_time: req.end_time?.toTimeString().slice(0, 5),
       })),
-      ...lateEarlyData.map(req => ({
+      ...lateEarlyData.map((req) => ({
         ...req,
         request_type: 'LATE_EARLY' as const,
+      })),
+      ...forgotCheckinData.map((req) => ({
+        ...req,
+        request_type: 'FORGOT_CHECKIN' as const,
+        checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
+        checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
       })),
     ];
 
     // Sort by created_at desc (or other criteria)
-    const sortField = orderBy && typeof orderBy === 'object' && orderBy.created_at 
-      ? 'created_at' 
-      : 'created_at';
-    const sortOrder = orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc' 
-      ? 'asc' 
-      : 'desc';
+    const sortField =
+      orderBy && typeof orderBy === 'object' && orderBy.created_at
+        ? 'created_at'
+        : 'created_at';
+    const sortOrder =
+      orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc'
+        ? 'asc'
+        : 'desc';
 
     allRequests.sort((a, b) => {
       const aDate = new Date(a[sortField]).getTime();
@@ -706,7 +778,7 @@ export class RequestsService {
   }
 
   async getMyRequestsStats(userId: number) {
-    const [remoteWork, dayOffs, overtimes, lateEarly] = await Promise.all([
+    const [remoteWork, dayOffs, overtimes, lateEarly, forgotCheckin] = await Promise.all([
       this.prisma.remote_work_requests.groupBy({
         by: ['status'],
         where: { user_id: userId, deleted_at: null },
@@ -723,6 +795,11 @@ export class RequestsService {
         _count: { status: true },
       }),
       this.prisma.late_early_requests.groupBy({
+        by: ['status'],
+        where: { user_id: userId, deleted_at: null },
+        _count: { status: true },
+      }),
+      this.prisma.forgot_checkin_requests.groupBy({
         by: ['status'],
         where: { user_id: userId, deleted_at: null },
         _count: { status: true },
@@ -744,33 +821,39 @@ export class RequestsService {
     const dayOffStats = getStatusCounts(dayOffs);
     const overtimeStats = getStatusCounts(overtimes);
     const lateEarlyStats = getStatusCounts(lateEarly);
+    const forgotCheckinStats = getStatusCounts(forgotCheckin);
 
     return {
       total:
         remoteWorkStats.total +
         dayOffStats.total +
         overtimeStats.total +
-        lateEarlyStats.total,
+        lateEarlyStats.total +
+        forgotCheckinStats.total,
       pending:
         remoteWorkStats.pending +
         dayOffStats.pending +
         overtimeStats.pending +
-        lateEarlyStats.pending,
+        lateEarlyStats.pending +
+        forgotCheckinStats.pending,
       approved:
         remoteWorkStats.approved +
         dayOffStats.approved +
         overtimeStats.approved +
-        lateEarlyStats.approved,
+        lateEarlyStats.approved +
+        forgotCheckinStats.approved,
       rejected:
         remoteWorkStats.rejected +
         dayOffStats.rejected +
         overtimeStats.rejected +
-        lateEarlyStats.rejected,
+        lateEarlyStats.rejected +
+        forgotCheckinStats.rejected,
       by_type: {
         [RequestType.REMOTE_WORK]: remoteWorkStats,
         [RequestType.DAY_OFF]: dayOffStats,
         [RequestType.OVERTIME]: overtimeStats,
         [RequestType.LATE_EARLY]: lateEarlyStats,
+        [RequestType.FORGOT_CHECKIN]: forgotCheckinStats,
       },
     };
   }
@@ -1035,28 +1118,57 @@ export class RequestsService {
   private async updateTimesheetRemoteType(
     request: RemoteWorkRequestResponseDto,
   ) {
-    let timesheet = await this.prisma.time_sheets.findFirst({
-      where: {
-        user_id: request.user_id,
-        work_date: request.work_date,
-        deleted_at: null,
-      },
+    // Tìm timesheet thông qua liên kết trực tiếp
+    const remoteRequest = await this.prisma.remote_work_requests.findFirst({
+      where: { id: request.id, deleted_at: null },
+      include: { timesheet: true },
     });
 
-    if (!timesheet) {
-      timesheet = await this.prisma.time_sheets.create({
-        data: {
-          user_id: request.user_id,
-          work_date: request.work_date,
+    if (remoteRequest?.timesheet) {
+      // Cập nhật timesheet với thông tin remote work đã được duyệt
+      await this.prisma.time_sheets.update({
+        where: { id: remoteRequest.timesheet.id },
+        data: { 
           remote: request.remote_type,
-          status: TimesheetStatus.PENDING,
-          type: 'NORMAL',
+          remote_work_approved: true,
         },
       });
     } else {
-      await this.prisma.time_sheets.update({
-        where: { id: timesheet.id },
-        data: { remote: request.remote_type },
+      // Fallback: tìm theo user_id và work_date (trường hợp cũ)
+      let timesheet = await this.prisma.time_sheets.findFirst({
+        where: {
+          user_id: request.user_id,
+          work_date: request.work_date,
+          deleted_at: null,
+        },
+      });
+
+      if (!timesheet) {
+        timesheet = await this.prisma.time_sheets.create({
+          data: {
+            user_id: request.user_id,
+            work_date: request.work_date,
+            remote: request.remote_type,
+            status: TimesheetStatus.PENDING,
+            type: 'NORMAL',
+            has_remote_work_request: true,
+            remote_work_approved: true,
+          },
+        });
+      } else {
+        await this.prisma.time_sheets.update({
+          where: { id: timesheet.id },
+          data: { 
+            remote: request.remote_type,
+            remote_work_approved: true,
+          },
+        });
+      }
+
+      // Cập nhật remote request với timesheet_id
+      await this.prisma.remote_work_requests.update({
+        where: { id: request.id },
+        data: { timesheet_id: timesheet.id },
       });
     }
   }
@@ -1215,6 +1327,21 @@ export class RequestsService {
       );
     }
 
+    // Tìm và cập nhật timesheet để đánh dấu có đơn xin đi muộn về sớm
+    const timesheet = await this.prisma.time_sheets.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+      },
+    });
+
+    if (timesheet) {
+      await this.prisma.time_sheets.update({
+        where: { id: timesheet.id },
+        data: { has_late_early_request: true },
+      });
+    }
+
     const result = await this.prisma.late_early_requests.create({
       data: {
         user_id: dto.user_id,
@@ -1225,6 +1352,7 @@ export class RequestsService {
         early_minutes: dto.early_minutes || undefined,
         reason: dto.reason,
         status: 'PENDING',
+        timesheet_id: timesheet?.id,
       },
     });
 
@@ -1418,6 +1546,9 @@ export class RequestsService {
         updateData.early_time_approved = request.early_minutes;
       }
 
+      // Đánh dấu đơn đi muộn về sớm đã được duyệt
+      updateData.late_early_approved = true;
+
       if (Object.keys(updateData).length > 0) {
         await this.prisma.time_sheets.update({
           where: { id: timesheet.id },
@@ -1449,6 +1580,8 @@ export class RequestsService {
         return await this.approveRemoteWorkRequest(id, approverId);
       case RequestType.LATE_EARLY:
         return await this.approveLateEarlyRequest(id, approverId);
+      case RequestType.FORGOT_CHECKIN:
+        return await this.approveForgotCheckinRequest(id, approverId);
       default:
         throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
     }
@@ -1477,8 +1610,330 @@ export class RequestsService {
           approverId,
           rejectedReason,
         );
+      case RequestType.FORGOT_CHECKIN:
+        return await this.rejectForgotCheckinRequest(
+          id,
+          approverId,
+          rejectedReason,
+        );
       default:
         throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
+    }
+  }
+
+  // ==================== FORGOT CHECKIN REQUESTS ====================
+
+  async createForgotCheckinRequest(
+    dto: CreateForgotCheckinRequestDto,
+  ): Promise<ForgotCheckinRequestResponseDto> {
+    await this.validateUser(dto.user_id);
+
+    const workDate = new Date(dto.work_date);
+    this.validatePastOrCurrentDate(workDate);
+
+    // Kiểm tra đơn đã tồn tại
+    const existingRequest = await this.prisma.forgot_checkin_requests.findFirst(
+      {
+        where: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          deleted_at: null,
+        },
+      },
+    );
+
+    if (existingRequest) {
+      throw new BadRequestException(
+        'Đã có đơn xin bổ sung chấm công cho ngày này',
+      );
+    }
+
+    // Validate thời gian checkin/checkout
+    if (dto.checkin_time && dto.checkout_time) {
+      const checkinTime = new Date(
+        `${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`,
+      );
+      const checkoutTime = new Date(
+        `${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`,
+      );
+
+      if (checkoutTime <= checkinTime) {
+        throw new BadRequestException(
+          'Thời gian checkout phải sau thời gian checkin',
+        );
+      }
+    }
+
+    // Tìm timesheet của ngày đó
+    const timesheet = await this.prisma.time_sheets.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+      },
+    });
+
+    // Cập nhật timesheet để đánh dấu có đơn xin bổ sung chấm công
+    if (timesheet) {
+      await this.prisma.time_sheets.update({
+        where: { id: timesheet.id },
+        data: { has_forgot_checkin_request: true },
+      });
+    }
+
+    const checkinDateTime = dto.checkin_time
+      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`)
+      : null;
+    const checkoutDateTime = dto.checkout_time
+      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
+      : null;
+
+    const result = await this.prisma.forgot_checkin_requests.create({
+      data: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        checkin_time: checkinDateTime,
+        checkout_time: checkoutDateTime,
+        title: dto.title,
+        reason: dto.reason,
+        status: TimesheetStatus.PENDING,
+        timesheet_id: timesheet?.id,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+        approved_by_user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    return {
+      ...result,
+      work_date: result.work_date.toISOString().split('T')[0],
+      checkin_time: result.checkin_time?.toTimeString().slice(0, 5) || null,
+      checkout_time: result.checkout_time?.toTimeString().slice(0, 5) || null,
+      approved_at: result.approved_at?.toISOString() || null,
+      created_at: result.created_at.toISOString(),
+      updated_at: result.updated_at.toISOString(),
+    };
+  }
+
+  async findAllForgotCheckinRequests(paginationDto: RequestPaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = { deleted_at: null };
+
+    if (paginationDto.status) {
+      whereConditions.status = paginationDto.status;
+    }
+
+    if (paginationDto.start_date && paginationDto.end_date) {
+      whereConditions.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prisma.forgot_checkin_requests.findMany({
+        where: whereConditions,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          approved_by_user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        skip,
+        take,
+        orderBy,
+      }),
+      this.prisma.forgot_checkin_requests.count({
+        where: whereConditions,
+      }),
+    ]);
+
+    const mappedRequests = requests.map((request) => ({
+      ...request,
+      work_date: request.work_date.toISOString().split('T')[0],
+      checkin_time: request.checkin_time?.toTimeString().slice(0, 5) || null,
+      checkout_time: request.checkout_time?.toTimeString().slice(0, 5) || null,
+      approved_at: request.approved_at?.toISOString() || null,
+      created_at: request.created_at.toISOString(),
+      updated_at: request.updated_at.toISOString(),
+    }));
+
+    return buildPaginationResponse(
+      mappedRequests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findMyForgotCheckinRequests(
+    userId: number,
+    paginationDto: RequestPaginationDto = {},
+  ) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = {
+      user_id: userId,
+      deleted_at: null,
+    };
+
+    if (paginationDto.status) {
+      whereConditions.status = paginationDto.status;
+    }
+
+    if (paginationDto.start_date && paginationDto.end_date) {
+      whereConditions.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const [requests, total] = await Promise.all([
+      this.prisma.forgot_checkin_requests.findMany({
+        where: whereConditions,
+        include: {
+          user: {
+            select: { id: true, name: true, email: true },
+          },
+          approved_by_user: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+        skip,
+        take,
+        orderBy,
+      }),
+      this.prisma.forgot_checkin_requests.count({
+        where: whereConditions,
+      }),
+    ]);
+
+    const mappedRequests = requests.map((request) => ({
+      ...request,
+      work_date: request.work_date.toISOString().split('T')[0],
+      checkin_time: request.checkin_time?.toTimeString().slice(0, 5) || null,
+      checkout_time: request.checkout_time?.toTimeString().slice(0, 5) || null,
+      approved_at: request.approved_at?.toISOString() || null,
+      created_at: request.created_at.toISOString(),
+      updated_at: request.updated_at.toISOString(),
+    }));
+
+    return buildPaginationResponse(
+      mappedRequests,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async approveForgotCheckinRequest(
+    id: number,
+    approverId: number,
+  ): Promise<ApprovalResult> {
+    const request = await this.prisma.forgot_checkin_requests.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        timesheet: true,
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
+    }
+
+    if (request.status !== TimesheetStatus.PENDING) {
+      throw new BadRequestException('Đơn này đã được xử lý');
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      // Cập nhật trạng thái đơn
+      await prisma.forgot_checkin_requests.update({
+        where: { id },
+        data: {
+          status: TimesheetStatus.APPROVED,
+          approved_by: approverId,
+          approved_at: new Date(),
+        },
+      });
+
+      // Cập nhật timesheet nếu có
+      if (
+        request.timesheet_id &&
+        (request.checkin_time || request.checkout_time)
+      ) {
+        const updateData: any = {
+          forgot_checkin_approved: true,
+        };
+
+        if (request.checkin_time) {
+          updateData.checkin = request.checkin_time;
+        }
+
+        if (request.checkout_time) {
+          updateData.checkout = request.checkout_time;
+        }
+
+        await prisma.time_sheets.update({
+          where: { id: request.timesheet_id },
+          data: updateData,
+        });
+      }
+    });
+
+    return {
+      success: true,
+      message: 'Duyệt đơn xin bổ sung chấm công thành công',
+    };
+  }
+
+  async rejectForgotCheckinRequest(
+    id: number,
+    approverId: number,
+    rejectedReason: string,
+  ): Promise<ApprovalResult> {
+    const request = await this.prisma.forgot_checkin_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
+    }
+
+    if (request.status !== TimesheetStatus.PENDING) {
+      throw new BadRequestException('Đơn này đã được xử lý');
+    }
+
+    await this.prisma.forgot_checkin_requests.update({
+      where: { id },
+      data: {
+        status: TimesheetStatus.REJECTED,
+        approved_by: approverId,
+        approved_at: new Date(),
+        rejected_reason: rejectedReason,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Từ chối đơn xin bổ sung chấm công thành công',
+    };
+  }
+
+  private validatePastOrCurrentDate(date: Date) {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Set to end of today
+
+    if (date > today) {
+      throw new BadRequestException(
+        'Không thể tạo đơn xin bổ sung chấm công cho ngày tương lai',
+      );
     }
   }
 }
