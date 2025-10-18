@@ -71,7 +71,10 @@ export class EnhancedRolesGuard implements CanActivate {
 
     // Kiểm tra division roles
     if (requiredDivisionRoles) {
-      const hasDivisionRole = await this.checkDivisionRoles(user.id, requiredDivisionRoles);
+      const hasDivisionRole = await this.checkDivisionRoles(
+        user.id,
+        requiredDivisionRoles,
+      );
       if (hasDivisionRole) {
         return true;
       }
@@ -80,7 +83,11 @@ export class EnhancedRolesGuard implements CanActivate {
     // Kiểm tra division access cụ thể
     if (divisionAccess) {
       const { divisionId, roles } = divisionAccess;
-      const hasAccessToDivision = await this.checkDivisionAccess(user.id, divisionId, roles);
+      const hasAccessToDivision = await this.checkDivisionAccess(
+        user.id,
+        divisionId,
+        roles,
+      );
       if (hasAccessToDivision) {
         return true;
       }
@@ -109,7 +116,10 @@ export class EnhancedRolesGuard implements CanActivate {
     return true;
   }
 
-  private async checkSystemRoles(userId: number, requiredRoles: string[]): Promise<boolean> {
+  private async checkSystemRoles(
+    userId: number,
+    requiredRoles: string[],
+  ): Promise<boolean> {
     const userInfo = await this.prisma.user_information.findFirst({
       where: { user_id: userId },
       include: {
@@ -117,10 +127,15 @@ export class EnhancedRolesGuard implements CanActivate {
       },
     });
 
-    return userInfo?.role && requiredRoles.includes(userInfo.role.name) || false;
+    return (
+      (userInfo?.role && requiredRoles.includes(userInfo.role.name)) || false
+    );
   }
 
-  private async checkDivisionRoles(userId: number, requiredRoles: string[]): Promise<boolean> {
+  private async checkDivisionRoles(
+    userId: number,
+    requiredRoles: string[],
+  ): Promise<boolean> {
     const userDivisions = await this.prisma.user_division.findMany({
       where: {
         userId,
@@ -130,12 +145,16 @@ export class EnhancedRolesGuard implements CanActivate {
       },
     });
 
-    return userDivisions.some((userDiv) =>
-      userDiv.role && requiredRoles.includes(userDiv.role.name),
+    return userDivisions.some(
+      (userDiv) => userDiv.role && requiredRoles.includes(userDiv.role.name),
     );
   }
 
-  private async checkDivisionAccess(userId: number, divisionId: number, roles: string[]): Promise<boolean> {
+  private async checkDivisionAccess(
+    userId: number,
+    divisionId: number,
+    roles: string[],
+  ): Promise<boolean> {
     const userDivision = await this.prisma.user_division.findFirst({
       where: {
         userId,
@@ -146,7 +165,9 @@ export class EnhancedRolesGuard implements CanActivate {
       },
     });
 
-    return userDivision?.role && roles.includes(userDivision.role.name) || false;
+    return (
+      (userDivision?.role && roles.includes(userDivision.role.name)) || false
+    );
   }
 
   private async checkTeamLeader(userId: number): Promise<boolean> {

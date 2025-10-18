@@ -5,10 +5,7 @@ import { LeaveManagementModule } from '../leave-management/leave-management.modu
 
 @Module({
   imports: [LeaveManagementModule],
-  providers: [
-    ScheduleAutomationService,
-    PrismaService,
-  ],
+  providers: [ScheduleAutomationService, PrismaService],
   exports: [ScheduleAutomationService],
 })
 export class SchedulerModule {}

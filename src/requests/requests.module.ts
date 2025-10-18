@@ -8,10 +8,7 @@ import { RequestsService } from './requests.service';
 @Module({
   imports: [LeaveManagementModule, PermissionModule],
   controllers: [RequestsController],
-  providers: [
-    PrismaService,
-    RequestsService,
-  ],
+  providers: [PrismaService, RequestsService],
   exports: [RequestsService],
 })
 export class RequestsModule {}

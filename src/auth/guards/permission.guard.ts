@@ -20,10 +20,9 @@ export class PermissionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Lấy permission requirements từ decorator
-    const requiredPermission = this.reflector.getAllAndOverride<string | string[]>(
-      PERMISSION_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredPermission = this.reflector.getAllAndOverride<
+      string | string[]
+    >(PERMISSION_KEY, [context.getHandler(), context.getClass()]);
 
     const requiredAllPermissions = this.reflector.getAllAndOverride<string[]>(
       `${PERMISSION_KEY}_all`,
@@ -49,10 +48,11 @@ export class PermissionGuard implements CanActivate {
     try {
       // Kiểm tra RequireAllPermissions trước
       if (requiredAllPermissions && requiredAllPermissions.length > 0) {
-        const hasAllPermissions = await this.permissionService.hasAllPermissions(
-          userId,
-          requiredAllPermissions,
-        );
+        const hasAllPermissions =
+          await this.permissionService.hasAllPermissions(
+            userId,
+            requiredAllPermissions,
+          );
 
         if (!hasAllPermissions) {
           this.logger.warn(
@@ -121,7 +121,10 @@ export class PermissionGuard implements CanActivate {
         throw error;
       }
 
-      this.logger.error(`Error checking permissions for user ${userId}:`, error);
+      this.logger.error(
+        `Error checking permissions for user ${userId}:`,
+        error,
+      );
       throw new ForbiddenException('Lỗi kiểm tra quyền truy cập');
     }
   }

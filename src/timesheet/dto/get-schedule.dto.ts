@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class GetScheduleDto {
-  @ApiPropertyOptional({  
+  @ApiPropertyOptional({
     description: 'Ngày bắt đầu (YYYY-MM-DD)',
     example: '2024-02-01',
   })

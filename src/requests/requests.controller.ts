@@ -309,14 +309,26 @@ export class RequestsController {
   @ApiParam({
     name: 'type',
     description: 'Loại request',
-    enum: ['remote-work', 'day-off', 'overtime', 'late-early', 'forgot-checkin'],
+    enum: [
+      'remote-work',
+      'day-off',
+      'overtime',
+      'late-early',
+      'forgot-checkin',
+    ],
     example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiResponse({ status: 200, description: 'Duyệt thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async approveRequest(
-    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early' | 'forgot-checkin',
+    @Param('type')
+    type:
+      | 'remote-work'
+      | 'day-off'
+      | 'overtime'
+      | 'late-early'
+      | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
   ) {
@@ -333,7 +345,13 @@ export class RequestsController {
   @ApiParam({
     name: 'type',
     description: 'Loại request',
-    enum: ['remote-work', 'day-off', 'overtime', 'late-early', 'forgot-checkin'],
+    enum: [
+      'remote-work',
+      'day-off',
+      'overtime',
+      'late-early',
+      'forgot-checkin',
+    ],
     example: 'day-off',
   })
   @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
@@ -352,7 +370,13 @@ export class RequestsController {
   @ApiResponse({ status: 200, description: 'Từ chối thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async rejectRequest(
-    @Param('type') type: 'remote-work' | 'day-off' | 'overtime' | 'late-early' | 'forgot-checkin',
+    @Param('type')
+    type:
+      | 'remote-work'
+      | 'day-off'
+      | 'overtime'
+      | 'late-early'
+      | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
     @Body('rejected_reason') rejectedReason: string,
@@ -370,10 +394,10 @@ export class RequestsController {
   @Post('forgot-checkin')
   @ApiOperation({ summary: 'Tạo đơn xin bổ sung chấm công' })
   @ApiBody({ type: CreateForgotCheckinRequestDto })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'Tạo đơn thành công',
-    type: ForgotCheckinRequestResponseDto 
+    type: ForgotCheckinRequestResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createForgotCheckinRequest(
@@ -386,24 +410,36 @@ export class RequestsController {
 
   @Get('forgot-checkin')
   @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Manager)' })
+  @ApiOperation({
+    summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Manager)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+  })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllForgotCheckinRequests(
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllForgotCheckinRequests(paginationDto);
+    return await this.requestsService.findAllForgotCheckinRequests(
+      paginationDto,
+    );
   }
 
   @Get('forgot-checkin/my')
   @ApiOperation({ summary: 'Lấy đơn xin bổ sung chấm công của tôi' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+  })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
@@ -411,7 +447,9 @@ export class RequestsController {
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findMyForgotCheckinRequests(userId, paginationDto);
+    return await this.requestsService.findMyForgotCheckinRequests(
+      userId,
+      paginationDto,
+    );
   }
-
 }

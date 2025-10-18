@@ -533,60 +533,65 @@ export class RequestsService {
         : undefined;
 
     // Get all requests from different tables with unified structure
-    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData, forgotCheckinData] =
-      await Promise.all([
-        this.prisma.remote_work_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.day_offs.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.over_times_history.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            project: { select: { name: true, code: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.late_early_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.forgot_checkin_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-      ]);
+    const [
+      remoteWorkData,
+      dayOffData,
+      overtimeData,
+      lateEarlyData,
+      forgotCheckinData,
+    ] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          project: { select: { name: true, code: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
 
     // Combine and format all requests with type information
     const allRequests = [
@@ -666,60 +671,65 @@ export class RequestsService {
         : undefined;
 
     // Get all requests from different tables with unified structure
-    const [remoteWorkData, dayOffData, overtimeData, lateEarlyData, forgotCheckinData] =
-      await Promise.all([
-        this.prisma.remote_work_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.day_offs.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.over_times_history.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            project: { select: { name: true, code: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.late_early_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-        this.prisma.forgot_checkin_requests.findMany({
-          where: {
-            ...whereConditions,
-            ...(dateFilter && { work_date: dateFilter }),
-          },
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-            approved_by_user: { select: { id: true, name: true, email: true } },
-          },
-        }),
-      ]);
+    const [
+      remoteWorkData,
+      dayOffData,
+      overtimeData,
+      lateEarlyData,
+      forgotCheckinData,
+    ] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          project: { select: { name: true, code: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...(dateFilter && { work_date: dateFilter }),
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, name: true, email: true } },
+        },
+      }),
+    ]);
 
     // Combine and format all requests with type information
     const allRequests = [
@@ -778,33 +788,34 @@ export class RequestsService {
   }
 
   async getMyRequestsStats(userId: number) {
-    const [remoteWork, dayOffs, overtimes, lateEarly, forgotCheckin] = await Promise.all([
-      this.prisma.remote_work_requests.groupBy({
-        by: ['status'],
-        where: { user_id: userId, deleted_at: null },
-        _count: { status: true },
-      }),
-      this.prisma.day_offs.groupBy({
-        by: ['status'],
-        where: { user_id: userId, deleted_at: null },
-        _count: { status: true },
-      }),
-      this.prisma.over_times_history.groupBy({
-        by: ['status'],
-        where: { user_id: userId, deleted_at: null },
-        _count: { status: true },
-      }),
-      this.prisma.late_early_requests.groupBy({
-        by: ['status'],
-        where: { user_id: userId, deleted_at: null },
-        _count: { status: true },
-      }),
-      this.prisma.forgot_checkin_requests.groupBy({
-        by: ['status'],
-        where: { user_id: userId, deleted_at: null },
-        _count: { status: true },
-      }),
-    ]);
+    const [remoteWork, dayOffs, overtimes, lateEarly, forgotCheckin] =
+      await Promise.all([
+        this.prisma.remote_work_requests.groupBy({
+          by: ['status'],
+          where: { user_id: userId, deleted_at: null },
+          _count: { status: true },
+        }),
+        this.prisma.day_offs.groupBy({
+          by: ['status'],
+          where: { user_id: userId, deleted_at: null },
+          _count: { status: true },
+        }),
+        this.prisma.over_times_history.groupBy({
+          by: ['status'],
+          where: { user_id: userId, deleted_at: null },
+          _count: { status: true },
+        }),
+        this.prisma.late_early_requests.groupBy({
+          by: ['status'],
+          where: { user_id: userId, deleted_at: null },
+          _count: { status: true },
+        }),
+        this.prisma.forgot_checkin_requests.groupBy({
+          by: ['status'],
+          where: { user_id: userId, deleted_at: null },
+          _count: { status: true },
+        }),
+      ]);
 
     const getStatusCounts = (data: any[]) => {
       const result = { total: 0, pending: 0, approved: 0, rejected: 0 };
@@ -1128,7 +1139,7 @@ export class RequestsService {
       // Cập nhật timesheet với thông tin remote work đã được duyệt
       await this.prisma.time_sheets.update({
         where: { id: remoteRequest.timesheet.id },
-        data: { 
+        data: {
           remote: request.remote_type,
           remote_work_approved: true,
         },
@@ -1158,7 +1169,7 @@ export class RequestsService {
       } else {
         await this.prisma.time_sheets.update({
           where: { id: timesheet.id },
-          data: { 
+          data: {
             remote: request.remote_type,
             remote_work_approved: true,
           },

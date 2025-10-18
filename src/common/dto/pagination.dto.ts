@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { IsOptional, IsInt, Min, Max } from 'class-validator';
 
 export class PaginationDto {
@@ -10,7 +10,10 @@ export class PaginationDto {
     default: 1,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return 1;
+    return Number(value);
+  })
   @IsInt({ message: 'Số trang phải là số nguyên' })
   @Min(1, { message: 'Số trang phải lớn hơn 0' })
   page?: number = 1;
@@ -22,7 +25,10 @@ export class PaginationDto {
     default: 10,
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return 10;
+    return Number(value);
+  })
   @IsInt({ message: 'Kích thước trang phải là số nguyên' })
   @Min(1, { message: 'Kích thước trang phải lớn hơn 0' })
   @Max(100, { message: 'Kích thước trang không được quá 100' })

@@ -72,7 +72,7 @@ export class AuthService {
 
     if (!hasUpperCase || !hasLowerCase || !hasNumber) {
       throw new BadRequestException(
-        'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số'
+        'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số',
       );
     }
 
@@ -134,14 +134,16 @@ export class AuthService {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn');
+      throw new UnauthorizedException(
+        'Refresh token không hợp lệ hoặc đã hết hạn',
+      );
     }
   }
 
   async logOut(_userId: number): Promise<{ message: string }> {
     // TODO: Implement token blacklisting if needed
     // Có thể thêm logic để blacklist token hoặc invalidate session
-    
+
     return { message: 'Đăng xuất thành công' };
   }
 
@@ -163,7 +165,7 @@ export class AuthService {
     } catch (error) {
       // Log error nhưng vẫn trả về thông tin cơ bản
       console.error('Error getting additional user info:', error);
-      
+
       const { password: _, ...result } = user;
       return {
         ...result,
@@ -196,17 +198,36 @@ export class AuthService {
 
   private async getUserAdditionalInfo(userId: number): Promise<any> {
     const today = new Date();
-    const todayStart = new Date(today.toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const todayEnd = new Date(today.toISOString().split('T')[0] + 'T23:59:59.999Z');
+    const todayStart = new Date(
+      today.toISOString().split('T')[0] + 'T00:00:00.000Z',
+    );
+    const todayEnd = new Date(
+      today.toISOString().split('T')[0] + 'T23:59:59.999Z',
+    );
 
     // Tháng hiện tại để tính leave days
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const monthStart = new Date(currentYear, currentMonth, 1);
-    const monthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+    const monthEnd = new Date(
+      currentYear,
+      currentMonth + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
 
     // Thực hiện tất cả queries song song để tối ưu performance
-    const [userInfo, firstContract, todayTimesheet, usedLeaveDays, assignedDevices, userDivision] = await Promise.all([
+    const [
+      userInfo,
+      firstContract,
+      todayTimesheet,
+      usedLeaveDays,
+      assignedDevices,
+      userDivision,
+    ] = await Promise.all([
       // Lấy thông tin user cơ bản
       this.prisma.user_information.findFirst({
         where: {
@@ -432,7 +453,9 @@ export class AuthService {
     return { message: 'Đặt lại mật khẩu thành công' };
   }
 
-  async verifyOTP(verifyOtpDto: VerifyOtpDto): Promise<{ message: string; isValid: boolean; resetToken?: string }> {
+  async verifyOTP(
+    verifyOtpDto: VerifyOtpDto,
+  ): Promise<{ message: string; isValid: boolean; resetToken?: string }> {
     const { email, otp } = verifyOtpDto;
 
     // Kiểm tra email có tồn tại không
@@ -462,15 +485,15 @@ export class AuthService {
 
     // Tạo temporary reset token có thời hạn 15 phút
     const resetToken = this.jwtService.sign(
-      { 
-        email, 
+      {
+        email,
         purpose: 'password_reset',
-        userId: user.id 
+        userId: user.id,
       },
-      { 
+      {
         secret: this.configService.get('JWT_SECRET'),
-        expiresIn: '15m' 
-      }
+        expiresIn: '15m',
+      },
     );
 
     return {
@@ -521,7 +544,10 @@ export class AuthService {
 
       return { message: 'Đặt lại mật khẩu thành công' };
     } catch (error) {
-      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      if (
+        error.name === 'JsonWebTokenError' ||
+        error.name === 'TokenExpiredError'
+      ) {
         throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
       }
       throw error;

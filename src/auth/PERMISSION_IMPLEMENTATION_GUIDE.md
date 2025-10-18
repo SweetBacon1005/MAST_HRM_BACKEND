@@ -3,8 +3,9 @@
 ## 📋 Tổng quan
 
 Hệ thống phân quyền đã được triển khai hoàn chỉnh với:
+
 - **7 roles** phù hợp với cơ cấu tổ chức
-- **42 permissions** chi tiết theo modules  
+- **42 permissions** chi tiết theo modules
 - **185 permission-role assignments** được tối ưu hóa
 - **Guards, Decorators, Services** đầy đủ
 
@@ -13,6 +14,7 @@ Hệ thống phân quyền đã được triển khai hoàn chỉnh với:
 ### **1. Core Components**
 
 #### **Decorators**
+
 ```typescript
 // src/auth/decorators/require-permission.decorator.ts
 @RequirePermission('user.create')           // Single permission
@@ -21,18 +23,21 @@ Hệ thống phân quyền đã được triển khai hoàn chỉnh với:
 ```
 
 #### **Guards**
+
 ```typescript
 // src/auth/guards/permission.guard.ts
 @UseGuards(JwtAuthGuard, PermissionGuard)
 ```
 
 #### **Services**
+
 ```typescript
 // src/auth/services/permission.service.ts - Core logic
 // src/auth/services/permission-helper.service.ts - Helper methods
 ```
 
 #### **Middleware & Interceptors**
+
 ```typescript
 // src/auth/middleware/permission.middleware.ts - Request logging
 // src/auth/interceptors/permission-logging.interceptor.ts - Access logging
@@ -40,28 +45,28 @@ Hệ thống phân quyền đã được triển khai hoàn chỉnh với:
 
 ### **2. Roles & Permissions Matrix**
 
-| Role | User Mgmt | Project | Timesheet | Attendance | Leave | Request | Report | Organization |
-|------|-----------|---------|-----------|------------|-------|---------|--------|--------------|
-| **super_admin** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full |
-| **admin** | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Full | ✅ Manage |
-| **hr_manager** | ✅ Manage | 👁️ Read | 📊 Stats | ✅ Manage | ✅ Manage | ✅ Approve | ✅ Export | ✅ Manage |
-| **project_manager** | 👁️ Read | ✅ Manage | ✅ Approve | 📊 Stats | ✅ Approve | ✅ Approve | ✅ Full | 👁️ Read |
-| **division_head** | 📝 Update | 📝 Assign | ✅ Approve | ✅ Manage | ✅ Approve | ✅ Approve | ✅ Export | ✅ Manage |
-| **team_leader** | 👁️ Read | 📝 Update | ✅ Approve | 👁️ Basic | ✅ Approve | ✅ Approve | 👁️ Read | 📝 Team |
-| **employee** | 👁️ Profile | 👁️ Read | 📝 Basic | 👁️ Checkin | 📝 Create | 📝 Create | ❌ None | 👁️ Read |
+| Role                | User Mgmt  | Project   | Timesheet  | Attendance | Leave      | Request    | Report    | Organization |
+| ------------------- | ---------- | --------- | ---------- | ---------- | ---------- | ---------- | --------- | ------------ |
+| **super_admin**     | ✅ Full    | ✅ Full   | ✅ Full    | ✅ Full    | ✅ Full    | ✅ Full    | ✅ Full   | ✅ Full      |
+| **admin**           | ✅ Full    | ✅ Full   | ✅ Full    | ✅ Full    | ✅ Full    | ✅ Full    | ✅ Full   | ✅ Manage    |
+| **hr_manager**      | ✅ Manage  | 👁️ Read   | 📊 Stats   | ✅ Manage  | ✅ Manage  | ✅ Approve | ✅ Export | ✅ Manage    |
+| **project_manager** | 👁️ Read    | ✅ Manage | ✅ Approve | 📊 Stats   | ✅ Approve | ✅ Approve | ✅ Full   | 👁️ Read      |
+| **division_head**   | 📝 Update  | 📝 Assign | ✅ Approve | ✅ Manage  | ✅ Approve | ✅ Approve | ✅ Export | ✅ Manage    |
+| **team_leader**     | 👁️ Read    | 📝 Update | ✅ Approve | 👁️ Basic   | ✅ Approve | ✅ Approve | 👁️ Read   | 📝 Team      |
+| **employee**        | 👁️ Profile | 👁️ Read   | 📝 Basic   | 👁️ Checkin | 📝 Create  | 📝 Create  | ❌ None   | 👁️ Read      |
 
 ## 🚀 Cách sử dụng
 
 ### **1. Áp dụng phân quyền cho Controller**
 
 #### **Basic Usage**
+
 ```typescript
 @ApiTags('users')
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionGuard) // Bắt buộc cả 2 guards
 @ApiBearerAuth('JWT-auth')
 export class UsersController {
-
   @Post()
   @RequirePermission('user.create')
   @ApiOperation({ summary: 'Tạo user mới' })
@@ -93,6 +98,7 @@ export class UsersController {
 ```
 
 #### **Advanced Usage**
+
 ```typescript
 export class RequestsController {
 
@@ -136,8 +142,8 @@ export class RequestsService {
 
     // Kiểm tra không thể tự duyệt request của mình
     const canApprove = await this.permissionHelper.canApproveUserRequest(
-      approverId, 
-      request.user_id
+      approverId,
+      request.user_id,
     );
 
     if (!canApprove) {
@@ -150,7 +156,7 @@ export class RequestsService {
   async getStatistics(userId: number) {
     // Kiểm tra quyền xem thống kê
     const canViewStats = await this.permissionHelper.canViewStatistics(userId);
-    
+
     if (!canViewStats) {
       throw new ForbiddenException('Không có quyền xem thống kê');
     }
@@ -163,7 +169,7 @@ export class RequestsService {
     const canAccess = await this.permissionHelper.canAccessUserResource(
       currentUserId,
       targetUserId,
-      'user.read'
+      'user.read',
     );
 
     if (!canAccess) {
@@ -185,15 +191,19 @@ export class SomeService {
   async checkUserCapabilities(userId: number) {
     // Kiểm tra các quyền cơ bản
     const canManageUsers = await this.permissionHelper.canManageUsers(userId);
-    const canManageProjects = await this.permissionHelper.canManageProjects(userId);
-    const canViewStatistics = await this.permissionHelper.canViewStatistics(userId);
+    const canManageProjects =
+      await this.permissionHelper.canManageProjects(userId);
+    const canViewStatistics =
+      await this.permissionHelper.canViewStatistics(userId);
     const isManager = await this.permissionHelper.isManagerLevel(userId);
 
     // Lấy permissions được nhóm theo category
-    const groupedPermissions = await this.permissionHelper.getGroupedPermissions(userId);
-    
+    const groupedPermissions =
+      await this.permissionHelper.getGroupedPermissions(userId);
+
     // Lấy menu permissions cho frontend
-    const menuPermissions = await this.permissionHelper.getMenuPermissions(userId);
+    const menuPermissions =
+      await this.permissionHelper.getMenuPermissions(userId);
 
     return {
       canManageUsers,
@@ -210,10 +220,10 @@ export class SomeService {
 ### **4. Frontend Integration**
 
 #### **API Response cho Menu Permissions**
+
 ```typescript
 @Controller('auth')
 export class AuthController {
-
   @Get('me/permissions')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Lấy permissions của user hiện tại' })
@@ -228,20 +238,24 @@ export class AuthController {
       permissions,
       role,
       menuPermissions,
-      groupedPermissions: await this.permissionHelper.getGroupedPermissions(userId),
+      groupedPermissions:
+        await this.permissionHelper.getGroupedPermissions(userId),
     };
   }
 }
 ```
 
 #### **Frontend Usage**
+
 ```typescript
 // Frontend có thể sử dụng để hiển thị/ẩn menu
 const userPermissions = await authService.getMyPermissions();
 
 // Kiểm tra quyền trong component
 const canCreateUser = userPermissions.permissions.includes('user.create');
-const canViewReports = userPermissions.menuPermissions.some(p => p.startsWith('report.'));
+const canViewReports = userPermissions.menuPermissions.some((p) =>
+  p.startsWith('report.'),
+);
 
 // Hiển thị menu dựa trên quyền
 if (userPermissions.groupedPermissions.user?.length > 0) {
@@ -292,8 +306,11 @@ const rolePermissions = [
   {
     role: 'warehouse_manager',
     permissions: [
-      'inventory.read', 'inventory.create', 'inventory.update',
-      'report.read', 'user.read',
+      'inventory.read',
+      'inventory.create',
+      'inventory.update',
+      'report.read',
+      'user.read',
     ],
   },
 ];
@@ -366,11 +383,11 @@ export class ApiController {
 async debugUserPermissions(userId: number) {
   const permissions = await this.permissionService.getUserPermissions(userId);
   const role = await this.permissionService.getUserRole(userId);
-  
+
   console.log(`User ${userId}:`);
   console.log(`- Role: ${role?.name}`);
   console.log(`- Permissions: ${permissions.join(', ')}`);
-  
+
   // Kiểm tra permission cụ thể
   const hasUserCreate = await this.permissionService.hasPermission(userId, 'user.create');
   console.log(`- Can create user: ${hasUserCreate}`);
@@ -386,7 +403,9 @@ export class PermissionCacheMiddleware implements NestMiddleware {
   async use(req: any, res: any, next: NextFunction) {
     if (req.user) {
       // Cache permissions trong request
-      req.userPermissions = await this.permissionService.getUserPermissions(req.user.id);
+      req.userPermissions = await this.permissionService.getUserPermissions(
+        req.user.id,
+      );
       req.userRole = await this.permissionService.getUserRole(req.user.id);
     }
     next();
@@ -397,18 +416,21 @@ export class PermissionCacheMiddleware implements NestMiddleware {
 ## ⚠️ Best Practices
 
 ### **1. Security**
+
 - ✅ Luôn sử dụng cả `JwtAuthGuard` và `PermissionGuard`
 - ✅ Kiểm tra ownership trước khi kiểm tra permission
 - ✅ Validate input parameters trong business logic
 - ❌ Không rely hoàn toàn vào frontend permission check
 
 ### **2. Performance**
+
 - ✅ Cache permissions trong request khi có thể
 - ✅ Sử dụng `hasAnyPermission` thay vì multiple `hasPermission` calls
 - ✅ Group permissions check trong business logic
 - ❌ Không query permissions trong loops
 
 ### **3. Maintainability**
+
 - ✅ Sử dụng constants cho permission names
 - ✅ Document permissions trong API documentation
 - ✅ Test permissions trong unit tests
@@ -447,7 +469,7 @@ describe('PermissionGuard', () => {
   it('should allow access when user has required permission', async () => {
     // Mock permission check
     jest.spyOn(permissionService, 'hasPermission').mockResolvedValue(true);
-    
+
     // Test guard logic
     const result = await guard.canActivate(mockExecutionContext);
     expect(result).toBe(true);

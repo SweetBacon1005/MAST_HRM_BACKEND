@@ -17,9 +17,9 @@ export class PermissionService {
     try {
       // Lấy thông tin user với role và permissions
       const user = await this.prisma.users.findUnique({
-        where: { 
+        where: {
           id: userId,
-          deleted_at: null 
+          deleted_at: null,
         },
         include: {
           user_information: {
@@ -28,30 +28,38 @@ export class PermissionService {
                 include: {
                   permission_role: {
                     include: {
-                      permission: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      permission: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
-      if (!user || !user.user_information || user.user_information.length === 0 || !user.user_information[0].role) {
+      if (
+        !user ||
+        !user.user_information ||
+        user.user_information.length === 0 ||
+        !user.user_information[0].role
+      ) {
         this.logger.warn(`User ${userId} not found or has no role assigned`);
         return false;
       }
 
       // Lấy danh sách permissions của user (lấy user_information đầu tiên)
-      const userPermissions = user.user_information[0].role.permission_role
-        .map(pr => pr.permission.name);
+      const userPermissions = user.user_information[0].role.permission_role.map(
+        (pr) => pr.permission.name,
+      );
 
       // Kiểm tra permission
       const hasPermission = userPermissions.includes(permission);
-      
-      this.logger.debug(`User ${userId} ${hasPermission ? 'has' : 'does not have'} permission: ${permission}`);
-      
+
+      this.logger.debug(
+        `User ${userId} ${hasPermission ? 'has' : 'does not have'} permission: ${permission}`,
+      );
+
       return hasPermission;
     } catch (error) {
       this.logger.error(`Error checking permission for user ${userId}:`, error);
@@ -65,7 +73,10 @@ export class PermissionService {
    * @param permissions - Array các permissions
    * @returns Promise<boolean>
    */
-  async hasAnyPermission(userId: number, permissions: string[]): Promise<boolean> {
+  async hasAnyPermission(
+    userId: number,
+    permissions: string[],
+  ): Promise<boolean> {
     try {
       for (const permission of permissions) {
         if (await this.hasPermission(userId, permission)) {
@@ -74,7 +85,10 @@ export class PermissionService {
       }
       return false;
     } catch (error) {
-      this.logger.error(`Error checking any permissions for user ${userId}:`, error);
+      this.logger.error(
+        `Error checking any permissions for user ${userId}:`,
+        error,
+      );
       return false;
     }
   }
@@ -85,7 +99,10 @@ export class PermissionService {
    * @param permissions - Array các permissions
    * @returns Promise<boolean>
    */
-  async hasAllPermissions(userId: number, permissions: string[]): Promise<boolean> {
+  async hasAllPermissions(
+    userId: number,
+    permissions: string[],
+  ): Promise<boolean> {
     try {
       for (const permission of permissions) {
         if (!(await this.hasPermission(userId, permission))) {
@@ -94,7 +111,10 @@ export class PermissionService {
       }
       return true;
     } catch (error) {
-      this.logger.error(`Error checking all permissions for user ${userId}:`, error);
+      this.logger.error(
+        `Error checking all permissions for user ${userId}:`,
+        error,
+      );
       return false;
     }
   }
@@ -107,9 +127,9 @@ export class PermissionService {
   async getUserPermissions(userId: number): Promise<string[]> {
     try {
       const user = await this.prisma.users.findUnique({
-        where: { 
+        where: {
           id: userId,
-          deleted_at: null 
+          deleted_at: null,
         },
         include: {
           user_information: {
@@ -118,22 +138,28 @@ export class PermissionService {
                 include: {
                   permission_role: {
                     include: {
-                      permission: true
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+                      permission: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       });
 
-      if (!user || !user.user_information || user.user_information.length === 0 || !user.user_information[0].role) {
+      if (
+        !user ||
+        !user.user_information ||
+        user.user_information.length === 0 ||
+        !user.user_information[0].role
+      ) {
         return [];
       }
 
-      return user.user_information[0].role.permission_role
-        .map(pr => pr.permission.name);
+      return user.user_information[0].role.permission_role.map(
+        (pr) => pr.permission.name,
+      );
     } catch (error) {
       this.logger.error(`Error getting permissions for user ${userId}:`, error);
       return [];
@@ -145,29 +171,36 @@ export class PermissionService {
    * @param userId - ID của user
    * @returns Promise<{id: number, name: string} | null>
    */
-  async getUserRole(userId: number): Promise<{id: number, name: string} | null> {
+  async getUserRole(
+    userId: number,
+  ): Promise<{ id: number; name: string } | null> {
     try {
       const user = await this.prisma.users.findUnique({
-        where: { 
+        where: {
           id: userId,
-          deleted_at: null 
+          deleted_at: null,
         },
         include: {
           user_information: {
             include: {
-              role: true
-            }
-          }
-        }
+              role: true,
+            },
+          },
+        },
       });
 
-      if (!user || !user.user_information || user.user_information.length === 0 || !user.user_information[0].role) {
+      if (
+        !user ||
+        !user.user_information ||
+        user.user_information.length === 0 ||
+        !user.user_information[0].role
+      ) {
         return null;
       }
 
       return {
         id: user.user_information[0].role.id,
-        name: user.user_information[0].role.name
+        name: user.user_information[0].role.name,
       };
     } catch (error) {
       this.logger.error(`Error getting role for user ${userId}:`, error);

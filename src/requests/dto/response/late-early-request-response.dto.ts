@@ -100,4 +100,3 @@ export class LateEarlyRequestResponseDto {
   })
   updated_at: Date;
 }
-

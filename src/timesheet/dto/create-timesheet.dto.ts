@@ -60,7 +60,8 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsString()
   @IsTimeRange({
-    message: 'Chuỗi check-in checkout phải có định dạng HH:MM-HH:MM và thời gian hợp lệ',
+    message:
+      'Chuỗi check-in checkout phải có định dạng HH:MM-HH:MM và thời gian hợp lệ',
   })
   checkin_checkout?: string;
 
@@ -89,9 +90,12 @@ export class CreateTimesheetDto {
   @IsOptional()
   @IsNumber({}, { message: 'Thời gian đi muộn được duyệt phải là số' })
   @Min(0, { message: 'Thời gian đi muộn được duyệt không được âm' })
-  @Max(480, { message: 'Thời gian đi muộn được duyệt không quá 480 phút (8 giờ)' })
+  @Max(480, {
+    message: 'Thời gian đi muộn được duyệt không quá 480 phút (8 giờ)',
+  })
   @IsApprovedLateTimeValid('late_time', {
-    message: 'Thời gian đi muộn được duyệt không được lớn hơn thời gian đi muộn thực tế',
+    message:
+      'Thời gian đi muộn được duyệt không được lớn hơn thời gian đi muộn thực tế',
   })
   late_time_approved?: number;
 

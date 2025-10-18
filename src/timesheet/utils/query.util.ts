@@ -2,7 +2,6 @@
  * Query utilities for consistent database operations
  */
 export class QueryUtil {
-
   /**
    * Tạo where clause cho khoảng ngày làm việc
    */

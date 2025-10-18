@@ -81,15 +81,19 @@ export class LeaveBalanceService {
           transaction_type: transactionType,
           leave_type: leaveType,
           amount: amount,
-          balance_after: leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
+          balance_after:
+            leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
           reference_id: referenceId,
           reference_type: referenceType,
-          day_off_id: referenceType === 'day_off_refund' ? referenceId : undefined,
+          day_off_id:
+            referenceType === 'day_off_refund' ? referenceId : undefined,
           description: description,
         },
       });
 
-      this.logger.log(`Added ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`);
+      this.logger.log(
+        `Added ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
+      );
 
       return updatedBalance;
     });
@@ -116,13 +120,14 @@ export class LeaveBalanceService {
       }
 
       // Kiểm tra số dư
-      const currentBalance = leaveType === DayOffType.PAID 
-        ? balance.paid_leave_balance 
-        : balance.unpaid_leave_balance;
+      const currentBalance =
+        leaveType === DayOffType.PAID
+          ? balance.paid_leave_balance
+          : balance.unpaid_leave_balance;
 
       if (currentBalance < amount) {
         throw new BadRequestException(
-          `Không đủ số dư phép ${leaveType}. Hiện có: ${currentBalance}, cần: ${amount}`
+          `Không đủ số dư phép ${leaveType}. Hiện có: ${currentBalance}, cần: ${amount}`,
         );
       }
 
@@ -152,7 +157,8 @@ export class LeaveBalanceService {
           transaction_type: LeaveTransactionType.USED,
           leave_type: leaveType,
           amount: -amount, // Số âm để thể hiện việc trừ
-          balance_after: leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
+          balance_after:
+            leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
           reference_id: dayOffId,
           reference_type: 'day_off',
           day_off_id: dayOffId, // Thêm direct reference
@@ -169,7 +175,9 @@ export class LeaveBalanceService {
         },
       });
 
-      this.logger.log(`Deducted ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`);
+      this.logger.log(
+        `Deducted ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
+      );
 
       return { updatedBalance, transaction };
     });
@@ -193,7 +201,9 @@ export class LeaveBalanceService {
       });
 
       if (!dayOff || !dayOff.balance_deducted) {
-        throw new BadRequestException('Day-off này chưa trừ balance hoặc không tồn tại');
+        throw new BadRequestException(
+          'Day-off này chưa trừ balance hoặc không tồn tại',
+        );
       }
 
       // Thực hiện refund
@@ -255,7 +265,7 @@ export class LeaveBalanceService {
    */
   async getLeaveBalanceStats(userId: number) {
     const balance = await this.getOrCreateLeaveBalance(userId);
-    
+
     // Lấy thống kê sử dụng trong năm hiện tại
     const currentYear = new Date().getFullYear();
     const yearStart = new Date(currentYear, 0, 1);
@@ -304,7 +314,7 @@ export class LeaveBalanceService {
       // Tính carry over (tối đa 12 ngày)
       const maxCarryOver = 12;
       const carryOverDays = Math.min(balance.paid_leave_balance, maxCarryOver);
-      
+
       // Reset balance với carry over
       const updatedBalance = await tx.user_leave_balances.update({
         where: { user_id: userId },
@@ -346,7 +356,9 @@ export class LeaveBalanceService {
         });
       }
 
-      this.logger.log(`Reset annual leave for user ${userId}. Carried over: ${carryOverDays}, Expired: ${expiredDays}`);
+      this.logger.log(
+        `Reset annual leave for user ${userId}. Carried over: ${carryOverDays}, Expired: ${expiredDays}`,
+      );
 
       return updatedBalance;
     });
@@ -397,8 +409,10 @@ export class LeaveBalanceService {
       }
     }
 
-    this.logger.log(`Initialized leave balance: ${createdCount} created, ${skippedCount} skipped`);
-    
+    this.logger.log(
+      `Initialized leave balance: ${createdCount} created, ${skippedCount} skipped`,
+    );
+
     return { createdCount, skippedCount };
   }
 }

@@ -77,9 +77,9 @@ export interface ForgotCheckinRequestResponse extends BaseRequestResponse {
   timesheet_id?: number;
 }
 
-export type RequestResponse = 
-  | DayOffRequestResponse 
-  | OvertimeRequestResponse 
+export type RequestResponse =
+  | DayOffRequestResponse
+  | OvertimeRequestResponse
   | RemoteWorkRequestResponse
   | LateEarlyRequestResponse
   | ForgotCheckinRequestResponse;
