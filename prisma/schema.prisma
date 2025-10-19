@@ -80,7 +80,6 @@ model divisions {
     user_division            user_division[]
     rotation_member          rotation_members[]
     projects                 projects[]
-    divisions_assignments    divisions_assignments[]
     divisions_monthly_counts divisions_monthly_counts[]
 
     @@index([parent_id])
@@ -611,7 +610,6 @@ model users {
     pm_reports                    pm_reports[]
     user_devices                  user_devices[]
     daily_reports                 daily_reports[]
-    divisions_assignments         divisions_assignments[]
     team_member_resources         team_member_resources[]
     evaluation_histories          evaluation_histories[]
     activity_log_subject          activity_log[]          @relation("Subject")
@@ -690,7 +688,6 @@ model contracts {
     updated_at            DateTime                @updatedAt
     deleted_at            DateTime?               @db.DateTime()
     work_times            work_times[]
-    divisions_assignments divisions_assignments[]
     team_member_resources team_member_resources[]
 
     @@index([user_id])
@@ -735,24 +732,6 @@ model day_offs {
     @@index([deduction_transaction_id]) // Để link với transaction
 }
 
-model divisions_assignments {
-    id          Int        @id @default(autoincrement())
-    division_id Int
-    division    divisions  @relation(fields: [division_id], references: [id])
-    user_id     Int
-    user        users      @relation(fields: [user_id], references: [id])
-    start_date  DateTime   @db.Date
-    end_date    DateTime   @db.Date
-    contract_id Int?
-    contract    contracts? @relation(fields: [contract_id], references: [id])
-    note        String?    @db.MediumText
-    created_at  DateTime   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime   @updatedAt
-
-    @@index([division_id])
-    @@index([user_id])
-    @@index([contract_id])
-}
 
 model divisions_monthly_counts {
     id           Int       @id @default(autoincrement())
@@ -1086,6 +1065,9 @@ model user_division {
 model teams {
     id                    Int                     @id @default(autoincrement())
     name                  String                  @db.VarChar(255)
+    division_id           Int?
+    manager_id            Int?
+    founding_date         DateTime?               @db.Date
     created_at            DateTime                @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at            DateTime                @updatedAt
     deleted_at            DateTime?               @db.DateTime()
@@ -1094,6 +1076,8 @@ model teams {
     team_member_resources team_member_resources[]
 
     @@index([name])
+    @@index([division_id])
+    @@index([manager_id])
     @@index([created_at])
     @@index([updated_at])
     @@index([deleted_at])

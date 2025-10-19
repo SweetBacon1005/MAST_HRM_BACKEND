@@ -5,6 +5,7 @@ Module xác thực và phân quyền cho hệ thống HRM.
 ## Tổng quan
 
 Auth Module cung cấp các chức năng:
+
 - ✅ Đăng nhập/Đăng ký với JWT
 - ✅ Refresh token mechanism
 - ✅ Role-based access control (RBAC)
@@ -128,16 +129,19 @@ Response:
 ## Strategies
 
 ### 1. Local Strategy
+
 - Xác thực bằng email/password
 - Sử dụng cho endpoint `/auth/login`
 - Validate credentials và return user object
 
-### 2. JWT Strategy  
+### 2. JWT Strategy
+
 - Xác thực bằng JWT access token
 - Extract user từ token payload
 - Sử dụng cho các protected endpoints
 
 ### 3. JWT Refresh Strategy
+
 - Xác thực bằng JWT refresh token
 - Sử dụng để generate access token mới
 - Có thời hạn dài hơn access token
@@ -145,21 +149,25 @@ Response:
 ## Guards
 
 ### 1. GlobalAuthGuard
+
 - Guard mặc định cho toàn bộ application
 - Tự động protect tất cả endpoints trừ những endpoint có `@Public()` decorator
 - Kế thừa từ `JwtAuthGuard`
 
 ### 2. JwtAuthGuard
+
 - Xác thực JWT access token
 - Sử dụng JWT Strategy
 - Có thể bypass với `@Public()` decorator
 
 ### 3. LocalAuthGuard
+
 - Xác thực email/password
 - Sử dụng Local Strategy
 - Chỉ dùng cho login endpoint
 
 ### 4. RolesGuard
+
 - Kiểm tra quyền truy cập dựa trên roles
 - Sử dụng với `@Roles()` decorator
 - Chạy sau authentication guard
@@ -167,6 +175,7 @@ Response:
 ## Decorators
 
 ### 1. @Public()
+
 ```typescript
 @Public()
 @Get('/public-endpoint')
@@ -176,6 +185,7 @@ async getPublicData() {
 ```
 
 ### 2. @Roles()
+
 ```typescript
 @Roles('admin', 'hr')
 @Get('/admin-only')
@@ -185,6 +195,7 @@ async getAdminData() {
 ```
 
 ### 3. @GetCurrentUser()
+
 ```typescript
 @Get('/profile')
 async getProfile(@GetCurrentUser() user: any) {
@@ -195,11 +206,13 @@ async getProfile(@GetCurrentUser() user: any) {
 ## JWT Configuration
 
 ### Access Token
+
 - **Thời hạn**: 1 giờ (3600 seconds)
 - **Algorithm**: HS256
 - **Secret**: Từ environment variable `JWT_SECRET`
 
 ### Refresh Token
+
 - **Thời hạn**: 7 ngày (604800 seconds)
 - **Algorithm**: HS256
 - **Secret**: Từ environment variable `JWT_REFRESH_SECRET`
@@ -207,11 +220,13 @@ async getProfile(@GetCurrentUser() user: any) {
 ## Password Security
 
 ### Hashing
+
 - Sử dụng `bcryptjs` với salt rounds = 10
 - Passwords được hash trước khi lưu database
 - So sánh password bằng `bcrypt.compare()`
 
 ### Validation Rules
+
 - Minimum length: 6 characters
 - Phải có ít nhất 1 chữ cái và 1 số
 - Không được chứa khoảng trắng
@@ -219,34 +234,46 @@ async getProfile(@GetCurrentUser() user: any) {
 ## Role-Based Access Control
 
 ### Roles
+
 - **admin**: Toàn quyền hệ thống
 - **hr**: Quản lý nhân sự
 - **manager**: Quản lý team
 - **employee**: Nhân viên thường
 
 ### Permission Matrix
+
 ```typescript
 const PERMISSIONS = {
   admin: ['*'], // Tất cả permissions
   hr: [
-    'read:users', 'write:users',
-    'read:timesheet', 'write:timesheet', 'approve:timesheet',
-    'read:dayoff', 'write:dayoff', 'approve:dayoff'
+    'read:users',
+    'write:users',
+    'read:timesheet',
+    'write:timesheet',
+    'approve:timesheet',
+    'read:dayoff',
+    'write:dayoff',
+    'approve:dayoff',
   ],
   manager: [
-    'read:team-timesheet', 'approve:team-timesheet',
-    'read:team-dayoff', 'approve:team-dayoff'
+    'read:team-timesheet',
+    'approve:team-timesheet',
+    'read:team-dayoff',
+    'approve:team-dayoff',
   ],
   employee: [
-    'read:own-timesheet', 'write:own-timesheet',
-    'read:own-dayoff', 'write:own-dayoff'
-  ]
+    'read:own-timesheet',
+    'write:own-timesheet',
+    'read:own-dayoff',
+    'write:own-dayoff',
+  ],
 };
 ```
 
 ## Usage Examples
 
 ### Protected Controller
+
 ```typescript
 @Controller('protected')
 @UseGuards(JwtAuthGuard)
@@ -259,6 +286,7 @@ export class ProtectedController {
 ```
 
 ### Role-based Endpoint
+
 ```typescript
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -272,6 +300,7 @@ export class AdminController {
 ```
 
 ### Public Endpoint
+
 ```typescript
 @Controller('public')
 export class PublicController {
@@ -286,11 +315,13 @@ export class PublicController {
 ## Error Handling
 
 ### Common Errors
+
 - **401 Unauthorized**: Token không hợp lệ hoặc hết hạn
 - **403 Forbidden**: Không đủ quyền truy cập
 - **400 Bad Request**: Dữ liệu đầu vào không hợp lệ
 
 ### Error Messages
+
 ```typescript
 {
   "statusCode": 401,
@@ -314,7 +345,7 @@ BCRYPT_SALT_ROUNDS=10
 
 ## Security Best Practices
 
-1. **Token Storage**: 
+1. **Token Storage**:
    - Access token trong memory/localStorage
    - Refresh token trong httpOnly cookie (recommended)
 
@@ -336,7 +367,7 @@ BCRYPT_SALT_ROUNDS=10
 # Unit tests
 npm run test src/auth
 
-# E2E tests  
+# E2E tests
 npm run test:e2e auth
 ```
 

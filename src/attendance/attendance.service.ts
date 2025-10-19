@@ -570,7 +570,12 @@ export class AttendanceService {
         OR: [
           {
             AND: [
-              { work_date: { gte: new Date(start_date), lte: new Date(end_date) } },
+              {
+                work_date: {
+                  gte: new Date(start_date),
+                  lte: new Date(end_date),
+                },
+              },
             ],
           },
         ],
@@ -1061,22 +1066,40 @@ export class AttendanceService {
     const leaves = await this.prisma.day_offs.findMany({ where });
 
     const stats = {
-      total_leave_days: leaves.reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+      total_leave_days: leaves.reduce(
+        (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+        0,
+      ),
       paid_leave: leaves
         .filter((l) => l.type === DayOffType.PAID)
-        .reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
       unpaid_leave: leaves
         .filter((l) => l.type === DayOffType.UNPAID)
-        .reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
       annual_leave: leaves
         .filter((l) => l.type === DayOffType.COMPENSATORY)
-        .reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
       sick_leave: leaves
         .filter((l) => l.type === DayOffType.SICK)
-        .reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
       personal_leave: leaves
         .filter((l) => l.type === DayOffType.PERSONAL)
-        .reduce((sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5), 0),
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
     };
 
     return stats;

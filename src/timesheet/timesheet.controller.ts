@@ -405,7 +405,6 @@ export class TimesheetController {
     return this.timesheetService.createDailyTimesheet(userId, body.date);
   }
 
-
   // === TIMESHEET STATE MANAGEMENT ===
 
   @Patch(':id/submit')
@@ -455,5 +454,4 @@ export class TimesheetController {
   ) {
     return this.timesheetService.lockTimesheet(id, lockerId);
   }
-
 }

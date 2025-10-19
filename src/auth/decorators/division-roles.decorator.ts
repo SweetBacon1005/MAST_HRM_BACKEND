@@ -7,7 +7,7 @@ export const DIVISION_ROLES_KEY = 'division_roles';
  * @param roles - Danh sách role được phép trong phòng ban
  * @example @DivisionRoles('MANAGER', 'TEAM_LEADER')
  */
-export const DivisionRoles = (...roles: string[]) => 
+export const DivisionRoles = (...roles: string[]) =>
   SetMetadata(DIVISION_ROLES_KEY, roles);
 
 /**

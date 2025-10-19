@@ -23,10 +23,10 @@ import {
 import { IsAfter, IsFutureDate, IsWorkingDay } from '../../common/validators';
 
 export class CreateLeaveRequestDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'ID người dùng',
     example: 1,
-    minimum: 1
+    minimum: 1,
   })
   @IsNotEmpty({ message: 'ID người dùng không được để trống' })
   @Type(() => Number)
@@ -44,37 +44,47 @@ export class CreateLeaveRequestDto {
       DayOffType.PERSONAL,
     ],
     enumName: 'DayOffType',
-    example: DayOffType.PAID
+    example: DayOffType.PAID,
   })
   @IsNotEmpty({ message: 'Loại nghỉ phép không được để trống' })
   @IsEnum(DayOffType, { message: 'Loại nghỉ phép không hợp lệ' })
   leave_type: DayOffType;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Ngày bắt đầu nghỉ',
     example: '2024-01-15',
-    format: 'date'
+    format: 'date',
   })
   @IsNotEmpty({ message: 'Ngày bắt đầu nghỉ không được để trống' })
-  @IsDateString({}, { message: 'Ngày bắt đầu nghỉ phải có định dạng YYYY-MM-DD' })
-  @Validate(IsFutureDate, { message: 'Ngày bắt đầu nghỉ phải từ hôm nay trở đi' })
+  @IsDateString(
+    {},
+    { message: 'Ngày bắt đầu nghỉ phải có định dạng YYYY-MM-DD' },
+  )
+  @Validate(IsFutureDate, {
+    message: 'Ngày bắt đầu nghỉ phải từ hôm nay trở đi',
+  })
   start_date: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Ngày kết thúc nghỉ',
     example: '2024-01-17',
-    format: 'date'
+    format: 'date',
   })
   @IsNotEmpty({ message: 'Ngày kết thúc nghỉ không được để trống' })
-  @IsDateString({}, { message: 'Ngày kết thúc nghỉ phải có định dạng YYYY-MM-DD' })
-  @Validate(IsAfter, ['start_date'], { message: 'Ngày kết thúc nghỉ phải sau hoặc bằng ngày bắt đầu' })
+  @IsDateString(
+    {},
+    { message: 'Ngày kết thúc nghỉ phải có định dạng YYYY-MM-DD' },
+  )
+  @Validate(IsAfter, ['start_date'], {
+    message: 'Ngày kết thúc nghỉ phải sau hoặc bằng ngày bắt đầu',
+  })
   end_date: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Tổng số ngày nghỉ',
     example: 3,
     minimum: 0.5,
-    maximum: 365
+    maximum: 365,
   })
   @IsNotEmpty({ message: 'Tổng số ngày nghỉ không được để trống' })
   @Type(() => Number)
@@ -83,11 +93,11 @@ export class CreateLeaveRequestDto {
   @Max(365, { message: 'Tổng số ngày nghỉ không được quá 365 ngày' })
   total_days: number;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Lý do nghỉ phép',
     example: 'Nghỉ phép năm',
     minLength: 10,
-    maxLength: 500
+    maxLength: 500,
   })
   @IsNotEmpty({ message: 'Lý do nghỉ phép không được để trống' })
   @IsString({ message: 'Lý do nghỉ phép phải là chuỗi ký tự' })
@@ -95,10 +105,10 @@ export class CreateLeaveRequestDto {
   @MaxLength(500, { message: 'Lý do nghỉ phép không được vượt quá 500 ký tự' })
   reason: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Có phải nghỉ nửa ngày không',
     example: false,
-    default: false
+    default: false,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -113,28 +123,30 @@ export class CreateLeaveRequestDto {
   @ApiPropertyOptional({
     description: 'Buổi nghỉ (morning/afternoon) nếu nghỉ nửa ngày',
     enum: ['morning', 'afternoon'],
-    example: 'morning'
+    example: 'morning',
   })
-  @ValidateIf(o => o.is_half_day === true)
+  @ValidateIf((o) => o.is_half_day === true)
   @IsNotEmpty({ message: 'Buổi nghỉ không được để trống khi nghỉ nửa ngày' })
   @IsString({ message: 'Buổi nghỉ phải là chuỗi ký tự' })
-  @IsIn(['morning', 'afternoon'], { message: 'Buổi nghỉ phải là morning hoặc afternoon' })
+  @IsIn(['morning', 'afternoon'], {
+    message: 'Buổi nghỉ phải là morning hoặc afternoon',
+  })
   half_day_period?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'File đính kèm (URL)',
     example: 'https://example.com/document.pdf',
-    format: 'url'
+    format: 'url',
   })
   @IsOptional()
   @IsString({ message: 'URL file đính kèm phải là chuỗi ký tự' })
   @IsUrl({}, { message: 'URL file đính kèm không hợp lệ' })
   attachment_url?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Ghi chú thêm',
     example: 'Cần xử lý công việc cấp bách',
-    maxLength: 1000
+    maxLength: 1000,
   })
   @IsOptional()
   @IsString({ message: 'Ghi chú phải là chuỗi ký tự' })
@@ -143,10 +155,10 @@ export class CreateLeaveRequestDto {
 }
 
 export class RemoteWorkRequestDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'ID người dùng',
     example: 1,
-    minimum: 1
+    minimum: 1,
   })
   @IsNotEmpty({ message: 'ID người dùng không được để trống' })
   @Type(() => Number)
@@ -154,43 +166,54 @@ export class RemoteWorkRequestDto {
   @IsPositive({ message: 'ID người dùng phải là số dương' })
   user_id: number;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Ngày làm việc từ xa',
     example: '2024-01-15',
-    format: 'date'
+    format: 'date',
   })
   @IsNotEmpty({ message: 'Ngày làm việc từ xa không được để trống' })
-  @IsDateString({}, { message: 'Ngày làm việc từ xa phải có định dạng YYYY-MM-DD' })
-  @Validate(IsFutureDate, { message: 'Ngày làm việc từ xa phải từ hôm nay trở đi' })
-  @Validate(IsWorkingDay, { message: 'Ngày làm việc từ xa phải là ngày làm việc (thứ 2-6)' })
+  @IsDateString(
+    {},
+    { message: 'Ngày làm việc từ xa phải có định dạng YYYY-MM-DD' },
+  )
+  @Validate(IsFutureDate, {
+    message: 'Ngày làm việc từ xa phải từ hôm nay trở đi',
+  })
+  @Validate(IsWorkingDay, {
+    message: 'Ngày làm việc từ xa phải là ngày làm việc (thứ 2-6)',
+  })
   work_date: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Lý do làm việc từ xa',
     example: 'Có việc gia đình cần xử lý',
     minLength: 10,
-    maxLength: 500
+    maxLength: 500,
   })
   @IsNotEmpty({ message: 'Lý do làm việc từ xa không được để trống' })
   @IsString({ message: 'Lý do làm việc từ xa phải là chuỗi ký tự' })
   @MinLength(10, { message: 'Lý do làm việc từ xa phải có ít nhất 10 ký tự' })
-  @MaxLength(500, { message: 'Lý do làm việc từ xa không được vượt quá 500 ký tự' })
+  @MaxLength(500, {
+    message: 'Lý do làm việc từ xa không được vượt quá 500 ký tự',
+  })
   reason: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Địa điểm làm việc từ xa',
     example: 'Nhà riêng, Hà Nội',
-    maxLength: 200
+    maxLength: 200,
   })
   @IsOptional()
   @IsString({ message: 'Địa điểm làm việc từ xa phải là chuỗi ký tự' })
-  @MaxLength(200, { message: 'Địa điểm làm việc từ xa không được vượt quá 200 ký tự' })
+  @MaxLength(200, {
+    message: 'Địa điểm làm việc từ xa không được vượt quá 200 ký tự',
+  })
   location?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Có phải cả ngày không',
     example: true,
-    default: true
+    default: true,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -202,25 +225,31 @@ export class RemoteWorkRequestDto {
   @IsBoolean({ message: 'Trạng thái làm cả ngày phải là boolean' })
   is_full_day?: boolean = true;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Giờ bắt đầu nếu không phải cả ngày',
     example: '2024-01-15T08:00:00Z',
-    format: 'date-time'
+    format: 'date-time',
   })
-  @ValidateIf(o => o.is_full_day === false)
-  @IsNotEmpty({ message: 'Giờ bắt đầu không được để trống khi không làm cả ngày' })
+  @ValidateIf((o) => o.is_full_day === false)
+  @IsNotEmpty({
+    message: 'Giờ bắt đầu không được để trống khi không làm cả ngày',
+  })
   @IsDateString({}, { message: 'Giờ bắt đầu phải có định dạng ISO 8601' })
   start_time?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Giờ kết thúc nếu không phải cả ngày',
     example: '2024-01-15T17:30:00Z',
-    format: 'date-time'
+    format: 'date-time',
   })
-  @ValidateIf(o => o.is_full_day === false)
-  @IsNotEmpty({ message: 'Giờ kết thúc không được để trống khi không làm cả ngày' })
+  @ValidateIf((o) => o.is_full_day === false)
+  @IsNotEmpty({
+    message: 'Giờ kết thúc không được để trống khi không làm cả ngày',
+  })
   @IsDateString({}, { message: 'Giờ kết thúc phải có định dạng ISO 8601' })
-  @Validate(IsAfter, ['start_time'], { message: 'Giờ kết thúc phải sau giờ bắt đầu' })
+  @Validate(IsAfter, ['start_time'], {
+    message: 'Giờ kết thúc phải sau giờ bắt đầu',
+  })
   end_time?: string;
 }
 

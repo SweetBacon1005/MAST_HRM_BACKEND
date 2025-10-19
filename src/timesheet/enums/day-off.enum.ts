@@ -1,4 +1,4 @@
-import { DayOffDuration as PrismaDayOffDuration } from "@prisma/client";
+import { DayOffDuration as PrismaDayOffDuration } from '@prisma/client';
 
 /**
  * Helper class để tính toán nghỉ phép

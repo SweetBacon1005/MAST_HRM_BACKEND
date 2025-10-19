@@ -13,7 +13,10 @@ import {
   UseGuards,
   UsePipes,
   ValidationPipe,
+  Res,
+  Header,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -25,7 +28,7 @@ import {
   ApiQuery,
   ApiResponse,
   ApiTags,
-  ApiUnprocessableEntityResponse
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -41,6 +44,7 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { AttendanceService } from './attendance.service';
+import { AttendanceExportService } from './services/attendance-export.service';
 import {
   AttendanceCalculationDto,
   PenaltyCalculationDto,
@@ -60,17 +64,22 @@ import {
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, PermissionGuard)
-@UsePipes(new ValidationPipe({ 
-  transform: true, 
-  whitelist: true, 
-  forbidNonWhitelisted: true,
-  transformOptions: {
-    enableImplicitConversion: true,
-  },
-}))
+@UsePipes(
+  new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }),
+)
 @Controller('attendance')
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(
+    private readonly attendanceService: AttendanceService,
+    private readonly exportService: AttendanceExportService,
+  ) {}
 
   // === TÍNH TOÁN CHẤM CÔNG CHI TIẾT ===
 
@@ -78,10 +87,11 @@ export class AttendanceController {
   @RequirePermission('attendance.read')
   @ApiOperation({
     summary: 'Tính toán chấm công chi tiết với thời gian và phạt',
-    description: 'API này tính toán chi tiết thời gian làm việc, phạt đi muộn/về sớm dựa trên thời gian check-in/out'
+    description:
+      'API này tính toán chi tiết thời gian làm việc, phạt đi muộn/về sớm dựa trên thời gian check-in/out',
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Tính toán chấm công thành công',
     schema: {
       example: {
@@ -93,25 +103,25 @@ export class AttendanceController {
         work_time_morning: 240,
         work_time_afternoon: 240,
         fines: 0,
-        remote: 'OFFICE'
-      }
-    }
+        remote: 'OFFICE',
+      },
+    },
   })
-  @ApiBadRequestResponse({ 
+  @ApiBadRequestResponse({
     description: 'Dữ liệu đầu vào không hợp lệ',
-    type: ValidationErrorResponseDto
+    type: ValidationErrorResponseDto,
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Không tìm thấy người dùng hoặc ca làm việc',
-    type: ErrorResponseDto
+    type: ErrorResponseDto,
   })
-  @ApiUnprocessableEntityResponse({ 
+  @ApiUnprocessableEntityResponse({
     description: 'Không thể xử lý yêu cầu - thời gian không hợp lệ',
-    type: ErrorResponseDto
+    type: ErrorResponseDto,
   })
   calculateAttendance(
-    @Body() attendanceDto: AttendanceCalculationDto, 
-    @GetCurrentUser('id') userId: number
+    @Body() attendanceDto: AttendanceCalculationDto,
+    @GetCurrentUser('id') userId: number,
   ) {
     // Gán user_id từ token để đảm bảo security
     attendanceDto.user_id = userId;
@@ -121,8 +131,8 @@ export class AttendanceController {
   @Post('calculate-penalty')
   @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Tính toán phạt đi muộn, về sớm' })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Tính toán phạt thành công',
     schema: {
       example: {
@@ -135,18 +145,18 @@ export class AttendanceController {
           id: 1,
           block: 1,
           minutes: 15,
-          money: 25000
-        }
-      }
-    }
+          money: 25000,
+        },
+      },
+    },
   })
-  @ApiBadRequestResponse({ 
+  @ApiBadRequestResponse({
     description: 'Dữ liệu đầu vào không hợp lệ',
-    type: ValidationErrorResponseDto
+    type: ValidationErrorResponseDto,
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Không tìm thấy quy định phạt',
-    type: ErrorResponseDto
+    type: ErrorResponseDto,
   })
   calculatePenalty(@Body() penaltyDto: PenaltyCalculationDto) {
     return this.attendanceService.calculatePenalties(penaltyDto);
@@ -171,17 +181,30 @@ export class AttendanceController {
 
   @Patch('work-shifts/:id')
   @ApiOperation({ summary: 'Cập nhật ca làm việc' })
-  @ApiParam({ name: 'id', description: 'ID ca làm việc', type: 'integer', example: 1 })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Cập nhật ca làm việc thành công' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID ca làm việc',
+    type: 'integer',
+    example: 1,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Cập nhật ca làm việc thành công',
+  })
   @ApiNotFoundResponse({ description: 'Không tìm thấy ca làm việc' })
   @ApiBadRequestResponse({ description: 'Dữ liệu cập nhật không hợp lệ' })
   @ApiForbiddenResponse({ description: 'Không có quyền cập nhật ca làm việc' })
   @Roles('admin', 'hr', 'manager')
   updateWorkShift(
-    @Param('id', new ParseIntPipe({ 
-      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
-      exceptionFactory: () => new Error('ID ca làm việc phải là số nguyên dương')
-    })) id: number,
+    @Param(
+      'id',
+      new ParseIntPipe({
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        exceptionFactory: () =>
+          new Error('ID ca làm việc phải là số nguyên dương'),
+      }),
+    )
+    id: number,
     @Body() workShiftDto: Partial<WorkShiftDto>,
   ) {
     return this.attendanceService.updateWorkShift(id, workShiftDto);
@@ -192,10 +215,20 @@ export class AttendanceController {
 
   @Get('leave-balance/:userId/:year')
   @ApiOperation({ summary: 'Xem số dư phép năm của nhân viên' })
-  @ApiParam({ name: 'userId', description: 'ID người dùng', type: 'integer', example: 1 })
-  @ApiParam({ name: 'year', description: 'Năm cần xem (YYYY)', type: 'integer', example: 2024 })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
+  @ApiParam({
+    name: 'userId',
+    description: 'ID người dùng',
+    type: 'integer',
+    example: 1,
+  })
+  @ApiParam({
+    name: 'year',
+    description: 'Năm cần xem (YYYY)',
+    type: 'integer',
+    example: 2024,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
     description: 'Lấy số dư phép thành công',
     schema: {
       example: {
@@ -205,21 +238,30 @@ export class AttendanceController {
         used_annual_leave: 5,
         remaining_annual_leave: 7,
         compensatory_leave: 2,
-        used_sick_leave: 1
-      }
-    }
+        used_sick_leave: 1,
+      },
+    },
   })
   @ApiBadRequestResponse({ description: 'Tham số đầu vào không hợp lệ' })
   @ApiNotFoundResponse({ description: 'Không tìm thấy người dùng' })
   getLeaveBalance(
-    @Param('userId', new ParseIntPipe({ 
-      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
-      exceptionFactory: () => new Error('ID người dùng phải là số nguyên dương')
-    })) userId: number,
-    @Param('year', new ParseIntPipe({ 
-      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
-      exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ')
-    })) year: number,
+    @Param(
+      'userId',
+      new ParseIntPipe({
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        exceptionFactory: () =>
+          new Error('ID người dùng phải là số nguyên dương'),
+      }),
+    )
+    userId: number,
+    @Param(
+      'year',
+      new ParseIntPipe({
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
+      }),
+    )
+    year: number,
   ) {
     return this.attendanceService.getLeaveBalance(userId, year);
   }
@@ -231,20 +273,25 @@ export class AttendanceController {
     required: false,
     description: 'Năm cần xem (mặc định năm hiện tại)',
     type: 'integer',
-    example: 2024
+    example: 2024,
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Lấy số dư phép cá nhân thành công' 
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Lấy số dư phép cá nhân thành công',
   })
   @ApiBadRequestResponse({ description: 'Tham số năm không hợp lệ' })
   getMyLeaveBalance(
     @GetCurrentUser('id') userId: number,
-    @Query('year', new DefaultValuePipe(new Date().getFullYear()), new ParseIntPipe({ 
-      optional: true,
-      errorHttpStatusCode: HttpStatus.BAD_REQUEST,
-      exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ')
-    })) year?: number,
+    @Query(
+      'year',
+      new DefaultValuePipe(new Date().getFullYear()),
+      new ParseIntPipe({
+        optional: true,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
+      }),
+    )
+    year?: number,
   ) {
     const targetYear = year || new Date().getFullYear();
     return this.attendanceService.getLeaveBalance(userId, targetYear);
@@ -259,7 +306,6 @@ export class AttendanceController {
   getAttendanceDashboard(@Query() dashboardDto: AttendanceDashboardDto) {
     return this.attendanceService.getAttendanceDashboard(dashboardDto);
   }
-
 
   // === BÁO CÁO CHI TIẾT ===
 
@@ -304,9 +350,7 @@ export class AttendanceController {
   @Get('penalty-rules')
   @ApiOperation({ summary: 'Lấy danh sách quy định phạt có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRules(
-    @Query() paginationDto: PenaltyRulePaginationDto,
-  ) {
+  async getPenaltyRules(@Query() paginationDto: PenaltyRulePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: any = { deleted_at: null };
 
@@ -390,5 +434,139 @@ export class AttendanceController {
       where: { id },
       data: { deleted_at: new Date() },
     });
+  }
+
+  // === EXPORT CSV ===
+
+  @Get('export/attendance-logs')
+  @RequirePermission('report.read')
+  @ApiOperation({ summary: 'Export danh sách chấm công ra CSV' })
+  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="attendance-logs.csv"')
+  async exportAttendanceLogs(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+    @Query('division_id') divisionId?: number,
+    @Res() res?: Response,
+  ) {
+    const csv = await this.exportService.exportAttendanceLogs(startDate, endDate, divisionId);
+    
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="attendance-logs.csv"');
+      // Add BOM for Excel UTF-8 support
+      res.send('\ufeff' + csv);
+    }
+    
+    return csv;
+  }
+
+  @Get('export/leave-requests')
+  @RequirePermission('report.read')
+  @ApiOperation({ summary: 'Export danh sách nghỉ phép ra CSV' })
+  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="leave-requests.csv"')
+  async exportLeaveRequests(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+    @Query('division_id') divisionId?: number,
+    @Query('status') status?: string,
+    @Res() res?: Response,
+  ) {
+    const csv = await this.exportService.exportLeaveRequests(startDate, endDate, divisionId, status);
+    
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="leave-requests.csv"');
+      res.send('\ufeff' + csv);
+    }
+    
+    return csv;
+  }
+
+  @Get('export/overtime-records')
+  @RequirePermission('report.read')
+  @ApiOperation({ summary: 'Export danh sách tăng ca ra CSV' })
+  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="overtime-records.csv"')
+  async exportOvertimeRecords(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+    @Query('division_id') divisionId?: number,
+    @Query('status') status?: string,
+    @Res() res?: Response,
+  ) {
+    const csv = await this.exportService.exportOvertimeRecords(startDate, endDate, divisionId, status);
+    
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="overtime-records.csv"');
+      res.send('\ufeff' + csv);
+    }
+    
+    return csv;
+  }
+
+  @Get('export/late-early-requests')
+  @RequirePermission('report.read')
+  @ApiOperation({ summary: 'Export danh sách đi muộn/về sớm ra CSV' })
+  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="late-early-requests.csv"')
+  async exportLateEarlyRequests(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+    @Query('division_id') divisionId?: number,
+    @Res() res?: Response,
+  ) {
+    const csv = await this.exportService.exportLateEarlyRequests(startDate, endDate, divisionId);
+    
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="late-early-requests.csv"');
+      res.send('\ufeff' + csv);
+    }
+    
+    return csv;
+  }
+
+  @Get('export/remote-work-requests')
+  @RequirePermission('report.read')
+  @ApiOperation({ summary: 'Export danh sách làm việc từ xa ra CSV' })
+  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="remote-work-requests.csv"')
+  async exportRemoteWorkRequests(
+    @Query('start_date') startDate?: string,
+    @Query('end_date') endDate?: string,
+    @Query('division_id') divisionId?: number,
+    @Query('status') status?: string,
+    @Res() res?: Response,
+  ) {
+    const csv = await this.exportService.exportRemoteWorkRequests(startDate, endDate, divisionId, status);
+    
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="remote-work-requests.csv"');
+      res.send('\ufeff' + csv);
+    }
+    
+    return csv;
   }
 }

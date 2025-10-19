@@ -37,7 +37,11 @@ export class OtpService {
     return otpCode;
   }
 
-  async verifyOTP(email: string, code: string, type: OtpType): Promise<boolean> {
+  async verifyOTP(
+    email: string,
+    code: string,
+    type: OtpType,
+  ): Promise<boolean> {
     const otp = await this.prisma.otp_codes.findFirst({
       where: {
         email,
@@ -84,10 +88,7 @@ export class OtpService {
       where: {
         email,
         type,
-        OR: [
-          { is_used: true },
-          { expires_at: { lt: new Date() } },
-        ],
+        OR: [{ is_used: true }, { expires_at: { lt: new Date() } }],
       },
     });
   }
@@ -99,7 +100,7 @@ export class OtpService {
   async checkOTPRateLimit(email: string, type: OtpType): Promise<boolean> {
     // Kiểm tra số lượng OTP được gửi trong 1 giờ qua (tối đa 5 lần)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    
+
     const otpCount = await this.prisma.otp_codes.count({
       where: {
         email,

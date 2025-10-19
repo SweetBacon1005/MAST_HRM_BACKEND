@@ -23,7 +23,10 @@ export class PermissionHelperService {
     }
 
     // Nếu truy cập resource của user khác, cần permission
-    return await this.permissionService.hasPermission(currentUserId, requiredPermission);
+    return await this.permissionService.hasPermission(
+      currentUserId,
+      requiredPermission,
+    );
   }
 
   /**
@@ -96,12 +99,14 @@ export class PermissionHelperService {
    * @param userId - ID của user
    * @returns Promise<{[category: string]: string[]}>
    */
-  async getGroupedPermissions(userId: number): Promise<{[category: string]: string[]}> {
+  async getGroupedPermissions(
+    userId: number,
+  ): Promise<{ [category: string]: string[] }> {
     const permissions = await this.permissionService.getUserPermissions(userId);
-    
-    const grouped: {[category: string]: string[]} = {};
-    
-    permissions.forEach(permission => {
+
+    const grouped: { [category: string]: string[] } = {};
+
+    permissions.forEach((permission) => {
       const [category] = permission.split('.');
       if (!grouped[category]) {
         grouped[category] = [];
@@ -119,14 +124,14 @@ export class PermissionHelperService {
    */
   async isManagerLevel(userId: number): Promise<boolean> {
     const role = await this.permissionService.getUserRole(userId);
-    
+
     const managerRoles = [
       'super_admin',
-      'admin', 
+      'admin',
       'hr_manager',
       'project_manager',
       'division_head',
-      'team_leader'
+      'team_leader',
     ];
 
     return role ? managerRoles.includes(role.name) : false;
@@ -138,14 +143,20 @@ export class PermissionHelperService {
    * @param requesterId - ID của người tạo request
    * @returns Promise<boolean>
    */
-  async canApproveUserRequest(approverId: number, requesterId: number): Promise<boolean> {
+  async canApproveUserRequest(
+    approverId: number,
+    requesterId: number,
+  ): Promise<boolean> {
     // Không thể tự duyệt request của mình
     if (approverId === requesterId) {
       return false;
     }
 
     // Cần có quyền approve và phải là manager level
-    const canApprove = await this.permissionService.hasPermission(approverId, 'request.approve');
+    const canApprove = await this.permissionService.hasPermission(
+      approverId,
+      'request.approve',
+    );
     const isManager = await this.isManagerLevel(approverId);
 
     return canApprove && isManager;
@@ -158,11 +169,18 @@ export class PermissionHelperService {
    */
   async getMenuPermissions(userId: number): Promise<string[]> {
     const permissions = await this.permissionService.getUserPermissions(userId);
-    
+
     // Chỉ trả về permissions liên quan đến menu/navigation
-    const menuPermissions = permissions.filter(permission => {
+    const menuPermissions = permissions.filter((permission) => {
       const [category] = permission.split('.');
-      return ['user', 'project', 'timesheet', 'attendance', 'report', 'organization'].includes(category);
+      return [
+        'user',
+        'project',
+        'timesheet',
+        'attendance',
+        'report',
+        'organization',
+      ].includes(category);
     });
 
     return menuPermissions;

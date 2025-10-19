@@ -16,9 +16,7 @@ import {
 } from 'class-validator';
 
 @ValidatorConstraint({ name: 'TimeConsistency', async: false })
-export class TimeConsistencyValidator
-  implements ValidatorConstraintInterface
-{
+export class TimeConsistencyValidator implements ValidatorConstraintInterface {
   validate(startTime: string, args: ValidationArguments) {
     const object = args.object as CreateOvertimeRequestDto;
 

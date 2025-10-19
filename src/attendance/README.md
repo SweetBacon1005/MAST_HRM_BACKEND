@@ -5,6 +5,7 @@ Module tính toán chấm công chi tiết và quản lý ca làm việc cho h�
 ## Tổng quan
 
 Attendance Module cung cấp các chức năng:
+
 - ✅ Tính toán thời gian làm việc chi tiết
 - ✅ Quản lý ca làm việc (Work Shifts)
 - ✅ Tính toán penalty (phạt muộn/về sớm)
@@ -79,6 +80,7 @@ Response:
 ### 2. Quản lý ca làm việc
 
 #### Tạo ca làm việc mới
+
 ```typescript
 POST /attendance/work-shifts
 {
@@ -94,6 +96,7 @@ POST /attendance/work-shifts
 ```
 
 #### Lấy danh sách ca làm việc
+
 ```typescript
 GET /attendance/work-shifts?page=1&limit=10&is_active=true
 
@@ -231,6 +234,7 @@ Response:
 ### 6. Quản lý remote work
 
 #### Tạo đơn remote work
+
 ```typescript
 POST /attendance/remote-work-requests
 {
@@ -243,6 +247,7 @@ POST /attendance/remote-work-requests
 ```
 
 #### Duyệt đơn remote work
+
 ```typescript
 PUT /attendance/remote-work-requests/1/approve
 {
@@ -285,58 +290,62 @@ Response:
 ## Work Shift Configuration
 
 ### Standard Shifts
+
 ```typescript
 const STANDARD_SHIFTS = {
   ADMIN: {
-    name: "Ca hành chính",
-    start_time: "08:00:00",
-    end_time: "17:30:00",
-    break_start: "12:00:00",
-    break_end: "13:00:00",
-    total_hours: 8
+    name: 'Ca hành chính',
+    start_time: '08:00:00',
+    end_time: '17:30:00',
+    break_start: '12:00:00',
+    break_end: '13:00:00',
+    total_hours: 8,
   },
   MORNING: {
-    name: "Ca sáng",
-    start_time: "06:00:00", 
-    end_time: "14:00:00",
-    break_start: "10:00:00",
-    break_end: "10:30:00",
-    total_hours: 7.5
+    name: 'Ca sáng',
+    start_time: '06:00:00',
+    end_time: '14:00:00',
+    break_start: '10:00:00',
+    break_end: '10:30:00',
+    total_hours: 7.5,
   },
   EVENING: {
-    name: "Ca chiều",
-    start_time: "14:00:00",
-    end_time: "22:00:00",
-    break_start: "18:00:00",
-    break_end: "18:30:00", 
-    total_hours: 7.5
+    name: 'Ca chiều',
+    start_time: '14:00:00',
+    end_time: '22:00:00',
+    break_start: '18:00:00',
+    break_end: '18:30:00',
+    total_hours: 7.5,
   },
   NIGHT: {
-    name: "Ca đêm",
-    start_time: "22:00:00",
-    end_time: "06:00:00",
-    break_start: "02:00:00",
-    break_end: "02:30:00",
-    total_hours: 7.5
-  }
+    name: 'Ca đêm',
+    start_time: '22:00:00',
+    end_time: '06:00:00',
+    break_start: '02:00:00',
+    break_end: '02:30:00',
+    total_hours: 7.5,
+  },
 };
 ```
 
 ## Penalty Calculation Rules
 
 ### Late Penalty
+
 - **Threshold**: 5 phút đầu không phạt
 - **Rate**: 333 VND/phút (tương đương 20,000 VND/giờ)
 - **Max daily penalty**: 50,000 VND
 - **Formula**: `(late_minutes - 5) × 333` nếu late_minutes > 5
 
-### Early Leave Penalty  
+### Early Leave Penalty
+
 - **Threshold**: 5 phút đầu không phạt
 - **Rate**: 333 VND/phút
 - **Max daily penalty**: 50,000 VND
 - **Formula**: `(early_minutes - 5) × 333` nếu early_minutes > 5
 
 ### Overtime Calculation
+
 - **Regular hours**: 8 giờ/ngày
 - **Overtime rate**: 150% lương cơ bản cho 2 giờ đầu
 - **Extended overtime**: 200% lương cơ bản từ giờ thứ 3
@@ -346,36 +355,41 @@ const STANDARD_SHIFTS = {
 ## Time Calculation Logic
 
 ### Working Hours
+
 ```typescript
 function calculateWorkHours(checkin: Date, checkout: Date, shift: WorkShift) {
   const totalMinutes = (checkout.getTime() - checkin.getTime()) / (1000 * 60);
-  
+
   // Trừ thời gian nghỉ trưa
   const breakMinutes = calculateBreakTime(checkin, checkout, shift);
   const workMinutes = totalMinutes - breakMinutes;
-  
+
   // Chia buổi sáng/chiều
   const morningMinutes = calculateMorningHours(checkin, shift);
   const afternoonMinutes = workMinutes - morningMinutes;
-  
+
   return {
     total_minutes: workMinutes,
     morning_minutes: morningMinutes,
     afternoon_minutes: afternoonMinutes,
-    break_minutes: breakMinutes
+    break_minutes: breakMinutes,
   };
 }
 ```
 
 ### Late/Early Calculation
+
 ```typescript
 function calculateLateness(checkin: Date, shift: WorkShift) {
   const shiftStart = new Date(shift.start_time);
-  const lateMinutes = Math.max(0, (checkin.getTime() - shiftStart.getTime()) / (1000 * 60));
-  
+  const lateMinutes = Math.max(
+    0,
+    (checkin.getTime() - shiftStart.getTime()) / (1000 * 60),
+  );
+
   return {
     late_minutes: lateMinutes,
-    late_penalty: calculateLatePenalty(lateMinutes)
+    late_penalty: calculateLatePenalty(lateMinutes),
   };
 }
 ```
@@ -383,18 +397,21 @@ function calculateLateness(checkin: Date, shift: WorkShift) {
 ## Business Rules
 
 ### Attendance Validation
+
 1. Check-in không được trước 2 giờ so với ca làm việc
 2. Check-out không được sau 4 giờ so với ca làm việc
 3. Thời gian làm việc tối thiểu 4 giờ để tính công
 4. Remote work cần approval trước khi áp dụng
 
 ### Leave Management
+
 1. Annual leave được tính theo năm làm việc
 2. Sick leave cần có giấy tờ y tế nếu > 3 ngày
 3. Maternity leave theo quy định pháp luật
 4. Leave balance được reset đầu năm
 
 ### Penalty Rules
+
 1. Late/Early penalty áp dụng từ lần thứ 2 trong tháng
 2. Không penalty cho force majeure (thiên tai, dịch bệnh)
 3. Penalty có thể được waive bởi manager
@@ -403,22 +420,26 @@ function calculateLateness(checkin: Date, shift: WorkShift) {
 ## API Endpoints Summary
 
 ### Attendance Calculation
+
 - `POST /attendance/calculate` - Tính toán attendance chi tiết
 - `POST /attendance/calculate-penalty` - Tính toán penalty
 - `POST /attendance/bulk-calculate` - Tính toán hàng loạt
 
 ### Work Shifts Management
+
 - `GET /attendance/work-shifts` - Lấy danh sách ca làm việc
 - `POST /attendance/work-shifts` - Tạo ca làm việc mới
 - `PUT /attendance/work-shifts/:id` - Cập nhật ca làm việc
 - `DELETE /attendance/work-shifts/:id` - Xóa ca làm việc
 
 ### Dashboard & Reports
+
 - `GET /attendance/dashboard` - Dashboard attendance
 - `GET /attendance/reports` - Báo cáo attendance
 - `GET /attendance/team-summary` - Tóm tắt team
 
 ### Leave Management
+
 - `GET /attendance/leave-balance/:userId` - Xem leave balance
 - `POST /attendance/remote-work-requests` - Tạo đơn remote work
 - `PUT /attendance/remote-work-requests/:id/approve` - Duyệt remote work
@@ -430,43 +451,46 @@ export const ATTENDANCE_CONSTANTS = {
   // Penalty rates (VND per minute)
   LATE_PENALTY_RATE: 333.33,
   EARLY_PENALTY_RATE: 333.33,
-  
+
   // Thresholds (minutes)
   LATE_THRESHOLD: 5,
   EARLY_THRESHOLD: 5,
-  
+
   // Max penalties (VND)
   MAX_DAILY_PENALTY: 50000,
   MAX_MONTHLY_PENALTY_RATE: 0.1, // 10% of base salary
-  
+
   // Work hours
   STANDARD_WORK_HOURS: 8,
   MINIMUM_WORK_HOURS: 4,
-  
+
   // Overtime rates
   OVERTIME_RATE_150: 1.5,
   OVERTIME_RATE_200: 2.0,
   OVERTIME_RATE_300: 3.0,
-  
+
   // Leave days per year
   ANNUAL_LEAVE_DAYS: 12,
   SICK_LEAVE_DAYS: 30,
   PERSONAL_LEAVE_DAYS: 3,
-  MATERNITY_LEAVE_DAYS: 180
+  MATERNITY_LEAVE_DAYS: 180,
 };
 ```
 
 ## Integration Points
 
 ### Timesheet Module
+
 - Sync attendance calculation với timesheet records
 - Update timesheet status based on attendance
 
 ### User Profile Module
+
 - Lấy thông tin ca làm việc từ user profile
 - Update work shift assignments
 
 ### Payroll Module
+
 - Cung cấp work hours và penalty data cho tính lương
 - Export attendance data cho payroll processing
 

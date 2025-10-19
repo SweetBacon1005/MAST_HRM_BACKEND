@@ -1,4 +1,4 @@
-import { TimesheetStatus as PrismaTimesheetStatus } from "@prisma/client";
+import { TimesheetStatus as PrismaTimesheetStatus } from '@prisma/client';
 /**
  * Loại timesheet
  */
@@ -15,18 +15,20 @@ export class TimesheetStatusManager {
   /**
    * Kiểm tra xem có thể chuyển từ state này sang state khác không
    */
-  static canTransition(from: PrismaTimesheetStatus, to: PrismaTimesheetStatus): boolean {
-    const validTransitions: Record<PrismaTimesheetStatus, PrismaTimesheetStatus[]> = {
+  static canTransition(
+    from: PrismaTimesheetStatus,
+    to: PrismaTimesheetStatus,
+  ): boolean {
+    const validTransitions: Record<
+      PrismaTimesheetStatus,
+      PrismaTimesheetStatus[]
+    > = {
       [PrismaTimesheetStatus.PENDING]: [
         PrismaTimesheetStatus.APPROVED,
         PrismaTimesheetStatus.REJECTED,
       ],
-      [PrismaTimesheetStatus.APPROVED]: [
-        PrismaTimesheetStatus.REJECTED,
-      ],
-      [PrismaTimesheetStatus.REJECTED]: [
-        PrismaTimesheetStatus.APPROVED,
-      ],
+      [PrismaTimesheetStatus.APPROVED]: [PrismaTimesheetStatus.REJECTED],
+      [PrismaTimesheetStatus.REJECTED]: [PrismaTimesheetStatus.APPROVED],
     };
 
     return validTransitions[from]?.includes(to) || false;
@@ -36,14 +38,24 @@ export class TimesheetStatusManager {
    * Kiểm tra xem timesheet có thể chỉnh sửa không
    */
   static canEdit(state: PrismaTimesheetStatus): boolean {
-    return ([PrismaTimesheetStatus.PENDING, PrismaTimesheetStatus.REJECTED] as PrismaTimesheetStatus[]).includes(state);
+    return (
+      [
+        PrismaTimesheetStatus.PENDING,
+        PrismaTimesheetStatus.REJECTED,
+      ] as PrismaTimesheetStatus[]
+    ).includes(state);
   }
 
   /**
    * Kiểm tra xem timesheet có thể xóa không
-   */ 
+   */
   static canDelete(state: PrismaTimesheetStatus): boolean {
-    return ([PrismaTimesheetStatus.PENDING, PrismaTimesheetStatus.REJECTED] as PrismaTimesheetStatus[]).includes(state);
+    return (
+      [
+        PrismaTimesheetStatus.PENDING,
+        PrismaTimesheetStatus.REJECTED,
+      ] as PrismaTimesheetStatus[]
+    ).includes(state);
   }
 
   /**

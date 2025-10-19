@@ -5,6 +5,7 @@ Module quản lý hồ sơ nhân viên chi tiết cho hệ thống HRM.
 ## Tổng quan
 
 User Profile Module cung cấp các chức năng:
+
 - ✅ Quản lý thông tin cá nhân nhân viên
 - ✅ Quản lý con cái (Children)
 - ✅ Quản lý học vấn (Education)
@@ -44,6 +45,7 @@ src/user-profile/
 ### 1. Thông tin cá nhân
 
 #### Xem profile đầy đủ
+
 ```typescript
 GET /user-profile
 
@@ -75,6 +77,7 @@ Response:
 ```
 
 #### Cập nhật thông tin cá nhân
+
 ```typescript
 PUT /user-profile/information
 {
@@ -92,6 +95,7 @@ PUT /user-profile/information
 ### 2. Quản lý con cái
 
 #### Thêm thông tin con
+
 ```typescript
 POST /user-profile/children
 {
@@ -104,6 +108,7 @@ POST /user-profile/children
 ```
 
 #### Lấy danh sách con với phân trang
+
 ```typescript
 GET /user-profile/children?page=1&limit=10
 
@@ -131,6 +136,7 @@ Response:
 ### 3. Quản lý học vấn
 
 #### Thêm bằng cấp
+
 ```typescript
 POST /user-profile/education
 {
@@ -146,6 +152,7 @@ POST /user-profile/education
 ```
 
 #### Lấy danh sách học vấn
+
 ```typescript
 GET /user-profile/education?page=1&limit=10&degree=bachelor
 
@@ -170,6 +177,7 @@ Response:
 ### 4. Quản lý kinh nghiệm làm việc
 
 #### Thêm kinh nghiệm
+
 ```typescript
 POST /user-profile/experience
 {
@@ -186,6 +194,7 @@ POST /user-profile/experience
 ### 5. Quản lý chứng chỉ
 
 #### Thêm chứng chỉ
+
 ```typescript
 POST /user-profile/certificates
 {
@@ -201,6 +210,7 @@ POST /user-profile/certificates
 ### 6. Quản lý kỹ năng
 
 #### Thêm kỹ năng
+
 ```typescript
 POST /user-profile/skills
 {
@@ -213,6 +223,7 @@ POST /user-profile/skills
 ```
 
 #### Lấy danh sách kỹ năng
+
 ```typescript
 GET /user-profile/skills?proficiency_level=advanced&is_primary=true
 
@@ -237,6 +248,7 @@ Response:
 ### 7. Upload Files
 
 #### Upload avatar
+
 ```typescript
 POST /user-profile/upload-avatar
 Content-Type: multipart/form-data
@@ -254,6 +266,7 @@ Response:
 ## Data Models
 
 ### UserInformation
+
 ```typescript
 interface UserInformation {
   id: number;
@@ -283,6 +296,7 @@ interface UserInformation {
 ```
 
 ### Children
+
 ```typescript
 interface Children {
   id: number;
@@ -296,12 +310,19 @@ interface Children {
 ```
 
 ### Education
+
 ```typescript
 interface Education {
   id: number;
   user_id: number;
   school_name: string;
-  degree: 'high_school' | 'associate' | 'bachelor' | 'master' | 'doctorate' | 'certificate';
+  degree:
+    | 'high_school'
+    | 'associate'
+    | 'bachelor'
+    | 'master'
+    | 'doctorate'
+    | 'certificate';
   field_of_study?: string;
   start_date: Date;
   end_date?: Date;
@@ -312,6 +333,7 @@ interface Education {
 ```
 
 ### Experience
+
 ```typescript
 interface Experience {
   id: number;
@@ -329,17 +351,20 @@ interface Experience {
 ## Validation Rules
 
 ### Personal Information
+
 - **Phone**: Format số điện thoại Việt Nam
 - **Email**: Valid email format
 - **Date of Birth**: Không được trong tương lai
 - **Gender**: Enum ['male', 'female', 'other']
 
 ### Children
+
 - **Name**: Required, min 2 characters
 - **Date of Birth**: Không được trong tương lai
 - **Relationship**: Required
 
 ### Education
+
 - **School Name**: Required, min 3 characters
 - **Degree**: Required enum
 - **Start Date**: Required
@@ -347,6 +372,7 @@ interface Experience {
 - **GPA**: 0.0 - 4.0 scale
 
 ### Experience
+
 - **Company Name**: Required, min 2 characters
 - **Position**: Required, min 2 characters
 - **Start Date**: Required
@@ -355,12 +381,14 @@ interface Experience {
 ## Business Rules
 
 ### Profile Completeness
+
 1. Thông tin cơ bản: name, email, phone
 2. Thông tin mở rộng: address, date_of_birth, position
 3. Documents: avatar, certificates
 
 ### File Upload
-1. **Avatar**: 
+
+1. **Avatar**:
    - Max size: 5MB
    - Formats: jpg, jpeg, png, gif
    - Auto resize to 300x300px
@@ -370,6 +398,7 @@ interface Experience {
    - Formats: pdf, jpg, jpeg, png
 
 ### Privacy
+
 1. Chỉ user được xem/sửa profile của mình
 2. HR/Admin có quyền xem tất cả profiles
 3. Manager có quyền xem profile team members
@@ -377,29 +406,34 @@ interface Experience {
 ## API Endpoints Summary
 
 ### Profile Management
+
 - `GET /user-profile` - Xem profile đầy đủ
 - `PUT /user-profile/information` - Cập nhật thông tin cá nhân
 - `POST /user-profile/upload-avatar` - Upload avatar
 
 ### Education Management
+
 - `GET /user-profile/education` - Lấy danh sách học vấn (có phân trang)
 - `POST /user-profile/education` - Thêm học vấn
 - `PUT /user-profile/education/:id` - Cập nhật học vấn
 - `DELETE /user-profile/education/:id` - Xóa học vấn
 
 ### Experience Management
+
 - `GET /user-profile/experience` - Lấy danh sách kinh nghiệm (có phân trang)
 - `POST /user-profile/experience` - Thêm kinh nghiệm
 - `PUT /user-profile/experience/:id` - Cập nhật kinh nghiệm
 - `DELETE /user-profile/experience/:id` - Xóa kinh nghiệm
 
 ### Certificate Management
+
 - `GET /user-profile/certificates` - Lấy danh sách chứng chỉ (có phân trang)
 - `POST /user-profile/certificates` - Thêm chứng chỉ
 - `PUT /user-profile/certificates/:id` - Cập nhật chứng chỉ
 - `DELETE /user-profile/certificates/:id` - Xóa chứng chỉ
 
 ### Skill Management
+
 - `GET /user-profile/skills` - Lấy danh sách kỹ năng (có phân trang)
 - `POST /user-profile/skills` - Thêm kỹ năng
 - `PUT /user-profile/skills/:id` - Cập nhật kỹ năng

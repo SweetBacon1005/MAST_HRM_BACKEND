@@ -5,6 +5,7 @@ Module quản lý người dùng cơ bản cho hệ thống HRM.
 ## Tổng quan
 
 Users Module cung cấp các chức năng:
+
 - ✅ CRUD operations cho users
 - ✅ Phân trang và tìm kiếm users
 - ✅ Quản lý thông tin cơ bản của user
@@ -170,36 +171,40 @@ Response:
 ## Data Model
 
 ### User Entity
+
 ```typescript
 interface User {
   id: number;
   name: string;
   email: string;
-  password: string;           // Hashed password
+  password: string; // Hashed password
   phone?: string;
   email_verified_at?: Date;
   remember_token?: string;
   created_at: Date;
   updated_at: Date;
-  deleted_at?: Date;         // Soft delete
+  deleted_at?: Date; // Soft delete
 }
 ```
 
 ### Related Entities
+
 - **UserInformation**: Thông tin chi tiết (1-1 relationship)
 - **Role**: Vai trò của user (many-to-one)
-- **Position**: Chức vụ (many-to-one)  
+- **Position**: Chức vụ (many-to-one)
 - **Office**: Văn phòng làm việc (many-to-one)
 
 ## Query Filters
 
 ### Pagination Parameters
+
 - **page**: Trang hiện tại (default: 1)
 - **limit**: Số items per page (default: 10, max: 100)
 - **sort_by**: Field để sort (default: 'created_at')
 - **sort_order**: 'asc' hoặc 'desc' (default: 'desc')
 
 ### Search Parameters
+
 - **search**: Tìm kiếm theo name hoặc email
 - **role**: Filter theo role name
 - **position**: Filter theo position name
@@ -207,6 +212,7 @@ interface User {
 - **status**: Filter theo trạng thái (active/inactive)
 
 ### Date Range Filters
+
 - **created_from**: Ngày tạo từ
 - **created_to**: Ngày tạo đến
 - **verified**: Filter theo email verification status
@@ -214,6 +220,7 @@ interface User {
 ## Validation Rules
 
 ### Create User
+
 ```typescript
 {
   name: {
@@ -239,6 +246,7 @@ interface User {
 ```
 
 ### Update User
+
 ```typescript
 {
   name: {
@@ -257,23 +265,27 @@ interface User {
 ## Business Rules
 
 ### User Creation
+
 1. Email phải unique trong hệ thống
 2. Password được hash bằng bcrypt với salt rounds = 10
 3. Tự động set `email_verified_at` khi tạo user
 4. Default role là 'employee' nếu không specify
 
 ### User Update
+
 1. Không được update email và password qua endpoint này
 2. Chỉ admin/HR mới được update thông tin user khác
 3. User có thể update một số thông tin cơ bản của mình
 
 ### User Deletion
+
 1. Sử dụng soft delete (set deleted_at timestamp)
 2. User đã xóa không xuất hiện trong queries thường
 3. Chỉ admin mới được xóa user
 4. Không thể xóa user đang có timesheet active
 
 ### Security
+
 1. Password luôn được exclude khỏi response
 2. Chỉ admin/HR được xem danh sách tất cả users
 3. User thường chỉ xem được thông tin cơ bản của đồng nghiệp
@@ -281,44 +293,50 @@ interface User {
 ## Service Methods
 
 ### Core CRUD
+
 ```typescript
 class UsersService {
-  create(createUserDto: CreateUserDto): Promise<User>
-  findAll(): Promise<User[]>
-  findAllPaginated(paginationDto: UsersPaginationDto): Promise<PaginatedResult<User>>
-  findOne(id: number): Promise<User>
-  findByEmail(email: string): Promise<User>
-  update(id: number, updateUserDto: UpdateUserDto): Promise<User>
-  remove(id: number): Promise<void>
+  create(createUserDto: CreateUserDto): Promise<User>;
+  findAll(): Promise<User[]>;
+  findAllPaginated(
+    paginationDto: UsersPaginationDto,
+  ): Promise<PaginatedResult<User>>;
+  findOne(id: number): Promise<User>;
+  findByEmail(email: string): Promise<User>;
+  update(id: number, updateUserDto: UpdateUserDto): Promise<User>;
+  remove(id: number): Promise<void>;
 }
 ```
 
 ### Utility Methods
+
 ```typescript
 class UsersService {
   // Kiểm tra email đã tồn tại
-  isEmailExists(email: string): Promise<boolean>
-  
+  isEmailExists(email: string): Promise<boolean>;
+
   // Lấy users theo role
-  findByRole(roleName: string): Promise<User[]>
-  
+  findByRole(roleName: string): Promise<User[]>;
+
   // Lấy users theo office
-  findByOffice(officeId: number): Promise<User[]>
-  
+  findByOffice(officeId: number): Promise<User[]>;
+
   // Verify email
-  verifyEmail(userId: number): Promise<User>
-  
+  verifyEmail(userId: number): Promise<User>;
+
   // Active/Inactive user
-  setUserStatus(userId: number, isActive: boolean): Promise<User>
+  setUserStatus(userId: number, isActive: boolean): Promise<User>;
 }
 ```
 
 ## API Endpoints Summary
 
 ### Public Endpoints
+
 - None (Tất cả endpoints require authentication)
 
 ### Protected Endpoints
+
 - `GET /users` - Lấy danh sách users (Admin/HR only)
 - `GET /users/:id` - Lấy thông tin user theo ID
 - `POST /users` - Tạo user mới (Admin/HR only)
@@ -327,6 +345,7 @@ class UsersService {
 - `GET /users/by-email/:email` - Tìm user theo email (Internal use)
 
 ### Role-based Access
+
 - **Admin**: Full access tất cả endpoints
 - **HR**: Read/Write access, không delete
 - **Manager**: Read access cho team members
@@ -335,6 +354,7 @@ class UsersService {
 ## Error Handling
 
 ### Common Errors
+
 ```typescript
 // User not found
 {
@@ -364,14 +384,17 @@ class UsersService {
 ## Integration Points
 
 ### Authentication Module
+
 - Sử dụng `UsersService.findByEmail()` để validate login
 - Sử dụng `UsersService.create()` để register user mới
 
 ### User Profile Module
+
 - Extend user information với detailed profile
 - 1-1 relationship qua `user_information` table
 
 ### Timesheet Module
+
 - Reference users trong timesheet records
 - Validate user existence khi tạo timesheet
 
@@ -383,7 +406,7 @@ class UsersService {
    - Index trên `deleted_at` cho soft delete queries
 
 2. **Query Optimization**:
-   - Sử dụng select specific fields thay vì select *
+   - Sử dụng select specific fields thay vì select \*
    - Include related data chỉ khi cần thiết
    - Implement proper pagination
 
@@ -394,7 +417,7 @@ class UsersService {
 ## Dependencies
 
 - `@nestjs/common`: NestJS core
-- `prisma`: Database ORM  
+- `prisma`: Database ORM
 - `bcryptjs`: Password hashing
 - `class-validator`: Input validation
 - `class-transformer`: Data transformation

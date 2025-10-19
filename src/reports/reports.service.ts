@@ -1,0 +1,1408 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { DayOffStatus, DayOffType, RemoteType } from '@prisma/client';
+import { PrismaService } from '../database/prisma.service';
+import { UserQueryService } from '../common/services/user-query.service';
+import { QueryBuilderService } from '../common/services/query-builder.service';
+import {
+  TimesheetWhereInput,
+  AttendanceLogWhereInput,
+  DayOffWhereInput,
+  ViolationWhereInput,
+  RotationMemberWhereInput,
+} from '../common/types/prisma-where.types';
+import {
+  UserStatsMap,
+  PeriodStats,
+  ViolationStats,
+  LeaveBalance,
+} from '../common/types/response.types';
+import { PenaltyByUser } from '../common/types/penalty.types';
+import {
+  AttendanceStatisticsDto,
+  WorkingTimeReportQueryDto,
+  TimesheetReportQueryDto,
+  AttendanceReportQueryDto,
+  AttendanceDashboardQueryDto,
+} from './dto/attendance-statistics.dto';
+
+@Injectable()
+export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userQuery: UserQueryService,
+    private readonly queryBuilder: QueryBuilderService,
+  ) {}
+
+  // === API TỪ TIMESHEET.SERVICE.TS ===
+
+  /**
+   * Báo cáo timesheet theo khoảng thời gian (Merged with generateAttendanceReport)
+   * @param reportDto - Query parameters
+   * @param reportType - Loại báo cáo: 'default' | 'summary' | 'detailed' | 'penalty'
+   */
+  async getTimesheetReport(
+    reportDto: TimesheetReportQueryDto,
+    reportType?: 'default' | 'summary' | 'detailed' | 'penalty',
+  ) {
+    const { start_date, end_date, division_id, team_id } = reportDto;
+    const startDate =
+      start_date ||
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
+
+    // REFACTORED: Use UserQueryService instead of duplicate code
+    const userIds = await this.userQuery.getUserIdsByDivisionOrTeam({
+      divisionId: Number(division_id),
+      teamId: Number(team_id),
+    });
+
+    // REFACTORED: Use QueryBuilderService to build where clause
+    const where = this.queryBuilder.buildTimesheetWhereClause({
+      startDate,
+      endDate,
+      userIds,
+    });
+
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where,
+      orderBy: { work_date: 'desc' },
+    });
+
+    // Nếu có reportType, trả về theo format tương ứng
+    if (reportType && reportType !== 'default') {
+      const period = `${startDate} - ${endDate}`;
+      switch (reportType) {
+        case 'summary':
+          return this.generateSummaryReport(timesheets, period);
+        case 'detailed':
+          return this.generateDetailedReport(timesheets, period);
+        case 'penalty':
+          return this.generatePenaltyReport(timesheets, period);
+      }
+    }
+
+    // Default: Trả về format cũ
+    // REFACTORED: Use UserQueryService (keeping for potential future use)
+    if (userIds.length > 0) {
+      await this.userQuery.getBasicUserInfo(userIds);
+    }
+
+    // Thống kê tổng hợp
+    const stats = {
+      total_records: timesheets.length,
+      total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
+        .length,
+      total_early_leave: timesheets.filter(
+        (t) => t.early_time && t.early_time > 0,
+      ).length,
+      total_incomplete: timesheets.filter((t) => t.is_complete === false)
+        .length,
+      total_remote: timesheets.filter((t) => t.remote === 'REMOTE').length,
+      average_work_hours:
+        timesheets.reduce((sum, t) => {
+          const workTime =
+            (t.work_time_morning || 0) + (t.work_time_afternoon || 0);
+          return sum + workTime;
+        }, 0) /
+        (timesheets.length || 1) /
+        60, // Convert minutes to hours
+    };
+
+    return {
+      timesheets,
+      stats,
+      period: { start_date: startDate, end_date: endDate },
+    };
+  }
+
+  /**
+   * Báo cáo thời gian làm việc theo tháng/năm
+   */
+  async getWorkingTimeReport(reportDto: WorkingTimeReportQueryDto) {
+    const { month, year, user_id } = reportDto;
+    const currentDate = new Date();
+    const reportYear =
+      typeof year === 'string' ? Number(year) : currentDate.getFullYear();
+
+    // Chuẩn hóa month - có thể là số (1-12) hoặc string "YYYY-MM"
+    let reportMonth: string;
+    if (typeof month === 'number') {
+      reportMonth = `${reportYear}-${String(month).padStart(2, '0')}`;
+    } else if (typeof month === 'string' && month.includes('-')) {
+      reportMonth = month;
+    } else {
+      reportMonth = `${reportYear}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    const startDate = `${reportMonth}-01`;
+    const endDate = new Date(
+      parseInt(reportMonth.split('-')[0]),
+      parseInt(reportMonth.split('-')[1]),
+      0,
+    )
+      .toISOString()
+      .split('T')[0];
+
+    const where: TimesheetWhereInput = {
+      work_date: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+      deleted_at: null,
+    };
+
+    if (user_id) {
+      where.user_id = Number(user_id);
+    }
+
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where,
+    });
+
+    // Group by user - TYPE SAFE
+    const userStats = timesheets.reduce((acc: UserStatsMap, timesheet) => {
+      const userId = timesheet.user_id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user_id: userId,
+          total_days: 0,
+          total_work_hours: 0,
+          total_ot_hours: 0,
+          total_late_minutes: 0,
+          total_early_minutes: 0,
+          days_remote: 0,
+        };
+      }
+
+      const userStat = acc[userId];
+      userStat.total_days += 1;
+      userStat.total_work_hours +=
+        ((timesheet.work_time_morning || 0) +
+          (timesheet.work_time_afternoon || 0)) /
+        60;
+      userStat.total_late_minutes += timesheet.late_time || 0;
+      userStat.total_early_minutes += timesheet.early_time || 0;
+      if (userStat.days_remote !== undefined) {
+        userStat.days_remote += timesheet.remote ? 1 : 0;
+      }
+
+      return acc;
+    }, {});
+
+    return {
+      period: reportMonth,
+      user_stats: Object.values(userStats),
+      summary: {
+        total_users: Object.keys(userStats).length,
+        total_working_days: Object.values(userStats).reduce(
+          (sum, stat) => sum + stat.total_days,
+          0,
+        ),
+        average_work_hours_per_day:
+          Object.keys(userStats).length > 0
+            ? Object.values(userStats).reduce(
+                (sum, stat) => sum + stat.total_work_hours,
+                0,
+              ) / Object.keys(userStats).length
+            : 0,
+      },
+    };
+  }
+
+  /**
+   * Thống kê chấm công chi tiết
+   */
+  async getAttendanceStatistics(statisticsDto: AttendanceStatisticsDto) {
+    const { user_id, start_date, end_date } = statisticsDto;
+
+    // Mặc định lấy thống kê tháng hiện tại
+    const now = new Date();
+    const defaultStartDate =
+      start_date ||
+      new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0];
+    const defaultEndDate =
+      end_date ||
+      new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        .toISOString()
+        .split('T')[0];
+
+    const where: TimesheetWhereInput = {
+      work_date: {
+        gte: new Date(defaultStartDate),
+        lte: new Date(defaultEndDate),
+      },
+      deleted_at: null,
+    };
+
+    if (user_id) {
+      where.user_id = Number(user_id);
+    }
+
+    // Lấy timesheets trong khoảng thời gian
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where,
+      include: {
+        day_off: {
+          select: {
+            type: true,
+            duration: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { work_date: 'desc' },
+    });
+
+    // Lấy overtime requests đã được approve
+    const overtimeRequests = await this.prisma.over_times_history.findMany({
+      where: {
+        ...(user_id && { user_id: Number(user_id) }),
+        work_date: {
+          gte: new Date(defaultStartDate),
+          lte: new Date(defaultEndDate),
+        },
+        status: 'APPROVED',
+        deleted_at: null,
+      },
+    });
+
+    // Lấy day-off requests trong khoảng thời gian
+    const dayOffRequests = await this.prisma.day_offs.findMany({
+      where: {
+        ...(user_id && { user_id: Number(user_id) }),
+        work_date: {
+          gte: new Date(defaultStartDate),
+          lte: new Date(defaultEndDate),
+        },
+        status: 'APPROVED',
+        deleted_at: null,
+      },
+    });
+
+    // Lấy leave balance hiện tại nếu có userId
+    let currentLeaveBalance: LeaveBalance | null = null;
+    if (user_id) {
+      currentLeaveBalance = await this.prisma.user_leave_balances.findUnique({
+        where: { user_id: Number(user_id) },
+      });
+    }
+
+    // Tính toán thống kê attendance
+    const totalDays = timesheets.length;
+    const completeDays = timesheets.filter((t) => t.is_complete).length;
+    const lateDays = timesheets.filter(
+      (t) => t.late_time && t.late_time > 0,
+    ).length;
+    const earlyLeaveDays = timesheets.filter(
+      (t) => t.early_time && t.early_time > 0,
+    ).length;
+    const totalLateMinutes = timesheets.reduce(
+      (sum, t) => sum + (t.late_time || 0),
+      0,
+    );
+    const totalEarlyMinutes = timesheets.reduce(
+      (sum, t) => sum + (t.early_time || 0),
+      0,
+    );
+
+    // Tính toán thống kê overtime
+    const totalOvertimeHours = overtimeRequests.reduce(
+      (sum, ot) => sum + (ot.total_hours || 0),
+      0,
+    );
+    const overtimeCount = overtimeRequests.length;
+
+    // Tính toán thống kê leave
+    let paidLeaveDays = 0;
+    let unpaidLeaveDays = 0;
+
+    const startDateObj = new Date(defaultStartDate);
+    const endDateObj = new Date(defaultEndDate);
+
+    dayOffRequests.forEach((dayOff) => {
+      const leaveStart = new Date(
+        Math.max(dayOff.work_date.getTime(), startDateObj.getTime()),
+      );
+      const leaveEnd = new Date(
+        Math.min(dayOff.work_date.getTime(), endDateObj.getTime()),
+      );
+
+      if (leaveStart <= leaveEnd) {
+        const actualLeaveDays = dayOff.duration === 'FULL_DAY' ? 1 : 0.5;
+
+        if (dayOff.type === 'PAID') {
+          paidLeaveDays += actualLeaveDays;
+        } else {
+          unpaidLeaveDays += actualLeaveDays;
+        }
+      }
+    });
+
+    // Tính tổng số ngày làm việc trong tháng (trừ cuối tuần và ngày lễ)
+    const workingDaysInMonth = this.calculateWorkingDaysInMonth(
+      defaultStartDate,
+      defaultEndDate,
+    );
+
+    // Tính số ngày có timesheet vs số ngày cần làm việc
+    const fullDayOffCount = timesheets.filter(
+      (t) => t.day_off && t.day_off.duration === 'FULL_DAY',
+    ).length;
+    const expectedWorkDays = workingDaysInMonth - fullDayOffCount;
+
+    return {
+      period: {
+        start_date: defaultStartDate,
+        end_date: defaultEndDate,
+      },
+      total_work_days: `${completeDays}/${expectedWorkDays}`,
+      overtime_hours: totalOvertimeHours,
+      late_minutes: totalLateMinutes,
+      violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
+      paid_leave_hours: paidLeaveDays * 8,
+      unpaid_leave_hours: unpaidLeaveDays * 8,
+      attendance: {
+        total_days: `${completeDays}/${expectedWorkDays}`,
+        complete_days: completeDays,
+        working_days_in_month: workingDaysInMonth,
+        late: totalLateMinutes,
+        late_days: lateDays,
+        early_leave: `${earlyLeaveDays}/${totalDays}`,
+        early_leave_days: earlyLeaveDays,
+        early_leave_minutes: totalEarlyMinutes,
+      },
+      overtime: {
+        total_hours: totalOvertimeHours,
+        total_requests: overtimeCount,
+      },
+      leave: {
+        paid_leave: paidLeaveDays,
+        unpaid_leave: unpaidLeaveDays,
+        total_leave_requests: dayOffRequests.length,
+      },
+      summary: {
+        attendance_rate:
+          expectedWorkDays > 0
+            ? Math.round((completeDays / expectedWorkDays) * 100)
+            : 0,
+        punctuality_rate:
+          totalDays > 0
+            ? Math.round(((totalDays - lateDays) / totalDays) * 100)
+            : 100,
+      },
+    };
+  }
+
+  // === API TỪ ATTENDANCE.SERVICE.TS ===
+
+  /**
+   * Dashboard chấm công với phân tích chi tiết
+   * (Bao gồm: daily_stats, violation_stats, leave_stats theo division/team)
+   */
+  async getAttendanceDashboard(dashboardDto: AttendanceDashboardQueryDto) {
+    const { start_date, end_date, division_id, team_id, period_type } =
+      dashboardDto;
+
+    const startDate =
+      start_date ||
+      new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+    const endDate = end_date || new Date().toISOString().split('T')[0];
+
+    // Lấy danh sách user theo phòng ban/team
+    let userIds: number[] = [];
+    if (team_id) {
+      const teamMembers = await this.prisma.user_division.findMany({
+        where: { teamId: team_id },
+        select: { userId: true },
+      });
+      userIds = teamMembers.map((member) => member.userId);
+    } else if (division_id) {
+      const divisionMembers = await this.prisma.user_division.findMany({
+        where: { divisionId: division_id },
+        select: { userId: true },
+      });
+      userIds = divisionMembers.map((member) => member.userId);
+    }
+
+    const whereTimesheet: TimesheetWhereInput = {
+      work_date: {
+        gte: new Date(startDate + 'T00:00:00.000Z'),
+        lte: new Date(endDate + 'T23:59:59.999Z'),
+      },
+      deleted_at: null,
+    };
+
+    if (userIds.length > 0) {
+      whereTimesheet.user_id = { in: userIds };
+    }
+
+    // Thống kê tổng quan
+    const timesheets = await this.prisma.time_sheets.findMany({ where: whereTimesheet });
+
+    const totalRecords = timesheets.length;
+    const onTimeRecords = timesheets.filter(
+      (t) => !t.late_time || t.late_time === 0,
+    ).length;
+    const lateRecords = timesheets.filter(
+      (t) => t.late_time && t.late_time > 0,
+    ).length;
+    const earlyLeaveRecords = timesheets.filter(
+      (t) => t.early_time && t.early_time > 0,
+    ).length;
+    const remoteRecords = timesheets.filter(
+      (t) => t.remote === 'REMOTE',
+    ).length;
+    const totalPenalties = timesheets.reduce(
+      (sum, t) => sum + (t.fines || 0),
+      0,
+    );
+
+    // Thống kê theo ngày
+    const dailyStats = this.groupAttendanceByPeriod(
+      timesheets,
+      period_type || 'daily',
+    );
+
+    // Top vi phạm
+    const violationStats = await this.getViolationStatistics(
+      userIds,
+      startDate,
+      endDate,
+    );
+
+    // Thống kê nghỉ phép
+    const leaveStats = await this.getLeaveStatistics(
+      userIds,
+      startDate,
+      endDate,
+    );
+
+    return {
+      overview: {
+        total_records: totalRecords,
+        on_time_rate:
+          totalRecords > 0
+            ? ((onTimeRecords / totalRecords) * 100).toFixed(2)
+            : 0,
+        late_rate:
+          totalRecords > 0
+            ? ((lateRecords / totalRecords) * 100).toFixed(2)
+            : 0,
+        early_leave_rate:
+          totalRecords > 0
+            ? ((earlyLeaveRecords / totalRecords) * 100).toFixed(2)
+            : 0,
+        remote_rate:
+          totalRecords > 0
+            ? ((remoteRecords / totalRecords) * 100).toFixed(2)
+            : 0,
+        total_penalties: totalPenalties,
+      },
+      daily_stats: dailyStats,
+      violation_stats: violationStats,
+      leave_stats: leaveStats,
+      period: { start_date: startDate, end_date: endDate },
+    };
+  }
+
+
+  // === API TỪ AUTH/CONTROLLERS/REPORTS.CONTROLLER.TS ===
+
+  /**
+   * Báo cáo tổng hợp chấm công
+   */
+  async getAttendanceSummary(
+    startDate?: string,
+    endDate?: string,
+    divisionId?: number,
+  ) {
+    const where: AttendanceLogWhereInput = {};
+
+    if (startDate && endDate) {
+      where.timestamp = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    if (divisionId) {
+      where.user = {
+        user_division: {
+          some: {
+            divisionId: divisionId,
+          },
+        },
+      };
+    }
+
+    const attendanceStats = await this.prisma.attendance_logs.groupBy({
+      by: ['user_id'],
+      where,
+      _count: {
+        user_id: true,
+      },
+      _min: {
+        timestamp: true,
+      },
+      _max: {
+        timestamp: true,
+      },
+    });
+
+    // Lấy thông tin user để hiển thị
+    const userIds = attendanceStats.map((stat) => stat.user_id);
+    const users = await this.prisma.users.findMany({
+      where: { id: { in: userIds } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        user_division: {
+          include: {
+            division: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    const result = attendanceStats.map((stat) => {
+      const user = users.find((u) => u.id === stat.user_id);
+      return {
+        user_id: stat.user_id,
+        user_name: user?.name || 'Unknown',
+        user_email: user?.email || '',
+        division: user?.user_division?.[0]?.division?.name || '',
+        total_days: stat._count?.user_id || 0,
+        earliest_timestamp: stat._min?.timestamp,
+        latest_timestamp: stat._max?.timestamp,
+      };
+    });
+
+    return {
+      period: { start_date: startDate, end_date: endDate },
+      division_id: divisionId,
+      data: result,
+      total_records: result.length,
+    };
+  }
+
+  /**
+   * Thống kê đi muộn về sớm
+   */
+  async getLateStatistics(month?: number, year?: number) {
+    const currentDate = new Date();
+    const targetMonth = month || currentDate.getMonth() + 1;
+    const targetYear = year || currentDate.getFullYear();
+
+    const startDate = new Date(targetYear, targetMonth - 1, 1);
+    const endDate = new Date(targetYear, targetMonth, 0);
+
+    const lateRequests = await this.prisma.late_early_requests.findMany({
+      where: {
+        work_date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    // Thống kê theo loại
+    const stats = {
+      late_only: lateRequests.filter((r) => r.request_type === 'LATE').length,
+      early_only: lateRequests.filter((r) => r.request_type === 'EARLY').length,
+      both: lateRequests.filter((r) => r.request_type === 'BOTH').length,
+      total: lateRequests.length,
+    };
+
+    // Thống kê theo user
+    const userStats = lateRequests.reduce((acc, request) => {
+      const userId = request.user_id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: request.user,
+          late_count: 0,
+          early_count: 0,
+          both_count: 0,
+          total: 0,
+        };
+      }
+
+      if (request.request_type === 'LATE') acc[userId].late_count++;
+      else if (request.request_type === 'EARLY') acc[userId].early_count++;
+      else if (request.request_type === 'BOTH') acc[userId].both_count++;
+
+      acc[userId].total++;
+      return acc;
+    }, {});
+
+    return {
+      period: { month: targetMonth, year: targetYear },
+      overall_stats: stats,
+      user_stats: Object.values(userStats),
+    };
+  }
+
+  /**
+   * Báo cáo tổng hợp nghỉ phép
+   */
+  async getLeaveSummary(year?: number, divisionId?: number) {
+    const targetYear = year || new Date().getFullYear();
+    const startDate = new Date(targetYear, 0, 1);
+    const endDate = new Date(targetYear, 11, 31);
+
+    const where: DayOffWhereInput = {
+      work_date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    };
+
+    if (divisionId) {
+      where.user = {
+        user_division: {
+          some: {
+            divisionId: divisionId,
+          },
+        },
+      };
+    }
+
+    const leaveRequests = await this.prisma.day_offs.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            user_division: {
+              include: {
+                division: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Thống kê theo loại nghỉ phép
+    const leaveTypeStats = leaveRequests.reduce((acc, leave) => {
+      const type = leave.type;
+      if (!acc[type]) {
+        acc[type] = { count: 0, total_days: 0 };
+      }
+      acc[type].count++;
+      acc[type].total_days += 1;
+      return acc;
+    }, {});
+
+    // Thống kê theo trạng thái
+    const statusStats = leaveRequests.reduce((acc, leave) => {
+      const status = leave.status;
+      if (!acc[status]) {
+        acc[status] = 0;
+      }
+      acc[status]++;
+      return acc;
+    }, {});
+
+    // Thống kê theo user
+    const userStats = leaveRequests.reduce((acc, leave) => {
+      const userId = leave.user_id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: leave.user,
+          total_requests: 0,
+          total_days: 0,
+          approved_days: 0,
+          pending_days: 0,
+        };
+      }
+
+      acc[userId].total_requests++;
+      acc[userId].total_days += 1;
+
+      if (leave.status === 'APPROVED') {
+        acc[userId].approved_days += 1;
+      } else if (leave.status === 'PENDING') {
+        acc[userId].pending_days += 1;
+      }
+
+      return acc;
+    }, {});
+
+    return {
+      year: targetYear,
+      division_id: divisionId,
+      leave_type_stats: leaveTypeStats,
+      status_stats: statusStats,
+      user_stats: Object.values(userStats),
+      total_requests: leaveRequests.length,
+    };
+  }
+
+  /**
+   * Báo cáo tổng hợp tăng ca
+   */
+  async getOvertimeSummary(
+    startDate?: string,
+    endDate?: string,
+    divisionId?: number,
+  ) {
+    const where: any = {};
+
+    if (startDate && endDate) {
+      where.work_date = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
+    if (divisionId) {
+      where.user = {
+        user_division: {
+          some: {
+            divisionId: divisionId,
+          },
+        },
+      };
+    }
+
+    const overtimeRecords = await this.prisma.over_times_history.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            user_division: {
+              include: {
+                division: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
+          },
+        },
+        project: {
+          select: { id: true, name: true, code: true },
+        },
+      },
+    });
+
+    // Thống kê tổng hợp
+    const totalStats = overtimeRecords.reduce(
+      (acc, record) => {
+        acc.total_records++;
+        acc.total_hours += record.total_hours || 0;
+        acc.total_amount += record.total_amount || 0;
+
+        if (record.status === 'APPROVED') {
+          acc.approved_records++;
+          acc.approved_hours += record.total_hours || 0;
+          acc.approved_amount += record.total_amount || 0;
+        }
+
+        return acc;
+      },
+      {
+        total_records: 0,
+        total_hours: 0,
+        total_amount: 0,
+        approved_records: 0,
+        approved_hours: 0,
+        approved_amount: 0,
+      },
+    );
+
+    // Thống kê theo user
+    const userStats = overtimeRecords.reduce((acc, record) => {
+      const userId = record.user_id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: record.user,
+          total_sessions: 0,
+          total_hours: 0,
+          total_amount: 0,
+          approved_sessions: 0,
+          approved_hours: 0,
+          approved_amount: 0,
+        };
+      }
+
+      acc[userId].total_sessions++;
+      acc[userId].total_hours += record.total_hours || 0;
+      acc[userId].total_amount += record.total_amount || 0;
+
+      if (record.status === 'APPROVED') {
+        acc[userId].approved_sessions++;
+        acc[userId].approved_hours += record.total_hours || 0;
+        acc[userId].approved_amount += record.total_amount || 0;
+      }
+
+      return acc;
+    }, {});
+
+    // Thống kê theo dự án
+    const projectStats = overtimeRecords.reduce((acc, record) => {
+      if (!record.project_id) return acc;
+
+      const projectId = record.project_id;
+      if (!acc[projectId]) {
+        acc[projectId] = {
+          project: record.project,
+          total_sessions: 0,
+          total_hours: 0,
+          total_amount: 0,
+        };
+      }
+
+      acc[projectId].total_sessions++;
+      acc[projectId].total_hours += record.total_hours || 0;
+      acc[projectId].total_amount += record.total_amount || 0;
+
+      return acc;
+    }, {});
+
+    return {
+      period: { start_date: startDate, end_date: endDate },
+      division_id: divisionId,
+      total_stats: totalStats,
+      user_stats: Object.values(userStats),
+      project_stats: Object.values(projectStats),
+    };
+  }
+
+  /**
+   * Báo cáo tổng hợp điều chuyển nhân sự
+   */
+  async getPersonnelTransferSummary(year?: number, divisionId?: number) {
+    const targetYear = year || new Date().getFullYear();
+    const startDate = new Date(targetYear, 0, 1);
+    const endDate = new Date(targetYear, 11, 31);
+
+    const where: any = {
+      date_rotation: {
+        gte: startDate,
+        lte: endDate,
+      },
+      deleted_at: null,
+    };
+
+    if (divisionId) {
+      where.OR = [
+        { division_id: divisionId },
+        {
+          user: {
+            user_division: {
+              some: {
+                divisionId: divisionId,
+              },
+            },
+          },
+        },
+      ];
+    }
+
+    const transfers = await this.prisma.rotation_members.findMany({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+        division: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Thống kê theo loại điều chuyển
+    const typeStats = transfers.reduce((acc, transfer) => {
+      const type = transfer.type === 1 ? 'permanent' : 'temporary';
+      if (!acc[type]) {
+        acc[type] = 0;
+      }
+      acc[type]++;
+      return acc;
+    }, {});
+
+    // Thống kê theo tháng
+    const monthlyStats = transfers.reduce((acc, transfer) => {
+      const month = transfer.date_rotation.getMonth() + 1;
+      if (!acc[month]) {
+        acc[month] = 0;
+      }
+      acc[month]++;
+      return acc;
+    }, {});
+
+    // Thống kê theo phòng ban đích
+    const divisionStats = transfers.reduce((acc, transfer) => {
+      const divisionId = transfer.division_id;
+      const divisionName = transfer.division.name;
+      if (!acc[divisionId]) {
+        acc[divisionId] = {
+          division_name: divisionName,
+          count: 0,
+        };
+      }
+      acc[divisionId].count++;
+      return acc;
+    }, {});
+
+    return {
+      year: targetYear,
+      division_id: divisionId,
+      total_transfers: transfers.length,
+      type_stats: typeStats,
+      monthly_stats: monthlyStats,
+      division_stats: Object.values(divisionStats),
+      transfers: transfers.map((t) => ({
+        id: t.id,
+        user: t.user,
+        division: t.division,
+        type: t.type === 1 ? 'permanent' : 'temporary',
+        date_rotation: t.date_rotation.toISOString().split('T')[0],
+      })),
+    };
+  }
+
+  /**
+   * Dashboard tổng hợp tất cả báo cáo
+   */
+  async getComprehensiveDashboard(month?: number, year?: number) {
+    const currentDate = new Date();
+    const targetMonth = month || currentDate.getMonth() + 1;
+    const targetYear = year || currentDate.getFullYear();
+
+    const startDate = new Date(targetYear, targetMonth - 1, 1);
+    const endDate = new Date(targetYear, targetMonth, 0);
+
+    const [
+      attendanceCount,
+      leaveCount,
+      overtimeCount,
+      transferCount,
+      activeUsers,
+      pendingRequests,
+    ] = await Promise.all([
+      this.prisma.attendance_logs.count({
+        where: {
+          created_at: { gte: startDate, lte: endDate },
+        },
+      }),
+      this.prisma.day_offs.count({
+        where: {
+          created_at: { gte: startDate, lte: endDate },
+        },
+      }),
+      this.prisma.over_times_history.count({
+        where: {
+          work_date: { gte: startDate, lte: endDate },
+        },
+      }),
+      this.prisma.rotation_members.count({
+        where: {
+          date_rotation: { gte: startDate, lte: endDate },
+          deleted_at: null,
+        },
+      }),
+      this.prisma.users.count({
+        where: {
+          deleted_at: null,
+          user_information: {
+            some: {
+              status: 'ACTIVE',
+            },
+          },
+        },
+      }),
+      this.prisma.remote_work_requests.count({
+        where: { status: 'PENDING' },
+      }),
+    ]);
+
+    return {
+      period: { month: targetMonth, year: targetYear },
+      summary: {
+        attendance_records: attendanceCount,
+        leave_requests: leaveCount,
+        overtime_sessions: overtimeCount,
+        personnel_transfers: transferCount,
+        active_users: activeUsers,
+        pending_requests: pendingRequests,
+      },
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  // === HELPER METHODS ===
+
+  /**
+   * Tính số ngày làm việc trong khoảng thời gian (trừ cuối tuần)
+   */
+  private calculateWorkingDaysInMonth(
+    startDate: string,
+    endDate: string,
+  ): number {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let workingDays = 0;
+
+    const currentDate = new Date(start);
+    while (currentDate <= end) {
+      const dayOfWeek = currentDate.getDay();
+      // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return workingDays;
+  }
+
+  /**
+   * Nhóm thống kê chấm công theo chu kỳ (daily, weekly, monthly, yearly)
+   */
+  private groupAttendanceByPeriod(
+    timesheets: any[],
+    period_type: string,
+  ): PeriodStats[] {
+    const grouped: Record<string, Partial<PeriodStats>> = {};
+
+    timesheets.forEach((timesheet) => {
+      let key: string;
+      const date = new Date(timesheet.work_date);
+
+      switch (period_type) {
+        case 'weekly': {
+          const weekStart = new Date(date);
+          weekStart.setDate(date.getDate() - date.getDay());
+          key = weekStart.toISOString().split('T')[0];
+          break;
+        }
+        case 'monthly':
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          break;
+        case 'yearly':
+          key = date.getFullYear().toString();
+          break;
+        default: // daily
+          key = date.toISOString().split('T')[0];
+      }
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          period: key,
+          total_records: 0,
+          total_work_hours: 0,
+          average_work_hours: 0,
+          total_late_count: 0,
+          total_early_count: 0,
+          attendance_rate: 0,
+        };
+      }
+
+      const g = grouped[key];
+      g.total_records = (g.total_records as number) + 1;
+      g.total_work_hours = (g.total_work_hours as number) + 
+        (((timesheet.work_time_morning || 0) + (timesheet.work_time_afternoon || 0)) / 60);
+      
+      if (timesheet.late_time && timesheet.late_time > 0) {
+        g.total_late_count = (g.total_late_count as number) + 1;
+      }
+      if (timesheet.early_time && timesheet.early_time > 0) {
+        g.total_early_count = (g.total_early_count as number) + 1;
+      }
+    });
+
+    return Object.values(grouped).sort((a, b) =>
+      (a.period || '').localeCompare(b.period || ''),
+    ) as PeriodStats[];
+  }
+
+  /**
+   * Thống kê vi phạm theo user
+   */
+  private async getViolationStatistics(
+    userIds: number[],
+    startDate: string,
+    endDate: string,
+  ) {
+    const whereViolation: TimesheetWhereInput = {
+      work_date: {
+        gte: new Date(startDate + 'T00:00:00.000Z'),
+        lte: new Date(endDate + 'T23:59:59.999Z'),
+      },
+      deleted_at: null,
+      OR: [
+        { late_time: { gt: 0 } },
+        { early_time: { gt: 0 } },
+        { fines: { gt: 0 } },
+      ],
+    };
+
+    if (userIds.length > 0) {
+      whereViolation.user_id = { in: userIds };
+    }
+
+    const violations = await this.prisma.time_sheets.findMany({
+      where: whereViolation,
+    });
+
+    // Group by user_id - TYPE SAFE
+    const userViolations: Record<number, Partial<ViolationStats>> = {};
+
+    violations.forEach((violation) => {
+      const userId = violation.user_id;
+      if (!userViolations[userId]) {
+        userViolations[userId] = {
+          user_id: userId,
+          user_name: undefined, // No user relation in time_sheets
+          total_violations: 0,
+          late_count: 0,
+          early_leave_count: 0,
+          total_penalties: 0,
+          total_late_minutes: 0,
+          total_early_minutes: 0,
+        };
+      }
+
+      const uv = userViolations[userId];
+      uv.total_violations = (uv.total_violations || 0) + 1;
+      
+      if (violation.late_time && violation.late_time > 0) {
+        uv.late_count = (uv.late_count || 0) + 1;
+        uv.total_late_minutes = (uv.total_late_minutes || 0) + violation.late_time;
+      }
+      if (violation.early_time && violation.early_time > 0) {
+        uv.early_leave_count = (uv.early_leave_count || 0) + 1;
+        uv.total_early_minutes = (uv.total_early_minutes || 0) + violation.early_time;
+      }
+      uv.total_penalties = (uv.total_penalties || 0) + (violation.fines || 0);
+    });
+
+    return Object.values(userViolations)
+      .sort((a, b) => (b.total_penalties || 0) - (a.total_penalties || 0))
+      .slice(0, 10) as ViolationStats[]; // Top 10
+  }
+
+  /**
+   * Thống kê nghỉ phép
+   */
+  private async getLeaveStatistics(
+    userIds: number[],
+    startDate: string,
+    endDate: string,
+  ) {
+    const where: any = {
+      created_at: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+      deleted_at: null,
+      status: DayOffStatus.APPROVED,
+    };
+
+    if (userIds.length > 0) {
+      where.user_id = { in: userIds };
+    }
+
+    const leaves = await this.prisma.day_offs.findMany({ where });
+
+    const stats = {
+      total_leave_days: leaves.reduce(
+        (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+        0,
+      ),
+      paid_leave: leaves
+        .filter((l) => l.type === DayOffType.PAID)
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
+      unpaid_leave: leaves
+        .filter((l) => l.type === DayOffType.UNPAID)
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
+      annual_leave: leaves
+        .filter((l) => l.type === DayOffType.COMPENSATORY)
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
+      sick_leave: leaves
+        .filter((l) => l.type === DayOffType.SICK)
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
+      personal_leave: leaves
+        .filter((l) => l.type === DayOffType.PERSONAL)
+        .reduce(
+          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          0,
+        ),
+    };
+
+    return stats;
+  }
+
+  /**
+   * Tạo báo cáo tổng hợp
+   */
+  private generateSummaryReport(timesheets: any[], period: string) {
+    const userStats: UserStatsMap = {};
+
+    timesheets.forEach((timesheet) => {
+      const userId = timesheet.user_id;
+      if (!userStats[userId]) {
+        userStats[userId] = {
+          user_id: userId,
+          total_days: 0,
+          total_work_hours: 0,
+          total_ot_hours: 0,
+          total_late_minutes: 0,
+          total_early_minutes: 0,
+          on_time_days: 0,
+          late_days: 0,
+          early_leave_days: 0,
+          remote_days: 0,
+          total_penalties: 0,
+        };
+      }
+
+      const us = userStats[userId];
+      us.total_days += 1;
+      
+      if (!timesheet.late_time || timesheet.late_time === 0) {
+        us.on_time_days! += 1;
+      }
+      if (timesheet.late_time && timesheet.late_time > 0) {
+        us.late_days! += 1;
+        us.total_late_minutes += timesheet.late_time;
+      }
+      if (timesheet.early_time && timesheet.early_time > 0) {
+        us.early_leave_days! += 1;
+        us.total_early_minutes += timesheet.early_time;
+      }
+      if (timesheet.remote === RemoteType.REMOTE) {
+        us.remote_days! += 1;
+      }
+
+      const workHours =
+        ((timesheet.work_time_morning || 0) +
+          (timesheet.work_time_afternoon || 0)) /
+        60;
+      us.total_work_hours += workHours;
+      us.total_penalties! += timesheet.fines || 0;
+    });
+
+    return {
+      report_type: 'summary',
+      period,
+      user_stats: Object.values(userStats),
+      generated_at: new Date(),
+    };
+  }
+
+  /**
+   * Tạo báo cáo chi tiết
+   */
+  private generateDetailedReport(timesheets: any[], period: string) {
+    return {
+      report_type: 'detailed',
+      period,
+      records: timesheets.map((timesheet) => ({
+        user_id: timesheet.user_id,
+        date: timesheet.checkin.toISOString().split('T')[0],
+        checkin: timesheet.checkin,
+        checkout: timesheet.checkout,
+        late_minutes: timesheet.late_time || 0,
+        early_minutes: timesheet.early_time || 0,
+        work_hours:
+          ((timesheet.work_time_morning || 0) +
+            (timesheet.work_time_afternoon || 0)) /
+          60,
+        penalties: timesheet.fines || 0,
+        is_remote: timesheet.remote === RemoteType.REMOTE,
+        status: timesheet.status,
+      })),
+      generated_at: new Date(),
+    };
+  }
+
+  /**
+   * Tạo báo cáo phạt
+   */
+  private generatePenaltyReport(timesheets: any[], period: string) {
+    const penaltyRecords = timesheets.filter((t) => (t.fines || 0) > 0);
+
+    const totalPenalties = penaltyRecords.reduce(
+      (sum, t) => sum + (t.fines || 0),
+      0,
+    );
+    
+    const penaltyByUser: Record<number, PenaltyByUser> = {};
+
+    penaltyRecords.forEach((record) => {
+      const userId = record.user_id;
+      if (!penaltyByUser[userId]) {
+        penaltyByUser[userId] = {
+          user_id: userId,
+          total_penalty: 0,
+          late_penalty: 0,
+          early_penalty: 0,
+          violation_count: 0,
+        };
+      }
+
+      penaltyByUser[userId].total_penalty += record.fines || 0;
+      penaltyByUser[userId].violation_count += 1;
+
+      // Ước tính phân bổ phạt
+      if (record.late_time > 0)
+        penaltyByUser[userId].late_penalty += (record.fines || 0) * 0.6;
+      if (record.early_time > 0)
+        penaltyByUser[userId].early_penalty += (record.fines || 0) * 0.4;
+    });
+
+    return {
+      report_type: 'penalty',
+      period,
+      total_penalties: totalPenalties,
+      total_violations: penaltyRecords.length,
+      penalty_by_user: Object.values(penaltyByUser),
+      detailed_records: penaltyRecords.map((record) => ({
+        user_id: record.user_id,
+        date: record.checkin.toISOString().split('T')[0],
+        late_minutes: record.late_time || 0,
+        early_minutes: record.early_time || 0,
+        penalty_amount: record.fines || 0,
+      })),
+      generated_at: new Date(),
+    };
+  }
+}
+

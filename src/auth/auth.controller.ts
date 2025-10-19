@@ -122,17 +122,30 @@ export class AuthController {
         email_verified_at: { type: 'string', format: 'date-time' },
         created_at: { type: 'string', format: 'date-time' },
         updated_at: { type: 'string', format: 'date-time' },
-        join_date: { type: 'string', format: 'date', description: 'Thời gian gia nhập công ty' },
+        join_date: {
+          type: 'string',
+          format: 'date',
+          description: 'Thời gian gia nhập công ty',
+        },
         today_attendance: {
           type: 'object',
           properties: {
             checkin: { type: 'string', format: 'date-time', nullable: true },
             checkout: { type: 'string', format: 'date-time', nullable: true },
-            total_work_time: { type: 'number', description: 'Tổng thời gian làm việc (phút)' },
-            status: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+            total_work_time: {
+              type: 'number',
+              description: 'Tổng thời gian làm việc (phút)',
+            },
+            status: {
+              type: 'string',
+              enum: ['PENDING', 'APPROVED', 'REJECTED'],
+            },
           },
         },
-        remaining_leave_days: { type: 'number', description: 'Số ngày phép còn lại trong tháng' },
+        remaining_leave_days: {
+          type: 'number',
+          description: 'Số ngày phép còn lại trong tháng',
+        },
         assigned_devices: {
           type: 'array',
           description: 'Danh sách thiết bị được cấp',
@@ -143,8 +156,16 @@ export class AuthController {
               name: { type: 'string', example: 'Laptop Dell XPS 13' },
               type: { type: 'string', example: 'laptop' },
               serial: { type: 'string', nullable: true, example: 'SN123456' },
-              assigned_date: { type: 'string', format: 'date', example: '2024-01-01' },
-              notes: { type: 'string', nullable: true, example: 'Thiết bị mới' },
+              assigned_date: {
+                type: 'string',
+                format: 'date',
+                example: '2024-01-01',
+              },
+              notes: {
+                type: 'string',
+                nullable: true,
+                example: 'Thiết bị mới',
+              },
             },
           },
         },
@@ -293,7 +314,9 @@ export class AuthController {
     status: 404,
     description: 'Email không tồn tại trong hệ thống',
   })
-  async resetPasswordWithToken(@Body() resetPasswordWithTokenDto: ResetPasswordWithTokenDto) {
+  async resetPasswordWithToken(
+    @Body() resetPasswordWithTokenDto: ResetPasswordWithTokenDto,
+  ) {
     return this.authService.resetPasswordWithToken(resetPasswordWithTokenDto);
   }
 
@@ -319,7 +342,8 @@ export class AuthController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Mật khẩu hiện tại không đúng hoặc mật khẩu mới trùng với mật khẩu cũ',
+    description:
+      'Mật khẩu hiện tại không đúng hoặc mật khẩu mới trùng với mật khẩu cũ',
   })
   @ApiResponse({
     status: 401,
@@ -335,7 +359,9 @@ export class AuthController {
   @Public()
   @Post('send-change-password-otp')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Gửi mã OTP để thay đổi mật khẩu (không cần mật khẩu hiện tại)' })
+  @ApiOperation({
+    summary: 'Gửi mã OTP để thay đổi mật khẩu (không cần mật khẩu hiện tại)',
+  })
   @ApiBody({ type: SendChangePasswordOtpDto })
   @ApiResponse({
     status: 200,
@@ -354,8 +380,12 @@ export class AuthController {
     status: 400,
     description: 'Gửi quá nhiều yêu cầu hoặc dữ liệu không hợp lệ',
   })
-  async sendChangePasswordOTP(@Body() sendChangePasswordOtpDto: SendChangePasswordOtpDto) {
-    return this.authService.sendChangePasswordOTP(sendChangePasswordOtpDto.email);
+  async sendChangePasswordOTP(
+    @Body() sendChangePasswordOtpDto: SendChangePasswordOtpDto,
+  ) {
+    return this.authService.sendChangePasswordOTP(
+      sendChangePasswordOtpDto.email,
+    );
   }
 
   @Public()
@@ -384,7 +414,9 @@ export class AuthController {
     status: 404,
     description: 'Email không tồn tại trong hệ thống',
   })
-  async changePasswordWithOTP(@Body() changePasswordWithOtpDto: ChangePasswordWithOtpDto) {
+  async changePasswordWithOTP(
+    @Body() changePasswordWithOtpDto: ChangePasswordWithOtpDto,
+  ) {
     return this.authService.changePasswordWithOTP(
       changePasswordWithOtpDto.email,
       changePasswordWithOtpDto.otp,

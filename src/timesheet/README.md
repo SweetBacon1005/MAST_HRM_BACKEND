@@ -5,6 +5,7 @@ Module quản lý chấm công và timesheet cho hệ thống HRM.
 ## Tổng quan
 
 Timesheet Module cung cấp các chức năng:
+
 - ✅ Quản lý timesheet hàng ngày
 - ✅ Check-in/Check-out với GPS và ảnh
 - ✅ Quản lý đơn nghỉ phép (Day-off requests)
@@ -46,6 +47,7 @@ src/timesheet/
 ### 1. Quản lý Timesheet
 
 #### Tạo timesheet
+
 ```typescript
 POST /timesheet
 {
@@ -57,6 +59,7 @@ POST /timesheet
 ```
 
 #### Workflow trạng thái
+
 - **DRAFT** (Bản nháp) → **PENDING** (Chờ duyệt)
 - **PENDING** → **APPROVED** (Đã duyệt) hoặc **REJECTED** (Từ chối)
 - **APPROVED** → **LOCKED** (Đã khóa - sau khi tính lương)
@@ -65,6 +68,7 @@ POST /timesheet
 ### 2. Check-in/Check-out
 
 #### Check-in
+
 ```typescript
 POST /timesheet/checkin
 {
@@ -78,6 +82,7 @@ POST /timesheet/checkin
 ```
 
 #### Tính năng:
+
 - ✅ Idempotency (tránh check-in/out trùng lặp)
 - ✅ Tự động tính late time (muộn)
 - ✅ Tự động tính early leave (về sớm)
@@ -87,6 +92,7 @@ POST /timesheet/checkin
 ### 3. Quản lý nghỉ phép
 
 #### Tạo đơn nghỉ phép
+
 ```typescript
 POST /timesheet/day-off-requests
 {
@@ -100,14 +106,16 @@ POST /timesheet/day-off-requests
 ```
 
 #### Loại nghỉ phép:
+
 - **PAID_LEAVE**: Nghỉ phép có lương
-- **UNPAID_LEAVE**: Nghỉ phép không lương  
+- **UNPAID_LEAVE**: Nghỉ phép không lương
 - **SICK_LEAVE**: Nghỉ ốm
 - **MATERNITY_LEAVE**: Nghỉ thai sản
 - **PERSONAL_LEAVE**: Nghỉ việc riêng
 - **COMPENSATORY_LEAVE**: Nghỉ bù
 
 #### Thời gian nghỉ:
+
 - **FULL_DAY**: Cả ngày
 - **MORNING**: Buổi sáng
 - **AFTERNOON**: Buổi chiều
@@ -128,16 +136,19 @@ POST /timesheet/overtime-requests
 ### 5. Báo cáo và thống kê
 
 #### Báo cáo timesheet
+
 ```typescript
 GET /timesheet/reports?start_date=2024-01-01&end_date=2024-01-31&team_id=5
 ```
 
 #### Báo cáo thời gian làm việc
+
 ```typescript
 GET /timesheet/working-time-report?month=2024-01&user_id=10
 ```
 
 #### Thống kê attendance
+
 ```typescript
 GET /timesheet/attendance-statistics?user_id=10&start_date=2024-01-01&end_date=2024-01-31
 ```
@@ -145,31 +156,34 @@ GET /timesheet/attendance-statistics?user_id=10&start_date=2024-01-01&end_date=2
 ## Enums và Constants
 
 ### TimesheetState
+
 ```typescript
 enum TimesheetState {
-  DRAFT = 0,     // Bản nháp
-  PENDING = 1,   // Chờ duyệt
-  APPROVED = 2,  // Đã duyệt
-  REJECTED = 3,  // Từ chối
-  LOCKED = 4     // Đã khóa
+  DRAFT = 0, // Bản nháp
+  PENDING = 1, // Chờ duyệt
+  APPROVED = 2, // Đã duyệt
+  REJECTED = 3, // Từ chối
+  LOCKED = 4, // Đã khóa
 }
 ```
 
 ### DayOffType
+
 ```typescript
 enum DayOffType {
-  PAID_LEAVE = 1,        // Nghỉ phép có lương
-  UNPAID_LEAVE = 2,      // Nghỉ phép không lương
-  SICK_LEAVE = 3,        // Nghỉ ốm
-  MATERNITY_LEAVE = 4,   // Nghỉ thai sản
-  PERSONAL_LEAVE = 5,    // Nghỉ việc riêng
-  COMPENSATORY_LEAVE = 6 // Nghỉ bù
+  PAID_LEAVE = 1, // Nghỉ phép có lương
+  UNPAID_LEAVE = 2, // Nghỉ phép không lương
+  SICK_LEAVE = 3, // Nghỉ ốm
+  MATERNITY_LEAVE = 4, // Nghỉ thai sản
+  PERSONAL_LEAVE = 5, // Nghỉ việc riêng
+  COMPENSATORY_LEAVE = 6, // Nghỉ bù
 }
 ```
 
 ## Business Rules
 
 ### Check-in/Check-out
+
 1. Chỉ được check-in/out một lần mỗi ngày
 2. Phải check-in trước khi check-out
 3. Giờ làm việc chuẩn: 8:00 - 17:30 (nghỉ trưa 1 tiếng)
@@ -177,12 +191,14 @@ enum DayOffType {
 5. Tự động tính early leave nếu check-out trước 17:30
 
 ### Nghỉ phép
+
 1. Không được tạo đơn nghỉ phép trùng lặp thời gian
 2. Ngày bắt đầu không được sau ngày kết thúc
 3. Nghỉ nửa ngày vẫn cần check-in/out cho nửa ngày còn lại
 4. Tự động tạo timesheet khi duyệt nghỉ phép
 
 ### Workflow
+
 1. Chỉ có thể sửa timesheet ở trạng thái DRAFT hoặc REJECTED
 2. Chỉ manager/HR mới có thể duyệt/từ chối timesheet
 3. Timesheet LOCKED không thể sửa/xóa
@@ -190,15 +206,18 @@ enum DayOffType {
 ## Utilities
 
 ### Date Utilities
+
 - Sử dụng UTC (GMT+0) cho tất cả timestamp
 - `new Date().toISOString().split('T')[0]`: Lấy ngày hiện tại
 - Thời gian làm việc: 1:30-10:30 UTC (8:30-17:30 UTC+7)
 
 ### EnumConverter
+
 - Chuyển đổi giữa enum numbers và string values cho Prisma
 - Hỗ trợ tất cả enum trong module
 
-### QueryUtil  
+### QueryUtil
+
 - `onlyActive()`: Filter chỉ lấy records chưa bị xóa
 - `workDateRange()`: Filter theo khoảng thời gian làm việc
 

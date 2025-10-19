@@ -1,4 +1,9 @@
-import { Injectable, NestMiddleware, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PermissionService } from '../services/permission.service';
 
@@ -23,20 +28,29 @@ export class PermissionMiddleware implements NestMiddleware {
     }
 
     // Log thông tin request để debug
-    this.logger.debug(`User ${req.user.id} accessing ${req.method} ${req.path}`);
+    this.logger.debug(
+      `User ${req.user.id} accessing ${req.method} ${req.path}`,
+    );
 
     // Lấy permissions của user để cache trong request
     try {
-      const userPermissions = await this.permissionService.getUserPermissions(req.user.id);
+      const userPermissions = await this.permissionService.getUserPermissions(
+        req.user.id,
+      );
       const userRole = await this.permissionService.getUserRole(req.user.id);
 
       // Attach permissions và role vào request để sử dụng sau này
       (req as any).userPermissions = userPermissions;
       (req as any).userRole = userRole;
 
-      this.logger.debug(`User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`);
+      this.logger.debug(
+        `User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`,
+      );
     } catch (error) {
-      this.logger.error(`Error getting permissions for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Error getting permissions for user ${req.user.id}:`,
+        error,
+      );
       // Không throw error ở đây, để PermissionGuard xử lý
     }
 
@@ -63,44 +77,54 @@ export class SpecificPermissionMiddleware implements NestMiddleware {
     }
 
     // Log thông tin request để debug
-    this.logger.debug(`User ${req.user.id} accessing ${req.method} ${req.path}`);
+    this.logger.debug(
+      `User ${req.user.id} accessing ${req.method} ${req.path}`,
+    );
 
     try {
       // Kiểm tra permissions cụ thể nếu có
       if (this.requiredPermissions.length > 0) {
-        const hasRequiredPermission = await this.permissionService.hasAnyPermission(
-          req.user.id,
-          this.requiredPermissions,
-        );
+        const hasRequiredPermission =
+          await this.permissionService.hasAnyPermission(
+            req.user.id,
+            this.requiredPermissions,
+          );
 
         if (!hasRequiredPermission) {
           this.logger.warn(
-            `User ${req.user.id} denied access to ${req.method} ${req.path}. Required: ${this.requiredPermissions.join(', ')}`
+            `User ${req.user.id} denied access to ${req.method} ${req.path}. Required: ${this.requiredPermissions.join(', ')}`,
           );
           throw new ForbiddenException(
-            `Bạn cần có ít nhất một trong các quyền: ${this.requiredPermissions.join(', ')}`
+            `Bạn cần có ít nhất một trong các quyền: ${this.requiredPermissions.join(', ')}`,
           );
         }
 
         this.logger.debug(
-          `User ${req.user.id} granted access to ${req.method} ${req.path}`
+          `User ${req.user.id} granted access to ${req.method} ${req.path}`,
         );
       }
 
       // Lấy permissions của user để cache trong request
-      const userPermissions = await this.permissionService.getUserPermissions(req.user.id);
+      const userPermissions = await this.permissionService.getUserPermissions(
+        req.user.id,
+      );
       const userRole = await this.permissionService.getUserRole(req.user.id);
 
       // Attach permissions và role vào request để sử dụng sau này
       (req as any).userPermissions = userPermissions;
       (req as any).userRole = userRole;
 
-      this.logger.debug(`User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`);
+      this.logger.debug(
+        `User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`,
+      );
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
       }
-      this.logger.error(`Error checking permissions for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Error checking permissions for user ${req.user.id}:`,
+        error,
+      );
       // Không throw error ở đây, để PermissionGuard xử lý
     }
 
