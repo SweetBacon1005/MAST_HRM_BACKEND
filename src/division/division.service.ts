@@ -8,24 +8,23 @@ import { Prisma } from '@prisma/client';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
+  buildPaginationResponseFromDto,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
-import {
-  DivisionPaginationDto,
-  DivisionAssignmentPaginationDto,
-} from './dto/pagination-queries.dto';
-import {
-  CreateDivisionAssignmentDto,
-  UpdateDivisionAssignmentDto,
-} from './dto/division-assignment.dto';
+import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
   CreateRotationMemberDto,
   UpdateRotationMemberDto,
   RotationMemberPaginationDto,
 } from './dto/rotation-member.dto';
+import {
+  CreateTeamDto,
+  UpdateTeamDto,
+  TeamPaginationDto,
+} from './dto/team.dto';
 
 @Injectable()
 export class DivisionService {
@@ -314,238 +313,6 @@ export class DivisionService {
     });
   }
 
-  // === DIVISION ASSIGNMENTS ===
-
-  async createAssignment(createAssignmentDto: CreateDivisionAssignmentDto) {
-    const { start_date, end_date, ...rest } = createAssignmentDto;
-
-    // Kiểm tra division tồn tại
-    const division = await this.prisma.divisions.findUnique({
-      where: { id: createAssignmentDto.division_id, deleted_at: null },
-    });
-    if (!division) {
-      throw new NotFoundException('Phòng ban không tồn tại');
-    }
-
-    // Kiểm tra user tồn tại
-    const user = await this.prisma.users.findUnique({
-      where: { id: createAssignmentDto.user_id, deleted_at: null },
-    });
-    if (!user) {
-      throw new NotFoundException('Người dùng không tồn tại');
-    }
-
-    // Kiểm tra contract nếu có
-    if (createAssignmentDto.contract_id) {
-      const contract = await this.prisma.contracts.findUnique({
-        where: { id: createAssignmentDto.contract_id },
-      });
-      if (!contract) {
-        throw new NotFoundException('Hợp đồng không tồn tại');
-      }
-    }
-
-    // Kiểm tra ngày hợp lệ
-    const startDate = new Date(start_date);
-    const endDate = new Date(end_date);
-    if (startDate >= endDate) {
-      throw new BadRequestException('Ngày bắt đầu phải nhỏ hơn ngày kết thúc');
-    }
-
-    // Kiểm tra trùng lặp assignment
-    const existingAssignment =
-      await this.prisma.divisions_assignments.findFirst({
-        where: {
-          division_id: createAssignmentDto.division_id,
-          user_id: createAssignmentDto.user_id,
-          OR: [
-            {
-              start_date: { lte: endDate },
-              end_date: { gte: startDate },
-            },
-          ],
-        },
-      });
-
-    if (existingAssignment) {
-      throw new BadRequestException(
-        'Người dùng đã được phân công vào phòng ban trong khoảng thời gian này',
-      );
-    }
-
-    return await this.prisma.divisions_assignments.create({
-      data: {
-        ...rest,
-        start_date: startDate,
-        end_date: endDate,
-      },
-      include: {
-        division: {
-          select: { id: true, name: true },
-        },
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-        contract: {
-          select: { id: true },
-        },
-      },
-    });
-  }
-
-  async findAllAssignments(paginationDto: DivisionAssignmentPaginationDto) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.divisions_assignmentsWhereInput = {};
-
-    // Thêm filters
-    if (paginationDto.division_id) {
-      where.division_id = paginationDto.division_id;
-    }
-
-    if (paginationDto.user_id) {
-      where.user_id = paginationDto.user_id;
-    }
-
-    if (paginationDto.start_date || paginationDto.end_date) {
-      where.AND = [];
-      if (paginationDto.start_date) {
-        where.AND.push({
-          start_date: { gte: new Date(paginationDto.start_date) },
-        });
-      }
-      if (paginationDto.end_date) {
-        where.AND.push({
-          end_date: { lte: new Date(paginationDto.end_date) },
-        });
-      }
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.divisions_assignments.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          division: {
-            select: { id: true, name: true },
-          },
-          user: {
-            select: { id: true, name: true, email: true },
-          },
-          contract: {
-            select: { id: true },
-          },
-        },
-      }),
-      this.prisma.divisions_assignments.count({ where }),
-    ]);
-
-    // Transform dates
-    const transformedData = data.map((assignment) => ({
-      ...assignment,
-      start_date: assignment.start_date.toISOString().split('T')[0],
-      end_date: assignment.end_date.toISOString().split('T')[0],
-    }));
-
-    return buildPaginationResponse(
-      transformedData,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findOneAssignment(id: number) {
-    const assignment = await this.prisma.divisions_assignments.findUnique({
-      where: { id },
-      include: {
-        division: {
-          select: { id: true, name: true },
-        },
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-        contract: {
-          select: { id: true },
-        },
-      },
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Không tìm thấy phân công phòng ban');
-    }
-
-    return {
-      ...assignment,
-      start_date: assignment.start_date.toISOString().split('T')[0],
-      end_date: assignment.end_date.toISOString().split('T')[0],
-    };
-  }
-
-  async updateAssignment(
-    id: number,
-    updateAssignmentDto: UpdateDivisionAssignmentDto,
-  ) {
-    const assignment = await this.prisma.divisions_assignments.findUnique({
-      where: { id },
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Không tìm thấy phân công phòng ban');
-    }
-
-    const { start_date, end_date, ...rest } = updateAssignmentDto;
-    const updateData: any = { ...rest };
-
-    if (start_date) {
-      updateData.start_date = new Date(start_date);
-    }
-
-    if (end_date) {
-      updateData.end_date = new Date(end_date);
-    }
-
-    // Kiểm tra ngày hợp lệ nếu cả hai đều được cập nhật
-    if (start_date && end_date) {
-      if (new Date(start_date) >= new Date(end_date)) {
-        throw new BadRequestException(
-          'Ngày bắt đầu phải nhỏ hơn ngày kết thúc',
-        );
-      }
-    }
-
-    return await this.prisma.divisions_assignments.update({
-      where: { id },
-      data: updateData,
-      include: {
-        division: {
-          select: { id: true, name: true },
-        },
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-        contract: {
-          select: { id: true },
-        },
-      },
-    });
-  }
-
-  async removeAssignment(id: number) {
-    const assignment = await this.prisma.divisions_assignments.findUnique({
-      where: { id },
-    });
-
-    if (!assignment) {
-      throw new NotFoundException('Không tìm thấy phân công phòng ban');
-    }
-
-    return await this.prisma.divisions_assignments.delete({
-      where: { id },
-    });
-  }
-
   // === UTILITY METHODS ===
 
   async getDivisionHierarchy(id?: number) {
@@ -588,51 +355,168 @@ export class DivisionService {
 
   async getDivisionMembers(
     divisionId: number,
-    paginationDto: DivisionPaginationDto,
+    queryDto: any,
   ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const page = queryDto.page || 1;
+    const limit = queryDto.limit || 10;
+    const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      this.prisma.user_division.findMany({
-        where: {
-          divisionId: divisionId,
+    // Build where conditions for user_information filters
+    const userInfoWhere: any = {
+      deleted_at: null,
+    };
+
+    if (queryDto.positionId) {
+      userInfoWhere.position_id = queryDto.positionId;
+    }
+
+    if (queryDto.levelId) {
+      userInfoWhere.level_id = queryDto.levelId;
+    }
+
+    // Build where conditions
+    const whereConditions: any = {
+      divisionId: divisionId,
+      user: {
+        deleted_at: null,
+        user_information: {
+          some: userInfoWhere,
         },
+      },
+    };
+
+    // Filter by team
+    if (queryDto.teamId) {
+      whereConditions.teamId = queryDto.teamId;
+    }
+
+    // Filter by search (name)
+    if (queryDto.search) {
+      whereConditions.user = {
+        ...whereConditions.user,
+        name: {
+          contains: queryDto.search,
+        },
+      };
+    }
+
+    // Filter by skill
+    if (queryDto.skillId) {
+      whereConditions.user = {
+        ...whereConditions.user,
+        user_skills: {
+          some: {
+            skill_id: queryDto.skillId,
+            deleted_at: null,
+          },
+        },
+      };
+    }
+
+    // Build orderBy
+    let orderBy: any = { created_at: 'desc' };
+    if (queryDto.sortBy) {
+      const sortOrder = queryDto.sortOrder || 'asc';
+      switch (queryDto.sortBy) {
+        case 'name':
+          orderBy = { user: { name: sortOrder } };
+          break;
+        case 'join_date':
+          orderBy = { created_at: sortOrder };
+          break;
+        default:
+          orderBy = { created_at: 'desc' };
+      }
+    }
+
+    const [userDivisions, total] = await Promise.all([
+      this.prisma.user_division.findMany({
+        where: whereConditions,
         skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
+        take: limit,
+        orderBy,
         include: {
           user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+            include: {
               user_information: {
-                select: {
-                  position: { select: { name: true } },
-                  level: { select: { name: true } },
+                where: { deleted_at: null },
+                include: {
+                  position: {
+                    select: { id: true, name: true },
+                  },
+                  level: {
+                    select: { id: true, name: true, coefficient: true },
+                  },
                 },
+              },
+              user_skills: {
+                where: { deleted_at: null },
+                include: {
+                  skill: {
+                    select: { id: true, name: true },
+                  },
+                },
+              },
+              contracts: {
+                where: {
+                  deleted_at: null,
+                  status: 'ACTIVE',
+                },
+                orderBy: { start_date: 'asc' },
+                take: 1,
               },
             },
           },
-          role: {
+          team: {
             select: { id: true, name: true },
           },
-          team: {
+          division: {
             select: { id: true, name: true },
           },
         },
       }),
       this.prisma.user_division.count({
-        where: { divisionId: divisionId },
+        where: whereConditions,
       }),
     ]);
 
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
+    // Transform data to match UI format
+    const transformedData = userDivisions.map((ud) => {
+      const userInfo = ud.user.user_information[0];
+      const firstContract = ud.user.contracts[0];
+      const joinDate = firstContract?.start_date || ud.user.created_at;
+
+      // Calculate months of service (thâm niên)
+      const now = new Date();
+      const join = new Date(joinDate);
+      const monthsOfService =
+        (now.getFullYear() - join.getFullYear()) * 12 +
+        (now.getMonth() - join.getMonth());
+
+      // Get skills
+      const skills = ud.user.user_skills.map((us) => us.skill.name);
+
+      return {
+        user_id: ud.user.id,
+        code: userInfo?.code || '',
+        name: ud.user.name || '',
+        email: ud.user.email,
+        avatar: userInfo?.avatar || '',
+        birthday: userInfo?.birthday || null,
+        team: ud.team?.name || ud.division?.name || '',
+        team_id: ud.teamId || ud.divisionId,
+        join_date: joinDate,
+        months_of_service: monthsOfService,
+        position: userInfo?.position?.name || '',
+        position_id: userInfo?.position?.id || null,
+        skills: skills.join(', '),
+        level: userInfo?.level?.name || '',
+        level_id: userInfo?.level?.id || null,
+        coefficient: userInfo?.level?.coefficient || 0,
+      };
+    });
+
+    return buildPaginationResponse(transformedData, total, page, limit);
   }
 
   // === ROTATION MEMBERS (PERSONNEL TRANSFER) ===
@@ -950,28 +834,18 @@ export class DivisionService {
   private async getWorkingInfo(divisionId: number, date: Date) {
     const dateStr = date.toISOString().split('T')[0];
 
-    // Lấy tổng số nhân viên trong division (active assignments)
-    const totalMembers = await this.prisma.divisions_assignments.count({
-      where: {
-        division_id: divisionId,
-        start_date: { lte: date },
-        end_date: { gte: date },
-      },
-    });
-
     // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.divisions_assignments.findMany({
+    const divisionUsers = await this.prisma.user_division.findMany({
       where: {
-        division_id: divisionId,
-        start_date: { lte: date },
-        end_date: { gte: date },
+        divisionId: divisionId,
       },
       select: {
-        user_id: true,
+        userId: true,
       },
     });
 
-    const userIds = divisionUsers.map((u) => u.user_id);
+    const userIds = divisionUsers.map((u) => u.userId);
+    const totalMembers = userIds.length;
 
     if (userIds.length === 0) {
       return {
@@ -1006,28 +880,26 @@ export class DivisionService {
     const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
     // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.divisions_assignments.findMany({
+    const divisionUsers = await this.prisma.user_division.findMany({
       where: {
-        division_id: divisionId,
-        start_date: { lte: endOfMonth },
-        end_date: { gte: startOfMonth },
+        divisionId: divisionId,
       },
       select: {
-        user_id: true,
+        userId: true,
       },
     });
 
-    const userIds = divisionUsers.map((u) => u.user_id);
+    const userIds = divisionUsers.map((u) => u.userId);
 
     if (userIds.length === 0) {
       return {
-        approved_count: 0,
-        rejected_count: 0,
+        paid_leave_count: 0,
+        unpaid_leave_count: 0,
       };
     }
 
-    // Đếm số đơn nghỉ phép approved và rejected
-    const [approvedCount, rejectedCount] = await Promise.all([
+    // Đếm số đơn nghỉ phép có lương (PAID) và không lương (UNPAID) đã approved
+    const [paidCount, unpaidCount] = await Promise.all([
       this.prisma.day_offs.count({
         where: {
           user_id: { in: userIds },
@@ -1036,6 +908,7 @@ export class DivisionService {
             lte: endOfMonth,
           },
           status: 'APPROVED',
+          type: 'PAID',
           deleted_at: null,
         },
       }),
@@ -1046,15 +919,16 @@ export class DivisionService {
             gte: startOfMonth,
             lte: endOfMonth,
           },
-          status: 'REJECTED',
+          status: 'APPROVED',
+          type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
           deleted_at: null,
         },
       }),
     ]);
 
     return {
-      approved_count: approvedCount,
-      rejected_count: rejectedCount,
+      paid_leave_count: paidCount,
+      unpaid_leave_count: unpaidCount,
     };
   }
 
@@ -1066,18 +940,16 @@ export class DivisionService {
     const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
     // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.divisions_assignments.findMany({
+    const divisionUsers = await this.prisma.user_division.findMany({
       where: {
-        division_id: divisionId,
-        start_date: { lte: endOfMonth },
-        end_date: { gte: startOfMonth },
+        divisionId: divisionId,
       },
       select: {
-        user_id: true,
+        userId: true,
       },
     });
 
-    const userIds = divisionUsers.map((u) => u.user_id);
+    const userIds = divisionUsers.map((u) => u.userId);
 
     if (userIds.length === 0) {
       return {
@@ -1128,18 +1000,16 @@ export class DivisionService {
     const now = new Date();
 
     // Lấy danh sách user_id trong division hiện tại
-    const divisionUsers = await this.prisma.divisions_assignments.findMany({
+    const divisionUsers = await this.prisma.user_division.findMany({
       where: {
-        division_id: divisionId,
-        start_date: { lte: now },
-        end_date: { gte: now },
+        divisionId: divisionId,
       },
       select: {
-        user_id: true,
+        userId: true,
       },
     });
 
-    const userIds = divisionUsers.map((u) => u.user_id);
+    const userIds = divisionUsers.map((u) => u.userId);
 
     if (userIds.length === 0) {
       return [];
@@ -1216,24 +1086,17 @@ export class DivisionService {
       overtime_hours: number;
     }> = [];
 
-    // Lấy danh sách user_id trong division (lấy tất cả assignments trong năm)
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31);
-
-    const divisionUsers = await this.prisma.divisions_assignments.findMany({
+    // Lấy danh sách user_id trong division
+    const divisionUsers = await this.prisma.user_division.findMany({
       where: {
-        division_id: divisionId,
-        start_date: { lte: endOfYear },
-        end_date: { gte: startOfYear },
+        divisionId: divisionId,
       },
       select: {
-        user_id: true,
+        userId: true,
       },
     });
 
-    const userIds = Array.from(
-      new Set(divisionUsers.map((u) => u.user_id)),
-    );
+    const userIds = divisionUsers.map((u) => u.userId);
 
     if (userIds.length === 0) {
       // Trả về 12 tháng với giá trị 0
@@ -1314,5 +1177,399 @@ export class DivisionService {
     }
 
     return stats;
+  }
+
+  // === TEAM MANAGEMENT ===
+
+  async createTeam(createTeamDto: CreateTeamDto) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: createTeamDto.divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Kiểm tra manager có tồn tại không (nếu có)
+    if (createTeamDto.managerId) {
+      const manager = await this.prisma.users.findUnique({
+        where: { id: createTeamDto.managerId, deleted_at: null },
+      });
+
+      if (!manager) {
+        throw new NotFoundException('Không tìm thấy người quản lý');
+      }
+    }
+
+    // Kiểm tra tên team đã tồn tại chưa
+    const existingTeam = await this.prisma.teams.findFirst({
+      where: {
+        name: createTeamDto.name,
+        division_id: createTeamDto.divisionId,
+        deleted_at: null,
+      },
+    });
+
+    if (existingTeam) {
+      throw new BadRequestException('Tên team đã tồn tại trong phòng ban này');
+    }
+
+    const team = await this.prisma.teams.create({
+      data: {
+        name: createTeamDto.name,
+        division_id: createTeamDto.divisionId,
+        manager_id: createTeamDto.managerId,
+        founding_date: createTeamDto.foundingDate
+          ? new Date(createTeamDto.foundingDate)
+          : new Date(),
+      },
+    });
+
+    return team;
+  }
+
+  async findAllTeams(paginationDto: TeamPaginationDto) {
+    const { skip, take, orderBy: defaultOrderBy } = buildPaginationQuery(paginationDto);
+
+    // Build where conditions
+    const whereConditions: any = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+      };
+    }
+
+    if (paginationDto.divisionId) {
+      whereConditions.division_id = paginationDto.divisionId;
+    }
+
+    // Build orderBy - ưu tiên sortBy custom, nếu không có thì dùng defaultOrderBy
+    let orderBy: any = defaultOrderBy || { created_at: 'desc' };
+    if (paginationDto.sortBy) {
+      orderBy = { [paginationDto.sortBy]: paginationDto.sort_order || 'desc' };
+    }
+    
+    const [teams, total] = await Promise.all([
+      this.prisma.teams.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy,
+      }),
+      this.prisma.teams.count({
+        where: whereConditions,
+      }),
+    ]);
+
+    // Fetch additional data for each team
+    const teamsWithDetails = await Promise.all(
+      teams.map(async (team) => {
+        // Get manager info
+        let manager: {
+          id: number;
+          name: string | null;
+          email: string;
+          avatar: string;
+        } | null = null;
+        
+        if (team.manager_id) {
+          const managerData = await this.prisma.users.findUnique({
+            where: { id: team.manager_id },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              user_information: {
+                where: { deleted_at: null },
+                select: {
+                  avatar: true,
+                },
+              },
+            },
+          });
+
+          if (managerData) {
+            manager = {
+              id: managerData.id,
+              name: managerData.name,
+              email: managerData.email,
+              avatar: managerData.user_information[0]?.avatar || '',
+            };
+          }
+        }
+
+        // Count members
+        const memberCount = await this.prisma.user_division.count({
+          where: {
+            teamId: team.id,
+          },
+        });
+
+        // Get resource by level
+        const members = await this.prisma.user_division.findMany({
+          where: {
+            teamId: team.id,
+          },
+          include: {
+            user: {
+              include: {
+                user_information: {
+                  where: { deleted_at: null },
+                  include: {
+                    level: {
+                      select: { name: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        // Count by level
+        const levelCounts: Record<string, number> = {};
+        members.forEach((member) => {
+          const levelName =
+            member.user.user_information[0]?.level?.name || 'Unknown';
+          levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
+        });
+
+        // Get active projects
+        const activeProjects = await this.prisma.projects.findMany({
+          where: {
+            team_id: team.id,
+            deleted_at: null,
+            // Assuming status 1 means active
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        });
+
+        return {
+          id: team.id,
+          name: team.name,
+          division_id: team.division_id,
+          manager: manager,
+          member_count: memberCount,
+          resource_by_level: levelCounts,
+          active_projects: activeProjects.map((p) => p.name).join(', '),
+          founding_date: team.founding_date,
+          created_at: team.created_at,
+        };
+      }),
+    );
+
+    return buildPaginationResponseFromDto(teamsWithDetails, total, paginationDto);
+  }
+
+  async findOneTeam(id: number) {
+    const team = await this.prisma.teams.findUnique({
+      where: { id, deleted_at: null },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Không tìm thấy team');
+    }
+
+    // Get manager info
+    let manager: {
+      id: number;
+      name: string | null;
+      email: string;
+      avatar: string;
+      position: string;
+    } | null = null;
+    
+    if (team.manager_id) {
+      const managerData = await this.prisma.users.findUnique({
+        where: { id: team.manager_id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          user_information: {
+            where: { deleted_at: null },
+            select: {
+              avatar: true,
+              position: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (managerData) {
+        manager = {
+          id: managerData.id,
+          name: managerData.name,
+          email: managerData.email,
+          avatar: managerData.user_information[0]?.avatar || '',
+          position: managerData.user_information[0]?.position?.name || '',
+        };
+      }
+    }
+
+    // Count members
+    const memberCount = await this.prisma.user_division.count({
+      where: {
+        teamId: team.id,
+      },
+    });
+
+    // Get resource by level
+    const members = await this.prisma.user_division.findMany({
+      where: {
+        teamId: team.id,
+      },
+      include: {
+        user: {
+          include: {
+            user_information: {
+              where: { deleted_at: null },
+              include: {
+                level: {
+                  select: { name: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Count by level
+    const levelCounts: Record<string, number> = {};
+    members.forEach((member) => {
+      const levelName =
+        member.user.user_information[0]?.level?.name || 'Unknown';
+      levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
+    });
+
+    // Get active projects
+    const activeProjects = await this.prisma.projects.findMany({
+      where: {
+        team_id: team.id,
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    return {
+      id: team.id,
+      name: team.name,
+      division_id: team.division_id,
+      manager: manager,
+      member_count: memberCount,
+      resource_by_level: levelCounts,
+      active_projects: activeProjects,
+      founding_date: team.founding_date,
+      created_at: team.created_at,
+      updated_at: team.updated_at,
+    };
+  }
+
+  async updateTeam(id: number, updateTeamDto: UpdateTeamDto) {
+    const team = await this.prisma.teams.findUnique({
+      where: { id, deleted_at: null },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Không tìm thấy team');
+    }
+
+    // Kiểm tra manager có tồn tại không (nếu có)
+    if (updateTeamDto.managerId) {
+      const manager = await this.prisma.users.findUnique({
+        where: { id: updateTeamDto.managerId, deleted_at: null },
+      });
+
+      if (!manager) {
+        throw new NotFoundException('Không tìm thấy người quản lý');
+      }
+    }
+
+    // Kiểm tra tên team trùng lặp
+    if (updateTeamDto.name) {
+      const existingTeam = await this.prisma.teams.findFirst({
+        where: {
+          name: updateTeamDto.name,
+          division_id: team.division_id,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (existingTeam) {
+        throw new BadRequestException(
+          'Tên team đã tồn tại trong phòng ban này',
+        );
+      }
+    }
+
+    const updatedTeam = await this.prisma.teams.update({
+      where: { id },
+      data: {
+        name: updateTeamDto.name,
+        manager_id: updateTeamDto.managerId,
+        founding_date: updateTeamDto.foundingDate
+          ? new Date(updateTeamDto.foundingDate)
+          : undefined,
+      },
+    });
+
+    return updatedTeam;
+  }
+
+  async removeTeam(id: number) {
+    const team = await this.prisma.teams.findUnique({
+      where: { id, deleted_at: null },
+    });
+
+    if (!team) {
+      throw new NotFoundException('Không tìm thấy team');
+    }
+
+    // Kiểm tra xem team có thành viên không
+    const memberCount = await this.prisma.user_division.count({
+      where: { teamId: id },
+    });
+
+    if (memberCount > 0) {
+      throw new BadRequestException(
+        `Không thể xóa team vì còn ${memberCount} thành viên. Vui lòng chuyển thành viên sang team khác trước.`,
+      );
+    }
+
+    // Kiểm tra xem team có dự án không
+    const projectCount = await this.prisma.projects.count({
+      where: {
+        team_id: id,
+        deleted_at: null,
+      },
+    });
+
+    if (projectCount > 0) {
+      throw new BadRequestException(
+        `Không thể xóa team vì còn ${projectCount} dự án. Vui lòng chuyển dự án sang team khác trước.`,
+      );
+    }
+
+    // Soft delete
+    await this.prisma.teams.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+
+    return { message: 'Xóa team thành công' };
   }
 }

@@ -205,6 +205,8 @@ export class ScheduleAutomationService {
     this.logger.log('📋 Creating daily timesheets for all active users...');
 
     try {
+      // Cleanup connections trước khi chạy (quan trọng cho serverless)
+      await this.prisma.cleanupConnections();
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
 
@@ -284,6 +286,9 @@ export class ScheduleAutomationService {
       );
     } catch (error) {
       this.logger.error('❌ Error creating daily timesheets:', error);
+    } finally {
+      // Cleanup connections sau khi chạy xong (quan trọng cho serverless)
+      await this.prisma.cleanupConnections();
     }
   }
 
@@ -297,6 +302,7 @@ export class ScheduleAutomationService {
     );
 
     try {
+      await this.prisma.cleanupConnections();
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -386,6 +392,8 @@ export class ScheduleAutomationService {
       );
     } catch (error) {
       this.logger.error('❌ Error adding monthly paid leave:', error);
+    } finally {
+      await this.prisma.cleanupConnections();
     }
   }
 
@@ -399,6 +407,7 @@ export class ScheduleAutomationService {
     );
 
     try {
+      await this.prisma.cleanupConnections();
       // Lấy tất cả user đang hoạt động (có contract active)
       const activeUsers = await this.prisma.users.findMany({
         where: {
@@ -444,6 +453,8 @@ export class ScheduleAutomationService {
       );
     } catch (error) {
       this.logger.error('❌ Error resetting annual leave balance:', error);
+    } finally {
+      await this.prisma.cleanupConnections();
     }
   }
 
@@ -455,6 +466,8 @@ export class ScheduleAutomationService {
     this.logger.log('🆕 Initializing leave balance for new users...');
 
     try {
+      await this.prisma.cleanupConnections();
+      
       const result =
         await this.leaveBalanceService.initializeLeaveBalanceForAllUsers();
 
@@ -463,6 +476,8 @@ export class ScheduleAutomationService {
       );
     } catch (error) {
       this.logger.error('❌ Error initializing leave balance:', error);
+    } finally {
+      await this.prisma.cleanupConnections();
     }
   }
 

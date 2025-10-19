@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PermissionService } from './permission.service';
 
 export interface RoleHierarchy {
@@ -9,7 +9,10 @@ export interface RoleHierarchy {
 
 @Injectable()
 export class RoleHierarchyService {
-  constructor(private readonly permissionService: PermissionService) {}
+  constructor(
+    @Inject(forwardRef(() => PermissionService))
+    private readonly permissionService: PermissionService,
+  ) {}
 
   // Định nghĩa cấp bậc vai trò từ thấp đến cao
   private readonly roleHierarchy: RoleHierarchy[] = [

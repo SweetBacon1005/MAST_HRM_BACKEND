@@ -23,20 +23,19 @@ import { RequirePermission } from '../auth/decorators/require-permission.decorat
 import { DivisionService } from './division.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
-import {
-  DivisionPaginationDto,
-  DivisionAssignmentPaginationDto,
-} from './dto/pagination-queries.dto';
-import {
-  CreateDivisionAssignmentDto,
-  UpdateDivisionAssignmentDto,
-} from './dto/division-assignment.dto';
+import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
   CreateRotationMemberDto,
   UpdateRotationMemberDto,
   RotationMemberPaginationDto,
 } from './dto/rotation-member.dto';
 import { DivisionDashboardQueryDto } from './dto/dashboard-query.dto';
+import { DivisionMembersQueryDto } from './dto/division-members-query.dto';
+import {
+  CreateTeamDto,
+  UpdateTeamDto,
+  TeamPaginationDto,
+} from './dto/team.dto';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 
 @ApiTags('divisions')
@@ -112,12 +111,50 @@ export class DivisionController {
   @ApiResponse({
     status: 200,
     description: 'Lấy danh sách thành viên thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number', description: 'ID của user' },
+              code: { type: 'string', description: 'Mã nhân viên' },
+              name: { type: 'string', description: 'Tên nhân viên' },
+              email: { type: 'string', description: 'Email' },
+              avatar: { type: 'string', description: 'Link avatar' },
+              birthday: { type: 'string', format: 'date', description: 'Ngày sinh' },
+              team: { type: 'string', description: 'Tên team/phòng ban' },
+              team_id: { type: 'number', description: 'ID team/phòng ban' },
+              join_date: { type: 'string', format: 'date', description: 'Ngày vào làm' },
+              months_of_service: { type: 'number', description: 'Số tháng thâm niên' },
+              position: { type: 'string', description: 'Vị trí' },
+              position_id: { type: 'number', description: 'ID vị trí' },
+              skills: { type: 'string', description: 'Danh sách kỹ năng (ngăn cách bởi dấu phẩy)' },
+              level: { type: 'string', description: 'Level' },
+              level_id: { type: 'number', description: 'ID level' },
+              coefficient: { type: 'number', description: 'Hệ số' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', description: 'Tổng số bản ghi' },
+            page: { type: 'number', description: 'Trang hiện tại' },
+            limit: { type: 'number', description: 'Số bản ghi trên mỗi trang' },
+            totalPages: { type: 'number', description: 'Tổng số trang' },
+          },
+        },
+      },
+    },
   })
   getDivisionMembers(
     @Param('id', ParseIntPipe) id: number,
-    @Query() paginationDto: DivisionPaginationDto,
+    @Query() queryDto: DivisionMembersQueryDto,
   ) {
-    return this.divisionService.getDivisionMembers(id, paginationDto);
+    return this.divisionService.getDivisionMembers(id, queryDto);
   }
 
   @Patch(':id')
@@ -162,93 +199,6 @@ export class DivisionController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.remove(id);
-  }
-
-  // === DIVISION ASSIGNMENTS ===
-
-  @Post('assignments')
-  @RequirePermission('division.assignment.create')
-  @ApiOperation({ summary: 'Tạo phân công phòng ban cho nhân viên' })
-  @ApiResponse({
-    status: 201,
-    description: 'Tạo phân công thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Dữ liệu không hợp lệ hoặc trùng lặp phân công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Phòng ban hoặc người dùng không tồn tại',
-  })
-  createAssignment(@Body() createAssignmentDto: CreateDivisionAssignmentDto) {
-    return this.divisionService.createAssignment(createAssignmentDto);
-  }
-
-  @Get('assignments')
-  @RequirePermission('division.assignment.read')
-  @ApiOperation({ summary: 'Lấy danh sách phân công phòng ban có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy danh sách phân công thành công',
-  })
-  findAllAssignments(@Query() paginationDto: DivisionAssignmentPaginationDto) {
-    return this.divisionService.findAllAssignments(paginationDto);
-  }
-
-  @Get('assignments/:id')
-  @RequirePermission('division.assignment.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết phân công phòng ban' })
-  @ApiParam({ name: 'id', description: 'ID của phân công' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thông tin phân công thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy phân công phòng ban',
-  })
-  findOneAssignment(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.findOneAssignment(id);
-  }
-
-  @Patch('assignments/:id')
-  @RequirePermission('division.assignment.update')
-  @ApiOperation({ summary: 'Cập nhật phân công phòng ban' })
-  @ApiParam({ name: 'id', description: 'ID của phân công' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật phân công thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Dữ liệu không hợp lệ',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy phân công phòng ban',
-  })
-  updateAssignment(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateAssignmentDto: UpdateDivisionAssignmentDto,
-  ) {
-    return this.divisionService.updateAssignment(id, updateAssignmentDto);
-  }
-
-  @Delete('assignments/:id')
-  @RequirePermission('division.assignment.delete')
-  @ApiOperation({ summary: 'Xóa phân công phòng ban' })
-  @ApiParam({ name: 'id', description: 'ID của phân công' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xóa phân công thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy phân công phòng ban',
-  })
-  removeAssignment(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.removeAssignment(id);
   }
 
   // === ROTATION MEMBERS (PERSONNEL TRANSFER) ===
@@ -377,8 +327,8 @@ export class DivisionController {
         leave_requests: {
           type: 'object',
           properties: {
-            approved_count: { type: 'number', description: 'Số đơn nghỉ phép được duyệt' },
-            rejected_count: { type: 'number', description: 'Số đơn nghỉ phép bị từ chối' },
+            paid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép có lương' },
+            unpaid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép không lương' },
           },
         },
         late_info: {
@@ -430,5 +380,141 @@ export class DivisionController {
     @Query() queryDto: DivisionDashboardQueryDto,
   ) {
     return this.divisionService.getDashboard(id, queryDto.month, queryDto.year);
+  }
+
+  // === TEAM MANAGEMENT ===
+
+  @Post('teams')
+  @RequirePermission('team.create')
+  @ApiOperation({ summary: 'Tạo team mới' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo team thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu không hợp lệ hoặc tên team đã tồn tại',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban hoặc người quản lý',
+  })
+  createTeam(@Body() createTeamDto: CreateTeamDto) {
+    return this.divisionService.createTeam(createTeamDto);
+  }
+
+  @Get('teams')
+  @RequirePermission('team.read')
+  @ApiOperation({ summary: 'Lấy danh sách teams có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách teams thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string', description: 'Tên team' },
+              division_id: { type: 'number', description: 'ID phòng ban' },
+              manager: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  avatar: { type: 'string' },
+                },
+                description: 'Thông tin người quản lý',
+              },
+              member_count: { type: 'number', description: 'Số lượng thành viên' },
+              resource_by_level: {
+                type: 'object',
+                description: 'Phân bổ nhân lực theo level',
+                additionalProperties: { type: 'number' },
+              },
+              active_projects: { type: 'string', description: 'Danh sách dự án đang hoạt động' },
+              founding_date: { type: 'string', format: 'date', description: 'Ngày thành lập' },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  findAllTeams(@Query() paginationDto: TeamPaginationDto) {
+    return this.divisionService.findAllTeams(paginationDto);
+  }
+
+  @Get('teams/:id')
+  @RequirePermission('team.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết team' })
+  @ApiParam({ name: 'id', description: 'ID của team' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin team thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy team',
+  })
+  findOneTeam(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.findOneTeam(id);
+  }
+
+  @Patch('teams/:id')
+  @RequirePermission('team.update')
+  @ApiOperation({ summary: 'Cập nhật thông tin team' })
+  @ApiParam({ name: 'id', description: 'ID của team' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật team thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu không hợp lệ hoặc tên team đã tồn tại',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy team hoặc người quản lý',
+  })
+  updateTeam(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateTeamDto: UpdateTeamDto,
+  ) {
+    return this.divisionService.updateTeam(id, updateTeamDto);
+  }
+
+  @Delete('teams/:id')
+  @RequirePermission('team.delete')
+  @ApiOperation({ summary: 'Xóa team' })
+  @ApiParam({ name: 'id', description: 'ID của team' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa team thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa team vì còn thành viên hoặc dự án',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy team',
+  })
+  removeTeam(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.removeTeam(id);
   }
 }
