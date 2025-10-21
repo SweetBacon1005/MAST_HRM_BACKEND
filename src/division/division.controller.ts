@@ -88,6 +88,105 @@ export class DivisionController {
     return this.divisionService.getDivisionHierarchy(parentId);
   }
 
+  @Get('rotation-members')
+  @RequirePermission('personnel.transfer.read')
+  @ApiOperation({ summary: 'Lấy danh sách điều chuyển nhân sự có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách điều chuyển thành công',
+  })
+  findAllRotationMembers(@Query() paginationDto: RotationMemberPaginationDto) {
+    return this.divisionService.findAllRotationMembers(paginationDto);
+  }
+
+  @Get('rotation-members/:id')
+  @RequirePermission('personnel.transfer.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết điều chuyển nhân sự' })
+  @ApiParam({ name: 'id', description: 'ID của điều chuyển' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin điều chuyển thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy điều chuyển',
+  })
+  findOneRotationMember(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.findOneRotationMember(id);
+  }
+
+  @Get('teams')
+  @RequirePermission('team.read')
+  @ApiOperation({ summary: 'Lấy danh sách teams có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách teams thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              name: { type: 'string', description: 'Tên team' },
+              division_id: { type: 'number', description: 'ID phòng ban' },
+              manager: {
+                type: 'object',
+                nullable: true,
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  email: { type: 'string' },
+                  avatar: { type: 'string' },
+                },
+                description: 'Thông tin người quản lý',
+              },
+              member_count: { type: 'number', description: 'Số lượng thành viên' },
+              resource_by_level: {
+                type: 'object',
+                description: 'Phân bổ nhân lực theo level',
+                additionalProperties: { type: 'number' },
+              },
+              active_projects: { type: 'string', description: 'Danh sách dự án đang hoạt động' },
+              founding_date: { type: 'string', format: 'date', description: 'Ngày thành lập' },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  findAllTeams(@Query() paginationDto: TeamPaginationDto) {
+    return this.divisionService.findAllTeams(paginationDto);
+  }
+
+  @Get('teams/:id')
+  @RequirePermission('team.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết team' })
+  @ApiParam({ name: 'id', description: 'ID của team' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin team thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy team',
+  })
+  findOneTeam(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.findOneTeam(id);
+  }
+
   @Get(':id/members')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy danh sách thành viên của phòng ban' })
@@ -314,33 +413,6 @@ export class DivisionController {
     );
   }
 
-  @Get('rotation-members')
-  @RequirePermission('personnel.transfer.read')
-  @ApiOperation({ summary: 'Lấy danh sách điều chuyển nhân sự có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy danh sách điều chuyển thành công',
-  })
-  findAllRotationMembers(@Query() paginationDto: RotationMemberPaginationDto) {
-    return this.divisionService.findAllRotationMembers(paginationDto);
-  }
-
-  @Get('rotation-members/:id')
-  @RequirePermission('personnel.transfer.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết điều chuyển nhân sự' })
-  @ApiParam({ name: 'id', description: 'ID của điều chuyển' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thông tin điều chuyển thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy điều chuyển',
-  })
-  findOneRotationMember(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.findOneRotationMember(id);
-  }
-
   @Patch('rotation-members/:id')
   @RequirePermission('personnel.transfer.update')
   @ApiOperation({ summary: 'Cập nhật điều chuyển nhân sự' })
@@ -399,78 +471,6 @@ export class DivisionController {
   })
   createTeam(@Body() createTeamDto: CreateTeamDto) {
     return this.divisionService.createTeam(createTeamDto);
-  }
-
-  @Get('teams')
-  @RequirePermission('team.read')
-  @ApiOperation({ summary: 'Lấy danh sách teams có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy danh sách teams thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              name: { type: 'string', description: 'Tên team' },
-              division_id: { type: 'number', description: 'ID phòng ban' },
-              manager: {
-                type: 'object',
-                nullable: true,
-                properties: {
-                  id: { type: 'number' },
-                  name: { type: 'string' },
-                  email: { type: 'string' },
-                  avatar: { type: 'string' },
-                },
-                description: 'Thông tin người quản lý',
-              },
-              member_count: { type: 'number', description: 'Số lượng thành viên' },
-              resource_by_level: {
-                type: 'object',
-                description: 'Phân bổ nhân lực theo level',
-                additionalProperties: { type: 'number' },
-              },
-              active_projects: { type: 'string', description: 'Danh sách dự án đang hoạt động' },
-              founding_date: { type: 'string', format: 'date', description: 'Ngày thành lập' },
-              created_at: { type: 'string', format: 'date-time' },
-            },
-          },
-        },
-        meta: {
-          type: 'object',
-          properties: {
-            total: { type: 'number' },
-            page: { type: 'number' },
-            limit: { type: 'number' },
-            totalPages: { type: 'number' },
-          },
-        },
-      },
-    },
-  })
-  findAllTeams(@Query() paginationDto: TeamPaginationDto) {
-    return this.divisionService.findAllTeams(paginationDto);
-  }
-
-  @Get('teams/:id')
-  @RequirePermission('team.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết team' })
-  @ApiParam({ name: 'id', description: 'ID của team' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thông tin team thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy team',
-  })
-  findOneTeam(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.findOneTeam(id);
   }
 
   @Patch('teams/:id')
