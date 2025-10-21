@@ -21,7 +21,6 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import {
   AttendanceCalculationDto,
-  PenaltyCalculationDto,
   WorkShiftDto,
 } from './dto/attendance-calculation.dto';
 import {
@@ -141,12 +140,6 @@ export class AttendanceService {
       workShift,
     );
 
-    // Tính phạt
-    const penalties = await this.calculatePenalties({
-      late_minutes: calculations.late_minutes,
-      early_minutes: calculations.early_minutes,
-    });
-
     // Kiểm tra xem đã có bản ghi chấm công hôm nay chưa
     const existingAttendance = await this.prisma.time_sheets.findFirst({
       where: {
@@ -174,7 +167,6 @@ export class AttendanceService {
       early_time: calculations.early_minutes,
       work_time_morning: calculations.morning_minutes,
       work_time_afternoon: calculations.afternoon_minutes,
-      fines: penalties.total_penalty,
       remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
       is_complete: true,
       status: TimesheetStatus.PENDING,
@@ -279,69 +271,6 @@ export class AttendanceService {
       morning_minutes: Math.max(0, morning_minutes),
       afternoon_minutes: Math.max(0, afternoon_minutes),
       total_work_minutes: morning_minutes + afternoon_minutes,
-    };
-  }
-
-  async calculatePenalties(penaltyDto: PenaltyCalculationDto) {
-    const { late_minutes, early_minutes, block_time_id } = penaltyDto;
-
-    // Validation: Kiểm tra giá trị hợp lệ
-    if (late_minutes < 0 || early_minutes < 0) {
-      throw new BadRequestException('Số phút đi muộn và về sớm không được âm');
-    }
-
-    if (late_minutes > 480 || early_minutes > 480) {
-      throw new BadRequestException(
-        'Số phút đi muộn/về sớm không thể vượt quá 8 giờ (480 phút)',
-      );
-    }
-
-    // Lấy quy định phạt
-    let blockTime;
-    if (block_time_id) {
-      blockTime = await this.prisma.block_times.findUnique({
-        where: { id: block_time_id, deleted_at: null },
-      });
-      if (!blockTime) {
-        throw new NotFoundException(
-          `Không tìm thấy quy định phạt với ID: ${block_time_id}`,
-        );
-      }
-    } else {
-      // Lấy quy định phạt mặc định
-      blockTime = await this.prisma.block_times.findFirst({
-        where: { deleted_at: null },
-        orderBy: { block: 'asc' },
-      });
-    }
-
-    if (!blockTime) {
-      this.logger.warn('Không tìm thấy quy định phạt nào');
-      return {
-        late_penalty: 0,
-        early_penalty: 0,
-        total_penalty: 0,
-        late_blocks: 0,
-        early_blocks: 0,
-        block_time_used: null,
-      };
-    }
-
-    // Tính phạt đi muộn
-    const late_blocks = Math.floor(late_minutes / blockTime.minutes);
-    const late_penalty = late_blocks * blockTime.money;
-
-    // Tính phạt về sớm
-    const early_blocks = Math.floor(early_minutes / blockTime.minutes);
-    const early_penalty = early_blocks * blockTime.money;
-
-    return {
-      late_penalty,
-      early_penalty,
-      total_penalty: late_penalty + early_penalty,
-      late_blocks,
-      early_blocks,
-      block_time_used: blockTime,
     };
   }
 

@@ -2,25 +2,22 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
-  Delete,
   Get,
+  Header,
   HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
   UsePipes,
   ValidationPipe,
-  Res,
-  Header,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -30,24 +27,19 @@ import {
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import {
   ErrorResponseDto,
   ValidationErrorResponseDto,
 } from '../common/dto/error-response.dto';
-import {
-  buildPaginationQuery,
-  buildPaginationResponse,
-} from '../common/utils/pagination.util';
 import { AttendanceService } from './attendance.service';
-import { AttendanceExportService } from './services/attendance-export.service';
 import {
   AttendanceCalculationDto,
-  PenaltyCalculationDto,
   WorkShiftDto,
 } from './dto/attendance-calculation.dto';
 import {
@@ -55,11 +47,9 @@ import {
   AttendanceReportDto,
   PenaltyReportDto,
 } from './dto/dashboard.dto';
+import { AttendanceExportService } from './services/attendance-export.service';
 // Leave and remote work request DTOs moved to /requests module
-import {
-  PenaltyRulePaginationDto,
-  WorkShiftPaginationDto,
-} from './dto/pagination-queries.dto';
+import { WorkShiftPaginationDto } from './dto/pagination-queries.dto';
 
 @ApiTags('attendance')
 @ApiBearerAuth('JWT-auth')
@@ -127,41 +117,6 @@ export class AttendanceController {
     attendanceDto.user_id = userId;
     return this.attendanceService.calculateAttendance(attendanceDto);
   }
-
-  @Post('calculate-penalty')
-  @RequirePermission('attendance.read')
-  @ApiOperation({ summary: 'Tính toán phạt đi muộn, về sớm' })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Tính toán phạt thành công',
-    schema: {
-      example: {
-        late_penalty: 50000,
-        early_penalty: 25000,
-        total_penalty: 75000,
-        late_blocks: 2,
-        early_blocks: 1,
-        block_time_used: {
-          id: 1,
-          block: 1,
-          minutes: 15,
-          money: 25000,
-        },
-      },
-    },
-  })
-  @ApiBadRequestResponse({
-    description: 'Dữ liệu đầu vào không hợp lệ',
-    type: ValidationErrorResponseDto,
-  })
-  @ApiNotFoundResponse({
-    description: 'Không tìm thấy quy định phạt',
-    type: ErrorResponseDto,
-  })
-  calculatePenalty(@Body() penaltyDto: PenaltyCalculationDto) {
-    return this.attendanceService.calculatePenalties(penaltyDto);
-  }
-
   // === QUẢN LÝ CA LÀM VIỆC ===
 
   @Post('work-shifts')
@@ -212,6 +167,37 @@ export class AttendanceController {
 
   // === LEAVE BALANCE MANAGEMENT ===
   // Note: Leave requests and remote work requests moved to /requests module
+
+  @Get('my-leave-balance')
+  @ApiOperation({ summary: 'Xem số dư phép năm của tôi' })
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    description: 'Năm cần xem (mặc định năm hiện tại)',
+    type: 'integer',
+    example: 2024,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Lấy số dư phép cá nhân thành công',
+  })
+  @ApiBadRequestResponse({ description: 'Tham số năm không hợp lệ' })
+  getMyLeaveBalance(
+    @GetCurrentUser('id') userId: number,
+    @Query(
+      'year',
+      new DefaultValuePipe(new Date().getFullYear()),
+      new ParseIntPipe({
+        optional: true,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
+      }),
+    )
+    year?: number,
+  ) {
+    const targetYear = year || new Date().getFullYear();
+    return this.attendanceService.getLeaveBalance(userId, targetYear);
+  }
 
   @Get('leave-balance/:userId/:year')
   @ApiOperation({ summary: 'Xem số dư phép năm của nhân viên' })
@@ -266,37 +252,6 @@ export class AttendanceController {
     return this.attendanceService.getLeaveBalance(userId, year);
   }
 
-  @Get('my-leave-balance')
-  @ApiOperation({ summary: 'Xem số dư phép năm của tôi' })
-  @ApiQuery({
-    name: 'year',
-    required: false,
-    description: 'Năm cần xem (mặc định năm hiện tại)',
-    type: 'integer',
-    example: 2024,
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Lấy số dư phép cá nhân thành công',
-  })
-  @ApiBadRequestResponse({ description: 'Tham số năm không hợp lệ' })
-  getMyLeaveBalance(
-    @GetCurrentUser('id') userId: number,
-    @Query(
-      'year',
-      new DefaultValuePipe(new Date().getFullYear()),
-      new ParseIntPipe({
-        optional: true,
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
-        exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
-      }),
-    )
-    year?: number,
-  ) {
-    const targetYear = year || new Date().getFullYear();
-    return this.attendanceService.getLeaveBalance(userId, targetYear);
-  }
-
   // === DASHBOARD CHẤM CÔNG ===
 
   @Get('dashboard')
@@ -345,105 +300,26 @@ export class AttendanceController {
     return this.attendanceService.generateAttendanceReport(personalReportDto);
   }
 
-  // === QUẢN LÝ QUY ĐỊNH PHẠT ===
-
-  @Get('penalty-rules')
-  @ApiOperation({ summary: 'Lấy danh sách quy định phạt có phân trang' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getPenaltyRules(@Query() paginationDto: PenaltyRulePaginationDto) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = { deleted_at: null };
-
-    // Thêm filter theo block
-    if (paginationDto.block) {
-      where.block = paginationDto.block;
-    }
-
-    // Thêm filter theo min_minutes
-    if (paginationDto.min_minutes) {
-      where.minutes = {
-        gte: paginationDto.min_minutes,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.attendanceService['prisma'].block_times.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { block: 'asc' },
-      }),
-      this.attendanceService['prisma'].block_times.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  @Post('penalty-rules')
-  @ApiOperation({ summary: 'Tạo quy định phạt mới' })
-  @ApiResponse({ status: 201, description: 'Tạo quy định thành công' })
-  @Roles('admin', 'hr')
-  async createPenaltyRule(
-    @Body()
-    penaltyRule: {
-      block: number;
-      minutes: number;
-      money: number;
-      time_late_early: number;
-      next_time_late_early: number;
-    },
-  ) {
-    return this.attendanceService['prisma'].block_times.create({
-      data: penaltyRule,
-    });
-  }
-
-  @Patch('penalty-rules/:id')
-  @ApiOperation({ summary: 'Cập nhật quy định phạt' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @Roles('admin', 'hr')
-  async updatePenaltyRule(
-    @Param('id', ParseIntPipe) id: number,
-    @Body()
-    penaltyRule: Partial<{
-      block: number;
-      minutes: number;
-      money: number;
-      time_late_early: number;
-      next_time_late_early: number;
-    }>,
-  ) {
-    return this.attendanceService['prisma'].block_times.update({
-      where: { id },
-      data: penaltyRule,
-    });
-  }
-
-  @Delete('penalty-rules/:id')
-  @ApiOperation({ summary: 'Xóa quy định phạt' })
-  @ApiResponse({ status: 200, description: 'Xóa thành công' })
-  @Roles('admin', 'hr')
-  async deletePenaltyRule(@Param('id', ParseIntPipe) id: number) {
-    return this.attendanceService['prisma'].block_times.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
-  }
-
   // === EXPORT CSV ===
 
   @Get('export/attendance-logs')
   @RequirePermission('report.read')
   @ApiOperation({ summary: 'Export danh sách chấm công ra CSV' })
-  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({
+    name: 'start_date',
+    required: false,
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'end_date',
+    required: false,
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'ID phòng ban',
+  })
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="attendance-logs.csv"')
   async exportAttendanceLogs(
@@ -452,24 +328,43 @@ export class AttendanceController {
     @Query('division_id') divisionId?: number,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportService.exportAttendanceLogs(startDate, endDate, divisionId);
-    
+    const csv = await this.exportService.exportAttendanceLogs(
+      startDate,
+      endDate,
+      divisionId,
+    );
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="attendance-logs.csv"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="attendance-logs.csv"',
+      );
       // Add BOM for Excel UTF-8 support
       res.send('\ufeff' + csv);
     }
-    
+
     return csv;
   }
 
   @Get('export/leave-requests')
   @RequirePermission('report.read')
   @ApiOperation({ summary: 'Export danh sách nghỉ phép ra CSV' })
-  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({
+    name: 'start_date',
+    required: false,
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'end_date',
+    required: false,
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'ID phòng ban',
+  })
   @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="leave-requests.csv"')
@@ -480,23 +375,43 @@ export class AttendanceController {
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportService.exportLeaveRequests(startDate, endDate, divisionId, status);
-    
+    const csv = await this.exportService.exportLeaveRequests(
+      startDate,
+      endDate,
+      divisionId,
+      status,
+    );
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="leave-requests.csv"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="leave-requests.csv"',
+      );
       res.send('\ufeff' + csv);
     }
-    
+
     return csv;
   }
 
   @Get('export/overtime-records')
   @RequirePermission('report.read')
   @ApiOperation({ summary: 'Export danh sách tăng ca ra CSV' })
-  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({
+    name: 'start_date',
+    required: false,
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'end_date',
+    required: false,
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'ID phòng ban',
+  })
   @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
   @Header('Content-Type', 'text/csv')
   @Header('Content-Disposition', 'attachment; filename="overtime-records.csv"')
@@ -507,51 +422,96 @@ export class AttendanceController {
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportService.exportOvertimeRecords(startDate, endDate, divisionId, status);
-    
+    const csv = await this.exportService.exportOvertimeRecords(
+      startDate,
+      endDate,
+      divisionId,
+      status,
+    );
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="overtime-records.csv"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="overtime-records.csv"',
+      );
       res.send('\ufeff' + csv);
     }
-    
+
     return csv;
   }
 
   @Get('export/late-early-requests')
   @RequirePermission('report.read')
   @ApiOperation({ summary: 'Export danh sách đi muộn/về sớm ra CSV' })
-  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({
+    name: 'start_date',
+    required: false,
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'end_date',
+    required: false,
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'ID phòng ban',
+  })
   @Header('Content-Type', 'text/csv')
-  @Header('Content-Disposition', 'attachment; filename="late-early-requests.csv"')
+  @Header(
+    'Content-Disposition',
+    'attachment; filename="late-early-requests.csv"',
+  )
   async exportLateEarlyRequests(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
     @Query('division_id') divisionId?: number,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportService.exportLateEarlyRequests(startDate, endDate, divisionId);
-    
+    const csv = await this.exportService.exportLateEarlyRequests(
+      startDate,
+      endDate,
+      divisionId,
+    );
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="late-early-requests.csv"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="late-early-requests.csv"',
+      );
       res.send('\ufeff' + csv);
     }
-    
+
     return csv;
   }
 
   @Get('export/remote-work-requests')
   @RequirePermission('report.read')
   @ApiOperation({ summary: 'Export danh sách làm việc từ xa ra CSV' })
-  @ApiQuery({ name: 'start_date', required: false, description: 'Ngày bắt đầu (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'end_date', required: false, description: 'Ngày kết thúc (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'division_id', required: false, description: 'ID phòng ban' })
+  @ApiQuery({
+    name: 'start_date',
+    required: false,
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'end_date',
+    required: false,
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'ID phòng ban',
+  })
   @ApiQuery({ name: 'status', required: false, description: 'Trạng thái' })
   @Header('Content-Type', 'text/csv')
-  @Header('Content-Disposition', 'attachment; filename="remote-work-requests.csv"')
+  @Header(
+    'Content-Disposition',
+    'attachment; filename="remote-work-requests.csv"',
+  )
   async exportRemoteWorkRequests(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
@@ -559,14 +519,22 @@ export class AttendanceController {
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
-    const csv = await this.exportService.exportRemoteWorkRequests(startDate, endDate, divisionId, status);
-    
+    const csv = await this.exportService.exportRemoteWorkRequests(
+      startDate,
+      endDate,
+      divisionId,
+      status,
+    );
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="remote-work-requests.csv"');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="remote-work-requests.csv"',
+      );
       res.send('\ufeff' + csv);
     }
-    
+
     return csv;
   }
 }

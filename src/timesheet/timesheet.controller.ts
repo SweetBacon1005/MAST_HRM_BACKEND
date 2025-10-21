@@ -102,6 +102,54 @@ export class TimesheetController {
     return this.timesheetService.findTimesheetById(id);
   }
 
+  @Patch(':id/submit')
+  @ApiOperation({ summary: 'Submit timesheet để chờ duyệt' })
+  @ApiResponse({ status: 200, description: 'Submit thành công' })
+  @ApiResponse({ status: 400, description: 'Không thể submit' })
+  submitTimesheet(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return this.timesheetService.submitTimesheet(id, userId);
+  }
+
+  @Patch(':id/approve')
+  @ApiOperation({ summary: 'Duyệt timesheet (Manager/HR only)' })
+  @ApiResponse({ status: 200, description: 'Duyệt thành công' })
+  @ApiResponse({ status: 400, description: 'Không thể duyệt' })
+  @Roles('manager', 'admin', 'hr')
+  approveTimesheet(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') approverId: number,
+  ) {
+    return this.timesheetService.approveTimesheet(id, approverId);
+  }
+
+  @Patch(':id/reject')
+  @ApiOperation({ summary: 'Từ chối timesheet (Manager/HR only)' })
+  @ApiResponse({ status: 200, description: 'Từ chối thành công' })
+  @ApiResponse({ status: 400, description: 'Không thể từ chối' })
+  @Roles('manager', 'admin', 'hr')
+  rejectTimesheet(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') rejectorId: number,
+    @Body('reason') reason?: string,
+  ) {
+    return this.timesheetService.rejectTimesheet(id, rejectorId, reason);
+  }
+
+  @Patch(':id/lock')
+  @ApiOperation({ summary: 'Khóa timesheet sau tính lương (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Khóa thành công' })
+  @ApiResponse({ status: 400, description: 'Không thể khóa' })
+  @Roles('admin', 'hr')
+  lockTimesheet(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') lockerId: number,
+  ) {
+    return this.timesheetService.lockTimesheet(id, lockerId);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Cập nhật timesheet' })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
@@ -330,6 +378,19 @@ export class TimesheetController {
     );
   }
 
+  @Get('attendance-logs/my')
+  @ApiOperation({ summary: 'Lấy danh sách logs chấm công của tôi' })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  getMyAttendanceLogs(
+    @GetCurrentUser('id') userId: number,
+    @Query() queryDto: AttendanceLogQueryDto,
+  ) {
+    return this.timesheetService.getAttendanceLogs(userId, {
+      ...queryDto,
+      user_id: userId,
+    });
+  }
+
   @Get('attendance-logs')
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
@@ -343,19 +404,6 @@ export class TimesheetController {
       paginationDto,
       userRoles,
     );
-  }
-
-  @Get('attendance-logs/my')
-  @ApiOperation({ summary: 'Lấy danh sách logs chấm công của tôi' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  getMyAttendanceLogs(
-    @GetCurrentUser('id') userId: number,
-    @Query() queryDto: AttendanceLogQueryDto,
-  ) {
-    return this.timesheetService.getAttendanceLogs(userId, {
-      ...queryDto,
-      user_id: userId,
-    });
   }
 
   @Get('attendance-logs/:id')
@@ -403,55 +451,5 @@ export class TimesheetController {
     @Body(DateRangeValidationPipe) body: SingleDateQueryDto,
   ) {
     return this.timesheetService.createDailyTimesheet(userId, body.date);
-  }
-
-  // === TIMESHEET STATE MANAGEMENT ===
-
-  @Patch(':id/submit')
-  @ApiOperation({ summary: 'Submit timesheet để chờ duyệt' })
-  @ApiResponse({ status: 200, description: 'Submit thành công' })
-  @ApiResponse({ status: 400, description: 'Không thể submit' })
-  submitTimesheet(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    return this.timesheetService.submitTimesheet(id, userId);
-  }
-
-  @Patch(':id/approve')
-  @ApiOperation({ summary: 'Duyệt timesheet (Manager/HR only)' })
-  @ApiResponse({ status: 200, description: 'Duyệt thành công' })
-  @ApiResponse({ status: 400, description: 'Không thể duyệt' })
-  @Roles('manager', 'admin', 'hr')
-  approveTimesheet(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') approverId: number,
-  ) {
-    return this.timesheetService.approveTimesheet(id, approverId);
-  }
-
-  @Patch(':id/reject')
-  @ApiOperation({ summary: 'Từ chối timesheet (Manager/HR only)' })
-  @ApiResponse({ status: 200, description: 'Từ chối thành công' })
-  @ApiResponse({ status: 400, description: 'Không thể từ chối' })
-  @Roles('manager', 'admin', 'hr')
-  rejectTimesheet(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') rejectorId: number,
-    @Body('reason') reason?: string,
-  ) {
-    return this.timesheetService.rejectTimesheet(id, rejectorId, reason);
-  }
-
-  @Patch(':id/lock')
-  @ApiOperation({ summary: 'Khóa timesheet sau tính lương (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Khóa thành công' })
-  @ApiResponse({ status: 400, description: 'Không thể khóa' })
-  @Roles('admin', 'hr')
-  lockTimesheet(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') lockerId: number,
-  ) {
-    return this.timesheetService.lockTimesheet(id, lockerId);
   }
 }

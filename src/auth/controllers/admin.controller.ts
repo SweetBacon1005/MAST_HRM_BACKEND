@@ -375,9 +375,6 @@ export class AdminController {
             skill: true,
           },
         },
-        contracts: {
-          orderBy: { created_at: 'desc' },
-        },
       },
     });
 

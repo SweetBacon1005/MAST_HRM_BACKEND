@@ -287,6 +287,19 @@ export class UserProfileController {
     return await this.userProfileService.createUserSkill(createDto);
   }
 
+  @Get('skills/position/:positionId')
+  @ApiOperation({ summary: 'Lấy danh sách kỹ năng theo vị trí' })
+  @ApiParam({ name: 'positionId', description: 'ID của vị trí' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách kỹ năng theo vị trí',
+  })
+  async getSkillsByPosition(
+    @Param('positionId', ParseIntPipe) positionId: number,
+  ) {
+    return await this.userProfileService.getSkillsByPosition(positionId);
+  }
+
   @Get('skills')
   @ApiOperation({ summary: 'Lấy danh sách kỹ năng có phân trang' })
   @ApiResponse({
@@ -334,19 +347,6 @@ export class UserProfileController {
     @GetCurrentUser('id') userId: number,
   ) {
     return await this.userProfileService.deleteUserSkill(userSkillId, userId);
-  }
-
-  @Get('skills/position/:positionId')
-  @ApiOperation({ summary: 'Lấy danh sách kỹ năng theo vị trí' })
-  @ApiParam({ name: 'positionId', description: 'ID của vị trí' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách kỹ năng theo vị trí',
-  })
-  async getSkillsByPosition(
-    @Param('positionId', ParseIntPipe) positionId: number,
-  ) {
-    return await this.userProfileService.getSkillsByPosition(positionId);
   }
 
   // ===== CÁC DANH SÁCH THAM CHIẾU =====

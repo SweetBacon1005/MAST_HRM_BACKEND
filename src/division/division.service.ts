@@ -457,14 +457,6 @@ export class DivisionService {
                   },
                 },
               },
-              contracts: {
-                where: {
-                  deleted_at: null,
-                  status: 'ACTIVE',
-                },
-                orderBy: { start_date: 'asc' },
-                take: 1,
-              },
             },
           },
           team: {
@@ -483,12 +475,10 @@ export class DivisionService {
     // Transform data to match UI format
     const transformedData = userDivisions.map((ud) => {
       const userInfo = ud.user.user_information[0];
-      const firstContract = ud.user.contracts[0];
-      const joinDate = firstContract?.start_date || ud.user.created_at;
 
       // Calculate months of service (thâm niên)
       const now = new Date();
-      const join = new Date(joinDate);
+      const join = new Date(ud.user.created_at);
       const monthsOfService =
         (now.getFullYear() - join.getFullYear()) * 12 +
         (now.getMonth() - join.getMonth());
@@ -505,7 +495,7 @@ export class DivisionService {
         birthday: userInfo?.birthday || null,
         team: ud.team?.name || ud.division?.name || '',
         team_id: ud.teamId || ud.divisionId,
-        join_date: joinDate,
+        join_date: ud.user.created_at.toISOString().split('T')[0],
         months_of_service: monthsOfService,
         position: userInfo?.position?.name || '',
         position_id: userInfo?.position?.id || null,

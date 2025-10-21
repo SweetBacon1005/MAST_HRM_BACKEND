@@ -78,7 +78,6 @@ export class ProjectsService {
         _count: {
           select: {
             project_role_user: true,
-            stages: true,
           },
         },
       },
@@ -129,7 +128,6 @@ export class ProjectsService {
           _count: {
             select: {
               project_role_user: true,
-              stages: true,
             },
           },
         },
@@ -143,7 +141,6 @@ export class ProjectsService {
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
       member_count: project._count.project_role_user,
-      stage_count: project._count.stages,
     }));
 
     return buildPaginationResponse(
@@ -171,14 +168,9 @@ export class ProjectsService {
             },
           },
         },
-        stages: {
-          where: { deleted_at: null },
-          orderBy: { created_at: 'desc' },
-        },
         _count: {
           select: {
             project_role_user: true,
-            stages: true,
           },
         },
       },
@@ -193,7 +185,6 @@ export class ProjectsService {
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
       member_count: project._count.project_role_user,
-      stage_count: project._count.stages,
     };
   }
 
@@ -253,7 +244,6 @@ export class ProjectsService {
         _count: {
           select: {
             project_role_user: true,
-            stages: true,
           },
         },
       },
@@ -265,18 +255,12 @@ export class ProjectsService {
       where: { id, deleted_at: null },
       include: {
         project_role_user: true,
-        stages: {
-          where: { deleted_at: null },
-        },
       },
     });
 
     if (!project) {
       throw new NotFoundException('Không tìm thấy dự án');
     }
-
-    // Có thể thêm kiểm tra có thành viên hoặc stages không
-    // Tùy vào yêu cầu business
 
     return await this.prisma.projects.update({
       where: { id },

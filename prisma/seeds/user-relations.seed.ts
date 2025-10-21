@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
   console.log('🔗 Seeding user relationships...');
 
-  const { users, roles, stages, projects } = seedData;
+  const { users, roles, projects } = seedData;
 
   // 1. Tạo user_division - sử dụng createMany với skipDuplicates
   console.log('🏢 Tạo user division assignments...');
@@ -84,7 +84,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
   const allocationsData = [
     // John Doe (Backend Developer) - ABC CRM System
     {
-      stage_id: stages[1].id, // ABC CRM v1.1.0
       user_id: users[2].id, // John Doe
       start_date: new Date('2024-02-16'),
       end_date: new Date('2024-04-20'),
@@ -96,7 +95,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     },
     // Jane Smith (Frontend Developer) - E-Commerce Platform
     {
-      stage_id: stages[3].id, // E-Commerce Discovery
       user_id: users[3].id, // Jane Smith
       start_date: new Date('2024-03-01'),
       end_date: new Date('2024-04-01'),
@@ -108,7 +106,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     },
     // Mike Johnson (Mobile Developer) - XYZ Banking Mobile App
     {
-      stage_id: stages[2].id, // XYZ Banking Phase 1
       user_id: users[4].id, // Mike Johnson
       start_date: new Date('2024-02-01'),
       end_date: new Date('2024-08-01'),
@@ -120,7 +117,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
     },
     // Sarah Wilson (QA Tester) - ABC CRM System
     {
-      stage_id: stages[1].id, // ABC CRM v1.1.0
       user_id: users[5].id, // Sarah Wilson
       start_date: new Date('2024-03-01'),
       end_date: new Date('2024-04-20'),

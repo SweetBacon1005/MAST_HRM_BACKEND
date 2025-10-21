@@ -408,16 +408,10 @@ export class ScheduleAutomationService {
 
     try {
       await this.prisma.cleanupConnections();
-      // Lấy tất cả user đang hoạt động (có contract active)
+      // Lấy tất cả user đang hoạt động
       const activeUsers = await this.prisma.users.findMany({
         where: {
           deleted_at: null,
-          contracts: {
-            some: {
-              status: 'ACTIVE',
-              deleted_at: null,
-            },
-          },
         },
         select: {
           id: true,

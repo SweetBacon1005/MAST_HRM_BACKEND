@@ -6,19 +6,19 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { OtpType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { PrismaService } from '../database/prisma.service';
 import { UsersService } from '../users/users.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokensDto } from './dto/tokens.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
-import { OtpType } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
 import { OtpService } from './services/otp.service';
 
 @Injectable()
@@ -222,7 +222,6 @@ export class AuthService {
     // Thực hiện tất cả queries song song để tối ưu performance
     const [
       userInfo,
-      firstContract,
       todayTimesheet,
       usedLeaveDays,
       assignedDevices,
@@ -238,20 +237,11 @@ export class AuthService {
           position_id: true,
           level_id: true,
           role_id: true,
-        },
-      }),
-
-      // Lấy thời gian gia nhập công ty từ contract đầu tiên
-      this.prisma.contracts.findFirst({
-        where: {
-          user_id: userId,
-          deleted_at: null,
-        },
-        orderBy: {
-          start_date: 'asc',
-        },
-        select: {
-          start_date: true,
+          user: {
+            select: {
+              created_at: true,
+            },
+          },
         },
       }),
 
@@ -342,11 +332,8 @@ export class AuthService {
       notes: device.notes || '',
     }));
 
-    // Xác định join_date từ contract đầu tiên
-    const joinDate = firstContract?.start_date || null;
-
     return {
-      join_date: joinDate,
+      join_date: userInfo?.user?.created_at.toISOString().split('T')[0],
       today_attendance: {
         checkin: todayTimesheet?.checkin || null,
         checkout: todayTimesheet?.checkout || null,

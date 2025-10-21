@@ -88,22 +88,6 @@ export class DivisionController {
     return this.divisionService.getDivisionHierarchy(parentId);
   }
 
-  @Get(':id')
-  @RequirePermission('division.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết phòng ban' })
-  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy thông tin phòng ban thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy phòng ban',
-  })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.findOne(id);
-  }
-
   @Get(':id/members')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy danh sách thành viên của phòng ban' })
@@ -155,6 +139,107 @@ export class DivisionController {
     @Query() queryDto: DivisionMembersQueryDto,
   ) {
     return this.divisionService.getDivisionMembers(id, queryDto);
+  }
+
+  @Get(':id/dashboard')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy dữ liệu dashboard cho phòng ban' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy dữ liệu dashboard thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        month: { type: 'number' },
+        year: { type: 'number' },
+        working_info: {
+          type: 'object',
+          properties: {
+            total_members: { type: 'number', description: 'Tổng số thành viên' },
+            working_count: { type: 'number', description: 'Số người đang làm việc' },
+            work_date: { type: 'string', description: 'Ngày làm việc' },
+          },
+        },
+        leave_requests: {
+          type: 'object',
+          properties: {
+            paid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép có lương' },
+            unpaid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép không lương' },
+          },
+        },
+        late_info: {
+          type: 'object',
+          properties: {
+            late_count: { type: 'number', description: 'Số lượt đi muộn' },
+            early_count: { type: 'number', description: 'Số lượt về sớm' },
+          },
+        },
+        recent_birthday_employees: {
+          type: 'array',
+          description: 'Danh sách nhân viên có sinh nhật trong tháng',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
+              birthday: { type: 'string' },
+              birthday_date: { type: 'number' },
+              birthday_month: { type: 'number' },
+              days_until_birthday: { type: 'number', description: 'Số ngày tới sinh nhật' },
+            },
+          },
+        },
+        attendance_stats: {
+          type: 'array',
+          description: 'Thống kê attendance theo tháng trong năm',
+          items: {
+            type: 'object',
+            properties: {
+              month: { type: 'number' },
+              late_hours: { type: 'number', description: 'Số giờ đi muộn' },
+              actual_late_hours: { type: 'number', description: 'Số giờ đi muộn thực tế (được duyệt)' },
+              overtime_hours: { type: 'number', description: 'Số giờ làm thêm' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getDashboard(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: DivisionDashboardQueryDto,
+  ) {
+    return this.divisionService.getDashboard(id, queryDto.month, queryDto.year);
+  }
+
+  @Get(':id')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết phòng ban' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin phòng ban thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.findOne(id);
   }
 
   @Patch(':id')
@@ -293,93 +378,6 @@ export class DivisionController {
   })
   deleteRotationMember(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.deleteRotationMember(id);
-  }
-
-  // === DASHBOARD ===
-
-  @Get(':id/dashboard')
-  @RequirePermission('division.read')
-  @ApiOperation({ summary: 'Lấy dữ liệu dashboard cho phòng ban' })
-  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy dữ liệu dashboard thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        division: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-        month: { type: 'number' },
-        year: { type: 'number' },
-        working_info: {
-          type: 'object',
-          properties: {
-            total_members: { type: 'number', description: 'Tổng số thành viên' },
-            working_count: { type: 'number', description: 'Số người đang làm việc' },
-            work_date: { type: 'string', description: 'Ngày làm việc' },
-          },
-        },
-        leave_requests: {
-          type: 'object',
-          properties: {
-            paid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép có lương' },
-            unpaid_leave_count: { type: 'number', description: 'Số nhân viên nghỉ phép không lương' },
-          },
-        },
-        late_info: {
-          type: 'object',
-          properties: {
-            late_count: { type: 'number', description: 'Số lượt đi muộn' },
-            early_count: { type: 'number', description: 'Số lượt về sớm' },
-          },
-        },
-        recent_birthday_employees: {
-          type: 'array',
-          description: 'Danh sách nhân viên có sinh nhật trong tháng',
-          items: {
-            type: 'object',
-            properties: {
-              user_id: { type: 'number' },
-              name: { type: 'string' },
-              email: { type: 'string' },
-              avatar: { type: 'string' },
-              birthday: { type: 'string' },
-              birthday_date: { type: 'number' },
-              birthday_month: { type: 'number' },
-              days_until_birthday: { type: 'number', description: 'Số ngày tới sinh nhật' },
-            },
-          },
-        },
-        attendance_stats: {
-          type: 'array',
-          description: 'Thống kê attendance theo tháng trong năm',
-          items: {
-            type: 'object',
-            properties: {
-              month: { type: 'number' },
-              late_hours: { type: 'number', description: 'Số giờ đi muộn' },
-              actual_late_hours: { type: 'number', description: 'Số giờ đi muộn thực tế (được duyệt)' },
-              overtime_hours: { type: 'number', description: 'Số giờ làm thêm' },
-            },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy phòng ban',
-  })
-  getDashboard(
-    @Param('id', ParseIntPipe) id: number,
-    @Query() queryDto: DivisionDashboardQueryDto,
-  ) {
-    return this.divisionService.getDashboard(id, queryDto.month, queryDto.year);
   }
 
   // === TEAM MANAGEMENT ===

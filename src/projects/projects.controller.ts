@@ -58,6 +58,18 @@ export class ProjectsController {
     return this.projectsService.findAll(paginationDto);
   }
 
+  @Get(':id/members')
+  @RequirePermission('project.read')
+  @ApiOperation({ summary: 'Lấy danh sách thành viên của dự án' })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách thành viên thành công',
+  })
+  getProjectMembers(@Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getProjectMembers(id);
+  }
+
   @Get(':id')
   @RequirePermission('project.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết dự án' })
@@ -72,18 +84,6 @@ export class ProjectsController {
   })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.findOne(id);
-  }
-
-  @Get(':id/members')
-  @RequirePermission('project.read')
-  @ApiOperation({ summary: 'Lấy danh sách thành viên của dự án' })
-  @ApiParam({ name: 'id', description: 'ID của dự án' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy danh sách thành viên thành công',
-  })
-  getProjectMembers(@Param('id', ParseIntPipe) id: number) {
-    return this.projectsService.getProjectMembers(id);
   }
 
   @Patch(':id')

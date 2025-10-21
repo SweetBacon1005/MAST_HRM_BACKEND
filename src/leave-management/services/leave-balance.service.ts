@@ -371,12 +371,6 @@ export class LeaveBalanceService {
     const activeUsers = await this.prisma.users.findMany({
       where: {
         deleted_at: null,
-        contracts: {
-          some: {
-            status: 'ACTIVE',
-            deleted_at: null,
-          },
-        },
       },
       select: {
         id: true,
