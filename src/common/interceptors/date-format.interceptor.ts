@@ -27,6 +27,8 @@ export class DateFormatInterceptor implements NestInterceptor {
     'sent_at',
     'approved_at',
     'rejected_at',
+    'email_verified_at',
+    'reset_password_at',
   ];
 
   // Các field cần format thành yyyy-mm-dd

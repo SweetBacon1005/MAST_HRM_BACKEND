@@ -10,7 +10,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toFormat('yyyy-MM-dd HH:mm:ss');
+      return dt.toUTC().toFormat('yyyy-MM-dd HH:mm:ss');
     } catch (error) {
       console.error('Error formatting datetime:', error);
       return null;
@@ -26,7 +26,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toFormat('yyyy-MM-dd');
+      return dt.toUTC().toFormat('yyyy-MM-dd');
     } catch (error) {
       console.error('Error formatting date:', error);
       return null;
@@ -42,7 +42,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toFormat('HH:mm');
+      return dt.toUTC().toFormat('HH:mm');
     } catch (error) {
       console.error('Error formatting time:', error);
       return null;
@@ -80,14 +80,14 @@ export class DateFormatUtil {
    * Lấy ngày hiện tại theo format yyyy-mm-dd
    */
   static getCurrentDate(): string {
-    return DateTime.now().toFormat('yyyy-MM-dd');
+    return DateTime.utc().toFormat('yyyy-MM-dd');
   }
 
   /**
    * Lấy datetime hiện tại theo format yyyy-mm-dd HH:MM:SS
    */
   static getCurrentDateTime(): string {
-    return DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss');
+    return DateTime.utc().toFormat('yyyy-MM-dd HH:mm:ss');
   }
 
   /**

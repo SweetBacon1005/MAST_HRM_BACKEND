@@ -30,6 +30,10 @@ import {
   RotationMemberPaginationDto,
 } from './dto/rotation-member.dto';
 import { DivisionDashboardQueryDto } from './dto/dashboard-query.dto';
+import { BirthdayQueryDto } from './dto/birthday-query.dto';
+import { WorkInfoQueryDto } from './dto/work-info-query.dto';
+import { StatisticsQueryDto } from './dto/statistics-query.dto';
+import { EmployeeDetailQueryDto } from './dto/employee-detail-query.dto';
 import { DivisionMembersQueryDto } from './dto/division-members-query.dto';
 import {
   CreateTeamDto,
@@ -323,6 +327,299 @@ export class DivisionController {
     @Query() queryDto: DivisionDashboardQueryDto,
   ) {
     return this.divisionService.getDashboard(id, queryDto.month, queryDto.year);
+  }
+
+  @Get(':id/birthday-employees')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy danh sách nhân viên có sinh nhật trong tháng' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách nhân viên sinh nhật thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        month: { type: 'number' },
+        employees: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
+              birthday: { type: 'string' },
+              days_until_birthday: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getBirthdayEmployees(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: BirthdayQueryDto,
+  ) {
+    return this.divisionService.getBirthdayEmployees(id, queryDto.month);
+  }
+
+  @Get(':id/work-info')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy thông tin làm việc của phòng ban' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin làm việc thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        work_date: { type: 'string' },
+        working_info: {
+          type: 'object',
+          properties: {
+            total_members: { type: 'number' },
+            working_count: { type: 'number' },
+            work_date: { type: 'string' },
+          },
+        },
+        leave_requests: {
+          type: 'object',
+          properties: {
+            approved_count: { type: 'number' },
+            pending_count: { type: 'number' },
+          },
+        },
+        late_info: {
+          type: 'object',
+          properties: {
+            late_count: { type: 'number' },
+            minutes: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getWorkInfo(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: WorkInfoQueryDto,
+  ) {
+    return this.divisionService.getWorkInfo(id, queryDto.work_date);
+  }
+
+  @Get(':id/statistics')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy thống kê chấm công theo năm của phòng ban' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thống kê thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        year: { type: 'number' },
+        attendance_stats: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              month: { type: 'number' },
+              late_hours: { type: 'number' },
+              actual_late_hours: { type: 'number' },
+              overtime_hours: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getStatistics(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: StatisticsQueryDto,
+  ) {
+    return this.divisionService.getStatistics(id, queryDto.year);
+  }
+
+  @Get(':id/leave-employees')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy chi tiết danh sách nhân viên nghỉ phép trong ngày' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách nhân viên nghỉ phép thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        date: { type: 'string' },
+        employees: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
+              position: { type: 'string' },
+              leave_type: { type: 'string' },
+              reason: { type: 'string' },
+              start_date: { type: 'string' },
+              end_date: { type: 'string' },
+              status: { type: 'string' },
+              duration: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getLeaveEmployees(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: EmployeeDetailQueryDto,
+  ) {
+    return this.divisionService.getLeaveEmployeeDetails(id, queryDto.date);
+  }
+
+  @Get(':id/late-employees')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy chi tiết danh sách nhân viên đi muộn trong ngày' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách nhân viên đi muộn thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        date: { type: 'string' },
+        employees: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
+              position: { type: 'string' },
+              checkin_time: { type: 'string' },
+              late_minutes: { type: 'number' },
+              status: { type: 'string' },
+              duration: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getLateEmployees(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: EmployeeDetailQueryDto,
+  ) {
+    return this.divisionService.getLateEmployeeDetails(id, queryDto.date);
+  }
+
+  @Get(':id/working-employees')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy chi tiết danh sách nhân viên đi làm trong ngày' })
+  @ApiParam({ name: 'id', description: 'ID của phòng ban' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách nhân viên đi làm thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+        date: { type: 'string' },
+        employees: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
+              position: { type: 'string' },
+              checkin_time: { type: 'string' },
+              checkout_time: { type: 'string' },
+              status: { type: 'string' },
+              duration: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy phòng ban',
+  })
+  getWorkingEmployees(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() queryDto: EmployeeDetailQueryDto,
+  ) {
+    return this.divisionService.getWorkingEmployeeDetails(id, queryDto.date);
   }
 
   @Get(':id')

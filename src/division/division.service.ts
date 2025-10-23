@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
+import { DateFormatUtil } from '../common/utils/date-format.util';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -822,12 +823,341 @@ export class DivisionService {
     };
   }
 
+  // === SEPARATE DASHBOARD APIS ===
+
+  /**
+   * API riêng cho thông tin sinh nhật nhân viên
+   */
+  async getBirthdayEmployees(divisionId: number, month?: number) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định tháng hiện tại nếu không được cung cấp
+    const now = new Date();
+    const targetMonth = month || now.getMonth() + 1;
+
+    const recentBirthdayEmployees = await this.getRecentBirthdayEmployees(divisionId, targetMonth);
+
+    return {
+      division: {
+        id: division.id,
+        name: division.name,
+      },
+      month: targetMonth,
+      employees: recentBirthdayEmployees,
+    };
+  }
+
+  /**
+   * API riêng cho thông tin làm việc
+   */
+  async getWorkInfo(divisionId: number, workDate?: string) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định ngày làm việc
+    const targetDate = workDate ? new Date(workDate) : new Date();
+    
+    const workingInfo = await this.getWorkingInfo(divisionId, targetDate);
+    const leaveRequests = await this.getLeaveRequestsInfo(divisionId, targetDate);
+    const lateInfo = await this.getLateInfo(divisionId, targetDate);
+
+    return {
+      division: {
+        id: division.id,
+        name: division.name,
+      },
+      work_date: DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0],
+      working_info: workingInfo,
+      leave_requests: leaveRequests,
+      late_info: lateInfo,
+    };
+  }
+
+  /**
+   * API riêng cho thống kê theo năm
+   */
+  async getStatistics(divisionId: number, year?: number) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định năm hiện tại nếu không được cung cấp
+    const targetYear = year || new Date().getFullYear();
+
+    const attendanceStats = await this.getAttendanceStatsByMonth(divisionId, targetYear);
+
+    return {
+      division: {
+        id: division.id,
+        name: division.name,
+      },
+      year: targetYear,
+      attendance_stats: attendanceStats,
+    };
+  }
+
+  // === EMPLOYEE DETAIL APIS ===
+
+  /**
+   * API lấy chi tiết nhân viên nghỉ phép trong ngày
+   */
+  async getLeaveEmployeeDetails(divisionId: number, date?: string) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định ngày
+    const targetDate = date ? new Date(date) : new Date();
+    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+
+    // Lấy danh sách user_id trong division
+    const divisionUsers = await this.prisma.user_division.findMany({
+      where: { divisionId: divisionId },
+      select: { userId: true },
+    });
+
+    const userIds = divisionUsers.map((u) => u.userId);
+
+    if (userIds.length === 0) {
+      return {
+        division: { id: division.id, name: division.name },
+        date: dateStr,
+        employees: [],
+      };
+    }
+
+    // Lấy danh sách nhân viên nghỉ phép trong ngày
+    const leaveEmployees = await this.prisma.day_offs.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: targetDate,
+        status: 'APPROVED',
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: { 
+            id: true,
+            user_information: {
+              select: {
+                name: true,
+                email: true,
+                avatar: true,
+                position: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const employees = leaveEmployees.map((leave) => ({
+      user_id: leave.user.id,
+      name: leave?.user?.user_information?.name,
+      email: leave?.user?.user_information?.email,
+      avatar: leave?.user?.user_information?.avatar,
+      position: leave?.user?.user_information?.position,
+       work_date: DateFormatUtil.formatDate(leave.work_date),
+      status: leave.status === 'APPROVED' ? 'Có phép' : 'Không phép',
+    }));
+
+    return {
+      division: { id: division.id, name: division.name },
+      date: dateStr,
+      employees,
+    };
+  }
+
+  /**
+   * API lấy chi tiết nhân viên đi muộn trong ngày
+   */
+  async getLateEmployeeDetails(divisionId: number, date?: string) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định ngày
+    const targetDate = date ? new Date(date) : new Date();
+    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+
+    // Lấy danh sách user_id trong division
+    const divisionUsers = await this.prisma.user_division.findMany({
+      where: { divisionId: divisionId },
+      select: { userId: true },
+    });
+
+    const userIds = divisionUsers.map((u) => u.userId);
+
+    if (userIds.length === 0) {
+      return {
+        division: { id: division.id, name: division.name },
+        date: dateStr,
+        employees: [],
+      };
+    }
+
+    // Lấy danh sách nhân viên đi muộn trong ngày
+    const lateEmployees = await this.prisma.time_sheets.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: new Date(dateStr),
+        late_time: { not: null },
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            user_information: {
+              select: {
+                name: true,
+                email: true,
+                avatar: true,
+                position: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const employees = lateEmployees.map((timesheet) => ({
+      user_id: timesheet.user.id,
+      name: timesheet.user.user_information?.name,
+      email: timesheet?.user?.user_information?.email,
+      avatar: timesheet?.user?.user_information?.avatar,
+      position: timesheet?.user?.user_information?.position,
+      checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
+      late_minutes: timesheet.late_time || 0,
+      status: 'Không phép',
+      duration: `${Math.floor((timesheet.late_time || 0) / 60)}h${(timesheet.late_time || 0) % 60}m`,
+    }));
+
+    return {
+      division: { id: division.id, name: division.name },
+      date: dateStr,
+      employees,
+    };
+  }
+
+  /**
+   * API lấy chi tiết nhân viên đi làm trong ngày
+   */
+  async getWorkingEmployeeDetails(divisionId: number, date?: string) {
+    // Kiểm tra division có tồn tại không
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy phòng ban');
+    }
+
+    // Xác định ngày
+    const targetDate = date ? new Date(date) : new Date();
+    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+
+    // Lấy danh sách user_id trong division
+    const divisionUsers = await this.prisma.user_division.findMany({
+      where: { divisionId: divisionId },
+      select: { userId: true },
+    });
+
+    const userIds = divisionUsers.map((u) => u.userId);
+
+    if (userIds.length === 0) {
+      return {
+        division: { id: division.id, name: division.name },
+        date: dateStr,
+        employees: [],
+      };
+    }
+
+    // Lấy danh sách nhân viên đi làm trong ngày
+    const workingEmployees = await this.prisma.time_sheets.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: new Date(dateStr),
+        checkin: { not: null },
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            user_information: {
+              select: {
+                name: true,
+                email: true,
+                avatar: true,
+                position: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const employees = workingEmployees.map((timesheet) => ({
+      user_id: timesheet.user.id,
+      name: timesheet?.user?.user_information?.name,
+      email: timesheet?.user?.user_information?.email,
+      avatar: timesheet?.user?.user_information?.avatar,
+      position: timesheet?.user?.user_information?.position,
+      checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
+      checkout_time: DateFormatUtil.formatTime(timesheet.checkout),
+      status: timesheet.late_time && timesheet.late_time > 0 ? 'Không phép' : 'Có phép',
+      duration: timesheet.checkout && timesheet.checkin ? 
+        (() => {
+          const minutes = DateFormatUtil.getDifferenceInMinutes(timesheet.checkin, timesheet.checkout);
+          const hours = Math.floor(minutes / 60);
+          const remainingMinutes = minutes % 60;
+          return `${hours}h${remainingMinutes}m`;
+        })() : 
+        'Chưa checkout',
+    }));
+
+    return {
+      division: { id: division.id, name: division.name },
+      date: dateStr,
+      employees,
+    };
+  }
+
   /**
    * Lấy thông tin làm việc của division
    * Tính: Số lượng đi làm / Tổng số nhân viên trong division
    */
   private async getWorkingInfo(divisionId: number, date: Date) {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = DateFormatUtil.formatDate(date) || date.toISOString().split('T')[0];
 
     // Lấy danh sách user_id trong division
     const divisionUsers = await this.prisma.user_division.findMany({
@@ -1054,7 +1384,7 @@ export class DivisionService {
           name: emp.name,
           email: emp.email,
           avatar: emp.avatar,
-          birthday: emp.birthday.toISOString().split('T')[0],
+          birthday: DateFormatUtil.formatDate(emp.birthday) || emp.birthday.toISOString().split('T')[0],
           birthday_date: birthday.getDate(),
           birthday_month: birthday.getMonth() + 1,
           days_until_birthday: diffDays,

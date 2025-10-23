@@ -43,6 +43,20 @@ export class UserProfileService {
             language: true,
           },
         },
+        user_division: {
+          where: { division: { deleted_at: null } },
+          include: {
+            division: {
+              select: { id: true, name: true },
+            },
+            role: {
+              select: { id: true, name: true },
+            },
+            team: {
+              select: { id: true, name: true },
+            },
+          },
+        },
         education: {
           where: { deleted_at: null },
         },

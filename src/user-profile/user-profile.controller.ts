@@ -53,7 +53,100 @@ export class UserProfileController {
   @ApiOperation({ summary: 'Xem thông tin cá nhân của user hiện tại' })
   @ApiResponse({
     status: 200,
-    description: 'Thông tin cá nhân chi tiết',
+    description: 'Thông tin cá nhân chi tiết bao gồm phòng ban và team',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        username: { type: 'string' },
+        email: { type: 'string' },
+        user_information: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            avatar: { type: 'string' },
+            position: { type: 'object' },
+            role: { type: 'object' },
+            level: { type: 'object' },
+            language: { type: 'object' },
+          },
+        },
+        user_division: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              division: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  code: { type: 'string' },
+                  manager: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      user_information: {
+                        type: 'object',
+                        properties: {
+                          name: { type: 'string' },
+                          email: { type: 'string' },
+                          avatar: { type: 'string' },
+                          position: { type: 'object' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        user_team: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              team: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                  description: { type: 'string' },
+                  team_lead: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      user_information: {
+                        type: 'object',
+                        properties: {
+                          name: { type: 'string' },
+                          email: { type: 'string' },
+                          avatar: { type: 'string' },
+                          position: { type: 'object' },
+                        },
+                      },
+                    },
+                  },
+                  division: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      name: { type: 'string' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        education: { type: 'array' },
+        experience: { type: 'array' },
+        user_certificates: { type: 'array' },
+        user_skills: { type: 'array' },
+      },
+    },
   })
   async getUserProfile(@GetCurrentUser('id') userId: number) {
     return await this.userProfileService.getUserProfile(userId);
