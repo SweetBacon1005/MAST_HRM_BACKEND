@@ -656,7 +656,7 @@ export class UserProfileService {
           email: user.email || '',
           personal_email: '',
           nationality: '',
-          name: user.name || '',
+          name: '',
           code: '',
           gender: '',
           marital: '',

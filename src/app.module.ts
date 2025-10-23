@@ -15,9 +15,11 @@ import { LeaveManagementModule } from './leave-management/leave-management.modul
 import { DivisionModule } from './division/division.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
+import { UploadModule } from './upload/upload.module';
 import { PrismaService } from './database/prisma.service';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
-import { Reflector } from '@nestjs/core';
+import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
+import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -38,8 +40,18 @@ import { Reflector } from '@nestjs/core';
     DivisionModule,
     ProjectsModule,
     ReportsModule,
+    UploadModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService, GlobalAuthGuard, Reflector],
+  providers: [
+    AppService, 
+    PrismaService, 
+    GlobalAuthGuard, 
+    Reflector,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: DateFormatInterceptor,
+    },
+  ],
 })
 export class AppModule {}

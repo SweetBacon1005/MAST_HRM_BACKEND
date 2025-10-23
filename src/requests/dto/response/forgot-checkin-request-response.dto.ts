@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TimesheetStatus } from '@prisma/client';
 
-export class ForgotCheckinRequestResponseDto {
+export class  ForgotCheckinRequestResponseDto {
   @ApiProperty({
     description: 'ID của đơn xin bổ sung chấm công',
     example: 1,

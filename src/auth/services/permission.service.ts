@@ -46,14 +46,14 @@ export class PermissionService {
       if (
         !user ||
         !user.user_information ||
-        user.user_information.length === 0 ||
-        !user.user_information[0].role
+        !user.user_information?.role ||
+        !user.user_information?.role?.id
       ) {
         this.logger.warn(`User ${userId} not found or has no role assigned`);
         return false;
       }
 
-      const userRole = user.user_information[0].role;
+      const userRole = user.user_information?.role;
 
       // Lấy danh sách permissions trực tiếp của user
       const directPermissions = userRole.permission_role.map(
@@ -232,14 +232,14 @@ export class PermissionService {
       if (
         !user ||
         !user.user_information ||
-        user.user_information.length === 0 ||
-        !user.user_information[0].role
+        !user.user_information?.role ||
+        !user.user_information?.role?.permission_role
       ) {
         return [];
       }
 
-      return user.user_information[0].role.permission_role.map(
-        (pr) => pr.permission.name,
+      return user.user_information?.role?.permission_role.map(
+        (pr) => pr?.permission?.name,
       );
     } catch (error) {
       this.logger.error(`Error getting permissions for user ${userId}:`, error);
@@ -273,15 +273,15 @@ export class PermissionService {
       if (
         !user ||
         !user.user_information ||
-        user.user_information.length === 0 ||
-        !user.user_information[0].role
+        !user.user_information?.role ||
+        !user.user_information?.role?.id
       ) {
         return null;
       }
 
       return {
-        id: user.user_information[0].role.id,
-        name: user.user_information[0].role.name,
+        id: user.user_information?.role?.id,
+        name: user.user_information?.role?.name,
       };
     } catch (error) {
       this.logger.error(`Error getting role for user ${userId}:`, error);

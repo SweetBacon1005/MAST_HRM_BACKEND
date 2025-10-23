@@ -1,30 +1,30 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
   buildPaginationResponseFromDto,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
-import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
-import { UpdateDivisionDto } from './dto/update-division.dto';
 import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
   CreateRotationMemberDto,
-  UpdateRotationMemberDto,
   RotationMemberPaginationDto,
+  UpdateRotationMemberDto,
 } from './dto/rotation-member.dto';
 import {
   CreateTeamDto,
-  UpdateTeamDto,
   TeamPaginationDto,
+  UpdateTeamDto,
 } from './dto/team.dto';
+import { UpdateDivisionDto } from './dto/update-division.dto';
 
 @Injectable()
 export class DivisionService {
@@ -170,7 +170,11 @@ export class DivisionService {
         user_division: {
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: {
+                id: true,
+                email: true,
+                user_information: { select: { name: true } },
+              },
             },
             role: {
               select: { id: true, name: true },
@@ -353,10 +357,7 @@ export class DivisionService {
     }));
   }
 
-  async getDivisionMembers(
-    divisionId: number,
-    queryDto: any,
-  ) {
+  async getDivisionMembers(divisionId: number, queryDto: any) {
     const page = queryDto.page || 1;
     const limit = queryDto.limit || 10;
     const skip = (page - 1) * limit;
@@ -474,7 +475,7 @@ export class DivisionService {
 
     // Transform data to match UI format
     const transformedData = userDivisions.map((ud) => {
-      const userInfo = ud.user.user_information[0];
+      const userInfo = ud.user.user_information;
 
       // Calculate months of service (thâm niên)
       const now = new Date();
@@ -489,7 +490,7 @@ export class DivisionService {
       return {
         user_id: ud.user.id,
         code: userInfo?.code || '',
-        name: ud.user.name || '',
+        name: ud.user.user_information?.[0]?.name || '',
         email: ud.user.email,
         avatar: userInfo?.avatar || '',
         birthday: userInfo?.birthday || null,
@@ -598,7 +599,11 @@ export class DivisionService {
         },
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
           },
           division: {
             select: { id: true, name: true },
@@ -669,7 +674,7 @@ export class DivisionService {
         orderBy: orderBy || { created_at: 'desc' },
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true, user_information: { select: { name: true } } },
           },
           division: {
             select: { id: true, name: true },
@@ -698,7 +703,7 @@ export class DivisionService {
       where: { id, deleted_at: null },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
         division: {
           select: { id: true, name: true },
@@ -742,7 +747,7 @@ export class DivisionService {
       data: updateData,
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
         division: {
           select: { id: true, name: true },
@@ -983,10 +988,7 @@ export class DivisionService {
   /**
    * Lấy danh sách nhân viên sinh nhật gần nhất trong tháng
    */
-  private async getRecentBirthdayEmployees(
-    divisionId: number,
-    month: number,
-  ) {
+  private async getRecentBirthdayEmployees(divisionId: number, month: number) {
     const now = new Date();
 
     // Lấy danh sách user_id trong division hiện tại
@@ -1220,7 +1222,11 @@ export class DivisionService {
   }
 
   async findAllTeams(paginationDto: TeamPaginationDto) {
-    const { skip, take, orderBy: defaultOrderBy } = buildPaginationQuery(paginationDto);
+    const {
+      skip,
+      take,
+      orderBy: defaultOrderBy,
+    } = buildPaginationQuery(paginationDto);
 
     // Build where conditions
     const whereConditions: any = {
@@ -1242,7 +1248,7 @@ export class DivisionService {
     if (paginationDto.sortBy) {
       orderBy = { [paginationDto.sortBy]: paginationDto.sort_order || 'desc' };
     }
-    
+
     const [teams, total] = await Promise.all([
       this.prisma.teams.findMany({
         where: whereConditions,
@@ -1265,29 +1271,23 @@ export class DivisionService {
           email: string;
           avatar: string;
         } | null = null;
-        
+
         if (team.manager_id) {
           const managerData = await this.prisma.users.findUnique({
             where: { id: team.manager_id },
             select: {
               id: true,
-              name: true,
+              user_information: { select: { name: true, avatar: true } },
               email: true,
-              user_information: {
-                where: { deleted_at: null },
-                select: {
-                  avatar: true,
-                },
-              },
             },
           });
 
           if (managerData) {
             manager = {
               id: managerData.id,
-              name: managerData.name,
+              name: managerData.user_information?.name || '',
               email: managerData.email,
-              avatar: managerData.user_information[0]?.avatar || '',
+              avatar: managerData?.user_information?.avatar || '',
             };
           }
         }
@@ -1308,7 +1308,6 @@ export class DivisionService {
             user: {
               include: {
                 user_information: {
-                  where: { deleted_at: null },
                   include: {
                     level: {
                       select: { name: true },
@@ -1324,7 +1323,7 @@ export class DivisionService {
         const levelCounts: Record<string, number> = {};
         members.forEach((member) => {
           const levelName =
-            member.user.user_information[0]?.level?.name || 'Unknown';
+            member?.user?.user_information?.level?.name || 'Unknown';
           levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
         });
 
@@ -1355,7 +1354,11 @@ export class DivisionService {
       }),
     );
 
-    return buildPaginationResponseFromDto(teamsWithDetails, total, paginationDto);
+    return buildPaginationResponseFromDto(
+      teamsWithDetails,
+      total,
+      paginationDto,
+    );
   }
 
   async findOneTeam(id: number) {
@@ -1375,17 +1378,16 @@ export class DivisionService {
       avatar: string;
       position: string;
     } | null = null;
-    
+
     if (team.manager_id) {
       const managerData = await this.prisma.users.findUnique({
         where: { id: team.manager_id },
         select: {
           id: true,
-          name: true,
           email: true,
           user_information: {
-            where: { deleted_at: null },
             select: {
+              name: true,
               avatar: true,
               position: {
                 select: { name: true },
@@ -1398,10 +1400,10 @@ export class DivisionService {
       if (managerData) {
         manager = {
           id: managerData.id,
-          name: managerData.name,
+          name: managerData?.user_information?.name || '',
           email: managerData.email,
-          avatar: managerData.user_information[0]?.avatar || '',
-          position: managerData.user_information[0]?.position?.name || '',
+          avatar: managerData?.user_information?.avatar || '',
+          position: managerData?.user_information?.position?.name || '',
         };
       }
     }
@@ -1422,7 +1424,6 @@ export class DivisionService {
         user: {
           include: {
             user_information: {
-              where: { deleted_at: null },
               include: {
                 level: {
                   select: { name: true },
@@ -1438,7 +1439,7 @@ export class DivisionService {
     const levelCounts: Record<string, number> = {};
     members.forEach((member) => {
       const levelName =
-        member.user.user_information[0]?.level?.name || 'Unknown';
+        member?.user?.user_information?.level?.name || 'Unknown';
       levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
     });
 

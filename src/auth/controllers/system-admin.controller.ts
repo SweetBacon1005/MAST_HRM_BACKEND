@@ -419,9 +419,9 @@ export class SystemAdminController {
       // Chuyển đổi sang CSV format (đơn giản)
       const csvData = users.map((user) => ({
         id: user.id,
-        name: user.name,
+        name: user.user_information?.name || '',
         email: user.email,
-        role: user.user_information?.[0]?.role?.name || '',
+        role: user.user_information?.role?.name || '',
         division: user.user_division?.[0]?.division?.name || '',
         created_at: user.created_at,
       }));

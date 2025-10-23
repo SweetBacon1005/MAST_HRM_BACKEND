@@ -8,7 +8,7 @@ export async function seedUserDevices() {
   // Lấy một số user để gán thiết bị
   const users = await prisma.users.findMany({
     take: 5,
-    select: { id: true, name: true },
+    select: { id: true},
   });
 
   if (users.length === 0) {

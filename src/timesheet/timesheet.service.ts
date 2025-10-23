@@ -180,7 +180,7 @@ export class TimesheetService {
         orderBy: orderBy || { work_date: 'desc' },
         include: {
           user: {
-            select: { name: true, email: true },
+            select: { email: true },
           },
         },
       }),
@@ -994,7 +994,6 @@ export class TimesheetService {
         user: {
           select: {
             id: true,
-            name: true,
             email: true,
           },
         },
@@ -1145,7 +1144,6 @@ export class TimesheetService {
         where: { id: { in: userIds } },
         select: {
           id: true,
-          name: true,
           email: true,
         },
       });
@@ -1548,7 +1546,7 @@ export class TimesheetService {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true },
         },
         timesheet: {
           select: { id: true, work_date: true },
@@ -1612,7 +1610,7 @@ export class TimesheetService {
         where,
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
           timesheet: {
             select: { id: true, work_date: true },
@@ -1683,7 +1681,7 @@ export class TimesheetService {
         orderBy: orderBy || { timestamp: 'desc' },
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
           timesheet: {
             select: { id: true, work_date: true },
@@ -1706,7 +1704,7 @@ export class TimesheetService {
       where: { id, deleted_at: null },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true },
         },
         timesheet: {
           select: { id: true, work_date: true },
@@ -1735,7 +1733,7 @@ export class TimesheetService {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true },
         },
         timesheet: {
           select: { id: true, work_date: true },

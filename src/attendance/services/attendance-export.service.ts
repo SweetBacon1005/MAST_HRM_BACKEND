@@ -43,7 +43,11 @@ export class AttendanceExportService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
             email: true,
             user_division: {
               include: {
@@ -59,9 +63,9 @@ export class AttendanceExportService {
 
     // Transform data for CSV
     const csvData = logs.map((log) => ({
-      user_id: log.user_id,
-      user_name: log.user.name,
+      user_id: log.user_id,   
       email: log.user.email,
+      name: log.user.user_information?.name || '',
       division: log.user.user_division?.[0]?.division?.name || '',
       work_date: this.csvExport.formatDate(log.work_date),
       timestamp: this.csvExport.formatDateTime(log.timestamp),
@@ -128,7 +132,11 @@ export class AttendanceExportService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
             email: true,
             user_division: {
               include: {
@@ -144,7 +152,7 @@ export class AttendanceExportService {
 
     const csvData = leaveRequests.map((leave) => ({
       user_id: leave.user_id,
-      user_name: leave.user.name,
+      user_name: leave.user.user_information?.[0]?.name || '',
       email: leave.user.email,
       division: leave.user.user_division?.[0]?.division?.name || '',
       type: leave.type,
@@ -212,7 +220,11 @@ export class AttendanceExportService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
             email: true,
             user_division: {
               include: {
@@ -231,7 +243,7 @@ export class AttendanceExportService {
 
     const csvData = overtimeRecords.map((overtime) => ({
       user_id: overtime.user_id,
-      user_name: overtime.user.name,
+      user_name: overtime.user.user_information?.[0]?.name || '',
       email: overtime.user.email,
       division: overtime.user.user_division?.[0]?.division?.name || '',
       project: overtime.project
@@ -302,7 +314,11 @@ export class AttendanceExportService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
             email: true,
             user_division: {
               include: {
@@ -318,7 +334,7 @@ export class AttendanceExportService {
 
     const csvData = requests.map((request) => ({
       user_id: request.user_id,
-      user_name: request.user.name,
+      user_name: request.user.user_information?.[0]?.name || '',
       email: request.user.email,
       division: request.user.user_division?.[0]?.division?.name || '',
       work_date: this.csvExport.formatDate(request.work_date),
@@ -382,7 +398,11 @@ export class AttendanceExportService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
             email: true,
             user_division: {
               include: {
@@ -398,7 +418,7 @@ export class AttendanceExportService {
 
     const csvData = requests.map((request) => ({
       user_id: request.user_id,
-      user_name: request.user.name,
+      user_name: request.user.user_information?.[0]?.name || '',
       email: request.user.email,
       division: request.user.user_division?.[0]?.division?.name || '',
       work_date: this.csvExport.formatDate(request.work_date),

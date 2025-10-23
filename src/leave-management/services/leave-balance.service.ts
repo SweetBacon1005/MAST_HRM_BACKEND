@@ -252,7 +252,7 @@ export class LeaveBalanceService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: { select: { name: true } },
             email: true,
           },
         },
@@ -374,7 +374,7 @@ export class LeaveBalanceService {
       },
       select: {
         id: true,
-        name: true,
+        user_information: { select: { name: true, avatar: true } },
         email: true,
       },
     });

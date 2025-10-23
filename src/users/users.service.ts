@@ -34,7 +34,6 @@ export class UsersService {
       },
       select: {
         id: true,
-        name: true,
         email: true,
         email_verified_at: true,
         created_at: true,
@@ -113,7 +112,6 @@ export class UsersService {
         orderBy: orderBy || { created_at: 'desc' },
         select: {
           id: true,
-          name: true,
           email: true,
           email_verified_at: true,
           created_at: true,

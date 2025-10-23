@@ -177,8 +177,8 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.remote_work_requests.count({ where }),
@@ -217,8 +217,8 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.remote_work_requests.count({ where }),
@@ -304,8 +304,8 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.day_offs.count({ where }),
@@ -342,8 +342,8 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.day_offs.count({ where }),
@@ -457,9 +457,9 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.over_times_history.count({ where }),
@@ -496,9 +496,9 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { name: true, email: true } },
+          user: { select: { email: true } },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { name: true, email: true } },
+          approved_by_user: { select: { email: true } },
         },
       }),
       this.prisma.over_times_history.count({ where }),
@@ -546,8 +546,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.day_offs.findMany({
@@ -556,8 +556,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.over_times_history.findMany({
@@ -566,9 +566,9 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.late_early_requests.findMany({
@@ -577,8 +577,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.forgot_checkin_requests.findMany({
@@ -587,8 +587,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
     ]);
@@ -684,8 +684,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.day_offs.findMany({
@@ -694,8 +694,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.over_times_history.findMany({
@@ -704,9 +704,9 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.late_early_requests.findMany({
@@ -715,8 +715,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
       this.prisma.forgot_checkin_requests.findMany({
@@ -725,8 +725,8 @@ export class RequestsService {
           ...(dateFilter && { work_date: dateFilter }),
         },
         include: {
-          user: { select: { id: true, name: true, email: true } },
-          approved_by_user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, email: true } },
+          approved_by_user: { select: { id: true, email: true } },
         },
       }),
     ]);
@@ -1396,14 +1396,12 @@ export class RequestsService {
           user: {
             select: {
               id: true,
-              name: true,
               email: true,
             },
           },
           approved_by_user: {
             select: {
               id: true,
-              name: true,
               email: true,
             },
           },
@@ -1437,15 +1435,13 @@ export class RequestsService {
         include: {
           user: {
             select: {
-              id: true,
-              name: true,
+              id: true, 
               email: true,
             },
           },
           approved_by_user: {
             select: {
               id: true,
-              name: true,
               email: true,
             },
           },
@@ -1711,16 +1707,26 @@ export class RequestsService {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
         approved_by_user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
       },
     });
 
     return {
       ...result,
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.user_information?.name || '',
+      },
+      approved_by_user: {
+        id: result.approved_by_user?.id || 0,
+        email: result.approved_by_user?.email || '',
+        name: result.approved_by_user?.user_information?.name || '',
+      },
       work_date: result.work_date.toISOString().split('T')[0],
       checkin_time: result.checkin_time?.toTimeString().slice(0, 5) || null,
       checkout_time: result.checkout_time?.toTimeString().slice(0, 5) || null,
@@ -1751,10 +1757,10 @@ export class RequestsService {
         where: whereConditions,
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
           approved_by_user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
         },
         skip,
@@ -1811,10 +1817,10 @@ export class RequestsService {
         where: whereConditions,
         include: {
           user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
           approved_by_user: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, email: true },
           },
         },
         skip,

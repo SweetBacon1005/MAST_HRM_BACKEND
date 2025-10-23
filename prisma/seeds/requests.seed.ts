@@ -23,7 +23,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
   }
 
   console.log(
-    `📝 Tạo requests cho user: ${exampleUser.name} (${exampleUser.email})`,
+    `📝 Tạo requests cho user: (${exampleUser.email})`,
   );
 
   // 1. Tạo Remote Work Requests

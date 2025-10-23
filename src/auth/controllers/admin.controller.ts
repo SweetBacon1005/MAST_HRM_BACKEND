@@ -93,9 +93,7 @@ export class AdminController {
         where: {
           deleted_at: null,
           user_information: {
-            some: {
               status: 'ACTIVE',
-            },
           },
         },
       }),
@@ -117,10 +115,26 @@ export class AdminController {
         orderBy: { created_at: 'desc' },
         include: {
           causer: {
-            select: { id: true, name: true, email: true },
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
           },
           subject: {
-            select: { id: true, name: true, email: true },
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
           },
         },
       }),
@@ -421,7 +435,14 @@ export class AdminController {
     const updatedUser = await this.prisma.users.update({
       where: { id },
       data: {
-        name: updateUserDto.name,
+        user_information: {
+          update: {
+            where: { user_id: id },
+            data: {
+              name: updateUserDto.name,
+            },
+          }
+        },
         email: updateUserDto.email,
       },
     });
@@ -594,10 +615,26 @@ export class AdminController {
         orderBy: { created_at: 'desc' },
         include: {
           causer: {
-            select: { id: true, name: true, email: true },
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
           },
           subject: {
-            select: { id: true, name: true, email: true },
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
           },
         },
       }),

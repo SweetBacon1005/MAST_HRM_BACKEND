@@ -55,7 +55,7 @@ export class TimesheetReportsService {
       orderBy: { work_date: 'desc' },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
       },
     });
@@ -132,7 +132,7 @@ export class TimesheetReportsService {
       where,
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
       },
     });
@@ -143,8 +143,7 @@ export class TimesheetReportsService {
       if (!acc[userId]) {
         acc[userId] = {
           user_id: userId,
-          user_name: timesheet.user?.name,
-          user_email: timesheet.user?.email,
+          name: timesheet.user?.user_information?.name || '',
           total_days: 0,
           total_work_hours: 0,
           total_late_minutes: 0,

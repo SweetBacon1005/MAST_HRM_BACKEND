@@ -563,7 +563,7 @@ export class ReportsService {
       where: { id: { in: userIds } },
       select: {
         id: true,
-        name: true,
+        user_information: { select: { name: true } },
         email: true,
         user_division: {
           include: {
@@ -579,7 +579,7 @@ export class ReportsService {
       const user = users.find((u) => u.id === stat.user_id);
       return {
         user_id: stat.user_id,
-        user_name: user?.name || 'Unknown',
+        user_name: user?.user_information?.name || 'Unknown',
         user_email: user?.email || '',
         division: user?.user_division?.[0]?.division?.name || '',
         total_days: stat._count?.user_id || 0,
@@ -616,7 +616,7 @@ export class ReportsService {
       },
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
       },
     });
@@ -634,7 +634,7 @@ export class ReportsService {
       const userId = request.user_id;
       if (!acc[userId]) {
         acc[userId] = {
-          user: request.user,
+          user: request.user.user_information?.name || '',
           late_count: 0,
           early_count: 0,
           both_count: 0,
@@ -688,8 +688,8 @@ export class ReportsService {
         user: {
           select: {
             id: true,
-            name: true,
             email: true,
+            user_information: { select: { name: true } },
             user_division: {
               include: {
                 division: {
@@ -728,7 +728,7 @@ export class ReportsService {
       const userId = leave.user_id;
       if (!acc[userId]) {
         acc[userId] = {
-          user: leave.user,
+          user: leave.user.user_information?.name || '',
           total_requests: 0,
           total_days: 0,
           approved_days: 0,
@@ -791,7 +791,7 @@ export class ReportsService {
         user: {
           select: {
             id: true,
-            name: true,
+            user_information: { select: { name: true } },
             email: true,
             user_division: {
               include: {
@@ -838,7 +838,7 @@ export class ReportsService {
       const userId = record.user_id;
       if (!acc[userId]) {
         acc[userId] = {
-          user: record.user,
+          user: record.user.user_information?.name || '',
           total_sessions: 0,
           total_hours: 0,
           total_amount: 0,
@@ -868,7 +868,7 @@ export class ReportsService {
       const projectId = record.project_id;
       if (!acc[projectId]) {
         acc[projectId] = {
-          project: record.project,
+          project: record.project?.name || '',
           total_sessions: 0,
           total_hours: 0,
           total_amount: 0,
@@ -926,7 +926,7 @@ export class ReportsService {
       where,
       include: {
         user: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, email: true, user_information: { select: { name: true } } },
         },
         division: {
           select: { id: true, name: true },
@@ -957,7 +957,7 @@ export class ReportsService {
     // Thống kê theo phòng ban đích
     const divisionStats = transfers.reduce((acc, transfer) => {
       const divisionId = transfer.division_id;
-      const divisionName = transfer.division.name;
+      const divisionName = transfer.division?.name || '';
       if (!acc[divisionId]) {
         acc[divisionId] = {
           division_name: divisionName,
@@ -977,7 +977,7 @@ export class ReportsService {
       division_stats: Object.values(divisionStats),
       transfers: transfers.map((t) => ({
         id: t.id,
-        user: t.user,
+        user: t.user.user_information?.name || '',
         division: t.division,
         type: t.type === 1 ? 'permanent' : 'temporary',
         date_rotation: t.date_rotation.toISOString().split('T')[0],
@@ -1029,9 +1029,7 @@ export class ReportsService {
         where: {
           deleted_at: null,
           user_information: {
-            some: {
-              status: 'ACTIVE',
-            },
+            status: 'ACTIVE',
           },
         },
       }),

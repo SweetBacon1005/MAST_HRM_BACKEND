@@ -55,7 +55,7 @@ export class UserQueryService {
       where: { id: { in: userIds }, deleted_at: null },
       select: {
         id: true,
-        name: true,
+        user_information: { select: { name: true, avatar: true } },
         email: true,
         user_division: {
           include: {
@@ -81,7 +81,7 @@ export class UserQueryService {
       where: { id: { in: userIds }, deleted_at: null },
       select: {
         id: true,
-        name: true,
+        user_information: { select: { name: true, avatar: true } },
         email: true,
       },
     });

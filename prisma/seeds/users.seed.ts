@@ -12,55 +12,46 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
   console.log('👤 Tạo users...');
   const userData = [
     {
-      name: 'System Admin',
       email: 'admin@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'HR Manager',
       email: 'hr.manager@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'John Doe',
       email: 'john.doe@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'Jane Smith',
       email: 'jane.smith@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'Mike Johnson',
       email: 'mike.johnson@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'Sarah Wilson',
       email: 'sarah.wilson@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'David Brown',
       email: 'david.brown@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'Lisa Davis',
       email: 'lisa.davis@company.com',
       password: hashedPassword,
       email_verified_at: new Date(),
     },
     {
-      name: 'User Example',
       email: 'user@example.com',
       password: mastPassword,
       email_verified_at: new Date(),

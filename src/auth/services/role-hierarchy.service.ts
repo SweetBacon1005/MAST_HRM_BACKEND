@@ -1,5 +1,12 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { PermissionService } from './permission.service';
+import { PrismaService } from '../../database/prisma.service';
+import {
+  ROLE_NAMES,
+  PROJECT_POSITIONS,
+  ACTIVE_PROJECT_STATUSES,
+  DIVISION_HEAD_ASSIGNABLE_ROLES,
+} from '../constants/role.constants';
 
 export interface RoleHierarchy {
   level: number;
@@ -12,61 +19,62 @@ export class RoleHierarchyService {
   constructor(
     @Inject(forwardRef(() => PermissionService))
     private readonly permissionService: PermissionService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // Định nghĩa cấp bậc vai trò từ thấp đến cao
   private readonly roleHierarchy: RoleHierarchy[] = [
     {
       level: 1,
-      name: 'employee',
+      name: ROLE_NAMES.EMPLOYEE,
       canManage: [],
     },
     {
       level: 2,
-      name: 'team_leader',
-      canManage: ['employee'],
+      name: ROLE_NAMES.TEAM_LEADER,
+      canManage: [ROLE_NAMES.EMPLOYEE],
     },
     {
       level: 3,
-      name: 'division_head',
-      canManage: ['employee', 'team_leader'],
+      name: ROLE_NAMES.DIVISION_HEAD,
+      canManage: [ROLE_NAMES.EMPLOYEE, ROLE_NAMES.TEAM_LEADER],
     },
     {
       level: 4,
-      name: 'project_manager',
-      canManage: ['employee', 'team_leader'],
+      name: ROLE_NAMES.PROJECT_MANAGER,
+      canManage: [ROLE_NAMES.EMPLOYEE, ROLE_NAMES.TEAM_LEADER],
     },
     {
       level: 5,
-      name: 'hr_manager',
+      name: ROLE_NAMES.HR_MANAGER,
       canManage: [
-        'employee',
-        'team_leader',
-        'division_head',
-        'project_manager',
+        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.DIVISION_HEAD,
+        ROLE_NAMES.PROJECT_MANAGER,
       ],
     },
     {
       level: 6,
-      name: 'admin',
+      name: ROLE_NAMES.ADMIN,
       canManage: [
-        'employee',
-        'team_leader',
-        'division_head',
-        'project_manager',
-        'hr_manager',
+        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.DIVISION_HEAD,
+        ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.HR_MANAGER,
       ],
     },
     {
       level: 7,
-      name: 'super_admin',
+      name: ROLE_NAMES.SUPER_ADMIN,
       canManage: [
-        'employee',
-        'team_leader',
-        'division_head',
-        'project_manager',
-        'hr_manager',
-        'admin',
+        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.DIVISION_HEAD,
+        ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.HR_MANAGER,
+        ROLE_NAMES.ADMIN,
       ],
     },
   ];
@@ -108,27 +116,157 @@ export class RoleHierarchyService {
     const managerRole = await this.permissionService.getUserRole(managerId);
     if (!managerRole) return false;
 
-    // Lấy role hiện tại của target user
-    const targetRole = await this.permissionService.getUserRole(targetUserId);
-    if (!targetRole) return false;
+    // Chỉ division_head mới có thể gán role trong phạm vi này
+    if (managerRole.name !== ROLE_NAMES.DIVISION_HEAD) {
+      // Fallback về logic cũ cho các role khác
+      const targetRole = await this.permissionService.getUserRole(targetUserId);
+      if (!targetRole) return false;
 
-    // Kiểm tra manager có thể quản lý role hiện tại của target không
-    const canManageCurrentRole = this.canManageRole(
-      managerRole.name,
-      targetRole.name,
-    );
-    if (!canManageCurrentRole) return false;
-
-    // Nếu có role mới, kiểm tra manager có thể gán role mới không
-    if (newRoleName) {
-      const canManageNewRole = this.canManageRole(
+      const canManageCurrentRole = this.canManageRole(
         managerRole.name,
-        newRoleName,
+        targetRole.name,
       );
-      if (!canManageNewRole) return false;
+      if (!canManageCurrentRole) return false;
+
+      if (newRoleName) {
+        const canManageNewRole = this.canManageRole(
+          managerRole.name,
+          newRoleName,
+        );
+        if (!canManageNewRole) return false;
+      }
+      return true;
+    }
+
+    // Logic đặc biệt cho division_head
+    return await this.canDivisionHeadManageUser(
+      managerId,
+      targetUserId,
+      newRoleName,
+    );
+  }
+
+  /**
+   * Kiểm tra trưởng phòng có thể gán role cho nhân viên không
+   */
+  private async canDivisionHeadManageUser(
+    divisionHeadId: number,
+    targetUserId: number,
+    newRoleName?: string,
+  ): Promise<boolean> {
+    // 1. Kiểm tra cả hai có cùng division không
+    const [managerDivision, targetDivision] = await Promise.all([
+      this.prisma.user_division.findFirst({
+        where: { userId: divisionHeadId },
+        include: { division: true },
+      }),
+      this.prisma.user_division.findFirst({
+        where: { userId: targetUserId },
+        include: { division: true },
+      }),
+    ]);
+
+    if (
+      !managerDivision ||
+      !targetDivision ||
+      managerDivision.divisionId !== targetDivision.divisionId
+    ) {
+      return false; // Không cùng phòng ban
+    }
+
+    // 2. Kiểm tra role được gán có hợp lệ không
+    if (newRoleName) {
+      // Chỉ cho phép gán team_leader hoặc project_manager
+      if (!DIVISION_HEAD_ASSIGNABLE_ROLES.includes(newRoleName as any)) {
+        return false;
+      }
+
+      // 3. Kiểm tra ràng buộc đặc biệt cho project_manager
+      if (newRoleName === ROLE_NAMES.PROJECT_MANAGER) {
+        const hasProjectInDivision = await this.prisma.project_role_user.findFirst(
+          {
+            where: {
+              user_id: targetUserId,
+              project: {
+                division_id: managerDivision.divisionId,
+                deleted_at: null,
+              },
+            },
+          },
+        );
+
+        if (!hasProjectInDivision) {
+          return false; // Không tham gia dự án nào trong phòng ban
+        }
+
+        // Kiểm tra không được là PM chính của nhiều project cùng lúc
+        // PM có thể tham gia nhiều dự án nhưng chỉ được là PM chính của 1 dự án
+        const currentPMProjects = await this.prisma.project_role_user.count({
+          where: {
+            user_id: targetUserId,
+            position_in_project: PROJECT_POSITIONS.MONITOR, // PM chính
+            project: {
+              status: {
+                in: ACTIVE_PROJECT_STATUSES as any, // Dự án đang hoạt động
+              },
+              deleted_at: null,
+            },
+          },
+        });
+
+        // Cho phép gán PM nếu chưa là PM chính của dự án nào
+        // hoặc nếu đang gán lại role PM cho cùng 1 user (update role)
+        if (currentPMProjects > 1) {
+          return false; // Đã là PM chính của nhiều dự án (không hợp lệ)
+        }
+      }
+
+      // 4. Kiểm tra xung đột role team_leader vs project_manager
+      if (newRoleName === ROLE_NAMES.TEAM_LEADER) {
+        const currentRole = await this.permissionService.getUserRole(targetUserId);
+        if (currentRole?.name === ROLE_NAMES.PROJECT_MANAGER) {
+          // Kiểm tra có xung đột về dự án không
+          const conflictingProjects = await this.prisma.project_role_user.count({
+            where: {
+              user_id: targetUserId,
+              position_in_project: PROJECT_POSITIONS.MONITOR, // PM chính
+              project: {
+                status: {
+                  in: ACTIVE_PROJECT_STATUSES as any,
+                },
+                team_id: {
+                  in: await this.getUserTeamIds(targetUserId),
+                },
+                deleted_at: null,
+              },
+            },
+          });
+
+          if (conflictingProjects > 0) {
+            return false; // Xung đột: đang là PM của dự án trong team mình sẽ lead
+          }
+        }
+      }
     }
 
     return true;
+  }
+
+  /**
+   * Lấy danh sách team IDs mà user đang lead
+   */
+  private async getUserTeamIds(userId: number): Promise<number[]> {
+    const userTeams = await this.prisma.user_division.findMany({
+      where: {
+        userId,
+        role: { name: ROLE_NAMES.TEAM_LEADER },
+      },
+      select: { teamId: true },
+    });
+
+    return userTeams
+      .map((ut) => ut.teamId)
+      .filter((id): id is number => id !== null);
   }
 
   /**

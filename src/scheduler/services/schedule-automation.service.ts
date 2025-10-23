@@ -217,7 +217,6 @@ export class ScheduleAutomationService {
         },
         select: {
           id: true,
-          name: true,
           email: true,
         },
       });
@@ -277,7 +276,7 @@ export class ScheduleAutomationService {
         createdCount = result.count;
 
         this.logger.debug(
-          `✅ Created timesheets for users: ${usersNeedTimesheet.map((u) => u.name).join(', ')}`,
+          `✅ Created timesheets for users: ${usersNeedTimesheet.map((u) => u.email).join(', ')}`,
         );
       }
 
@@ -324,7 +323,6 @@ export class ScheduleAutomationService {
         },
         select: {
           id: true,
-          name: true,
           email: true,
         },
       });
@@ -381,7 +379,7 @@ export class ScheduleAutomationService {
           updatedCount++;
         } catch (error) {
           this.logger.error(
-            `❌ Error adding leave for user ${user.id} (${user.name}):`,
+            `❌ Error adding leave for user ${user.id} (${user.email}):`,
             error,
           );
         }
@@ -415,7 +413,6 @@ export class ScheduleAutomationService {
         },
         select: {
           id: true,
-          name: true,
           email: true,
         },
       });
@@ -435,7 +432,7 @@ export class ScheduleAutomationService {
           processedCount++;
         } catch (error) {
           this.logger.error(
-            `❌ Error resetting leave balance for user ${user.id} (${user.name}):`,
+            `❌ Error resetting leave balance for user ${user.id} (${user.email}):`,
             error,
           );
           errorCount++;

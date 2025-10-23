@@ -12,6 +12,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
+import { RoleAssignmentService } from './services/role-assignment.service';
 import { EmailService } from '../common/services/email.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { PermissionModule } from './permission.module';
@@ -46,6 +47,7 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     JwtStrategy,
     JwtRefreshStrategy,
     OtpService,
+    RoleAssignmentService,
     EmailService,
     PrismaService,
     DivisionRolesGuard,

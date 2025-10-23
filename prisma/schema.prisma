@@ -135,6 +135,7 @@ model roles {
     user_division    user_division[]
     allocations      allocations[]
     permission_role  permission_role[]
+    project_role_user project_role_user[]
 }
 
 model skills {
@@ -402,10 +403,11 @@ model project_role_user {
     id                  Int      @id @default(autoincrement())
     project_id          Int
     user_id             Int
+    user                users    @relation(fields: [user_id], references: [id])
     role_id             Int
+    role                roles    @relation(fields: [role_id], references: [id])
     position_in_project Int? // 1: monitor, 2: supporter, 3: implementor
     project             projects @relation(fields: [project_id], references: [id])
-    user                users    @relation(fields: [user_id], references: [id])
 
     @@index([project_id])
     @@index([user_id])
@@ -472,7 +474,6 @@ model tasks {
 
 model users {
     id                               Int                       @id @default(autoincrement())
-    name                             String?                   @db.VarChar(255)
     email                            String                    @unique @db.VarChar(255)
     email_verified_at                DateTime                  @db.DateTime()
     password                         String?                   @db.VarChar(255)
@@ -482,7 +483,7 @@ model users {
     education                        education[]
     experience                       experience[]
     user_certificates                user_certificates[]
-    user_information                 user_information[]
+    user_information                 user_information?
     user_skills                      user_skills[]
     rotation_members                 rotation_members[]
     user_division                    user_division[]

@@ -140,7 +140,7 @@ export class ProjectsService {
       ...project,
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
-      member_count: project._count.project_role_user,
+      member_count: project._count?.project_role_user || 0,
     }));
 
     return buildPaginationResponse(
@@ -164,7 +164,7 @@ export class ProjectsService {
         project_role_user: {
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, email: true, user_information: { select: { name: true } } },
             },
           },
         },
@@ -184,7 +184,7 @@ export class ProjectsService {
       ...project,
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
-      member_count: project._count.project_role_user,
+      member_count: project._count?.project_role_user || 0,
     };
   }
 
@@ -285,10 +285,10 @@ export class ProjectsService {
         user: {
           select: {
             id: true,
-            name: true,
             email: true,
             user_information: {
               select: {
+                name: true,
                 position: { select: { name: true } },
                 level: { select: { name: true } },
               },
