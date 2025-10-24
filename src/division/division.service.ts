@@ -857,34 +857,209 @@ export class DivisionService {
   /**
    * API riêng cho thông tin làm việc
    */
-  async getWorkInfo(divisionId: number, workDate?: string) {
-    // Kiểm tra division có tồn tại không
-    const division = await this.prisma.divisions.findUnique({
-      where: { id: divisionId, deleted_at: null },
-    });
+async getWorkInfo(divisionId: number, workDate?: string) {
+  // 1️⃣ Kiểm tra phòng ban
+  const division = await this.prisma.divisions.findUnique({
+    where: { id: divisionId, deleted_at: null },
+  });
+  if (!division) throw new NotFoundException('Không tìm thấy phòng ban');
 
-    if (!division) {
-      throw new NotFoundException('Không tìm thấy phòng ban');
-    }
+  // 2️⃣ Xác định ngày làm việc
+  const targetDate = workDate ? new Date(workDate) : new Date();
+  const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
 
-    // Xác định ngày làm việc
-    const targetDate = workDate ? new Date(workDate) : new Date();
-    
-    const workingInfo = await this.getWorkingInfo(divisionId, targetDate);
-    const leaveRequests = await this.getLeaveRequestsInfo(divisionId, targetDate);
-    const lateInfo = await this.getLateInfo(divisionId, targetDate);
+  // 3️⃣ Lấy danh sách userId trong phòng ban
+  const divisionUsers = await this.prisma.user_division.findMany({
+    where: { divisionId },
+    select: { userId: true },
+  });
+  const userIds = divisionUsers.map(u => u.userId);
+  const totalMembers = userIds.length;
 
+  if (!totalMembers) {
     return {
-      division: {
-        id: division.id,
-        name: division.name,
-      },
-      work_date: DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0],
-      working_info: workingInfo,
-      leave_requests: leaveRequests,
-      late_info: lateInfo,
+      division: { id: division.id, name: division.name },
+      work_date: dateStr,
+      working_info: { total_members: 0, working_count: 0, work_date: dateStr, employees: [] },
+      leave_requests: { paid_leave_count: 0, unpaid_leave_count: 0, employees: [] },
+      late_info: { late_count: 0, early_count: 0, employees: [] },
     };
   }
+
+  // 4️⃣ Định nghĩa include chung cho user
+  const userSelect = {
+    select: {
+      id: true,
+      user_information: {
+        select: { name: true, email: true, avatar: true, position: true },
+      },
+    },
+  };
+
+  // 5️⃣ Lấy dữ liệu song song để tối ưu hiệu suất
+  const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+  const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+
+  const [
+    leaveEmployees,
+    [paidCount, unpaidCount],
+    lateEmployees,
+    [lateCount, earlyCount],
+    workingEmployees,
+    workingCount,
+  ] = await Promise.all([
+    // Nhân viên nghỉ phép
+    this.prisma.day_offs.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: targetDate,
+        status: 'APPROVED',
+        deleted_at: null,
+      },
+      include: { user: userSelect },
+    }),
+
+    // Đếm nghỉ có phép / không phép
+    Promise.all([
+      this.prisma.day_offs.count({
+        where: {
+          user_id: { in: userIds },
+          work_date: { gte: startOfMonth, lte: endOfMonth },
+          status: 'APPROVED',
+          type: 'PAID',
+          deleted_at: null,
+        },
+      }),
+      this.prisma.day_offs.count({
+        where: {
+          user_id: { in: userIds },
+          work_date: { gte: startOfMonth, lte: endOfMonth },
+          status: 'APPROVED',
+          type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
+          deleted_at: null,
+        },
+      }),
+    ]),
+
+    // Nhân viên đi muộn
+    this.prisma.time_sheets.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: targetDate,
+        late_time: { not: null },
+        deleted_at: null,
+      },
+      include: { user: userSelect },
+    }),
+
+    // Đếm đi muộn / về sớm
+    Promise.all([
+      this.prisma.time_sheets.count({
+        where: {
+          user_id: { in: userIds },
+          work_date: { gte: startOfMonth, lte: endOfMonth },
+          late_time: { gt: 0 },
+          deleted_at: null,
+        },
+      }),
+      this.prisma.time_sheets.count({
+        where: {
+          user_id: { in: userIds },
+          work_date: { gte: startOfMonth, lte: endOfMonth },
+          early_time: { gt: 0 },
+          deleted_at: null,
+        },
+      }),
+    ]),
+
+    // Nhân viên đi làm
+    this.prisma.time_sheets.findMany({
+      where: {
+        user_id: { in: userIds },
+        work_date: targetDate,
+        checkin: { not: null },
+        deleted_at: null,
+      },
+      include: { user: userSelect },
+    }),
+
+    // Đếm số người đi làm
+    this.prisma.time_sheets.count({
+      where: {
+        user_id: { in: userIds },
+        work_date: targetDate,
+        checkin: { not: null },
+        deleted_at: null,
+      },
+    }),
+  ]);
+
+  // 6️⃣ Định dạng dữ liệu trả về
+  const leaveRequests = {
+    paid_leave_count: paidCount,
+    unpaid_leave_count: unpaidCount,
+    employees: leaveEmployees.map(l => ({
+      user_id: l.user.id,
+      name: l?.user?.user_information?.name,
+      email: l?.user?.user_information?.email,
+      avatar: l?.user?.user_information?.avatar,
+      position: l?.user?.user_information?.position,
+      work_date: DateFormatUtil.formatDate(l.work_date),
+      status: 'Có phép',
+    })),
+  };
+
+  const lateInfo = {
+    late_count: lateCount,
+    early_count: earlyCount,
+    employees: lateEmployees.map(ts => ({
+      user_id: ts.user.id,
+      name: ts?.user?.user_information?.name,
+      email: ts?.user?.user_information?.email,
+      avatar: ts?.user?.user_information?.avatar,
+      position: ts?.user?.user_information?.position,
+      checkin_time: DateFormatUtil.formatTime(ts.checkin),
+      late_minutes: ts.late_time || 0,
+      status: 'Không phép',
+      duration: `${Math.floor((ts.late_time || 0) / 60)}h${(ts.late_time || 0) % 60}m`,
+    })),
+  };
+
+  const workingInfo = {
+    total_members: totalMembers,
+    working_count: workingCount,
+    work_date: dateStr,
+    employees: workingEmployees.map(ts => {
+      const duration = ts.checkout && ts.checkin
+        ? (() => {
+            const minutes = DateFormatUtil.getDifferenceInMinutes(ts.checkin, ts.checkout);
+            return `${Math.floor(minutes / 60)}h${minutes % 60}m`;
+          })()
+        : 'Chưa checkout';
+      return {
+        user_id: ts.user.id,
+        name: ts?.user?.user_information?.name,
+        email: ts?.user?.user_information?.email,
+        avatar: ts?.user?.user_information?.avatar,
+        position: ts?.user?.user_information?.position,
+        checkin_time: DateFormatUtil.formatTime(ts.checkin),
+        checkout_time: DateFormatUtil.formatTime(ts.checkout),
+        status: ts.late_time && ts.late_time > 0 ? 'Không phép' : 'Có phép',
+        duration,
+      };
+    }),
+  };
+
+  // 7️⃣ Trả kết quả
+  return {
+    division: { id: division.id, name: division.name },
+    work_date: dateStr,
+    working_info: workingInfo,
+    leave_requests: leaveRequests,
+    late_info: lateInfo,
+  };
+}
+
 
   /**
    * API riêng cho thống kê theo năm
