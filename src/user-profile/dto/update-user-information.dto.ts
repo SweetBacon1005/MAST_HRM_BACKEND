@@ -8,11 +8,6 @@ import {
 } from 'class-validator';
 
 export class UpdateUserInformationDto {
-  @ApiProperty({ description: 'Email công ty', example: 'user@company.com' })
-  @IsOptional()
-  @IsEmail()
-  email?: string;
-
   @ApiProperty({ description: 'Email cá nhân', example: 'user@gmail.com' })
   @IsOptional()
   @IsEmail()

@@ -155,6 +155,7 @@ export class UserProfileService {
       return await this.prisma.user_information.update({
         where: { id: existingInfo.id },
         data: {
+          personal_email: updateDto.personal_email || '',
           marital: updateDto.marital || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
@@ -193,7 +194,6 @@ export class UserProfileService {
         data: {
           status: 'ACTIVE',
           user_id: userId,
-          email: updateDto.email || '',
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
@@ -681,8 +681,6 @@ export class UserProfileService {
         data: {
           user_id: userId,
           avatar: avatarUrl,
-          // Các field required khác sẽ cần được set default
-          email: user.email || '',
           personal_email: '',
           nationality: '',
           name: '',

@@ -1139,7 +1139,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
             user_information: {
               select: {
                 name: true,
-                email: true,
                 avatar: true,
                 position: true,
               },
@@ -1152,7 +1151,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     const employees = leaveEmployees.map((leave) => ({
       user_id: leave.user.id,
       name: leave?.user?.user_information?.name,
-      email: leave?.user?.user_information?.email,
       avatar: leave?.user?.user_information?.avatar,
       position: leave?.user?.user_information?.position,
        work_date: DateFormatUtil.formatDate(leave.work_date),
@@ -1214,7 +1212,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
             user_information: {
               select: {
                 name: true,
-                email: true,
                 avatar: true,
                 position: true,
               },
@@ -1227,7 +1224,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     const employees = lateEmployees.map((timesheet) => ({
       user_id: timesheet.user.id,
       name: timesheet.user.user_information?.name,
-      email: timesheet?.user?.user_information?.email,
       avatar: timesheet?.user?.user_information?.avatar,
       position: timesheet?.user?.user_information?.position,
       checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
@@ -1291,7 +1287,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
             user_information: {
               select: {
                 name: true,
-                email: true,
                 avatar: true,
                 position: true,
               },
@@ -1304,7 +1299,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     const employees = workingEmployees.map((timesheet) => ({
       user_id: timesheet.user.id,
       name: timesheet?.user?.user_information?.name,
-      email: timesheet?.user?.user_information?.email,
       avatar: timesheet?.user?.user_information?.avatar,
       position: timesheet?.user?.user_information?.position,
       checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
@@ -1521,7 +1515,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
       select: {
         user_id: true,
         name: true,
-        email: true,
         avatar: true,
         birthday: true,
       },
@@ -1557,7 +1550,6 @@ async getWorkInfo(divisionId: number, workDate?: string) {
         return {
           user_id: emp.user_id,
           name: emp.name,
-          email: emp.email,
           avatar: emp.avatar,
           birthday: DateFormatUtil.formatDate(emp.birthday) || emp.birthday.toISOString().split('T')[0],
           birthday_date: birthday.getDate(),

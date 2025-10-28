@@ -46,67 +46,6 @@ import { RequestsService } from './requests.service';
 export class RequestsController {
   constructor(private readonly requestsService: RequestsService) {}
 
-  // === OVERVIEW ENDPOINTS ===
-
-  @Get(':type/:id')
-  @RequirePermission('request.read')
-  @ApiOperation({
-    summary: 'Lấy chi tiết request theo ID và loại',
-  })
-  @ApiParam({
-    name: 'type',
-    description: 'Loại request',
-    enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin'],
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'ID của request',
-    type: Number,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy chi tiết request thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number' },
-        type: { 
-          type: 'string',
-          enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
-        },
-        user_id: { type: 'number' },
-        status: { type: 'string' },
-        work_date: { type: 'string', format: 'date' },
-        created_at: { type: 'string', format: 'date-time' },
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            email: { type: 'string' },
-            user_information: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                position: { type: 'object' },
-              },
-            },
-          },
-        },
-        // Các field khác tùy thuộc vào loại request
-      },
-    },
-  })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
-  @ApiResponse({ status: 403, description: 'Không có quyền truy cập request này' })
-  async getRequestById(
-    @Param('type') type: string,
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('roles') userRoles: string[],
-  ) {
-    return await this.requestsService.getRequestById(id, type, userId, userRoles);
-  }
-
   @Get()
   @RequirePermission('request.read')
   @ApiOperation({
@@ -601,6 +540,65 @@ export class RequestsController {
       userId,
       paginationDto,
     );
+  }
+
+  @Get(':type/:id')
+  @RequirePermission('request.read')
+  @ApiOperation({
+    summary: 'Lấy chi tiết request theo ID và loại',
+  })
+  @ApiParam({
+    name: 'type',
+    description: 'Loại request',
+    enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin'],
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của request',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy chi tiết request thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        type: { 
+          type: 'string',
+          enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+        },
+        user_id: { type: 'number' },
+        status: { type: 'string' },
+        work_date: { type: 'string', format: 'date' },
+        created_at: { type: 'string', format: 'date-time' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            email: { type: 'string' },
+            user_information: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                position: { type: 'object' },
+              },
+            },
+          },
+        },
+        // Các field khác tùy thuộc vào loại request
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
+  @ApiResponse({ status: 403, description: 'Không có quyền truy cập request này' })
+  async getRequestById(
+    @Param('type') type: string,
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+  ) {
+    return await this.requestsService.getRequestById(id, type, userId, userRoles);
   }
 
   // === HELPER METHODS ===

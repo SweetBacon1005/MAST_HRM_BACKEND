@@ -74,7 +74,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[0].id,
-      email: 'admin@company.com',
       personal_email: 'admin.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'System Admin',
@@ -101,7 +100,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[1].id,
-      email: 'hr.manager@company.com',
       personal_email: 'hr.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'HR Manager',
@@ -128,7 +126,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[2].id,
-      email: 'john.doe@company.com',
       personal_email: 'john.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'John Doe',
@@ -155,7 +152,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[3].id,
-      email: 'jane.smith@company.com',
       personal_email: 'jane.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'Jane Smith',
@@ -182,7 +178,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[4].id,
-      email: 'mike.johnson@company.com',
       personal_email: 'mike.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'Mike Johnson',
@@ -209,7 +204,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[5].id,
-      email: 'sarah.wilson@company.com',
       personal_email: 'sarah.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'Sarah Wilson',
@@ -236,7 +230,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[6].id,
-      email: 'david.brown@company.com',
       personal_email: 'david.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'David Brown',
@@ -263,7 +256,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[7].id,
-      email: 'lisa.davis@company.com',
       personal_email: 'lisa.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'Lisa Davis',
@@ -290,7 +282,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
     {
       status: 'ACTIVE' as const,
       user_id: users[8].id,
-      email: 'user@example.com',
       personal_email: 'user.personal@gmail.com',
       nationality: 'Vietnamese',
       name: 'User Example',

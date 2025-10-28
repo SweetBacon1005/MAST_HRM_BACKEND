@@ -505,7 +505,7 @@ export class RoleAssignmentService {
       where: { id: userId, deleted_at: null },
       include: {
         user_information: {
-          select: { name: true, email: true },
+          select: { name: true },
         },
       },
     });
@@ -533,7 +533,7 @@ export class RoleAssignmentService {
       },
       include: {
         user_information: {
-          select: { name: true, email: true },
+          select: { name: true },
         },
       },
     });

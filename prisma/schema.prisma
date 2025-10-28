@@ -176,7 +176,6 @@ model user_information {
     id             Int                   @id @default(autoincrement())
     user_id        Int                   @unique
     user           users                 @relation(fields: [user_id], references: [id])
-    email          String                @db.VarChar(255)
     personal_email String                @db.VarChar(255)
     nationality    String                @db.VarChar(255)
     name           String                @db.VarChar(255)
