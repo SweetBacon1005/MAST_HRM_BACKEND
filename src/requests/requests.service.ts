@@ -1,8 +1,8 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import {
   DayOffStatus,
@@ -10,14 +10,14 @@ import {
   RemoteType,
   TimesheetStatus,
 } from '@prisma/client';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { PermissionCheckerService } from '../auth/services/permission-checker.service';
+import { ActivityLogService } from '../common/services/activity-log.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
-import { PermissionCheckerService, UserPermissionContext } from '../auth/services/permission-checker.service';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
@@ -168,7 +168,7 @@ export class RequestsService {
         remote_type: dto.remote_type,
         duration: dto.duration,
         title: dto.title,
-      }
+      },
     );
 
     return request;
@@ -198,8 +198,18 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
-          approved_by_user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          approved_by_user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.remote_work_requests.count({ where }),
@@ -238,8 +248,19 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
-          approved_by_user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.remote_work_requests.count({ where }),
@@ -325,8 +346,18 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
-          approved_by_user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          approved_by_user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.day_offs.count({ where }),
@@ -363,8 +394,18 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
-          approved_by_user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          approved_by_user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.day_offs.count({ where }),
@@ -478,9 +519,19 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { email: true } },
+          approved_by_user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.over_times_history.count({ where }),
@@ -517,9 +568,19 @@ export class RequestsService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          user: { select: { email: true } },
+          user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
           project: { select: { name: true, code: true } },
-          approved_by_user: { select: { email: true } },
+          approved_by_user: {
+            select: {
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.over_times_history.count({ where }),
@@ -549,7 +610,12 @@ export class RequestsService {
     const divisionIds = await this.getUserDivisions(divisionHeadId);
 
     if (divisionIds.length === 0) {
-      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
     // 3. Lấy tất cả user trong divisions
@@ -567,7 +633,12 @@ export class RequestsService {
     paginationDto: RequestPaginationDto = {},
   ) {
     if (userIds.length === 0) {
-      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
@@ -588,71 +659,76 @@ export class RequestsService {
         where: {
           ...whereConditions,
           ...userFilter,
-          ...(paginationDto.start_date && paginationDto.end_date && {
-            work_date: {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            },
-          }),
+          ...(paginationDto.start_date &&
+            paginationDto.end_date && {
+              work_date: {
+                gte: new Date(paginationDto.start_date),
+                lte: new Date(paginationDto.end_date),
+              },
+            }),
         },
         include: {
-          user: { 
-            select: { 
-              id: true, 
+          user: {
+            select: {
+              id: true,
               email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  position: true,
-                },
-              },
+              user_information: { select: { name: true } },
             },
           },
-          approved_by_user: { select: { id: true, email: true } },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.day_offs.findMany({
         where: {
           ...whereConditions,
           ...userFilter,
-          ...(paginationDto.start_date && paginationDto.end_date && {
-            work_date: {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            },
-          }),
+          ...(paginationDto.start_date &&
+            paginationDto.end_date && {
+              work_date: {
+                gte: new Date(paginationDto.start_date),
+                lte: new Date(paginationDto.end_date),
+              },
+            }),
         },
         include: {
-          user: { 
-            select: { 
-              id: true, 
+          user: {
+            select: {
+              id: true,
               email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  position: true,
-                },
-              },
+              user_information: { select: { name: true } },
             },
           },
-          approved_by_user: { select: { id: true, email: true } },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.over_times_history.findMany({
         where: {
           ...whereConditions,
           ...userFilter,
-          ...(paginationDto.start_date && paginationDto.end_date && {
-            work_date: {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            },
-          }),
+          ...(paginationDto.start_date &&
+            paginationDto.end_date && {
+              work_date: {
+                gte: new Date(paginationDto.start_date),
+                lte: new Date(paginationDto.end_date),
+              },
+            }),
         },
         include: {
-          user: { 
-            select: { 
-              id: true, 
+          user: {
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -662,24 +738,31 @@ export class RequestsService {
               },
             },
           },
-          approved_by_user: { select: { id: true, email: true } },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.late_early_requests.findMany({
         where: {
           ...whereConditions,
           ...userFilter,
-          ...(paginationDto.start_date && paginationDto.end_date && {
-            work_date: {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            },
-          }),
+          ...(paginationDto.start_date &&
+            paginationDto.end_date && {
+              work_date: {
+                gte: new Date(paginationDto.start_date),
+                lte: new Date(paginationDto.end_date),
+              },
+            }),
         },
         include: {
-          user: { 
-            select: { 
-              id: true, 
+          user: {
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -689,24 +772,31 @@ export class RequestsService {
               },
             },
           },
-          approved_by_user: { select: { id: true, email: true } },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.forgot_checkin_requests.findMany({
         where: {
           ...whereConditions,
           ...userFilter,
-          ...(paginationDto.start_date && paginationDto.end_date && {
-            work_date: {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            },
-          }),
+          ...(paginationDto.start_date &&
+            paginationDto.end_date && {
+              work_date: {
+                gte: new Date(paginationDto.start_date),
+                lte: new Date(paginationDto.end_date),
+              },
+            }),
         },
         include: {
-          user: { 
-            select: { 
-              id: true, 
+          user: {
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -716,7 +806,13 @@ export class RequestsService {
               },
             },
           },
-          approved_by_user: { select: { id: true, email: true } },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
         },
       }),
     ]);
@@ -746,7 +842,10 @@ export class RequestsService {
     ];
 
     // Sort by created_at desc
-    allRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    allRequests.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
 
     // Apply pagination
     const paginatedRequests = allRequests.slice(skip, skip + take);
@@ -766,7 +865,7 @@ export class RequestsService {
     requesterRoles?: string[],
   ) {
     let request;
-    
+
     switch (requestType) {
       case 'remote_work':
       case 'remote-work':
@@ -788,7 +887,7 @@ export class RequestsService {
           },
         });
         break;
-        
+
       case 'day_off':
       case 'day-off':
         request = await this.prisma.day_offs.findFirst({
@@ -809,7 +908,7 @@ export class RequestsService {
           },
         });
         break;
-        
+
       case 'overtime':
         request = await this.prisma.time_sheets.findFirst({
           where: { id: requestId, deleted_at: null },
@@ -829,7 +928,7 @@ export class RequestsService {
           },
         });
         break;
-        
+
       case 'late_early':
       case 'late-early':
         request = await this.prisma.late_early_requests.findFirst({
@@ -850,7 +949,7 @@ export class RequestsService {
           },
         });
         break;
-        
+
       case 'forgot_checkin':
       case 'forgot-checkin':
         request = await this.prisma.forgot_checkin_requests.findFirst({
@@ -871,7 +970,7 @@ export class RequestsService {
           },
         });
         break;
-        
+
       default:
         throw new BadRequestException('Loại request không hợp lệ');
     }
@@ -882,13 +981,16 @@ export class RequestsService {
 
     // Kiểm tra quyền truy cập
     if (requesterId && requesterRoles) {
-      const context = await this.permissionChecker.createUserContext(requesterId, requesterRoles);
+      const context = await this.permissionChecker.createUserContext(
+        requesterId,
+        requesterRoles,
+      );
       const hasAccess = await this.permissionChecker.canAccessRequest(
         context,
         request.user_id,
         requestType,
       );
-      
+
       if (!hasAccess) {
         throw new ForbiddenException('Không có quyền truy cập request này');
       }
@@ -908,7 +1010,6 @@ export class RequestsService {
     };
   }
 
-
   async getAllRequests(
     paginationDto: RequestPaginationDto = {},
     requesterId?: number,
@@ -921,21 +1022,30 @@ export class RequestsService {
 
     // Apply role-based filtering
     let userIds: number[] | undefined;
-    
+
     if (requesterRole === ROLE_NAMES.DIVISION_HEAD) {
       // Division Head chỉ xem requests trong division mình quản lý
       return await this.getDivisionRequests(requesterId!, paginationDto);
-    } else if (requesterRole === ROLE_NAMES.ADMIN || requesterRole === ROLE_NAMES.SUPER_ADMIN) {
+    } else if (
+      requesterRole === ROLE_NAMES.ADMIN ||
+      requesterRole === ROLE_NAMES.SUPER_ADMIN
+    ) {
       // Admin có thể xem tất cả hoặc filter theo division_id
       if (paginationDto.division_id) {
-        const divisionUserIds = await this.getDivisionUserIds([paginationDto.division_id]);
+        const divisionUserIds = await this.getDivisionUserIds([
+          paginationDto.division_id,
+        ]);
         userIds = divisionUserIds;
       }
-      
+
       // Nếu admin chỉ muốn xem requests từ leads
       if (paginationDto.leads_only) {
-        const leadUserIds = await this.getLeadUserIds(paginationDto.division_id);
-        userIds = userIds ? userIds.filter(id => leadUserIds.includes(id)) : leadUserIds;
+        const leadUserIds = await this.getLeadUserIds(
+          paginationDto.division_id,
+        );
+        userIds = userIds
+          ? userIds.filter((id) => leadUserIds.includes(id))
+          : leadUserIds;
       }
     } else {
       // Các role khác chỉ xem requests của chính mình
@@ -944,8 +1054,12 @@ export class RequestsService {
 
     // Nếu có filter theo role của requester
     if (paginationDto.requester_role) {
-      const roleUserIds = await this.getUserIdsByRole(paginationDto.requester_role);
-      userIds = userIds ? userIds.filter(id => roleUserIds.includes(id)) : roleUserIds;
+      const roleUserIds = await this.getUserIdsByRole(
+        paginationDto.requester_role,
+      );
+      userIds = userIds
+        ? userIds.filter((id) => roleUserIds.includes(id))
+        : roleUserIds;
     }
 
     // Nếu có userIds filter, sử dụng method getRequestsByUserIds
@@ -953,7 +1067,12 @@ export class RequestsService {
       return await this.getRequestsByUserIds(userIds, paginationDto);
     } else if (userIds && userIds.length === 0) {
       // Không có user nào match filter
-      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
     if (paginationDto.status) {
@@ -1871,7 +1990,7 @@ export class RequestsService {
         include: {
           user: {
             select: {
-              id: true, 
+              id: true,
               email: true,
             },
           },
@@ -2143,10 +2262,18 @@ export class RequestsService {
       },
       include: {
         user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
         approved_by_user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
       },
     });
@@ -2409,7 +2536,7 @@ export class RequestsService {
     });
 
     const isDivisionHead = userInfo?.role?.name === ROLE_NAMES.DIVISION_HEAD;
-    
+
     if (!isDivisionHead) {
       throw new ForbiddenException('Chỉ Division Head mới có quyền truy cập');
     }
@@ -2431,7 +2558,9 @@ export class RequestsService {
       },
     });
 
-    return userDivisions.map(ud => ud.divisionId).filter(id => id !== null) as number[];
+    return userDivisions
+      .map((ud) => ud.divisionId)
+      .filter((id) => id !== null) as number[];
   }
 
   /**
@@ -2450,7 +2579,7 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(divisionUsers.map(du => du.userId))];
+    return [...new Set(divisionUsers.map((du) => du.userId))];
   }
 
   /**
@@ -2479,7 +2608,7 @@ export class RequestsService {
         ...whereConditions.user,
         user_division: {
           some: {
-           divisionId: divisionId,
+            divisionId: divisionId,
           },
         },
       };
@@ -2492,7 +2621,7 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(leadUsers.map(lu => lu.user_id))];
+    return [...new Set(leadUsers.map((lu) => lu.user_id))];
   }
 
   /**
@@ -2514,7 +2643,7 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(roleUsers.map(ru => ru.user_id))];
+    return [...new Set(roleUsers.map((ru) => ru.user_id))];
   }
 
   /**
