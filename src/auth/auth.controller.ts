@@ -53,8 +53,10 @@ export class AuthController {
     status: 401,
     description: 'Email hoặc mật khẩu không đúng',
   })
-  async login(@Body() loginDto: LoginDto, @Req() _req: any) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+    const ipAddress = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    return this.authService.login(loginDto, ipAddress, userAgent);
   }
 
   @Public()
@@ -148,13 +150,16 @@ export class AuthController {
         },
         assigned_devices: {
           type: 'array',
-          description: 'Danh sách thiết bị được cấp',
+          description: 'Danh sách thiết bị được cấp từ assets',
           items: {
             type: 'object',
             properties: {
               id: { type: 'number', example: 1 },
               name: { type: 'string', example: 'Laptop Dell XPS 13' },
               type: { type: 'string', example: 'laptop' },
+              code: { type: 'string', example: 'LAPTOP-001' },
+              brand: { type: 'string', example: 'Dell' },
+              model: { type: 'string', example: 'XPS 13 9320' },
               serial: { type: 'string', nullable: true, example: 'SN123456' },
               assigned_date: {
                 type: 'string',

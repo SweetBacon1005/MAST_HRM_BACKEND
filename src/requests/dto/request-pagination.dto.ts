@@ -1,7 +1,16 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsEnum, IsInt, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { TimesheetStatus, RemoteType, DayOffStatus } from '@prisma/client';
+import { ROLE_NAMES } from '../../auth/constants/role.constants';
+
+export enum RequestPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  URGENT = 'URGENT',
+}
 
 export class RequestPaginationDto extends PaginationDto {
   @ApiPropertyOptional({
@@ -28,6 +37,42 @@ export class RequestPaginationDto extends PaginationDto {
   @IsOptional()
   @IsDateString()
   end_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo division ID (chỉ dành cho admin)',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  division_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo mức độ ưu tiên request',
+    enum: RequestPriority,
+    example: RequestPriority.HIGH,
+  })
+  @IsOptional()
+  @IsEnum(RequestPriority)
+  priority?: RequestPriority;
+
+  @ApiPropertyOptional({
+    description: 'Chỉ lấy request từ các lead (team_leader, division_head, project_manager)',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  leads_only?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo role của người tạo request',
+    enum: Object.values(ROLE_NAMES),
+    example: ROLE_NAMES.TEAM_LEADER,
+  })
+  @IsOptional()
+  @IsString()
+  requester_role?: string;
 }
 
 export class RemoteWorkRequestPaginationDto extends RequestPaginationDto {

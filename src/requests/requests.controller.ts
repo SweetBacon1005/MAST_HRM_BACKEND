@@ -22,6 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
@@ -47,15 +48,164 @@ export class RequestsController {
 
   // === OVERVIEW ENDPOINTS ===
 
-  @Get()
-  @Roles('ADMIN', 'MANAGER')
+  @Get(':type/:id')
+  @RequirePermission('request.read')
   @ApiOperation({
-    summary:
-      'Lấy tất cả requests từ mọi loại có phân trang thống nhất (Admin/Manager)',
+    summary: 'Lấy chi tiết request theo ID và loại',
   })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async getAllRequests(@Query() paginationDto: RequestPaginationDto) {
-    return await this.requestsService.getAllRequests(paginationDto);
+  @ApiParam({
+    name: 'type',
+    description: 'Loại request',
+    enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin'],
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của request',
+    type: Number,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy chi tiết request thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number' },
+        type: { 
+          type: 'string',
+          enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+        },
+        user_id: { type: 'number' },
+        status: { type: 'string' },
+        work_date: { type: 'string', format: 'date' },
+        created_at: { type: 'string', format: 'date-time' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            email: { type: 'string' },
+            user_information: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                position: { type: 'object' },
+              },
+            },
+          },
+        },
+        // Các field khác tùy thuộc vào loại request
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
+  @ApiResponse({ status: 403, description: 'Không có quyền truy cập request này' })
+  async getRequestById(
+    @Param('type') type: string,
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+  ) {
+    return await this.requestsService.getRequestById(id, type, userId, userRoles);
+  }
+
+  @Get()
+  @RequirePermission('request.read')
+  @ApiOperation({
+    summary: 'Lấy requests theo phân quyền role (Division Head: requests trong division, Admin: tất cả requests)',
+  })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    description: 'Lọc theo division ID (chỉ dành cho admin)',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'leads_only',
+    required: false,
+    description: 'Chỉ lấy requests từ các lead (team_leader, division_head, project_manager)',
+    type: Boolean,
+  })
+  @ApiQuery({
+    name: 'requester_role',
+    required: false,
+    description: 'Lọc theo role của người tạo request',
+    enum: Object.values(ROLE_NAMES),
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lấy danh sách thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              type: { 
+                type: 'string',
+                enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+              },
+              user_id: { type: 'number' },
+              status: { type: 'string' },
+              work_date: { type: 'string', format: 'date' },
+              created_at: { type: 'string', format: 'date-time' },
+              user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  email: { type: 'string' },
+                  user_information: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      position: { type: 'string' },
+                    },
+                  },
+                  user_roles: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        role: {
+                          type: 'object',
+                          properties: {
+                            name: { type: 'string' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' },
+          },
+        },
+      },
+    },
+  })
+  async getAllRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    // Xác định role chính của user
+    const primaryRole = this.getPrimaryRole(userRoles);
+    
+    return await this.requestsService.getAllRequests(
+      paginationDto,
+      userId,
+      primaryRole,
+    );
   }
 
   @Get('my/all')
@@ -451,5 +601,35 @@ export class RequestsController {
       userId,
       paginationDto,
     );
+  }
+
+  // === HELPER METHODS ===
+
+  /**
+   * Xác định role chính của user theo thứ tự ưu tiên
+   */
+  private getPrimaryRole(userRoles: string[] | undefined): string {
+    // Handle undefined or empty roles
+    if (!userRoles || userRoles.length === 0) {
+      return ROLE_NAMES.EMPLOYEE;
+    }
+
+    const rolePriority = [
+      ROLE_NAMES.SUPER_ADMIN,
+      ROLE_NAMES.ADMIN,
+      ROLE_NAMES.DIVISION_HEAD,
+      ROLE_NAMES.TEAM_LEADER,
+      ROLE_NAMES.PROJECT_MANAGER,
+      ROLE_NAMES.EMPLOYEE,
+    ];
+
+    for (const role of rolePriority) {
+      if (userRoles.includes(role)) {
+        return role;
+      }
+    }
+
+    // Default fallback
+    return ROLE_NAMES.EMPLOYEE;
   }
 }

@@ -4,6 +4,7 @@ import { IsInt, IsOptional, IsString, Min, IsEnum, IsBoolean } from 'class-valid
 export enum AssignmentType {
   PROJECT_MANAGER = 'project_manager',
   TEAM_LEADER = 'team_leader',
+  DIVISION_HEAD = 'division_head',
 }
 
 export enum AssignmentStatus {
@@ -51,6 +52,28 @@ export class AssignTeamLeaderDto {
   reason?: string;
 
   @ApiPropertyOptional({ description: 'Xác nhận chuyển giao nếu đã có Team Leader', default: false })
+  @IsOptional()
+  @IsBoolean()
+  confirmTransfer?: boolean = false;
+}
+
+export class AssignDivisionHeadDto {
+  @ApiProperty({ description: 'ID của division' })
+  @IsInt()
+  @Min(1)
+  divisionId: number;
+
+  @ApiProperty({ description: 'ID của user sẽ làm Division Head' })
+  @IsInt()
+  @Min(1)
+  userId: number;
+
+  @ApiPropertyOptional({ description: 'Lý do gán Division Head' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @ApiPropertyOptional({ description: 'Xác nhận chuyển giao nếu đã có Division Head', default: false })
   @IsOptional()
   @IsBoolean()
   confirmTransfer?: boolean = false;

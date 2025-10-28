@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   DayOffStatus,
@@ -14,6 +15,9 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { PermissionCheckerService, UserPermissionContext } from '../auth/services/permission-checker.service';
+import { ActivityLogService } from '../common/services/activity-log.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
@@ -36,6 +40,8 @@ export class RequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leaveBalanceService: LeaveBalanceService,
+    private readonly permissionChecker: PermissionCheckerService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   // === COMMON UTILITIES ===
@@ -139,7 +145,7 @@ export class RequestsService {
       data: { has_remote_work_request: true },
     });
 
-    return await this.prisma.remote_work_requests.create({
+    const request = await this.prisma.remote_work_requests.create({
       data: {
         user_id: dto.user_id,
         work_date: workDate,
@@ -151,6 +157,21 @@ export class RequestsService {
         timesheet_id: timesheet.id,
       },
     });
+
+    // Log activity
+    await this.activityLogService.logRequestCreated(
+      'remote_work',
+      request.id,
+      dto.user_id,
+      {
+        work_date: workDate.toISOString(),
+        remote_type: dto.remote_type,
+        duration: dto.duration,
+        title: dto.title,
+      }
+    );
+
+    return request;
   }
 
   async findAllRemoteWorkRequests(
@@ -514,11 +535,426 @@ export class RequestsService {
 
   // === OVERVIEW METHODS ===
 
-  async getAllRequests(paginationDto: RequestPaginationDto = {}) {
+  /**
+   * Lấy requests cho Division Head (chỉ trong division mình quản lý)
+   */
+  async getDivisionRequests(
+    divisionHeadId: number,
+    paginationDto: RequestPaginationDto = {},
+  ) {
+    // 1. Validate user là Division Head
+    await this.validateDivisionHead(divisionHeadId);
+
+    // 2. Lấy division IDs của Division Head
+    const divisionIds = await this.getUserDivisions(divisionHeadId);
+
+    if (divisionIds.length === 0) {
+      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    }
+
+    // 3. Lấy tất cả user trong divisions
+    const divisionUserIds = await this.getDivisionUserIds(divisionIds);
+
+    // 4. Query requests với filter division users
+    return await this.getRequestsByUserIds(divisionUserIds, paginationDto);
+  }
+
+  /**
+   * Lấy requests theo user IDs với pagination
+   */
+  async getRequestsByUserIds(
+    userIds: number[],
+    paginationDto: RequestPaginationDto = {},
+  ) {
+    if (userIds.length === 0) {
+      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    }
+
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const whereConditions = this.buildWhereConditions(paginationDto);
+
+    // Add user filter
+    const userFilter = { user_id: { in: userIds } };
+
+    // Get all requests from different tables with unified structure
+    const [
+      remoteWorkData,
+      dayOffData,
+      overtimeData,
+      lateEarlyData,
+      forgotCheckinData,
+    ] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...userFilter,
+          ...(paginationDto.start_date && paginationDto.end_date && {
+            work_date: {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            },
+          }),
+        },
+        include: {
+          user: { 
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  position: true,
+                },
+              },
+            },
+          },
+          approved_by_user: { select: { id: true, email: true } },
+        },
+      }),
+      this.prisma.day_offs.findMany({
+        where: {
+          ...whereConditions,
+          ...userFilter,
+          ...(paginationDto.start_date && paginationDto.end_date && {
+            work_date: {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            },
+          }),
+        },
+        include: {
+          user: { 
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  position: true,
+                },
+              },
+            },
+          },
+          approved_by_user: { select: { id: true, email: true } },
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          ...whereConditions,
+          ...userFilter,
+          ...(paginationDto.start_date && paginationDto.end_date && {
+            work_date: {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            },
+          }),
+        },
+        include: {
+          user: { 
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  position: true,
+                },
+              },
+            },
+          },
+          approved_by_user: { select: { id: true, email: true } },
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...userFilter,
+          ...(paginationDto.start_date && paginationDto.end_date && {
+            work_date: {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            },
+          }),
+        },
+        include: {
+          user: { 
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  position: true,
+                },
+              },
+            },
+          },
+          approved_by_user: { select: { id: true, email: true } },
+        },
+      }),
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          ...whereConditions,
+          ...userFilter,
+          ...(paginationDto.start_date && paginationDto.end_date && {
+            work_date: {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            },
+          }),
+        },
+        include: {
+          user: { 
+            select: { 
+              id: true, 
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  position: true,
+                },
+              },
+            },
+          },
+          approved_by_user: { select: { id: true, email: true } },
+        },
+      }),
+    ]);
+
+    // Transform and combine all requests
+    const allRequests = [
+      ...remoteWorkData.map((req) => ({
+        ...req,
+        type: 'remote_work' as const,
+      })),
+      ...dayOffData.map((req) => ({
+        ...req,
+        type: 'day_off' as const,
+      })),
+      ...overtimeData.map((req) => ({
+        ...req,
+        type: 'overtime' as const,
+      })),
+      ...lateEarlyData.map((req) => ({
+        ...req,
+        type: 'late_early' as const,
+      })),
+      ...forgotCheckinData.map((req) => ({
+        ...req,
+        type: 'forgot_checkin' as const,
+      })),
+    ];
+
+    // Sort by created_at desc
+    allRequests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Apply pagination
+    const paginatedRequests = allRequests.slice(skip, skip + take);
+
+    return buildPaginationResponse(
+      paginatedRequests,
+      allRequests.length,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async getRequestById(
+    requestId: number,
+    requestType: string,
+    requesterId?: number,
+    requesterRoles?: string[],
+  ) {
+    let request;
+    
+    switch (requestType) {
+      case 'remote_work':
+      case 'remote-work':
+        request = await this.prisma.remote_work_requests.findFirst({
+          where: { id: requestId, deleted_at: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        break;
+        
+      case 'day_off':
+      case 'day-off':
+        request = await this.prisma.day_offs.findFirst({
+          where: { id: requestId, deleted_at: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        break;
+        
+      case 'overtime':
+        request = await this.prisma.time_sheets.findFirst({
+          where: { id: requestId, deleted_at: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        break;
+        
+      case 'late_early':
+      case 'late-early':
+        request = await this.prisma.late_early_requests.findFirst({
+          where: { id: requestId, deleted_at: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        break;
+        
+      case 'forgot_checkin':
+      case 'forgot-checkin':
+        request = await this.prisma.forgot_checkin_requests.findFirst({
+          where: { id: requestId, deleted_at: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    position: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        break;
+        
+      default:
+        throw new BadRequestException('Loại request không hợp lệ');
+    }
+
+    if (!request) {
+      throw new NotFoundException('Không tìm thấy request');
+    }
+
+    // Kiểm tra quyền truy cập
+    if (requesterId && requesterRoles) {
+      const context = await this.permissionChecker.createUserContext(requesterId, requesterRoles);
+      const hasAccess = await this.permissionChecker.canAccessRequest(
+        context,
+        request.user_id,
+        requestType,
+      );
+      
+      if (!hasAccess) {
+        throw new ForbiddenException('Không có quyền truy cập request này');
+      }
+
+      // Log request view activity
+      await this.activityLogService.logRequestView(
+        requestType,
+        requestId,
+        requesterId,
+        request.user_id,
+      );
+    }
+
+    return {
+      ...request,
+      type: requestType,
+    };
+  }
+
+
+  async getAllRequests(
+    paginationDto: RequestPaginationDto = {},
+    requesterId?: number,
+    requesterRole?: string,
+  ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     // Build where conditions for filtering
-    const whereConditions: any = { deleted_at: null };
+    const whereConditions = this.buildWhereConditions(paginationDto);
+
+    // Apply role-based filtering
+    let userIds: number[] | undefined;
+    
+    if (requesterRole === ROLE_NAMES.DIVISION_HEAD) {
+      // Division Head chỉ xem requests trong division mình quản lý
+      return await this.getDivisionRequests(requesterId!, paginationDto);
+    } else if (requesterRole === ROLE_NAMES.ADMIN || requesterRole === ROLE_NAMES.SUPER_ADMIN) {
+      // Admin có thể xem tất cả hoặc filter theo division_id
+      if (paginationDto.division_id) {
+        const divisionUserIds = await this.getDivisionUserIds([paginationDto.division_id]);
+        userIds = divisionUserIds;
+      }
+      
+      // Nếu admin chỉ muốn xem requests từ leads
+      if (paginationDto.leads_only) {
+        const leadUserIds = await this.getLeadUserIds(paginationDto.division_id);
+        userIds = userIds ? userIds.filter(id => leadUserIds.includes(id)) : leadUserIds;
+      }
+    } else {
+      // Các role khác chỉ xem requests của chính mình
+      userIds = [requesterId!];
+    }
+
+    // Nếu có filter theo role của requester
+    if (paginationDto.requester_role) {
+      const roleUserIds = await this.getUserIdsByRole(paginationDto.requester_role);
+      userIds = userIds ? userIds.filter(id => roleUserIds.includes(id)) : roleUserIds;
+    }
+
+    // Nếu có userIds filter, sử dụng method getRequestsByUserIds
+    if (userIds && userIds.length > 0) {
+      return await this.getRequestsByUserIds(userIds, paginationDto);
+    } else if (userIds && userIds.length === 0) {
+      // Không có user nào match filter
+      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    }
 
     if (paginationDto.status) {
       whereConditions.status = paginationDto.status;
@@ -1952,5 +2388,145 @@ export class RequestsService {
         'Không thể tạo đơn xin bổ sung chấm công cho ngày tương lai',
       );
     }
+  }
+
+  // === ROLE-BASED ACCESS HELPER METHODS ===
+
+  /**
+   * Validate user là Division Head
+   */
+  private async validateDivisionHead(userId: number): Promise<void> {
+    const userInfo = await this.prisma.user_information.findFirst({
+      where: {
+        user_id: userId,
+        deleted_at: null,
+      },
+      include: {
+        role: {
+          select: { name: true },
+        },
+      },
+    });
+
+    const isDivisionHead = userInfo?.role?.name === ROLE_NAMES.DIVISION_HEAD;
+    
+    if (!isDivisionHead) {
+      throw new ForbiddenException('Chỉ Division Head mới có quyền truy cập');
+    }
+  }
+
+  /**
+   * Lấy danh sách division IDs mà user quản lý
+   */
+  private async getUserDivisions(userId: number): Promise<number[]> {
+    const userDivisions = await this.prisma.user_division.findMany({
+      where: {
+        userId: userId,
+        division: {
+          deleted_at: null,
+        },
+      },
+      select: {
+        divisionId: true,
+      },
+    });
+
+    return userDivisions.map(ud => ud.divisionId).filter(id => id !== null) as number[];
+  }
+
+  /**
+   * Lấy danh sách user IDs trong các divisions
+   */
+  private async getDivisionUserIds(divisionIds: number[]): Promise<number[]> {
+    const divisionUsers = await this.prisma.user_division.findMany({
+      where: {
+        divisionId: { in: divisionIds },
+        user: {
+          deleted_at: null,
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    return [...new Set(divisionUsers.map(du => du.userId))];
+  }
+
+  /**
+   * Lấy danh sách user IDs có role là lead (team_leader, division_head, project_manager)
+   */
+  private async getLeadUserIds(divisionId?: number): Promise<number[]> {
+    const leadRoles = [
+      ROLE_NAMES.TEAM_LEADER,
+      ROLE_NAMES.DIVISION_HEAD,
+      ROLE_NAMES.PROJECT_MANAGER,
+    ];
+
+    const whereConditions: any = {
+      deleted_at: null,
+      role: {
+        name: { in: leadRoles },
+      },
+      user: {
+        deleted_at: null,
+      },
+    };
+
+    // Nếu có filter theo division
+    if (divisionId) {
+      whereConditions.user = {
+        ...whereConditions.user,
+        user_division: {
+          some: {
+           divisionId: divisionId,
+          },
+        },
+      };
+    }
+
+    const leadUsers = await this.prisma.user_information.findMany({
+      where: whereConditions,
+      select: {
+        user_id: true,
+      },
+    });
+
+    return [...new Set(leadUsers.map(lu => lu.user_id))];
+  }
+
+  /**
+   * Lấy danh sách user IDs theo role name
+   */
+  private async getUserIdsByRole(roleName: string): Promise<number[]> {
+    const roleUsers = await this.prisma.user_information.findMany({
+      where: {
+        deleted_at: null,
+        role: {
+          name: roleName,
+        },
+        user: {
+          deleted_at: null,
+        },
+      },
+      select: {
+        user_id: true,
+      },
+    });
+
+    return [...new Set(roleUsers.map(ru => ru.user_id))];
+  }
+
+  /**
+   * Build where conditions từ pagination DTO
+   */
+  private buildWhereConditions(paginationDto: RequestPaginationDto): any {
+    const whereConditions: any = { deleted_at: null };
+
+    if (paginationDto.status) {
+      whereConditions.status = paginationDto.status;
+    }
+
+    return whereConditions;
   }
 }

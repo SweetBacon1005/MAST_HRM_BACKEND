@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -25,6 +26,20 @@ import { UpdateExperienceDto } from './dto/update-experience.dto';
 import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
 import { UpdateUserInformationDto } from './dto/update-user-information.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
+
+// CRUD DTOs
+import { CreateRoleDto } from './roles/dto/create-role.dto';
+import { UpdateRoleDto } from './roles/dto/update-role.dto';
+import { RolePaginationDto } from './roles/dto/role-pagination.dto';
+import { CreateLevelDto } from './levels/dto/create-level.dto';
+import { UpdateLevelDto } from './levels/dto/update-level.dto';
+import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
+import { CreatePositionDto } from './positions/dto/create-position.dto';
+import { UpdatePositionDto } from './positions/dto/update-position.dto';
+import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
+import { CreateLanguageDto } from './languages/dto/create-language.dto';
+import { UpdateLanguageDto } from './languages/dto/update-language.dto';
+import { LanguagePaginationDto } from './languages/dto/language-pagination.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -960,5 +975,762 @@ export class UserProfileService {
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
+  }
+
+  // ===== ROLES CRUD METHODS =====
+  async createRole(createRoleDto: CreateRoleDto) {
+    // Kiểm tra tên role đã tồn tại
+    const existingRole = await this.prisma.roles.findFirst({
+      where: {
+        name: createRoleDto.name,
+        deleted_at: null,
+      },
+    });
+
+    if (existingRole) {
+      throw new BadRequestException('Tên role đã tồn tại');
+    }
+
+    const role = await this.prisma.roles.create({
+      data: {
+        name: createRoleDto.name,
+      },
+    });
+
+    return {
+      message: 'Tạo role thành công',
+      data: role,
+    };
+  }
+
+  async findAllRoles(paginationDto: RolePaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    const [roles, total] = await Promise.all([
+      this.prisma.roles.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          _count: {
+            select: {
+              user_information: true,
+              permission_role: true,
+            },
+          },
+        },
+      }),
+      this.prisma.roles.count({ where: whereConditions }),
+    ]);
+
+    return buildPaginationResponse(
+      roles,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOneRole(id: number) {
+    const role = await this.prisma.roles.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        permission_role: {
+          include: {
+            permission: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Không tìm thấy role');
+    }
+
+    return {
+      data: role,
+    };
+  }
+
+  async updateRole(id: number, updateRoleDto: UpdateRoleDto) {
+    const existingRole = await this.prisma.roles.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingRole) {
+      throw new NotFoundException('Không tìm thấy role');
+    }
+
+    // Kiểm tra tên role đã tồn tại (nếu có thay đổi tên)
+    if (updateRoleDto.name && updateRoleDto.name !== existingRole.name) {
+      const duplicateRole = await this.prisma.roles.findFirst({
+        where: {
+          name: updateRoleDto.name,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (duplicateRole) {
+        throw new BadRequestException('Tên role đã tồn tại');
+      }
+    }
+
+    const updatedRole = await this.prisma.roles.update({
+      where: { id },
+      data: {
+        ...updateRoleDto,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Cập nhật role thành công',
+      data: updatedRole,
+    };
+  }
+
+  async removeRole(id: number) {
+    const existingRole = await this.prisma.roles.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!existingRole) {
+      throw new NotFoundException('Không tìm thấy role');
+    }
+
+    // Kiểm tra xem có user nào đang sử dụng role này không
+    if (existingRole._count.user_information > 0) {
+      throw new BadRequestException(
+        `Không thể xóa role này vì có ${existingRole._count.user_information} user đang sử dụng`,
+      );
+    }
+
+    await this.prisma.roles.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Xóa role thành công',
+    };
+  }
+
+  async assignRolePermissions(roleId: number, permissionIds: number[]) {
+    const role = await this.prisma.roles.findFirst({
+      where: {
+        id: roleId,
+        deleted_at: null,
+      },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Không tìm thấy role');
+    }
+
+    // Xóa tất cả permissions hiện tại của role
+    await this.prisma.permission_role.deleteMany({
+      where: { role_id: roleId },
+    });
+
+    // Thêm permissions mới
+    if (permissionIds.length > 0) {
+      await this.prisma.permission_role.createMany({
+        data: permissionIds.map(permissionId => ({
+          role_id: roleId,
+          permission_id: permissionId,
+        })),
+      });
+    }
+
+    return {
+      message: 'Gán quyền cho role thành công',
+    };
+  }
+
+  // ===== LEVELS CRUD METHODS =====
+  async createLevel(createLevelDto: CreateLevelDto) {
+    // Kiểm tra tên level đã tồn tại
+    const existingLevel = await this.prisma.levels.findFirst({
+      where: {
+        name: createLevelDto.name,
+        deleted_at: null,
+      },
+    });
+
+    if (existingLevel) {
+      throw new BadRequestException('Tên level đã tồn tại');
+    }
+
+    // Kiểm tra coefficient đã tồn tại
+    const existingCoefficient = await this.prisma.levels.findFirst({
+      where: {
+        coefficient: createLevelDto.level, // Sử dụng level từ DTO làm coefficient
+        deleted_at: null,
+      },
+    });
+
+    if (existingCoefficient) {
+      throw new BadRequestException('Hệ số này đã tồn tại');
+    }
+
+    const level = await this.prisma.levels.create({
+      data: {
+        name: createLevelDto.name,
+        coefficient: createLevelDto.level, // Sử dụng level từ DTO làm coefficient
+      },
+    });
+
+    return {
+      message: 'Tạo level thành công',
+      data: level,
+    };
+  }
+
+  async findAllLevels(paginationDto: LevelPaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    if (paginationDto.level) {
+      whereConditions.coefficient = paginationDto.level;
+    }
+
+    const [levels, total] = await Promise.all([
+      this.prisma.levels.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderBy || { coefficient: 'asc' },
+        include: {
+          _count: {
+            select: {
+              user_information: true,
+            },
+          },
+        },
+      }),
+      this.prisma.levels.count({ where: whereConditions }),
+    ]);
+
+    return buildPaginationResponse(
+      levels,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOneLevel(id: number) {
+    const level = await this.prisma.levels.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!level) {
+      throw new NotFoundException('Không tìm thấy level');
+    }
+
+    return {
+      data: level,
+    };
+  }
+
+  async updateLevel(id: number, updateLevelDto: UpdateLevelDto) {
+    const existingLevel = await this.prisma.levels.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingLevel) {
+      throw new NotFoundException('Không tìm thấy level');
+    }
+
+    // Kiểm tra tên level đã tồn tại (nếu có thay đổi tên)
+    if (updateLevelDto.name && updateLevelDto.name !== existingLevel.name) {
+      const duplicateLevel = await this.prisma.levels.findFirst({
+        where: {
+          name: updateLevelDto.name,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (duplicateLevel) {
+        throw new BadRequestException('Tên level đã tồn tại');
+      }
+    }
+
+    // Kiểm tra coefficient đã tồn tại (nếu có thay đổi coefficient)
+    if (updateLevelDto.level && updateLevelDto.level !== existingLevel.coefficient) {
+      const duplicateCoefficient = await this.prisma.levels.findFirst({
+        where: {
+          coefficient: updateLevelDto.level,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (duplicateCoefficient) {
+        throw new BadRequestException('Hệ số này đã tồn tại');
+      }
+    }
+
+    const updatedLevel = await this.prisma.levels.update({
+      where: { id },
+      data: {
+        ...updateLevelDto,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Cập nhật level thành công',
+      data: updatedLevel,
+    };
+  }
+
+  async removeLevel(id: number) {
+    const existingLevel = await this.prisma.levels.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!existingLevel) {
+      throw new NotFoundException('Không tìm thấy level');
+    }
+
+    // Kiểm tra xem có user nào đang sử dụng level này không
+    if (existingLevel._count.user_information > 0) {
+      throw new BadRequestException(
+        `Không thể xóa level này vì có ${existingLevel._count.user_information} user đang sử dụng`,
+      );
+    }
+
+    await this.prisma.levels.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Xóa level thành công',
+    };
+  }
+
+  // ===== POSITIONS CRUD METHODS =====
+  async createPosition(createPositionDto: CreatePositionDto) {
+    // Kiểm tra tên position đã tồn tại
+    const existingPosition = await this.prisma.positions.findFirst({
+      where: {
+        name: createPositionDto.name,
+        deleted_at: null,
+      },
+    });
+
+    if (existingPosition) {
+      throw new BadRequestException('Tên vị trí đã tồn tại');
+    }
+
+    const position = await this.prisma.positions.create({
+      data: {
+        name: createPositionDto.name,
+      },
+    });
+
+    return {
+      message: 'Tạo vị trí thành công',
+      data: position,
+    };
+  }
+
+  async findAllPositions(paginationDto: PositionPaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Xóa filter theo level_id vì field này không tồn tại
+
+    const [positions, total] = await Promise.all([
+      this.prisma.positions.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          _count: {
+            select: {
+              user_information: true,
+              skills: true,
+            },
+          },
+        },
+      }),
+      this.prisma.positions.count({ where: whereConditions }),
+    ]);
+
+    return buildPaginationResponse(
+      positions,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOnePosition(id: number) {
+    const position = await this.prisma.positions.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        skills: {
+          where: { deleted_at: null },
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!position) {
+      throw new NotFoundException('Không tìm thấy vị trí');
+    }
+
+    return {
+      data: position,
+    };
+  }
+
+  async updatePosition(id: number, updatePositionDto: UpdatePositionDto) {
+    const existingPosition = await this.prisma.positions.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingPosition) {
+      throw new NotFoundException('Không tìm thấy vị trí');
+    }
+
+    // Kiểm tra tên position đã tồn tại (nếu có thay đổi tên)
+    if (updatePositionDto.name && updatePositionDto.name !== existingPosition.name) {
+      const duplicatePosition = await this.prisma.positions.findFirst({
+        where: {
+          name: updatePositionDto.name,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (duplicatePosition) {
+        throw new BadRequestException('Tên vị trí đã tồn tại');
+      }
+    }
+
+    const updatedPosition = await this.prisma.positions.update({
+      where: { id },
+      data: {
+        name: updatePositionDto.name,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Cập nhật vị trí thành công',
+      data: updatedPosition,
+    };
+  }
+
+  async removePosition(id: number) {
+    const existingPosition = await this.prisma.positions.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!existingPosition) {
+      throw new NotFoundException('Không tìm thấy vị trí');
+    }
+
+    // Kiểm tra xem có user nào đang sử dụng position này không
+    if (existingPosition._count.user_information > 0) {
+      throw new BadRequestException(
+        `Không thể xóa vị trí này vì có ${existingPosition._count.user_information} user đang sử dụng`,
+      );
+    }
+
+    await this.prisma.positions.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Xóa vị trí thành công',
+    };
+  }
+
+  // ===== LANGUAGES CRUD METHODS =====
+  async createLanguage(createLanguageDto: CreateLanguageDto) {
+    // Kiểm tra tên ngôn ngữ đã tồn tại
+    const existingLanguage = await this.prisma.languages.findFirst({
+      where: {
+        name: createLanguageDto.name,
+        deleted_at: null,
+      },
+    });
+
+    if (existingLanguage) {
+      throw new BadRequestException('Tên ngôn ngữ đã tồn tại');
+    }
+
+    const language = await this.prisma.languages.create({
+      data: {
+        name: createLanguageDto.name,
+      },
+    });
+
+    return {
+      message: 'Tạo ngôn ngữ thành công',
+      data: language,
+    };
+  }
+
+  async findAllLanguages(paginationDto: LanguagePaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: any = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+        mode: 'insensitive',
+      };
+    }
+
+    const [languages, total] = await Promise.all([
+      this.prisma.languages.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+        include: {
+          _count: {
+            select: {
+              user_information: true,
+            },
+          },
+        },
+      }),
+      this.prisma.languages.count({ where: whereConditions }),
+    ]);
+
+    return buildPaginationResponse(
+      languages,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOneLanguage(id: number) {
+    const language = await this.prisma.languages.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!language) {
+      throw new NotFoundException('Không tìm thấy ngôn ngữ');
+    }
+
+    return {
+      data: language,
+    };
+  }
+
+  async updateLanguage(id: number, updateLanguageDto: UpdateLanguageDto) {
+    const existingLanguage = await this.prisma.languages.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingLanguage) {
+      throw new NotFoundException('Không tìm thấy ngôn ngữ');
+    }
+
+    // Kiểm tra tên ngôn ngữ đã tồn tại (nếu có thay đổi)
+    if (updateLanguageDto.name && updateLanguageDto.name !== existingLanguage.name) {
+      const duplicateLanguage = await this.prisma.languages.findFirst({
+        where: {
+          name: updateLanguageDto.name,
+          id: { not: id },
+          deleted_at: null,
+        },
+      });
+
+      if (duplicateLanguage) {
+        throw new BadRequestException('Tên ngôn ngữ đã tồn tại');
+      }
+    }
+
+    const updatedLanguage = await this.prisma.languages.update({
+      where: { id },
+      data: {
+        name: updateLanguageDto.name,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Cập nhật ngôn ngữ thành công',
+      data: updatedLanguage,
+    };
+  }
+
+  async removeLanguage(id: number) {
+    const existingLanguage = await this.prisma.languages.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_information: true,
+          },
+        },
+      },
+    });
+
+    if (!existingLanguage) {
+      throw new NotFoundException('Không tìm thấy ngôn ngữ');
+    }
+
+    // Kiểm tra xem có user nào đang sử dụng ngôn ngữ này không
+    if (existingLanguage._count.user_information > 0) {
+      throw new BadRequestException(
+        `Không thể xóa ngôn ngữ này vì có ${existingLanguage._count.user_information} user đang sử dụng`,
+      );
+    }
+
+    await this.prisma.languages.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Xóa ngôn ngữ thành công',
+    };
   }
 }

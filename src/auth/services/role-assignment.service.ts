@@ -2,9 +2,11 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { PrismaService } from '../../database/prisma.service';
 import { PermissionService } from './permission.service';
 import { RoleHierarchyService } from './role-hierarchy.service';
+import { ActivityLogService } from '../../common/services/activity-log.service';
 import {
   AssignProjectManagerDto,
   AssignTeamLeaderDto,
+  AssignDivisionHeadDto,
   RevokeAssignmentDto,
   AssignmentType,
   AssignmentStatus,
@@ -24,6 +26,7 @@ export class RoleAssignmentService {
     private readonly prisma: PrismaService,
     private readonly permissionService: PermissionService,
     private readonly roleHierarchyService: RoleHierarchyService,
+    private readonly activityLogService: ActivityLogService,
   ) {}
 
   /**
@@ -165,6 +168,112 @@ export class RoleAssignmentService {
         email: result.currentPM.user.email,
       } : null,
     };
+  }
+
+  /**
+   * Gán Division Head cho division với logic chuyển giao
+   */
+  async assignDivisionHead(
+    dto: AssignDivisionHeadDto,
+    managerId: number,
+  ) {
+    const { divisionId, userId, reason, confirmTransfer } = dto;
+
+    // 1. Kiểm tra quyền - chỉ HR Manager, Admin, Super Admin có thể gán Division Head
+    await this.validateDivisionHeadAssignmentPermission(managerId);
+
+    // 2. Kiểm tra division tồn tại
+    const division = await this.validateDivisionExists(divisionId);
+
+    // 3. Kiểm tra user tồn tại
+    const user = await this.validateUserExists(userId);
+
+    // 4. Kiểm tra Division Head hiện tại
+    const currentDivisionHead = await this.getCurrentDivisionHead(divisionId);
+
+    if (currentDivisionHead && !confirmTransfer) {
+      throw new BadRequestException(
+        `Division "${division.name}" đã có Division Head: ${currentDivisionHead.email}. ` +
+        'Vui lòng xác nhận chuyển giao (confirmTransfer: true)'
+      );
+    }
+
+    // 5. Thực hiện gán Division Head trong transaction
+    return await this.prisma.$transaction(async (tx) => {
+      // Thu hồi Division Head cũ nếu có
+      if (currentDivisionHead) {
+        await this.revokeCurrentDivisionHead(divisionId, managerId, tx);
+      }
+
+      // Gán role division_head cho user
+      const divisionHeadRole = await tx.roles.findFirst({
+        where: { name: ROLE_NAMES.DIVISION_HEAD },
+      });
+
+      if (!divisionHeadRole) {
+        throw new NotFoundException('Không tìm thấy role Division Head');
+      }
+
+      // Cập nhật role của user
+      await tx.user_information.update({
+        where: { user_id: userId },
+        data: { role_id: divisionHeadRole.id },
+      });
+
+      // TODO: Fix divisions schema - manager_id field
+      // await tx.divisions.update({
+      //   where: { id: divisionId },
+      //   data: { manager_id: userId },
+      // });
+
+      // Đảm bảo user thuộc division này
+      await tx.user_division.upsert({
+        where: {
+          id: await this.getUserDivisionId(userId, divisionId) || 0,
+        },
+        update: {},
+        create: {
+          userId: userId,
+          divisionId: divisionId,
+        },
+      });
+
+      // Tạo assignment record
+      // TODO: Fix role_assignments table schema
+      // const assignment = await tx.role_assignments.create({
+      //   data: {
+      //     user_id: userId,
+      //     role_name: ROLE_NAMES.DIVISION_HEAD,
+      //     assignment_type: AssignmentType.DIVISION_HEAD,
+      //     context_id: divisionId,
+      //     context_type: 'division',
+      //     assigned_by: managerId,
+      //     assigned_at: new Date(),
+      //     reason: reason || `Gán làm Division Head của ${division.name}`,
+      //     status: AssignmentStatus.ACTIVE,
+      //   },
+      // });
+
+      // Log activity
+      // TODO: Fix activity logging
+      // await this.logRoleAssignmentActivity(
+      //   managerId,
+      //   userId,
+      //   ROLE_NAMES.DIVISION_HEAD,
+      //   'assign',
+      //   reason,
+      //   tx,
+      // );
+
+      return {
+        // assignment,
+        message: `Đã gán ${user.email} làm Division Head của ${division.name}`,
+        previousDivisionHead: currentDivisionHead ? {
+          id: currentDivisionHead.id,
+          name: currentDivisionHead.email,
+        } : null,
+      };
+    });
   }
 
   /**
@@ -354,6 +463,109 @@ export class RoleAssignmentService {
   }
 
   /**
+   * Kiểm tra quyền gán Division Head (chỉ HR Manager, Admin, Super Admin)
+   */
+  private async validateDivisionHeadAssignmentPermission(managerId: number) {
+    const managerRole = await this.prisma.user_information.findFirst({
+      where: { user_id: managerId },
+      include: { role: true },
+    });
+
+    if (!managerRole) {
+      throw new ForbiddenException('Không tìm thấy role của manager');
+    }
+
+    const allowedRoles = [ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN];
+    
+    if (!allowedRoles.includes(managerRole.role.name as any)) {
+      throw new ForbiddenException('Chỉ HR Manager, Admin hoặc Super Admin mới có thể gán Division Head');
+    }
+  }
+
+  /**
+   * Kiểm tra division tồn tại
+   */
+  private async validateDivisionExists(divisionId: number) {
+    const division = await this.prisma.divisions.findFirst({
+      where: { id: divisionId, deleted_at: null },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy division');
+    }
+
+    return division;
+  }
+
+  /**
+   * Kiểm tra user tồn tại
+   */
+  private async validateUserExists(userId: number) {
+    const user = await this.prisma.users.findFirst({
+      where: { id: userId, deleted_at: null },
+      include: {
+        user_information: {
+          select: { name: true, email: true },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy user');
+    }
+
+    return user;
+  }
+
+  /**
+   * Lấy Division Head hiện tại
+   */
+  private async getCurrentDivisionHead(divisionId: number) {
+    return await this.prisma.users.findFirst({
+      where: {
+        user_division: {
+          some: { divisionId: divisionId },
+        },
+        user_information: {
+          role: { name: ROLE_NAMES.DIVISION_HEAD },
+        },
+        deleted_at: null,
+      },
+      include: {
+        user_information: {
+          select: { name: true, email: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Thu hồi Division Head hiện tại
+   */
+  private async revokeCurrentDivisionHead(divisionId: number, managerId: number, tx: any) {
+    // Cập nhật assignment cũ thành REPLACED
+    await tx.role_assignments.updateMany({
+      where: {
+        context_id: divisionId,
+        context_type: 'division',
+        assignment_type: AssignmentType.DIVISION_HEAD,
+        status: AssignmentStatus.ACTIVE,
+      },
+      data: {
+        status: AssignmentStatus.REPLACED,
+        revoked_by: managerId,
+        revoked_at: new Date(),
+      },
+    });
+
+    // Xóa manager_id khỏi division
+    await tx.divisions.update({
+      where: { id: divisionId },
+      data: { manager_id: null },
+    });
+  }
+
+  /**
    * Validate quyền của manager
    */
   private async validateManagerPermission(managerId: number, targetUserId: number) {
@@ -486,6 +698,27 @@ export class RoleAssignmentService {
         email: currentPM.user.email,
         assignedAt: new Date(), // Tạm thời dùng current date
       } : null,
+    };
+  }
+
+  /**
+   * Lấy thông tin Division Head hiện tại của division
+   */
+  async getDivisionHeadInfo(divisionId: number) {
+    const division = await this.prisma.divisions.findFirst({
+      where: { id: divisionId, deleted_at: null },
+      select: { id: true, name: true },
+    });
+
+    if (!division) {
+      throw new NotFoundException('Không tìm thấy division');
+    }
+
+    const divisionHead = await this.getCurrentDivisionHead(divisionId);
+
+    return {
+      divisionHead,
+      division,
     };
   }
 
@@ -696,5 +929,16 @@ export class RoleAssignmentService {
         batch_uuid: '',
       },
     });
+  }
+
+  private async getUserDivisionId(userId: number, divisionId: number): Promise<number | null> {
+    const userDivision = await this.prisma.user_division.findFirst({
+      where: {
+        userId: userId,
+        divisionId: divisionId,
+      },
+      select: { id: true },
+    });
+    return userDivision?.id || null;
   }
 }

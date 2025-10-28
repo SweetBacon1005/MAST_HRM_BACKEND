@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -40,12 +41,30 @@ import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 import { UpdateAvatarDto } from './dto/upload-avatar.dto';
 import { UserProfileService } from './user-profile.service';
 
+// CRUD DTOs
+import { CreateRoleDto } from './roles/dto/create-role.dto';
+import { UpdateRoleDto } from './roles/dto/update-role.dto';
+import { RolePaginationDto } from './roles/dto/role-pagination.dto';
+import { CreateLevelDto } from './levels/dto/create-level.dto';
+import { UpdateLevelDto } from './levels/dto/update-level.dto';
+import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
+import { CreatePositionDto } from './positions/dto/create-position.dto';
+import { UpdatePositionDto } from './positions/dto/update-position.dto';
+import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
+import { CreateLanguageDto } from './languages/dto/create-language.dto';
+import { UpdateLanguageDto } from './languages/dto/update-language.dto';
+import { LanguagePaginationDto } from './languages/dto/language-pagination.dto';
+
+// CRUD Services - now integrated into UserProfileService
+
 @ApiTags('user-profile')
 @Controller('user-profile')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class UserProfileController {
-  constructor(private readonly userProfileService: UserProfileService) {}
+  constructor(
+    private readonly userProfileService: UserProfileService,
+  ) {}
 
   // ===== THÔNG TIN CÁ NHÂN =====
   @Get()
@@ -499,5 +518,750 @@ export class UserProfileController {
       userId,
       updateAvatarDto.avatar_url,
     );
+  }
+
+  // ===== QUẢN LÝ ROLES =====
+  @Post('roles')
+  @RequirePermission('role.create')
+  @ApiOperation({ summary: 'Tạo role mới' })
+  @ApiBody({ type: CreateRoleDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo role thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Tạo role thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'manager' },
+            description: { type: 'string', example: 'Quản lý nhóm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Tên role đã tồn tại' })
+  createRole(@Body() createRoleDto: CreateRoleDto) {
+    return this.userProfileService.createRole(createRoleDto);
+  }
+
+  @Get('roles')
+  @RequirePermission('role.read')
+  @ApiOperation({ summary: 'Lấy danh sách roles với phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách roles thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'manager' },
+              description: { type: 'string', example: 'Quản lý nhóm' },
+              created_at: { type: 'string', format: 'date-time' },
+              updated_at: { type: 'string', format: 'date-time' },
+              _count: {
+                type: 'object',
+                properties: {
+                  user_information: { type: 'number', example: 5 },
+                  permission_role: { type: 'number', example: 10 },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 50 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  findAllRoles(@Query() paginationDto: RolePaginationDto) {
+    return this.userProfileService.findAllRoles(paginationDto);
+  }
+
+  @Get('roles/:id')
+  @RequirePermission('role.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết role' })
+  @ApiParam({ name: 'id', description: 'ID của role' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin role thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'manager' },
+            description: { type: 'string', example: 'Quản lý nhóm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            permission_role: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  permission: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number', example: 1 },
+                      name: { type: 'string', example: 'user.read' },
+                      description: { type: 'string', example: 'Xem thông tin user' },
+                    },
+                  },
+                },
+              },
+            },
+            _count: {
+              type: 'object',
+              properties: {
+                user_information: { type: 'number', example: 5 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy role' })
+  findOneRole(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.findOneRole(id);
+  }
+
+  @Patch('roles/:id')
+  @RequirePermission('role.update')
+  @ApiOperation({ summary: 'Cập nhật thông tin role' })
+  @ApiParam({ name: 'id', description: 'ID của role' })
+  @ApiBody({ type: UpdateRoleDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật role thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật role thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'manager' },
+            description: { type: 'string', example: 'Quản lý nhóm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy role' })
+  @ApiResponse({ status: 400, description: 'Tên role đã tồn tại' })
+  updateRole(@Param('id', ParseIntPipe) id: number, @Body() updateRoleDto: UpdateRoleDto) {
+    return this.userProfileService.updateRole(id, updateRoleDto);
+  }
+
+  @Delete('roles/:id')
+  @RequirePermission('role.delete')
+  @ApiOperation({ summary: 'Xóa role' })
+  @ApiParam({ name: 'id', description: 'ID của role' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa role thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa role thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy role' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa role đang được sử dụng' })
+  removeRole(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.removeRole(id);
+  }
+
+  @Post('roles/:id/permissions')
+  @RequirePermission('role.manage')
+  @ApiOperation({ summary: 'Gán quyền cho role' })
+  @ApiParam({ name: 'id', description: 'ID của role' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        permissionIds: {
+          type: 'array',
+          items: { type: 'number' },
+          example: [1, 2, 3],
+          description: 'Danh sách ID của permissions',
+        },
+      },
+      required: ['permissionIds'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Gán quyền cho role thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Gán quyền cho role thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy role' })
+  assignRolePermissions(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('permissionIds') permissionIds: number[],
+  ) {
+    return this.userProfileService.assignRolePermissions(id, permissionIds);
+  }
+
+  // ===== QUẢN LÝ LEVELS =====
+  @Post('levels')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Tạo level mới' })
+  @ApiBody({ type: CreateLevelDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo level thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Tạo level thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Senior' },
+            level: { type: 'number', example: 3 },
+            description: { type: 'string', example: 'Cấp độ cao cấp' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Tên level hoặc cấp độ đã tồn tại' })
+  createLevel(@Body() createLevelDto: CreateLevelDto) {
+    return this.userProfileService.createLevel(createLevelDto);
+  }
+
+  @Get('levels')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy danh sách levels với phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách levels thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'Senior' },
+              level: { type: 'number', example: 3 },
+              description: { type: 'string', example: 'Cấp độ cao cấp' },
+              created_at: { type: 'string', format: 'date-time' },
+              updated_at: { type: 'string', format: 'date-time' },
+              _count: {
+                type: 'object',
+                properties: {
+                  user_information: { type: 'number', example: 5 },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 50 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  findAllLevels(@Query() paginationDto: LevelPaginationDto) {
+    return this.userProfileService.findAllLevels(paginationDto);
+  }
+
+  @Get('levels/:id')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết level' })
+  @ApiParam({ name: 'id', description: 'ID của level' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin level thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Senior' },
+            level: { type: 'number', example: 3 },
+            description: { type: 'string', example: 'Cấp độ cao cấp' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            _count: {
+              type: 'object',
+              properties: {
+                user_information: { type: 'number', example: 5 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
+  findOneLevel(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.findOneLevel(id);
+  }
+
+  @Patch('levels/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Cập nhật thông tin level' })
+  @ApiParam({ name: 'id', description: 'ID của level' })
+  @ApiBody({ type: UpdateLevelDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật level thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật level thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Senior' },
+            level: { type: 'number', example: 3 },
+            description: { type: 'string', example: 'Cấp độ cao cấp' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
+  @ApiResponse({ status: 400, description: 'Tên level hoặc cấp độ đã tồn tại' })
+  updateLevel(@Param('id', ParseIntPipe) id: number, @Body() updateLevelDto: UpdateLevelDto) {
+    return this.userProfileService.updateLevel(id, updateLevelDto);
+  }
+
+  @Delete('levels/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Xóa level' })
+  @ApiParam({ name: 'id', description: 'ID của level' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa level thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa level thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa level đang được sử dụng' })
+  removeLevel(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.removeLevel(id);
+  }
+
+  // ===== QUẢN LÝ POSITIONS =====
+  @Post('positions')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Tạo vị trí mới' })
+  @ApiBody({ type: CreatePositionDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo vị trí thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Tạo vị trí thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Software Engineer' },
+            level_id: { type: 'number', example: 1 },
+            description: { type: 'string', example: 'Phát triển phần mềm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            level: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 1 },
+                name: { type: 'string', example: 'Senior' },
+                level: { type: 'number', example: 3 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Level không tồn tại hoặc tên vị trí đã tồn tại' })
+  createPosition(@Body() createPositionDto: CreatePositionDto) {
+    return this.userProfileService.createPosition(createPositionDto);
+  }
+
+  @Get('positions')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy danh sách vị trí với phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách vị trí thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'Software Engineer' },
+              level_id: { type: 'number', example: 1 },
+              description: { type: 'string', example: 'Phát triển phần mềm' },
+              created_at: { type: 'string', format: 'date-time' },
+              updated_at: { type: 'string', format: 'date-time' },
+              level: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  name: { type: 'string', example: 'Senior' },
+                  level: { type: 'number', example: 3 },
+                },
+              },
+              _count: {
+                type: 'object',
+                properties: {
+                  user_information: { type: 'number', example: 5 },
+                  skills: { type: 'number', example: 3 },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 50 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  findAllPositions(@Query() paginationDto: PositionPaginationDto) {
+    return this.userProfileService.findAllPositions(paginationDto);
+  }
+
+  @Get('positions/:id')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết vị trí' })
+  @ApiParam({ name: 'id', description: 'ID của vị trí' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin vị trí thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Software Engineer' },
+            level_id: { type: 'number', example: 1 },
+            description: { type: 'string', example: 'Phát triển phần mềm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            level: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 1 },
+                name: { type: 'string', example: 'Senior' },
+                level: { type: 'number', example: 3 },
+              },
+            },
+            skills: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  name: { type: 'string', example: 'JavaScript' },
+                  description: { type: 'string', example: 'Ngôn ngữ lập trình' },
+                },
+              },
+            },
+            _count: {
+              type: 'object',
+              properties: {
+                user_information: { type: 'number', example: 5 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy vị trí' })
+  findOnePosition(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.findOnePosition(id);
+  }
+
+  @Patch('positions/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Cập nhật thông tin vị trí' })
+  @ApiParam({ name: 'id', description: 'ID của vị trí' })
+  @ApiBody({ type: UpdatePositionDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật vị trí thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật vị trí thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Software Engineer' },
+            level_id: { type: 'number', example: 1 },
+            description: { type: 'string', example: 'Phát triển phần mềm' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            level: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 1 },
+                name: { type: 'string', example: 'Senior' },
+                level: { type: 'number', example: 3 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy vị trí' })
+  @ApiResponse({ status: 400, description: 'Level không tồn tại hoặc tên vị trí đã tồn tại' })
+  updatePosition(@Param('id', ParseIntPipe) id: number, @Body() updatePositionDto: UpdatePositionDto) {
+    return this.userProfileService.updatePosition(id, updatePositionDto);
+  }
+
+  @Delete('positions/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Xóa vị trí' })
+  @ApiParam({ name: 'id', description: 'ID của vị trí' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa vị trí thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa vị trí thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy vị trí' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa vị trí đang được sử dụng' })
+  removePosition(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.removePosition(id);
+  }
+
+  // ===== QUẢN LÝ LANGUAGES =====
+  @Post('languages')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Tạo ngôn ngữ mới' })
+  @ApiBody({ type: CreateLanguageDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo ngôn ngữ thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Tạo ngôn ngữ thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'English' },
+            code: { type: 'string', example: 'en' },
+            description: { type: 'string', example: 'Tiếng Anh' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Tên hoặc mã ngôn ngữ đã tồn tại' })
+  createLanguage(@Body() createLanguageDto: CreateLanguageDto) {
+    return this.userProfileService.createLanguage(createLanguageDto);
+  }
+
+  @Get('languages')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy danh sách ngôn ngữ với phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách ngôn ngữ thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'English' },
+              code: { type: 'string', example: 'en' },
+              description: { type: 'string', example: 'Tiếng Anh' },
+              created_at: { type: 'string', format: 'date-time' },
+              updated_at: { type: 'string', format: 'date-time' },
+              _count: {
+                type: 'object',
+                properties: {
+                  user_languages: { type: 'number', example: 5 },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 50 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  findAllLanguages(@Query() paginationDto: LanguagePaginationDto) {
+    return this.userProfileService.findAllLanguages(paginationDto);
+  }
+
+  @Get('languages/:id')
+  @RequirePermission('user.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết ngôn ngữ' })
+  @ApiParam({ name: 'id', description: 'ID của ngôn ngữ' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin ngôn ngữ thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'English' },
+            code: { type: 'string', example: 'en' },
+            description: { type: 'string', example: 'Tiếng Anh' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            _count: {
+              type: 'object',
+              properties: {
+                user_languages: { type: 'number', example: 5 },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy ngôn ngữ' })
+  findOneLanguage(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.findOneLanguage(id);
+  }
+
+  @Patch('languages/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Cập nhật thông tin ngôn ngữ' })
+  @ApiParam({ name: 'id', description: 'ID của ngôn ngữ' })
+  @ApiBody({ type: UpdateLanguageDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật ngôn ngữ thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật ngôn ngữ thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'English' },
+            code: { type: 'string', example: 'en' },
+            description: { type: 'string', example: 'Tiếng Anh' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy ngôn ngữ' })
+  @ApiResponse({ status: 400, description: 'Tên hoặc mã ngôn ngữ đã tồn tại' })
+  updateLanguage(@Param('id', ParseIntPipe) id: number, @Body() updateLanguageDto: UpdateLanguageDto) {
+    return this.userProfileService.updateLanguage(id, updateLanguageDto);
+  }
+
+  @Delete('languages/:id')
+  @RequirePermission('system.admin')
+  @ApiOperation({ summary: 'Xóa ngôn ngữ' })
+  @ApiParam({ name: 'id', description: 'ID của ngôn ngữ' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa ngôn ngữ thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa ngôn ngữ thành công' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy ngôn ngữ' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa ngôn ngữ đang được sử dụng' })
+  removeLanguage(@Param('id', ParseIntPipe) id: number) {
+    return this.userProfileService.removeLanguage(id);
   }
 }

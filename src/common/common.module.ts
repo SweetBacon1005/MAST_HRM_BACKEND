@@ -1,29 +1,13 @@
-import { Module, Global } from '@nestjs/common';
-import { CsvExportService } from './services/csv-export.service';
-import { EmailService } from './services/email.service';
-import { UserQueryService } from './services/user-query.service';
-import { QueryBuilderService } from './services/query-builder.service';
+import { Module } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
+import { ActivityLogService } from './services/activity-log.service';
+import { ActivityLogController } from './controllers/activity-log.controller';
+import { PermissionService } from 'src/auth/services/permission.service';
+import { RoleHierarchyService } from 'src/auth/services/role-hierarchy.service';
 
-/**
- * Common Module - Shared services across the application
- * @Global decorator makes these services available everywhere
- */
-@Global()
 @Module({
-  providers: [
-    CsvExportService,
-    EmailService,
-    UserQueryService,
-    QueryBuilderService,
-    PrismaService,
-  ],
-  exports: [
-    CsvExportService,
-    EmailService,
-    UserQueryService,
-    QueryBuilderService,
-  ],
+  controllers: [ActivityLogController],
+  providers: [ActivityLogService, PrismaService, PermissionService, RoleHierarchyService],
+  exports: [ActivityLogService],
 })
 export class CommonModule {}
-

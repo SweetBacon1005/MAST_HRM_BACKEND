@@ -166,6 +166,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager', 'role.manage.admin', 'role.manage.all',
+        'system.admin'
       ],
     },
 

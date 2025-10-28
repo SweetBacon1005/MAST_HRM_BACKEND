@@ -497,7 +497,6 @@ model users {
     tasks                            tasks[]
     allocations                      allocations[]
     pm_reports                       pm_reports[]
-    user_devices                     user_devices[]
     daily_reports                    daily_reports[]
     evaluation_histories             evaluation_histories[]
     activity_log_subject             activity_log[]            @relation("Subject")
@@ -512,6 +511,10 @@ model users {
     approved_late_early_requests     late_early_requests[]     @relation("LateEarlyApprover")
     forgot_checkin_requests          forgot_checkin_requests[]
     approved_forgot_checkin_requests forgot_checkin_requests[] @relation("ForgotCheckinApprover")
+    assigned_assets                  assets[]                  @relation("AssetAssignedUser")
+    created_assets                   assets[]                  @relation("AssetCreator")
+    asset_requests                   asset_requests[]
+    approved_asset_requests          asset_requests[]          @relation("AssetRequestApprover")
 }
 
 model working_times {
@@ -1053,42 +1056,116 @@ enum OtpType {
     EMAIL_VERIFICATION
 }
 
-model user_devices {
-    id            Int          @id @default(autoincrement())
-    user_id       Int
-    user          users        @relation(fields: [user_id], references: [id])
-    device_name   String       @db.VarChar(255)
-    device_type   DeviceType   @default(LAPTOP)
-    device_serial String?      @db.VarChar(255)
-    assigned_date DateTime     @db.Date
-    returned_date DateTime?    @db.Date
-    status        DeviceStatus @default(ACTIVE)
-    notes         String?      @db.Text
-    created_at    DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime     @updatedAt
-    deleted_at    DateTime?    @db.DateTime()
+
+model assets {
+    id                Int                 @id @default(autoincrement())
+    name              String              @db.VarChar(255)
+    description       String?             @db.Text
+    asset_code        String              @unique @db.VarChar(100)
+    category          AssetCategory
+    brand             String?             @db.VarChar(100)
+    model             String?             @db.VarChar(100)
+    serial_number     String?             @unique @db.VarChar(100)
+    purchase_date     DateTime?           @db.Date
+    purchase_price    Decimal?            @db.Decimal(15, 2)
+    warranty_end_date DateTime?           @db.Date
+    location          String?             @db.VarChar(255)
+    status            AssetStatus         @default(AVAILABLE)
+    assigned_to       Int?
+    assigned_user     users?              @relation("AssetAssignedUser", fields: [assigned_to], references: [id])
+    assigned_date     DateTime?           @db.Date
+    notes             String?             @db.Text
+    created_by        Int
+    creator           users               @relation("AssetCreator", fields: [created_by], references: [id])
+    created_at        DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at        DateTime            @updatedAt
+    deleted_at        DateTime?           @db.DateTime()
+    
+    asset_requests    asset_requests[]
+
+    @@index([asset_code])
+    @@index([category])
+    @@index([status])
+    @@index([assigned_to])
+    @@index([created_by])
+}
+
+model asset_requests {
+    id              Int                 @id @default(autoincrement())
+    user_id         Int
+    user            users               @relation(fields: [user_id], references: [id])
+    asset_id        Int?
+    asset           assets?             @relation(fields: [asset_id], references: [id])
+    request_type    AssetRequestType
+    category        AssetCategory       // Loại tài sản cần request
+    description     String              @db.Text
+    justification   String              @db.Text // Lý do cần tài sản
+    priority        AssetPriority       @default(NORMAL)
+    expected_date   DateTime?           @db.Date // Ngày mong muốn nhận
+    status          AssetRequestStatus  @default(PENDING)
+    approved_by     Int?
+    approver        users?              @relation("AssetRequestApprover", fields: [approved_by], references: [id])
+    approved_at     DateTime?           @db.DateTime()
+    rejection_reason String?            @db.Text
+    fulfilled_at    DateTime?           @db.DateTime()
+    returned_at     DateTime?           @db.DateTime()
+    notes           String?             @db.Text
+    created_at      DateTime            @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime            @updatedAt
+    deleted_at      DateTime?           @db.DateTime()
 
     @@index([user_id])
-    @@index([device_type])
+    @@index([asset_id])
     @@index([status])
-    @@index([assigned_date])
+    @@index([request_type])
+    @@index([category])
+    @@index([approved_by])
 }
 
-enum DeviceType {
-    LAPTOP
-    DESKTOP
-    MONITOR
-    KEYBOARD
-    MOUSE
-    HEADPHONE
-    OTHER
+
+enum AssetCategory {
+  LAPTOP
+  DESKTOP
+  MONITOR
+  KEYBOARD
+  MOUSE
+  HEADPHONE
+  PHONE
+  TABLET
+  FURNITURE
+  EQUIPMENT
+  OTHER
 }
 
-enum DeviceStatus {
-    ACTIVE
-    RETURNED
-    LOST
-    DAMAGED
+enum AssetStatus {
+  AVAILABLE    // Có sẵn
+  ASSIGNED     // Đã gán
+  MAINTENANCE  // Bảo trì
+  RETIRED      // Ngừng sử dụng
+  LOST         // Mất
+  DAMAGED      // Hỏng
+}
+
+enum AssetRequestType {
+  REQUEST      // Yêu cầu cấp phát
+  RETURN       // Trả lại
+  MAINTENANCE  // Bảo trì
+}
+
+enum AssetRequestStatus {
+  PENDING      // Chờ duyệt
+  APPROVED     // Đã duyệt
+  REJECTED     // Từ chối
+  FULFILLED    // Đã giao
+  RETURNED     // Đã trả
+  CANCELLED    // Đã hủy
+}
+
+enum AssetPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 enum IndustryType {

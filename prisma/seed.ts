@@ -11,7 +11,7 @@ import { seedUserRelations } from './seeds/user-relations.seed';
 import { seedMiscData } from './seeds/misc-data.seed';
 import { seedDayOffs } from './seeds/day-offs.seed';
 import { seedScheduleWorks } from './seeds/schedule-works.seed';
-import { seedUserDevices } from './seeds/user-devices.seed';
+import { seedAssets } from './seeds/assets.seed';
 import { seedRequests } from './seeds/requests.seed';
 import { seedLateEarlyRequests } from './seeds/late-early-requests.seed';
 
@@ -74,9 +74,9 @@ async function main() {
     const dayOffsData = await seedDayOffs(prisma, usersData);
     console.log('✅ Day offs data seeded successfully!\n');
 
-    // 11. Seed user devices
-    await seedUserDevices();
-    console.log('✅ User devices seeded successfully!\n');
+    // 11. Seed assets
+    await seedAssets();
+    console.log('✅ Assets seeded successfully!\n');
 
     // 12. Seed requests for user@example.com
     await seedRequests(prisma, usersData);
@@ -149,7 +149,7 @@ async function main() {
     console.log('    ├── user-relations.seed.ts ⚡ (tối ưu hóa)');
     console.log('    ├── misc-data.seed.ts ⚡ (tối ưu hóa)');
     console.log('    ├── day-offs.seed.ts ⚡ (createMany + skipDuplicates)');
-    console.log('    ├── user-devices.seed.ts ⚡ (createMany + skipDuplicates)');
+    console.log('    ├── assets.seed.ts ⚡ (createMany + skipDuplicates)');
     console.log('    └── requests.seed.ts ⚡ (sample requests for testing)');
     console.log('\n🚀 Tối ưu hóa đã áp dụng:');
     console.log('• createMany() với skipDuplicates: true cho dữ liệu không cần update');

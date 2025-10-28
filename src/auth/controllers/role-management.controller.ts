@@ -34,6 +34,7 @@ import { RequirePermission } from '../decorators/require-permission.decorator';
 import {
   AssignProjectManagerDto,
   AssignTeamLeaderDto,
+  AssignDivisionHeadDto,
 } from '../dto/role-assignment.dto';
 import {
   AssignRoleDto,
@@ -1061,6 +1062,65 @@ export class RoleManagementController {
     return await this.roleAssignmentService.assignTeamLeader(dto, managerId);
   }
 
+  @Post('assign-division-head')
+  @RequirePermission('role.manage.division_head')
+  @ApiOperation({ 
+    summary: 'Gán Division Head cho division (HR Manager/Admin)',
+    description: 'Gán user làm Division Head của một division cụ thể. Chỉ HR Manager, Admin, Super Admin có quyền thực hiện.'
+  })
+  @ApiBody({ type: AssignDivisionHeadDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Gán Division Head thành công hoặc yêu cầu xác nhận chuyển giao',
+    schema: {
+      type: 'object',
+      properties: {
+        assignment: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            user_id: { type: 'number' },
+            role_name: { type: 'string' },
+            assignment_type: { type: 'string' },
+            context_id: { type: 'number' },
+            context_type: { type: 'string' },
+            assigned_by: { type: 'number' },
+            assigned_at: { type: 'string' },
+            reason: { type: 'string' },
+            status: { type: 'string' },
+          },
+        },
+        message: { type: 'string' },
+        previousDivisionHead: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Division đã có Division Head (cần confirmTransfer: true)',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền gán Division Head',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy division hoặc user',
+  })
+  async assignDivisionHead(
+    @Body() dto: AssignDivisionHeadDto,
+    @GetUser('id') managerId: number,
+  ) {
+    return await this.roleAssignmentService.assignDivisionHead(dto, managerId);
+  }
+
   @Get('project/:projectId/current-pm')
   @RequirePermission('role.read')
   @ApiOperation({ summary: 'Lấy thông tin PM hiện tại của project' })
@@ -1077,6 +1137,44 @@ export class RoleManagementController {
   @ApiParam({ name: 'teamId', description: 'ID của team' })
   async getCurrentTeamLeader(@Param('teamId', ParseIntPipe) teamId: number) {
     return await this.roleAssignmentService.getTeamLeaderInfo(teamId);
+  }
+
+  @Get('division/:divisionId/current-head')
+  @RequirePermission('role.read')
+  @ApiOperation({ summary: 'Lấy thông tin Division Head hiện tại của division' })
+  @ApiParam({ name: 'divisionId', description: 'ID của division' })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin Division Head hiện tại',
+    schema: {
+      type: 'object',
+      properties: {
+        divisionHead: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            id: { type: 'number' },
+            user_information: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                email: { type: 'string' },
+              },
+            },
+          },
+        },
+        division: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async getCurrentDivisionHead(@Param('divisionId', ParseIntPipe) divisionId: number) {
+    return await this.roleAssignmentService.getDivisionHeadInfo(divisionId);
   }
 
   @Get('project/:projectId/pm-history')

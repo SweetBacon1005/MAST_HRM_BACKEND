@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { CommonModule } from './common/common.module';
+import { CommonModule as AppCommonModule } from './common/common.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -16,6 +16,8 @@ import { DivisionModule } from './division/division.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
 import { UploadModule } from './upload/upload.module';
+import { AssetsModule } from './assets/assets.module';
+import { CommonModule } from './common/common.module';
 import { PrismaService } from './database/prisma.service';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
@@ -41,6 +43,8 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
     ProjectsModule,
     ReportsModule,
     UploadModule,
+    AssetsModule,
+    AppCommonModule,
   ],
   controllers: [AppController],
   providers: [

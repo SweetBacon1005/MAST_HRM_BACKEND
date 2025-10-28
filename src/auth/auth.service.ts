@@ -20,6 +20,8 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokensDto } from './dto/tokens.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './services/otp.service';
+import { ActivityLogService } from '../common/services/activity-log.service';
+import { DEVICE_CATEGORIES, ASSET_STATUSES } from '../assets/constants/asset.constants';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +31,7 @@ export class AuthService {
     private configService: ConfigService,
     private otpService: OtpService,
     private prisma: PrismaService,
+    private activityLogService: ActivityLogService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -50,13 +53,21 @@ export class AuthService {
     return null;
   }
 
-  async login(loginDto: LoginDto): Promise<TokensDto> {
+  async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<TokensDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
     const tokens = await this.getTokens(Number(user.id), user.email);
+    
+    // Log successful login
+    await this.activityLogService.logUserLogin(
+      Number(user.id),
+      ipAddress,
+      userAgent
+    );
+
     return tokens;
   }
 
@@ -103,6 +114,18 @@ export class AuthService {
       ...registerDto,
       password: hashedPassword,
     });
+
+    // Log user registration
+    await this.activityLogService.logCrudOperation(
+      'User',
+      Number(user.id),
+      'created',
+      Number(user.id),
+      {
+        email: user.email,
+        registration_method: 'self_register',
+      }
+    );
 
     const tokens = await this.getTokens(Number(user.id), user.email);
     return tokens;
@@ -283,18 +306,22 @@ export class AuthService {
         },
       }),
 
-      // Lấy danh sách thiết bị được cấp
-      this.prisma.user_devices.findMany({
+      // Lấy danh sách thiết bị được cấp từ assets
+      this.prisma.assets.findMany({
         where: {
-          user_id: userId,
-          status: 'ACTIVE',
+          assigned_to: userId,
+          status: ASSET_STATUSES.ASSIGNED,
           deleted_at: null,
+          category: { in: DEVICE_CATEGORIES as any },
         },
         select: {
           id: true,
-          device_name: true,
-          device_type: true,
-          device_serial: true,
+          name: true,
+          asset_code: true,
+          category: true,
+          brand: true,
+          model: true,
+          serial_number: true,
           assigned_date: true,
           notes: true,
         },
@@ -322,14 +349,17 @@ export class AuthService {
     const usedLeave = usedLeaveDays._count.id || 0;
     const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
 
-    // Format assigned devices
-    const formattedDevices = assignedDevices.map((device) => ({
-      id: device.id,
-      name: device.device_name || 'Unknown Device',
-      type: device.device_type?.toLowerCase() || 'unknown',
-      serial: device.device_serial || 'N/A',
-      assigned_date: device.assigned_date,
-      notes: device.notes || '',
+    // Format assigned devices from assets
+    const formattedDevices = assignedDevices.map((asset) => ({
+      id: asset.id,
+      name: asset.name || 'Unknown Asset',
+      type: asset.category?.toLowerCase() || 'unknown',
+      code: asset.asset_code,
+      brand: asset.brand,
+      model: asset.model,
+      serial: asset.serial_number || 'N/A',
+      assigned_date: asset.assigned_date,
+      notes: asset.notes || '',
     }));
 
     return {
