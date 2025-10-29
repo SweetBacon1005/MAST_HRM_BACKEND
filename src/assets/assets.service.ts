@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { ActivityLogService } from '../common/services/activity-log.service';
@@ -11,6 +10,7 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { DEVICE_CATEGORIES, ASSET_STATUSES } from './constants/asset.constants';
+import { ASSET_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import {
@@ -42,7 +42,7 @@ export class AssetsService {
     });
 
     if (existingAsset) {
-      throw new BadRequestException('Mã tài sản đã tồn tại');
+      throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
     }
 
     // Check if serial_number already exists (if provided)
@@ -55,7 +55,7 @@ export class AssetsService {
       });
 
       if (existingSerial) {
-        throw new BadRequestException('Số serial đã tồn tại');
+        throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
       }
     }
 
@@ -103,7 +103,7 @@ export class AssetsService {
     );
 
     return {
-      message: 'Tạo tài sản thành công',
+      message: SUCCESS_MESSAGES.CREATED_SUCCESSFULLY,
       data: asset,
     };
   }
@@ -211,7 +211,7 @@ export class AssetsService {
     });
 
     if (!asset) {
-      throw new NotFoundException('Không tìm thấy tài sản');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
     return {
@@ -225,7 +225,7 @@ export class AssetsService {
     });
 
     if (!existingAsset) {
-      throw new NotFoundException('Không tìm thấy tài sản');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
     // Check asset_code uniqueness if changed
@@ -239,7 +239,7 @@ export class AssetsService {
       });
 
       if (duplicateCode) {
-        throw new BadRequestException('Mã tài sản đã tồn tại');
+        throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
       }
     }
 
@@ -254,7 +254,7 @@ export class AssetsService {
       });
 
       if (duplicateSerial) {
-        throw new BadRequestException('Số serial đã tồn tại');
+        throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
       }
     }
 
@@ -265,7 +265,7 @@ export class AssetsService {
       });
 
       if (!user) {
-        throw new BadRequestException('User được gán không tồn tại');
+        throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_FOUND);
       }
 
       // Auto set assigned_date if assigning to someone
@@ -332,7 +332,7 @@ export class AssetsService {
     );
 
     return {
-      message: 'Cập nhật tài sản thành công',
+      message: SUCCESS_MESSAGES.UPDATED_SUCCESSFULLY,
       data: updatedAsset,
     };
   }
@@ -343,12 +343,12 @@ export class AssetsService {
     });
 
     if (!asset) {
-      throw new NotFoundException('Không tìm thấy tài sản');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
     // Check if asset is assigned
     if (asset.status === 'ASSIGNED' && asset.assigned_to) {
-      throw new BadRequestException('Không thể xóa tài sản đang được gán cho user');
+      throw new BadRequestException(ASSET_ERRORS.CANNOT_DELETE_ASSIGNED_ASSET);
     }
 
     // Check if there are pending requests for this asset
@@ -361,7 +361,7 @@ export class AssetsService {
     });
 
     if (pendingRequests > 0) {
-      throw new BadRequestException('Không thể xóa tài sản có request đang chờ xử lý');
+      throw new BadRequestException(ASSET_ERRORS.REQUEST_ALREADY_PROCESSED);
     }
 
     await this.prisma.assets.update({
@@ -382,7 +382,7 @@ export class AssetsService {
     );
 
     return {
-      message: 'Xóa tài sản thành công',
+      message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY,
     };
   }
 
@@ -394,7 +394,7 @@ export class AssetsService {
     });
 
     if (!asset) {
-      throw new NotFoundException('Không tìm thấy tài sản');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
     if (asset.status !== ASSET_STATUSES.AVAILABLE) {
@@ -470,7 +470,7 @@ export class AssetsService {
     });
 
     if (!asset) {
-      throw new NotFoundException('Không tìm thấy tài sản');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
     if (asset.status !== 'ASSIGNED') {

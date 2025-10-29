@@ -15,7 +15,7 @@ export function IsTimeRange(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (!value || typeof value !== 'string') return true; // Optional field
 
           // Format: HH:MM-HH:MM
@@ -54,7 +54,7 @@ export function IsWorkTimeMinutes(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (value === null || value === undefined) return true; // Optional field
           
           if (typeof value !== 'number' || !Number.isInteger(value)) {
@@ -83,7 +83,7 @@ export function IsLateEarlyTime(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (value === null || value === undefined) return true; // Optional field
           
           if (typeof value !== 'number' || !Number.isInteger(value)) {
@@ -112,7 +112,7 @@ export function IsBreakTime(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (value === null || value === undefined) return true; // Optional field
           
           if (typeof value !== 'number' || !Number.isInteger(value)) {
@@ -141,7 +141,7 @@ export function IsFinesAmount(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (value === null || value === undefined) return true; // Optional field
           
           if (typeof value !== 'number' || !Number.isInteger(value)) {
@@ -174,10 +174,10 @@ export function IsCheckoutAfterCheckin(
       constraints: [checkinProperty],
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (!value) return true; // Optional field
           
-          const checkin = (args.object as any)[checkinProperty];
+          const checkin = (_args.object as any)[checkinProperty];
           if (!checkin) return true; // If no checkin, skip validation
           
           const checkinTime = new Date(checkin);
@@ -209,10 +209,10 @@ export function IsApprovedLateTimeValid(
       constraints: [lateTimeProperty],
       options: validationOptions,
       validator: {
-        validate(value: any, args: ValidationArguments) {
+        validate(value: any, _args: ValidationArguments) {
           if (value === null || value === undefined) return true; // Optional field
           
-          const lateTime = (args.object as any)[lateTimeProperty];
+          const lateTime = (_args.object as any)[lateTimeProperty];
           if (lateTime === null || lateTime === undefined) return true;
           
           // Approved late time should not exceed actual late time

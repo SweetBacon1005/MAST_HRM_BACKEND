@@ -49,7 +49,19 @@ export class RequestsController {
   @Get()
   @RequirePermission('request.read')
   @ApiOperation({
-    summary: 'Lấy requests theo phân quyền role (Division Head: requests trong division, Admin: tất cả requests)',
+    summary: 'Lấy requests theo phân quyền role với enhanced filtering',
+    description: `
+      Role-based access control:
+      - Division Head: Chỉ thấy requests trong division của mình, có thể filter theo team
+      - Admin/Super Admin: Thấy tất cả requests, có thể filter leads_only=true cho requests quan trọng
+      - Project Manager/Team Leader: Chỉ thấy requests từ team members
+      - Employee: Chỉ thấy requests của chính mình
+      
+      Enhanced filtering options:
+      - leads_only: Chỉ requests từ leadership roles (Division Head, Project Manager, Team Leader, HR Manager)
+      - team_id: Filter theo team cụ thể (Division Head có thể filter teams trong division)
+      - high_priority_only: Chỉ requests có priority cao (từ leadership hoặc urgent criteria)
+    `,
   })
   @ApiQuery({
     name: 'division_id',
@@ -60,7 +72,7 @@ export class RequestsController {
   @ApiQuery({
     name: 'leads_only',
     required: false,
-    description: 'Chỉ lấy requests từ các lead (team_leader, division_head, project_manager)',
+    description: 'Chỉ lấy requests từ các lead (team_leader, division_head, project_manager, hr_manager)',
     type: Boolean,
   })
   @ApiQuery({
@@ -68,6 +80,18 @@ export class RequestsController {
     required: false,
     description: 'Lọc theo role của người tạo request',
     enum: Object.values(ROLE_NAMES),
+  })
+  @ApiQuery({
+    name: 'team_id',
+    required: false,
+    description: 'Lọc theo team ID (Division Head có thể filter teams trong division)',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'high_priority_only',
+    required: false,
+    description: 'Chỉ lấy requests có priority cao (từ leadership roles hoặc urgent requests)',
+    type: Boolean,
   })
   @ApiResponse({ 
     status: 200, 
@@ -128,6 +152,39 @@ export class RequestsController {
             limit: { type: 'number' },
             totalPages: { type: 'number' },
           },
+        },
+        metadata: {
+          type: 'object',
+          properties: {
+            access_scope: { 
+              type: 'string',
+              enum: ['DIVISION_ONLY', 'ALL_ACCESS', 'TEAM_ONLY', 'SELF_ONLY'],
+              description: 'Phạm vi truy cập của user hiện tại'
+            },
+            managed_divisions: {
+              type: 'array',
+              items: { type: 'number' },
+              description: 'Danh sách division IDs mà user quản lý (nếu là Division Head)'
+            },
+            managed_teams: {
+              type: 'array', 
+              items: { type: 'number' },
+              description: 'Danh sách team IDs mà user quản lý (nếu là Team Leader/Project Manager)'
+            },
+            filters_applied: {
+              type: 'object',
+              properties: {
+                leads_only: { type: 'boolean' },
+                division_restriction: { type: 'boolean' },
+                team_restriction: { type: 'boolean' },
+                division_id: { type: 'number' },
+                team_id: { type: 'number' },
+                requester_role: { type: 'string' },
+              },
+              description: 'Các filters đã được áp dụng'
+            }
+          },
+          description: 'Metadata về phạm vi truy cập và filters áp dụng'
         },
       },
     },

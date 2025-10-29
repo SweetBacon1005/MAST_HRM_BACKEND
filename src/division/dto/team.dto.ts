@@ -30,14 +30,14 @@ export class CreateTeamDto {
   divisionId: number;
 
   @ApiProperty({
-    description: 'ID người quản lý team (user_id)',
+    description: 'ID người lãnh đạo team (user_id)',
     example: 1,
     required: false,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  managerId?: number;
+  leader_Id?: number;
 
   @ApiProperty({
     description: 'Ngày thành lập team',
@@ -61,14 +61,14 @@ export class UpdateTeamDto {
   name?: string;
 
   @ApiProperty({
-    description: 'ID người quản lý team (user_id)',
+    description: 'ID người lãnh đạo team (user_id)',
     example: 1,
     required: false,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  managerId?: number;
+  leaderId?: number;
 
   @ApiProperty({
     description: 'Ngày thành lập team',

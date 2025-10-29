@@ -39,12 +39,12 @@ export class TimeConsistencyValidator implements ValidatorConstraintInterface {
       }
 
       return true;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }
 
-  defaultMessage(args: ValidationArguments) {
+  defaultMessage(_args: ValidationArguments) {
     return 'Thời gian bắt đầu phải trước thời gian kết thúc.';
   }
 }

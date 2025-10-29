@@ -8,7 +8,7 @@ import { RequestType } from '../interfaces/request.interface';
 
 @Injectable()
 export class RequestTypeValidationPipe implements PipeTransform {
-  transform(value: any, metadata: ArgumentMetadata) {
+  transform(value: any, _metadata: ArgumentMetadata) {
     if (!value) {
       throw new BadRequestException('Request type is required');
     }

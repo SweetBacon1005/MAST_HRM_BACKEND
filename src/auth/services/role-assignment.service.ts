@@ -4,18 +4,19 @@ import { PermissionService } from './permission.service';
 import { RoleHierarchyService } from './role-hierarchy.service';
 import { ActivityLogService } from '../../common/services/activity-log.service';
 import {
-  AssignProjectManagerDto,
-  AssignTeamLeaderDto,
-  AssignDivisionHeadDto,
-  RevokeAssignmentDto,
   AssignmentType,
   AssignmentStatus,
 } from '../dto/role-assignment.dto';
 import {
+  UnifiedRoleAssignmentDto,
+  UnifiedRoleAssignmentResponseDto,
+  AssignmentResultDto,
+  ROLE_CONTEXT_REQUIREMENTS,
+  RoleContextRequirement,
+} from '../dto/unified-role-assignment.dto';
+import {
   ROLE_NAMES,
   PROJECT_POSITIONS,
-  ACTIVE_PROJECT_STATUSES,
-  ACTIVITY_LOG_EVENTS,
   CAUSER_TYPES,
   SUBJECT_TYPES,
 } from '../constants/role.constants';
@@ -30,394 +31,664 @@ export class RoleAssignmentService {
   ) {}
 
   /**
-   * Gán PM cho project với logic chuyển giao
+   * UNIFIED API - Gán role thống nhất với logic nghiệp vụ đầy đủ
    */
-  async assignProjectManager(
-    dto: AssignProjectManagerDto,
+  async assignRoleUnified(
+    dto: UnifiedRoleAssignmentDto,
     managerId: number,
-  ) {
-    const { projectId, userId, reason, confirmTransfer } = dto;
+  ): Promise<UnifiedRoleAssignmentResponseDto> {
+    const { targetUserId, roleId, context, assignment, options } = dto;
 
-    // 1. Kiểm tra quyền
-    await this.validateManagerPermission(managerId, userId);
-
-    // 2. Kiểm tra project tồn tại và thuộc division
-    const project = await this.validateProjectAccess(projectId, managerId);
-
-    // 3. Kiểm tra user tồn tại và cùng division
-    const user = await this.validateUserAccess(userId, managerId);
-
-    // 4. Kiểm tra PM hiện tại
-    const currentPM = await this.getCurrentProjectManager(projectId);
-
-    if (currentPM && !confirmTransfer) {
-      return {
-        requiresConfirmation: true,
-        currentPM: {
-          id: currentPM.user_id,
-          name: currentPM.user.user_information?.name || '',
-          email: currentPM.user.email,
-        },
-        message: 'Project đã có PM. Bạn có muốn chuyển giao quyền không?',
-      };
-    }
-
-    // 5. Thực hiện chuyển giao
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 5.1. Cập nhật PM cũ nếu có
-      if (currentPM) {
-        await tx.project_role_user.updateMany({
-          where: {
-            project_id: projectId,
-            position_in_project: PROJECT_POSITIONS.MONITOR,
-            user_id: currentPM.user_id,
-          },
-          data: {
-            // Chuyển thành supporter
-            position_in_project: PROJECT_POSITIONS.SUPPORTER,
-          },
-        });
-
-        // Log chuyển giao
-        await this.logActivity(tx, {
-          managerId,
-          targetUserId: currentPM.user_id,
-          event: 'project_manager.replaced',
-          description: `Chuyển giao PM project ${project.name} từ ${currentPM.user.user_information?.name || ''} sang ${user.user_information?.name || ''}`,
-          properties: {
-            project_id: projectId,
-            project_name: project.name,
-            old_pm_id: currentPM.user_id,
-            new_pm_id: userId,
-            reason,
-          },
-        });
-      }
-
-      // 5.2. Kiểm tra user đã trong project chưa
-      const existingMember = await tx.project_role_user.findFirst({
-        where: {
-          project_id: projectId,
-          user_id: userId,
-        },
-      });
-
-      if (existingMember) {
-        // Cập nhật thành PM
-        await tx.project_role_user.update({
-          where: { id: existingMember.id },
-          data: {
-            position_in_project: PROJECT_POSITIONS.MONITOR,
-            role_id: await this.getRoleId(ROLE_NAMES.PROJECT_MANAGER),
-          },
-        });
-      } else {
-        // Thêm mới vào project
-        await tx.project_role_user.create({
-          data: {
-            project_id: projectId,
-            user_id: userId,
-            role_id: await this.getRoleId(ROLE_NAMES.PROJECT_MANAGER),
-            position_in_project: PROJECT_POSITIONS.MONITOR,
-          },
-        });
-      }
-
-      // 5.3. Cập nhật role trong user_information
-      await tx.user_information.updateMany({
-        where: { user_id: userId },
-        data: { role_id: await this.getRoleId(ROLE_NAMES.PROJECT_MANAGER) },
-      });
-
-      // 5.4. Log gán PM mới
-      await this.logActivity(tx, {
-        managerId,
-        targetUserId: userId,
-        event: 'project_manager.assigned',
-        description: `Gán PM project ${project.name} cho ${user.user_information?.name || ''}`,
-        properties: {
-          project_id: projectId,
-          project_name: project.name,
-          pm_id: userId,
-          reason,
-          replaced_pm: currentPM?.user_id || null,
-        },
-      });
-
-      return { currentPM, newPM: user, project };
+    // 1. Validate role tồn tại và lấy thông tin
+    const role = await this.prisma.roles.findUnique({
+      where: { id: roleId, deleted_at: null },
     });
 
-    return {
-      success: true,
-      message: currentPM 
-        ? `Chuyển giao PM thành công từ ${result.currentPM?.user.user_information?.name || ''} sang ${result.newPM.user_information?.name || ''}`
-        : `Gán PM thành công cho ${result.newPM.user_information?.name || ''}`,
-      project: {
-        id: result.project.id,
-        name: result.project.name,
-        code: result.project.code,
-      },
-      newPM: {
-        id: result.newPM.id,
-        name: result.newPM.user_information?.name || '',
-        email: result.newPM.email,
-      },
-      previousPM: result.currentPM ? {
-        id: result.currentPM.user_id,
-        name: result.currentPM.user.user_information?.name || '',
-        email: result.currentPM.user.email,
-      } : null,
-    };
+    if (!role) {
+      throw new NotFoundException('Không tìm thấy role');
+    }
+
+    // 2. Validate context requirements cho role
+    await this.validateRoleContextRequirements(role.name, context);
+
+    // 3. Validate manager permissions
+    await this.validateManagerPermissionForRole(managerId, role.name, context);
+
+    // 4. Process assignments (single hoặc batch)
+    const results: AssignmentResultDto[] = [];
+    let successCount = 0;
+    let failedCount = 0;
+
+    // Sử dụng transaction cho batch operations
+    const response = await this.prisma.$transaction(async (tx) => {
+      for (const userId of targetUserId) {
+        try {
+          const result = await this.processRoleAssignment({
+            userId,
+            role,
+            context,
+            assignment,
+            options,
+            managerId,
+            tx,
+          });
+
+          results.push(result);
+          if (result.success) {
+            successCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (error: any) {
+          results.push({
+            userId,
+            success: false,
+            message: error.message || 'Lỗi không xác định',
+            error: error.message,
+          });
+          failedCount++;
+        }
+      }
+
+      return {
+        success: successCount > 0,
+        results,
+        summary: targetUserId.length > 1 ? {
+          total: targetUserId.length,
+          successful: successCount,
+          failed: failedCount,
+        } : undefined,
+      };
+    });
+
+    return response;
   }
 
   /**
-   * Gán Division Head cho division với logic chuyển giao
+   * Validate context requirements cho từng loại role
    */
-  async assignDivisionHead(
-    dto: AssignDivisionHeadDto,
-    managerId: number,
+  private async validateRoleContextRequirements(
+    roleName: string,
+    context?: any,
   ) {
-    const { divisionId, userId, reason, confirmTransfer } = dto;
+    const requirement = ROLE_CONTEXT_REQUIREMENTS[roleName];
+    
+    if (!requirement || requirement === RoleContextRequirement.NONE) {
+      return; // Không cần context
+    }
 
-    // 1. Kiểm tra quyền - chỉ HR Manager, Admin, Super Admin có thể gán Division Head
-    await this.validateDivisionHeadAssignmentPermission(managerId);
+    if (!context) {
+      throw new BadRequestException(`Role ${roleName} yêu cầu context thông tin`);
+    }
 
-    // 2. Kiểm tra division tồn tại
-    const division = await this.validateDivisionExists(divisionId);
+    switch (requirement) {
+      case RoleContextRequirement.DIVISION:
+        if (!context.divisionId) {
+          throw new BadRequestException(`Role ${roleName} yêu cầu divisionId`);
+        }
+        break;
+      case RoleContextRequirement.PROJECT:
+        if (!context.projectId) {
+          throw new BadRequestException(`Role ${roleName} yêu cầu projectId`);
+        }
+        break;
+      case RoleContextRequirement.TEAM:
+        if (!context.teamId) {
+          throw new BadRequestException(`Role ${roleName} yêu cầu teamId`);
+        }
+        break;
+    }
+  }
 
-    // 3. Kiểm tra user tồn tại
+  /**
+   * Validate manager permissions cho role cụ thể
+   */
+  private async validateManagerPermissionForRole(
+    managerId: number,
+    roleName: string,
+    context?: any,
+  ) {
+    // 1. Kiểm tra hierarchy permission cơ bản
+    const hasRolePermission = await this.roleHierarchyService.hasRoleManagementPermission(
+      managerId,
+      roleName,
+    );
+
+    if (!hasRolePermission) {
+      throw new ForbiddenException(`Bạn không có quyền gán role ${roleName}`);
+    }
+
+    // 2. Kiểm tra context-specific permissions
+    const managerRole = await this.permissionService.getUserRole(managerId);
+    
+    if (managerRole?.name === ROLE_NAMES.DIVISION_HEAD) {
+      // Division Head chỉ gán role trong division của mình
+      const managerDivision = await this.prisma.user_division.findFirst({
+        where: { userId: managerId },
+      });
+
+      if (context?.divisionId && managerDivision?.divisionId !== context.divisionId) {
+        throw new ForbiddenException('Bạn chỉ có thể gán role trong division của mình');
+      }
+
+      if (context?.projectId) {
+        // Kiểm tra project thuộc division của manager
+        const project = await this.prisma.projects.findFirst({
+          where: { id: context.projectId, division_id: managerDivision?.divisionId },
+        });
+        
+        if (!project) {
+          throw new ForbiddenException('Bạn chỉ có thể gán role trong project thuộc division của mình');
+        }
+      }
+
+      if (context?.teamId) {
+        // Kiểm tra team thuộc division của manager
+        const team = await this.prisma.teams.findFirst({
+          where: { id: context.teamId, division_id: managerDivision?.divisionId },
+        });
+        
+        if (!team) {
+          throw new ForbiddenException('Bạn chỉ có thể gán role trong team thuộc division của mình');
+        }
+      }
+    }
+  }
+
+  /**
+   * Process single role assignment
+   */
+  private async processRoleAssignment(params: {
+    userId: number;
+    role: any;
+    context?: any;
+    assignment?: any;
+    options?: any;
+    managerId: number;
+    tx: any;
+  }): Promise<AssignmentResultDto> {
+    const { userId, role, context: _context, assignment: _assignment, options: _options, managerId: _managerId, tx: _tx } = params;
+
+    // 1. Validate user exists và có thể gán role
+    const _user = await this.validateUserExists(userId);
+    
+    // 2. Kiểm tra quyền gán role cho user cụ thể này
+    const canManage = await this.roleHierarchyService.canUserManageUserRole(
+      _managerId,
+      userId,
+      role.name,
+    );
+
+    if (!canManage) {
+      throw new ForbiddenException(`Bạn không có quyền gán role ${role.name} cho user này`);
+    }
+
+    // 3. Role-specific assignment logic
+    switch (role.name) {
+      case ROLE_NAMES.PROJECT_MANAGER:
+        return await this.assignProjectManagerUnified(params);
+      case ROLE_NAMES.TEAM_LEADER:
+        return await this.assignTeamLeaderUnified(params);
+      case ROLE_NAMES.DIVISION_HEAD:
+        return await this.assignDivisionHeadUnified(params);
+      default:
+        return await this.assignGeneralRoleUnified(params);
+    }
+  }
+
+  /**
+   * Assign Project Manager với logic chuyển giao
+   */
+  private async assignProjectManagerUnified(params: {
+    userId: number;
+    role: any;
+    context?: any;
+    assignment?: any;
+    options?: any;
+    managerId: number;
+    tx: any;
+  }): Promise<AssignmentResultDto> {
+    const { userId, role, context, assignment, options, managerId, tx } = params;
+    
+    if (!context?.projectId) {
+      throw new BadRequestException('PROJECT_MANAGER role yêu cầu projectId');
+    }
+
+    // Validate project access
+    const project = await this.validateProjectAccess(context.projectId, managerId);
     const user = await this.validateUserExists(userId);
 
-    // 4. Kiểm tra Division Head hiện tại
-    const currentDivisionHead = await this.getCurrentDivisionHead(divisionId);
+    // Kiểm tra PM hiện tại
+    const currentPM = await this.getCurrentProjectManager(context.projectId);
 
-    if (currentDivisionHead && !confirmTransfer) {
-      throw new BadRequestException(
-        `Division "${division.name}" đã có Division Head: ${currentDivisionHead.email}. ` +
-        'Vui lòng xác nhận chuyển giao (confirmTransfer: true)'
-      );
+    if (currentPM && !options?.confirmTransfer) {
+      return {
+        userId,
+        success: false,
+        message: 'Project đã có PM. Cần confirmTransfer: true để chuyển giao',
+        error: 'REQUIRES_CONFIRMATION',
+      };
     }
 
-    // 5. Thực hiện gán Division Head trong transaction
-    return await this.prisma.$transaction(async (tx) => {
-      // Thu hồi Division Head cũ nếu có
-      if (currentDivisionHead) {
-        await this.revokeCurrentDivisionHead(divisionId, managerId, tx);
-      }
-
-      // Gán role division_head cho user
-      const divisionHeadRole = await tx.roles.findFirst({
-        where: { name: ROLE_NAMES.DIVISION_HEAD },
-      });
-
-      if (!divisionHeadRole) {
-        throw new NotFoundException('Không tìm thấy role Division Head');
-      }
-
-      // Cập nhật role của user
-      await tx.user_information.update({
-        where: { user_id: userId },
-        data: { role_id: divisionHeadRole.id },
-      });
-
-      // TODO: Fix divisions schema - manager_id field
-      // await tx.divisions.update({
-      //   where: { id: divisionId },
-      //   data: { manager_id: userId },
-      // });
-
-      // Đảm bảo user thuộc division này
-      await tx.user_division.upsert({
+    // Thực hiện chuyển giao PM
+    if (currentPM) {
+      await tx.project_role_user.updateMany({
         where: {
-          id: await this.getUserDivisionId(userId, divisionId) || 0,
+          project_id: context.projectId,
+          position_in_project: PROJECT_POSITIONS.MONITOR,
+          user_id: currentPM.user_id,
         },
-        update: {},
-        create: {
-          userId: userId,
-          divisionId: divisionId,
+        data: {
+          position_in_project: PROJECT_POSITIONS.SUPPORTER,
         },
       });
+    }
 
-      // Tạo assignment record
-      // TODO: Fix role_assignments table schema
-      // const assignment = await tx.role_assignments.create({
-      //   data: {
-      //     user_id: userId,
-      //     role_name: ROLE_NAMES.DIVISION_HEAD,
-      //     assignment_type: AssignmentType.DIVISION_HEAD,
-      //     context_id: divisionId,
-      //     context_type: 'division',
-      //     assigned_by: managerId,
-      //     assigned_at: new Date(),
-      //     reason: reason || `Gán làm Division Head của ${division.name}`,
-      //     status: AssignmentStatus.ACTIVE,
-      //   },
-      // });
-
-      // Log activity
-      // TODO: Fix activity logging
-      // await this.logRoleAssignmentActivity(
-      //   managerId,
-      //   userId,
-      //   ROLE_NAMES.DIVISION_HEAD,
-      //   'assign',
-      //   reason,
-      //   tx,
-      // );
-
-      return {
-        // assignment,
-        message: `Đã gán ${user.email} làm Division Head của ${division.name}`,
-        previousDivisionHead: currentDivisionHead ? {
-          id: currentDivisionHead.id,
-          name: currentDivisionHead.email,
-        } : null,
-      };
+    // Gán PM mới
+    const existingMember = await tx.project_role_user.findFirst({
+      where: {
+        project_id: context.projectId,
+        user_id: userId,
+      },
     });
-  }
 
-  /**
-   * Gán Team Leader cho team với logic chuyển giao
-   */
-  async assignTeamLeader(
-    dto: AssignTeamLeaderDto,
-    managerId: number,
-  ) {
-    const { teamId, userId, reason, confirmTransfer } = dto;
-
-    // 1. Kiểm tra quyền
-    await this.validateManagerPermission(managerId, userId);
-
-    // 2. Kiểm tra team tồn tại và thuộc division
-    const team = await this.validateTeamAccess(teamId, managerId);
-
-    // 3. Kiểm tra user tồn tại và cùng division
-    const user = await this.validateUserAccess(userId, managerId);
-
-    // 4. Kiểm tra Team Leader hiện tại
-    const currentTL = await this.getCurrentTeamLeader(teamId);
-
-    if (currentTL && !confirmTransfer) {
-      return {
-        requiresConfirmation: true,
-        currentTL: {
-          id: currentTL.userId,
-          name: currentTL.user.user_information?.name || '',
-          email: currentTL.user.email,
+    if (existingMember) {
+      await tx.project_role_user.update({
+        where: { id: existingMember.id },
+        data: {
+          position_in_project: PROJECT_POSITIONS.MONITOR,
+          role_id: role.id,
         },
-        message: 'Team đã có Team Leader. Bạn có muốn chuyển giao quyền không?',
-      };
+      });
+    } else {
+      await tx.project_role_user.create({
+        data: {
+          project_id: context.projectId,
+          user_id: userId,
+          role_id: role.id,
+          position_in_project: PROJECT_POSITIONS.MONITOR,
+        },
+      });
     }
 
-    // 5. Thực hiện chuyển giao
-    const result = await this.prisma.$transaction(async (tx) => {
-      // 5.1. Cập nhật TL cũ nếu có
-      if (currentTL) {
-        await tx.user_division.updateMany({
-          where: {
-            teamId,
-            userId: currentTL.userId,
-            role: { name: ROLE_NAMES.TEAM_LEADER },
-          },
-          data: {
-            role_id: await this.getRoleId(ROLE_NAMES.EMPLOYEE),
-          },
-        });
+    // Cập nhật role trong user_information
+    await tx.user_information.updateMany({
+      where: { user_id: userId },
+      data: { role_id: role.id },
+    });
 
-        // Cập nhật role trong user_information
-        await tx.user_information.updateMany({
-          where: { user_id: currentTL.userId },
-          data: { role_id: await this.getRoleId(ROLE_NAMES.EMPLOYEE) },
-        });
-
-        // Log chuyển giao
-        await this.logActivity(tx, {
-          managerId,
-          targetUserId: currentTL.userId,
-          event: 'team_leader.replaced',
-          description: `Chuyển giao Team Leader team ${team.name} từ ${currentTL.user.user_information?.name || ''} sang ${user.user_information?.name || ''}`,
-          properties: {
-            team_id: teamId,
-            team_name: team.name,
-            old_tl_id: currentTL.userId,
-            new_tl_id: userId,
-            reason,
-          },
-        });
-      }
-
-      // 5.2. Kiểm tra user đã trong team chưa
-      const existingMember = await tx.user_division.findFirst({
-        where: {
-          teamId,
-          userId,
-        },
-      });
-
-      if (existingMember) {
-        // Cập nhật thành Team Leader
-        await tx.user_division.update({
-          where: { id: existingMember.id },
-          data: {
-            role_id: await this.getRoleId(ROLE_NAMES.TEAM_LEADER),
-          },
-        });
-      } else {
-        // Thêm mới vào team
-        await tx.user_division.create({
-          data: {
-            userId,
-            teamId,
-            divisionId: team.division_id,
-            role_id: await this.getRoleId(ROLE_NAMES.TEAM_LEADER),
-          },
-        });
-      }
-
-      // 5.3. Cập nhật role trong user_information
-      await tx.user_information.updateMany({
-        where: { user_id: userId },
-        data: { role_id: await this.getRoleId(ROLE_NAMES.TEAM_LEADER) },
-      });
-
-      // 5.4. Log gán TL mới
-      await this.logActivity(tx, {
-        managerId,
-        targetUserId: userId,
-        event: 'team_leader.assigned',
-        description: `Gán Team Leader team ${team.name} cho ${user.user_information?.name || ''}`,
-        properties: {
-          team_id: teamId,
-          team_name: team.name,
-          tl_id: userId,
-          reason,
-          replaced_tl: currentTL?.userId || null,
-        },
-      });
-
-      return { currentTL, newTL: user, team };
+    // Log activity
+    await this.logActivityUnified(tx, {
+      managerId,
+      targetUserId: userId,
+      event: 'project_manager.assigned',
+      description: `Gán PM project ${project.name} cho ${user.user_information?.name || user.email}`,
+      properties: {
+        project_id: context.projectId,
+        project_name: project.name,
+        pm_id: userId,
+        reason: assignment?.reason,
+        replaced_pm: currentPM?.user_id || null,
+      },
     });
 
     return {
+      userId,
       success: true,
-      message: currentTL 
-        ? `Chuyển giao Team Leader thành công từ ${result.currentTL?.user.user_information?.name || ''} sang ${result.newTL.user_information?.name || ''}`
-        : `Gán Team Leader thành công cho ${result.newTL.user_information?.name || ''}`,
-      team: {
-        id: result.team.id,
-        name: result.team.name,
+      message: `Gán PM thành công cho project ${project.name}`,
+      user: {
+        id: user.id,
+        name: user.user_information?.name || '',
+        email: user.email,
+        role: {
+          id: role.id,
+          name: role.name,
+        },
       },
-      newTL: {
-        id: result.newTL.id,
-        name: result.newTL.user_information?.name || '',
-        email: result.newTL.email,
+      context: {
+        project: {
+          id: project.id,
+          name: project.name,
+          code: project.code,
+        },
       },
-      previousTL: result.currentTL ? {
-        id: result.currentTL.userId,
-        name: result.currentTL.user.user_information?.name || '',
-        email: result.currentTL.user.email,
-      } : null,
+      replacedUser: currentPM ? {
+        id: currentPM.user_id,
+        name: currentPM.user.user_information?.name || '',
+        email: currentPM.user.email,
+      } : undefined,
     };
+  }
+
+  /**
+   * Assign Team Leader với logic chuyển giao
+   */
+  private async assignTeamLeaderUnified(params: {
+    userId: number;
+    role: any;
+    context?: any;
+    assignment?: any;
+    options?: any;
+    managerId: number;
+    tx: any;
+  }): Promise<AssignmentResultDto> {
+    const { userId, role, context, assignment, options, managerId, tx } = params;
+    
+    if (!context?.teamId) {
+      throw new BadRequestException('TEAM_LEADER role yêu cầu teamId');
+    }
+
+    // Validate team access
+    const team = await this.validateTeamAccess(context.teamId, managerId);
+    const user = await this.validateUserExists(userId);
+
+    // Kiểm tra Team Leader hiện tại
+    const currentTL = await this.getCurrentTeamLeader(context.teamId);
+
+    if (currentTL && !options?.confirmTransfer) {
+      return {
+        userId,
+        success: false,
+        message: 'Team đã có Team Leader. Cần confirmTransfer: true để chuyển giao',
+        error: 'REQUIRES_CONFIRMATION',
+      };
+    }
+
+    // Thực hiện chuyển giao TL
+    if (currentTL) {
+      await tx.user_division.updateMany({
+        where: {
+          teamId: context.teamId,
+          userId: currentTL.userId,
+          role: { name: ROLE_NAMES.TEAM_LEADER },
+        },
+        data: {
+          role_id: await this.getRoleId(ROLE_NAMES.EMPLOYEE),
+        },
+      });
+
+      await tx.user_information.updateMany({
+        where: { user_id: currentTL.userId },
+        data: { role_id: await this.getRoleId(ROLE_NAMES.EMPLOYEE) },
+      });
+    }
+
+    // Gán TL mới
+    const existingMember = await tx.user_division.findFirst({
+      where: {
+        teamId: context.teamId,
+        userId,
+      },
+    });
+
+    if (existingMember) {
+      await tx.user_division.update({
+        where: { id: existingMember.id },
+        data: { role_id: role.id },
+      });
+    } else {
+      await tx.user_division.create({
+        data: {
+          userId,
+          teamId: context.teamId,
+          divisionId: team.division_id,
+          role_id: role.id,
+        },
+      });
+    }
+
+    // Cập nhật role trong user_information
+    await tx.user_information.updateMany({
+      where: { user_id: userId },
+      data: { role_id: role.id },
+    });
+
+    // Log activity
+    await this.logActivityUnified(tx, {
+      managerId,
+      targetUserId: userId,
+      event: 'team_leader.assigned',
+      description: `Gán Team Leader team ${team.name} cho ${user.user_information?.name || user.email}`,
+      properties: {
+        team_id: context.teamId,
+        team_name: team.name,
+        tl_id: userId,
+        reason: assignment?.reason,
+        replaced_tl: currentTL?.userId || null,
+      },
+    });
+
+    return {
+      userId,
+      success: true,
+      message: `Gán Team Leader thành công cho team ${team.name}`,
+      user: {
+        id: user.id,
+        name: user.user_information?.name || '',
+        email: user.email,
+        role: {
+          id: role.id,
+          name: role.name,
+        },
+      },
+      context: {
+        team: {
+          id: team.id,
+          name: team.name,
+        },
+      },
+      replacedUser: currentTL ? {
+        id: currentTL.userId,
+        name: currentTL.user.user_information?.name || '',
+        email: currentTL.user.email,
+      } : undefined,
+    };
+  }
+
+  /**
+   * Assign Division Head với logic chuyển giao
+   */
+  private async assignDivisionHeadUnified(params: {
+    userId: number;
+    role: any;
+    context?: any;
+    assignment?: any;
+    options?: any;
+    managerId: number;
+    tx: any;
+  }): Promise<AssignmentResultDto> {
+    const { userId, role, context, assignment, options, managerId, tx } = params;
+    
+    if (!context?.divisionId) {
+      throw new BadRequestException('DIVISION_HEAD role yêu cầu divisionId');
+    }
+
+    // Validate division head assignment permission (chỉ HR Manager+)
+    await this.validateDivisionHeadAssignmentPermission(managerId);
+
+    const division = await this.validateDivisionExists(context.divisionId);
+    const user = await this.validateUserExists(userId);
+
+    // Kiểm tra Division Head hiện tại
+    const currentDivisionHead = await this.getCurrentDivisionHead(context.divisionId);
+
+    if (currentDivisionHead && !options?.confirmTransfer) {
+      return {
+        userId,
+        success: false,
+        message: `Division "${division.name}" đã có Division Head. Cần confirmTransfer: true để chuyển giao`,
+        error: 'REQUIRES_CONFIRMATION',
+      };
+    }
+
+    // Thu hồi Division Head cũ nếu có
+    if (currentDivisionHead) {
+      await tx.user_information.updateMany({
+        where: { 
+          user_id: currentDivisionHead.id,
+          role: { name: ROLE_NAMES.DIVISION_HEAD }
+        },
+        data: { role_id: await this.getRoleId(ROLE_NAMES.EMPLOYEE) },
+      });
+    }
+
+    // Gán Division Head mới
+    await tx.user_information.updateMany({
+      where: { user_id: userId },
+      data: { role_id: role.id },
+    });
+
+    // Đảm bảo user thuộc division này
+    await tx.user_division.upsert({
+      where: {
+        id: await this.getUserDivisionId(userId, context.divisionId) || 0,
+      },
+      update: { role_id: role.id },
+      create: {
+        userId: userId,
+        divisionId: context.divisionId,
+        role_id: role.id,
+      },
+    });
+
+    // Log activity
+    await this.logActivityUnified(tx, {
+      managerId,
+      targetUserId: userId,
+      event: 'division_head.assigned',
+      description: `Gán Division Head division ${division.name} cho ${user.user_information?.name || user.email}`,
+      properties: {
+        division_id: context.divisionId,
+        division_name: division.name,
+        division_head_id: userId,
+        reason: assignment?.reason,
+        replaced_division_head: currentDivisionHead?.id || null,
+      },
+    });
+
+    return {
+      userId,
+      success: true,
+      message: `Gán Division Head thành công cho division ${division.name}`,
+      user: {
+        id: user.id,
+        name: user.user_information?.name || '',
+        email: user.email,
+        role: {
+          id: role.id,
+          name: role.name,
+        },
+      },
+      context: {
+        division: {
+          id: division.id,
+          name: division.name,
+        },
+      },
+      replacedUser: currentDivisionHead ? {
+        id: currentDivisionHead.id,
+        name: currentDivisionHead.user_information?.name || '',
+        email: currentDivisionHead.email,
+      } : undefined,
+    };
+  }
+
+  /**
+   * Assign general role (không cần context đặc biệt)
+   */
+  private async assignGeneralRoleUnified(params: {
+    userId: number;
+    role: any;
+    context?: any;
+    assignment?: any;
+    options?: any;
+    managerId: number;
+    tx: any;
+  }): Promise<AssignmentResultDto> {
+    const { userId, role, assignment, managerId, tx } = params;
+
+    const user = await this.validateUserExists(userId);
+
+    // Lưu role cũ để log
+    const oldUserInfo = await tx.user_information.findFirst({
+      where: { user_id: userId },
+      include: { role: true },
+    });
+
+    // Cập nhật role trong user_information
+    await tx.user_information.updateMany({
+      where: { user_id: userId },
+      data: { role_id: role.id },
+    });
+
+    // Cập nhật user_division nếu có
+    await tx.user_division.updateMany({
+      where: { userId },
+      data: { role_id: role.id },
+    });
+
+    // Log activity
+    await this.logActivityUnified(tx, {
+      managerId,
+      targetUserId: userId,
+      event: 'role.assigned',
+      description: `Gán role ${role.name} cho ${user.user_information?.name || user.email}`,
+      properties: {
+        old_role: oldUserInfo?.role?.name,
+        new_role: role.name,
+        old_role_id: oldUserInfo?.role?.id,
+        new_role_id: role.id,
+        reason: assignment?.reason,
+      },
+    });
+
+    return {
+      userId,
+      success: true,
+      message: `Gán role ${role.name} thành công`,
+      user: {
+        id: user.id,
+        name: user.user_information?.name || '',
+        email: user.email,
+        role: {
+          id: role.id,
+          name: role.name,
+        },
+      },
+    };
+  }
+
+  /**
+   * Log activity cho unified API
+   */
+  private async logActivityUnified(
+    tx: any,
+    params: {
+      managerId: number;
+      targetUserId: number;
+      event: string;
+      description: string;
+      properties: any;
+    },
+  ) {
+    const managerRole = await this.permissionService.getUserRole(params.managerId);
+    const causerType = managerRole?.name === ROLE_NAMES.DIVISION_HEAD 
+      ? CAUSER_TYPES.DIVISION_MASTER 
+      : CAUSER_TYPES.USERS;
+
+    await tx.activity_log.create({
+      data: {
+        log_name: 'unified_role_assignment',
+        causer_id: params.managerId,
+        causer_type: causerType,
+        subject_id: params.targetUserId,
+        subject_type: SUBJECT_TYPES.USERS,
+        event: params.event,
+        description: params.description,
+        properties: JSON.stringify(params.properties),
+        batch_uuid: '',
+      },
+    });
   }
 
   /**
@@ -639,7 +910,7 @@ export class RoleAssignmentService {
   /**
    * Validate user access
    */
-  private async validateUserAccess(userId: number, managerId: number) {
+  private async validateUserAccess(userId: number, _managerId: number) {
     const user = await this.prisma.users.findUnique({
       where: { id: userId, deleted_at: null },
       select: {

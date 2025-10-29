@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsEnum, IsInt, MaxLength } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsEnum, IsInt } from 'class-validator';
 
 export class CreateAssetRequestDto {
   @ApiProperty({

@@ -53,7 +53,7 @@ export class PermissionLoggingInterceptor implements NestInterceptor {
     const now = Date.now();
     return next.handle().pipe(
       tap({
-        next: (response) => {
+        next: (_response) => {
           const duration = Date.now() - now;
           this.logger.log(
             `${userInfo} successfully accessed ${method} ${url} in ${duration}ms`,

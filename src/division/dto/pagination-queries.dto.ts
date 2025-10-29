@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsOptional, IsString, IsInt, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsBoolean, IsEnum } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { DivisionStatus, DivisionType } from '@prisma/client';
 
 export class DivisionPaginationDto extends PaginationDto {
   @ApiProperty({
@@ -28,29 +29,21 @@ export class DivisionPaginationDto extends PaginationDto {
 
   @ApiProperty({
     description: 'Lọc theo loại phòng ban',
-    example: 1,
+    example: DivisionType.TECHNICAL,
     required: false,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  })
-  @IsInt()
-  type?: number;
+  @IsEnum(DivisionType)
+  type?: DivisionType;
 
   @ApiProperty({
     description: 'Lọc theo trạng thái phòng ban',
-    example: 1,
+    example: DivisionStatus.ACTIVE,
     required: false,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  })
-  @IsInt()
-  status?: number;
+  @IsEnum(DivisionStatus)
+  status?: DivisionStatus;
 
   @ApiProperty({
     description: 'Lọc theo cấp độ phòng ban',

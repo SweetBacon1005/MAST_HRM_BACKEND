@@ -14,7 +14,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 1, // Technology Division
       teamId: null,
       description: 'System Administrator',
-      teamLeader: null,
     },
     {
       userId: users[1].id,
@@ -22,7 +21,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 2, // Human Resources
       teamId: null,
       description: 'HR Manager',
-      teamLeader: null,
     },
     {
       userId: users[2].id,
@@ -30,7 +28,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 4, // Development Team A
       teamId: 1, // Backend Team
       description: 'Backend Team Leader',
-      teamLeader: 1,
     },
     {
       userId: users[3].id,
@@ -38,7 +35,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 4, // Development Team A
       teamId: 2, // Frontend Team
       description: 'Frontend Team Leader',
-      teamLeader: 1,
     },
     {
       userId: users[4].id,
@@ -46,7 +42,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 5, // Development Team B
       teamId: 3, // Mobile Team
       description: 'Mobile Developer',
-      teamLeader: 0,
     },
     {
       userId: users[5].id,
@@ -54,7 +49,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 3, // Quality Assurance
       teamId: 4, // QA Team
       description: 'Senior QA Tester',
-      teamLeader: 0,
     },
     {
       userId: users[6].id,
@@ -62,7 +56,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 1, // Technology Division
       teamId: 5, // DevOps Team
       description: 'DevOps Engineer',
-      teamLeader: 0,
     },
     {
       userId: users[7].id,
@@ -70,7 +63,6 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       divisionId: 1, // Technology Division
       teamId: 6, // UI/UX Team
       description: 'UI/UX Designer',
-      teamLeader: 0,
     },
   ];
 

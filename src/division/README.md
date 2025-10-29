@@ -14,9 +14,10 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 ### Division Assignment Management
 
 - **Assignment CRUD**: Quản lý phân công nhân viên vào phòng ban
-- **Time-based Assignment**: Phân công theo thời gian (start_date, end_date)
-- **Contract Integration**: Liên kết với hợp đồng lao động
-- **Conflict Prevention**: Tránh trùng lặp phân công trong cùng thời gian
+- **Role Assignment**: Gán role cho user trong division
+- **Team Assignment**: Gán user vào team trong division
+- **Flexible Management**: Quản lý mô tả và team leader
+- **Conflict Prevention**: Tránh trùng lặp phân công user trong cùng division
 
 ## API Endpoints
 
@@ -32,11 +33,12 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 
 ### Division Assignment Management
 
-- `POST /divisions/assignments` - Tạo phân công phòng ban
-- `GET /divisions/assignments` - Lấy danh sách phân công có phân trang
-- `GET /divisions/assignments/:id` - Lấy thông tin chi tiết phân công
-- `PATCH /divisions/assignments/:id` - Cập nhật phân công
-- `DELETE /divisions/assignments/:id` - Xóa phân công
+- `POST /divisions/user-assignments` - Thêm user vào division
+- `GET /divisions/user-assignments` - Lấy danh sách user assignments có phân trang
+- `GET /divisions/user-assignments/:id` - Lấy thông tin chi tiết assignment
+- `PATCH /divisions/user-assignments/:id` - Cập nhật user assignment
+- `DELETE /divisions/user-assignments/:id` - Xóa user khỏi division
+- `GET /divisions/:id/users` - Lấy danh sách users trong division
 
 ## Permissions
 
@@ -77,17 +79,21 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 }
 ```
 
-### Division Assignment (divisions_assignments)
+### User Division Assignment (user_division)
 
 ```typescript
 {
   id: number;
-  division_id: number;
-  user_id: number;
-  start_date: Date;
-  end_date: Date;
-  contract_id?: number;
-  note?: string;
+  userId: number;
+  user: User;
+  role_id?: number;
+  role?: Role;
+  divisionId?: number;
+  division?: Division;
+  teamId?: number;
+  team?: Team;
+  description?: string;
+  teamLeader?: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -105,12 +111,12 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
    - Không thể xóa phòng ban có nhân viên
    - Không thể xóa phòng ban có dự án
 
-### Assignment Rules
+### User Division Assignment Rules
 
-1. **Entity Validation**: Division, User, Contract (nếu có) phải tồn tại
-2. **Date Validation**: Ngày bắt đầu phải nhỏ hơn ngày kết thúc
-3. **Conflict Prevention**: Không được trùng lặp phân công trong cùng thời gian
-4. **Time Range Overlap**: Kiểm tra chồng lấn thời gian phân công
+1. **Entity Validation**: Division, User, Role (nếu có), Team (nếu có) phải tồn tại
+2. **Team Validation**: Team phải thuộc về division được chỉ định
+3. **Conflict Prevention**: User không được gán vào cùng division nhiều lần
+4. **Role Consistency**: Role phải phù hợp với division context
 
 ## Pagination & Filtering
 
@@ -123,12 +129,13 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 - `level` - Lọc theo cấp độ
 - `is_active_project` - Lọc theo trạng thái dự án hoạt động
 
-### Assignment Pagination
+### User Division Assignment Pagination
 
-- `division_id` - Lọc theo phòng ban
-- `user_id` - Lọc theo người dùng
-- `start_date` - Lọc theo ngày bắt đầu
-- `end_date` - Lọc theo ngày kết thúc
+- `search` - Tìm kiếm theo tên user hoặc division
+- `divisionId` - Lọc theo division
+- `userId` - Lọc theo user
+- `teamId` - Lọc theo team
+- `role_id` - Lọc theo role
 
 ## Usage Examples
 
@@ -151,16 +158,17 @@ POST /divisions
 GET /divisions/hierarchy?parent_id=1
 ```
 
-### Tạo phân công nhân viên
+### Thêm user vào division
 
 ```typescript
-POST /divisions/assignments
+POST /divisions/user-assignments
 {
-  "division_id": 1,
-  "user_id": 5,
-  "start_date": "2024-01-01",
-  "end_date": "2024-12-31",
-  "note": "Phân công làm việc tại phòng ban mới"
+  "userId": 5,
+  "divisionId": 1,
+  "role_id": 2,
+  "teamId": 1,
+  "description": "Developer chính của team",
+  "teamLeader": 3
 }
 ```
 

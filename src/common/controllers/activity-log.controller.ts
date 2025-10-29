@@ -3,7 +3,6 @@ import {
   Get,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,

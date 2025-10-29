@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { DivisionStatus, DivisionType } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
 import {
   IsString,
   IsOptional,
@@ -8,6 +9,7 @@ import {
   Min,
   MaxLength,
   IsBoolean,
+  IsEnum,
 } from 'class-validator';
 
 export class CreateDivisionDto {
@@ -31,23 +33,21 @@ export class CreateDivisionDto {
 
   @ApiProperty({
     description: 'Loại phòng ban',
-    example: 1,
+    example: DivisionType.TECHNICAL,
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Loại phòng ban phải là số nguyên' })
-  type?: number;
+  @IsEnum(DivisionType)
+  type?: DivisionType;
 
   @ApiProperty({
     description: 'Trạng thái phòng ban',
-    example: 1,
+    example: DivisionStatus.ACTIVE,
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Trạng thái phòng ban phải là số nguyên' })
-  status?: number;
+  @IsEnum(DivisionStatus)
+  status?: DivisionStatus;
 
   @ApiProperty({
     description: 'Cấp độ phòng ban',
@@ -55,9 +55,7 @@ export class CreateDivisionDto {
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Cấp độ phòng ban phải là số nguyên' })
-  @Min(1, { message: 'Cấp độ phòng ban phải lớn hơn 0' })
+  @Transform(({ value }) => Number(value))
   level?: number;
 
   @ApiProperty({
@@ -76,9 +74,7 @@ export class CreateDivisionDto {
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'ID phòng ban cha phải là số nguyên' })
-  @Min(1, { message: 'ID phòng ban cha phải lớn hơn 0' })
+  @Transform(({ value }) => Number(value))
   parent_id?: number;
 
   @ApiProperty({
@@ -104,8 +100,6 @@ export class CreateDivisionDto {
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Tổng số thành viên phải là số nguyên' })
-  @Min(0, { message: 'Tổng số thành viên không được âm' })
+  @Transform(({ value }) => Number(value))
   total_member?: number;
 }

@@ -73,6 +73,24 @@ export class RequestPaginationDto extends PaginationDto {
   @IsOptional()
   @IsString()
   requester_role?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo team ID (Division Head có thể filter teams trong division)',
+    example: 5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  team_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Chỉ lấy high priority requests (từ leadership roles hoặc urgent requests)',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  high_priority_only?: boolean;
 }
 
 export class RemoteWorkRequestPaginationDto extends RequestPaginationDto {

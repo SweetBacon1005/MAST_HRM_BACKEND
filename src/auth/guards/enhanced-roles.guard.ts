@@ -171,10 +171,11 @@ export class EnhancedRolesGuard implements CanActivate {
   }
 
   private async checkTeamLeader(userId: number): Promise<boolean> {
-    const teamLeaderRecord = await this.prisma.user_division.findFirst({
+    // Kiểm tra user có phải là team leader không thông qua bảng teams
+    const teamLeaderRecord = await this.prisma.teams.findFirst({
       where: {
-        userId,
-        teamLeader: userId,
+        leader_id: userId,
+        deleted_at: null,
       },
     });
 

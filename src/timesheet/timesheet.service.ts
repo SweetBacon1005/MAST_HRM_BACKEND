@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { TIMESHEET_ERRORS, USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import {
   DayOffDuration,
   DayOffStatus,
@@ -60,7 +61,7 @@ export class TimesheetService {
       where: { id: userId, deleted_at: null },
     });
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     // Kiểm tra xem có day-off được duyệt cho ngày này không
@@ -80,9 +81,7 @@ export class TimesheetService {
       );
 
       if (!needsAttendance) {
-        throw new BadRequestException(
-          'Ngày này đã có nghỉ phép toàn thời gian được duyệt, không cần tạo timesheet',
-        );
+        throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
       }
 
       // Nếu là nghỉ nửa ngày, cho phép tạo timesheet nhưng link với day-off
@@ -101,7 +100,7 @@ export class TimesheetService {
     });
 
     if (existingTimesheet) {
-      throw new BadRequestException('Timesheet cho ngày này đã tồn tại');
+      throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
     }
 
     return this.prisma.time_sheets.create({
@@ -187,8 +186,22 @@ export class TimesheetService {
       this.prisma.time_sheets.count({ where }),
     ]);
 
+    // Thêm requests cho mỗi timesheet
+    const enhancedData = await Promise.all(
+      data.map(async (timesheet) => {
+        const requests = await this.getRequestsForDate(
+          userId,
+          timesheet.work_date,
+        );
+        return {
+          ...timesheet,
+          requests,
+        };
+      }),
+    );
+
     return buildPaginationResponse(
-      data,
+      enhancedData,
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
@@ -311,7 +324,7 @@ export class TimesheetService {
         });
 
         if (!user) {
-          throw new NotFoundException('Không tìm thấy người dùng');
+          throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
         let face_identified: FaceIdentifiedDto | null = null;
@@ -493,7 +506,7 @@ export class TimesheetService {
         });
 
         if (!user) {
-          throw new NotFoundException('Không tìm thấy người dùng');
+          throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
         let face_identified: FaceIdentifiedDto | null = null;
@@ -546,7 +559,7 @@ export class TimesheetService {
         });
 
         if (!existingCheckin) {
-          throw new BadRequestException('Bạn chưa check-in hôm nay');
+          throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
         }
 
         // Kiểm tra đã check-out chưa
@@ -560,7 +573,7 @@ export class TimesheetService {
         });
 
         if (existingCheckout) {
-          throw new BadRequestException('Bạn đã check-out hôm nay rồi');
+          throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_SUBMITTED);
         }
 
         // Tìm session đang mở để checkout
@@ -574,9 +587,7 @@ export class TimesheetService {
         });
 
         if (!openSession) {
-          throw new BadRequestException(
-            'Không tìm thấy phiên làm việc đang mở. Vui lòng liên hệ quản trị viên.',
-          );
+          throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
         }
 
         // Tìm timesheet hôm nay
@@ -589,13 +600,11 @@ export class TimesheetService {
         });
 
         if (!todayTimesheet) {
-          throw new BadRequestException('Không tìm thấy timesheet hôm nay');
+          throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
         }
 
         if (!todayTimesheet.checkin) {
-          throw new BadRequestException(
-            'Timesheet không có thông tin check-in',
-          );
+          throw new BadRequestException(TIMESHEET_ERRORS.INVALID_WORK_TIME);
         }
 
         // Tính toán thời gian làm việc
@@ -671,7 +680,7 @@ export class TimesheetService {
             morning_minutes: workTimeMorning,
             afternoon_minutes: workTimeAfternoon,
           },
-          message: 'Check-out thành công',
+          message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
         };
       },
       {
@@ -1766,7 +1775,7 @@ export class TimesheetService {
     });
 
     if (existing) {
-      throw new BadRequestException('Timesheet cho ngày này đã tồn tại');
+      throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
     }
 
     return this.prisma.time_sheets.create({
@@ -1889,5 +1898,156 @@ export class TimesheetService {
         // Có thể thêm trường locked_by: lockerId, locked_at: new Date() nếu cần
       },
     });
+  }
+
+  /**
+   * Lấy danh sách requests trong ngày cụ thể
+   */
+  private async getRequestsForDate(userId: number, workDate: Date) {
+    const dateStr = workDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    // Lấy tất cả các loại requests trong ngày đó
+    const [
+      remoteWorkRequests,
+      dayOffRequests,
+      overtimeRequests,
+      lateEarlyRequests,
+      forgotCheckinRequests,
+    ] = await Promise.all([
+      // Remote work requests
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: new Date(dateStr),
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          remote_type: true,
+          status: true,
+          reason: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      // Day off requests
+      this.prisma.day_offs.findMany({
+        where: {
+          user_id: userId,
+          work_date: new Date(dateStr),
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          reason: true,
+          duration: true,
+          work_date: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      // Overtime requests
+      this.prisma.over_times_history.findMany({
+        where: {
+          user_id: userId,
+          work_date: new Date(dateStr),
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          start_time: true,
+          end_time: true,
+          total_hours: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      // Late/Early requests
+      this.prisma.late_early_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: new Date(dateStr),
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          request_type: true,
+          status: true,
+          reason: true,
+          late_minutes: true,
+          early_minutes: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      // Forgot checkin requests
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: new Date(dateStr),
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+          checkin_time: true,
+          checkout_time: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+    ]);
+
+    // Combine và format tất cả requests với type identifier
+    const allRequests = [
+      ...remoteWorkRequests.map(req => ({
+        ...req,
+        type: req.remote_type, // Map remote_type to type for consistency
+        request_type: 'remote_work' as const,
+      })),
+      ...dayOffRequests.map(req => ({
+        ...req,
+        request_type: 'day_off' as const,
+      })),
+      ...overtimeRequests.map(req => ({
+        ...req,
+        duration_hours: req.total_hours, // Map total_hours to duration_hours for consistency
+        request_type: 'overtime' as const,
+        // Format time fields
+        start_time: req.start_time?.toTimeString().slice(0, 5),
+        end_time: req.end_time?.toTimeString().slice(0, 5),
+      })),
+      ...lateEarlyRequests.map(req => ({
+        ...req,
+        type: req.request_type, // Map request_type to type for consistency
+        request_type: 'late_early' as const,
+      })),
+      ...forgotCheckinRequests.map(req => ({
+        ...req,
+        request_type: 'forgot_checkin' as const,
+        // Format time fields
+        checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
+        checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
+      })),
+    ];
+
+    // Sort by created_at desc
+    return allRequests.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   }
 }

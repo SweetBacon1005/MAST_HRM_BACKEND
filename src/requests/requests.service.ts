@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { REQUEST_ERRORS, USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import {
   DayOffStatus,
   DayOffType,
@@ -52,13 +53,13 @@ export class RequestsService {
     });
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
   }
 
   private validateDateRange(startDate: Date, endDate: Date): void {
     if (startDate > endDate) {
-      throw new BadRequestException('Ngày bắt đầu không thể sau ngày kết thúc');
+      throw new BadRequestException(REQUEST_ERRORS.INVALID_TIME_RANGE);
     }
   }
 
@@ -67,9 +68,7 @@ export class RequestsService {
     today.setHours(0, 0, 0, 0);
 
     if (!allowPast && date < today) {
-      throw new BadRequestException(
-        'Không thể tạo request cho ngày trong quá khứ',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.CANNOT_CREATE_PAST_DATE);
     }
   }
 
@@ -93,9 +92,7 @@ export class RequestsService {
     });
 
     if (existingRequest) {
-      throw new BadRequestException(
-        'Đã có đơn xin làm việc từ xa cho ngày này',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
     // Check day-off conflict
@@ -109,15 +106,11 @@ export class RequestsService {
     });
 
     if (dayOff) {
-      throw new BadRequestException(
-        'Không thể tạo đơn remote work cho ngày đã có nghỉ phép',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
     if (dto.remote_type === RemoteType.OFFICE) {
-      throw new BadRequestException(
-        'Không cần tạo đơn cho làm việc tại văn phòng',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
 
     // Tìm hoặc tạo timesheet cho ngày đó
@@ -1017,46 +1010,73 @@ export class RequestsService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    // Build where conditions for filtering
-    const whereConditions = this.buildWhereConditions(paginationDto);
+    // Determine access scope based on role
+    const accessScope = await this.determineAccessScope(requesterId!, requesterRole!);
 
-    // Apply role-based filtering
+    // Build role-based where conditions
+    const roleBasedConditions = this.buildRoleBasedWhereConditions(accessScope, paginationDto);
+
+    // Apply role-based filtering logic
     let userIds: number[] | undefined;
 
-    if (requesterRole === ROLE_NAMES.DIVISION_HEAD) {
-      // Division Head chỉ xem requests trong division mình quản lý
-      return await this.getDivisionRequests(requesterId!, paginationDto);
-    } else if (
-      requesterRole === ROLE_NAMES.ADMIN ||
-      requesterRole === ROLE_NAMES.SUPER_ADMIN
-    ) {
-      // Admin có thể xem tất cả hoặc filter theo division_id
+    if (accessScope.type === 'DIVISION_ONLY') {
+      // Division Head chỉ xem requests trong divisions mình quản lý
+      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
+        const divisionUserIds = await this.getDivisionUserIds(accessScope.divisionIds);
+        userIds = divisionUserIds;
+        
+        // Division Head có thể filter theo team trong division
+        if (paginationDto.team_id) {
+          const teamUserIds = await this.getTeamUserIds([paginationDto.team_id]);
+          userIds = userIds.filter(id => teamUserIds.includes(id));
+        }
+      } else {
+        // Không có division nào để quản lý
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+    } else if (accessScope.type === 'ALL_ACCESS') {
+      // Admin/HR có thể xem tất cả hoặc filter theo các tiêu chí
       if (paginationDto.division_id) {
-        const divisionUserIds = await this.getDivisionUserIds([
-          paginationDto.division_id,
-        ]);
+        const divisionUserIds = await this.getDivisionUserIds([paginationDto.division_id]);
         userIds = divisionUserIds;
       }
 
-      // Nếu admin chỉ muốn xem requests từ leads
+      // Filter theo leadership roles nếu leads_only=true
       if (paginationDto.leads_only) {
-        const leadUserIds = await this.getLeadUserIds(
-          paginationDto.division_id,
-        );
+        const leadUserIds = await this.getLeadUserIds(paginationDto.division_id);
         userIds = userIds
           ? userIds.filter((id) => leadUserIds.includes(id))
           : leadUserIds;
       }
+
+      // Filter theo team nếu có
+      if (paginationDto.team_id) {
+        const teamUserIds = await this.getTeamUserIds([paginationDto.team_id]);
+        userIds = userIds
+          ? userIds.filter(id => teamUserIds.includes(id))
+          : teamUserIds;
+      }
+    } else if (accessScope.type === 'TEAM_ONLY') {
+      // Team Leader/Project Manager chỉ xem requests từ team members
+      if (accessScope.teamIds && accessScope.teamIds.length > 0) {
+        const teamUserIds = await this.getTeamUserIds(accessScope.teamIds);
+        userIds = teamUserIds;
+      } else {
+        userIds = [requesterId!]; // Fallback to self-only
+      }
     } else {
-      // Các role khác chỉ xem requests của chính mình
+      // SELF_ONLY - chỉ xem requests của chính mình
       userIds = [requesterId!];
     }
 
-    // Nếu có filter theo role của requester
+    // Filter theo role của requester nếu có
     if (paginationDto.requester_role) {
-      const roleUserIds = await this.getUserIdsByRole(
-        paginationDto.requester_role,
-      );
+      const roleUserIds = await this.getUserIdsByRole(paginationDto.requester_role);
       userIds = userIds
         ? userIds.filter((id) => roleUserIds.includes(id))
         : roleUserIds;
@@ -1064,145 +1084,75 @@ export class RequestsService {
 
     // Nếu có userIds filter, sử dụng method getRequestsByUserIds
     if (userIds && userIds.length > 0) {
-      return await this.getRequestsByUserIds(userIds, paginationDto);
+      let result = await this.getRequestsByUserIds(userIds, paginationDto);
+      
+      // Apply high priority filter if requested
+      if (paginationDto.high_priority_only) {
+        result = await this.filterHighPriorityRequests(result, paginationDto);
+      }
+      
+      // Add metadata về access scope và filters
+      return {
+        ...result,
+        metadata: {
+          access_scope: accessScope.type,
+          managed_divisions: accessScope.divisionIds,
+          managed_teams: accessScope.teamIds,
+          filters_applied: {
+            leads_only: paginationDto.leads_only || false,
+            division_restriction: accessScope.type === 'DIVISION_ONLY',
+            team_restriction: accessScope.type === 'TEAM_ONLY',
+            high_priority_only: paginationDto.high_priority_only || false,
+            division_id: paginationDto.division_id,
+            team_id: paginationDto.team_id,
+            requester_role: paginationDto.requester_role,
+          }
+        }
+      };
     } else if (userIds && userIds.length === 0) {
       // Không có user nào match filter
-      return buildPaginationResponse(
+      return {
+        ...buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        ),
+        metadata: {
+          access_scope: accessScope.type,
+          managed_divisions: accessScope.divisionIds,
+          managed_teams: accessScope.teamIds,
+          filters_applied: {
+            leads_only: paginationDto.leads_only || false,
+            division_restriction: accessScope.type === 'DIVISION_ONLY',
+            team_restriction: accessScope.type === 'TEAM_ONLY',
+          }
+        }
+      };
+    }
+
+    // Fallback: return empty result if no conditions match
+    return {
+      ...buildPaginationResponse(
         [],
         0,
         paginationDto.page || 1,
         paginationDto.limit || 10,
-      );
-    }
-
-    if (paginationDto.status) {
-      whereConditions.status = paginationDto.status;
-    }
-
-    const dateFilter =
-      paginationDto.start_date && paginationDto.end_date
-        ? {
-            gte: new Date(paginationDto.start_date),
-            lte: new Date(paginationDto.end_date),
-          }
-        : undefined;
-
-    // Get all requests from different tables with unified structure
-    const [
-      remoteWorkData,
-      dayOffData,
-      overtimeData,
-      lateEarlyData,
-      forgotCheckinData,
-    ] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
-      }),
-      this.prisma.day_offs.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
-      }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          project: { select: { name: true, code: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
-      }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
-      }),
-      this.prisma.forgot_checkin_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
-      }),
-    ]);
-
-    // Combine and format all requests with type information
-    const allRequests = [
-      ...remoteWorkData.map((req) => ({
-        ...req,
-        request_type: 'REMOTE_WORK' as const,
-      })),
-      ...dayOffData.map((req) => ({
-        ...req,
-        request_type: 'DAY_OFF' as const,
-      })),
-      ...overtimeData.map((req) => ({
-        ...req,
-        request_type: 'OVERTIME' as const,
-        start_time: req.start_time?.toTimeString().slice(0, 5),
-        end_time: req.end_time?.toTimeString().slice(0, 5),
-      })),
-      ...lateEarlyData.map((req) => ({
-        ...req,
-        request_type: 'LATE_EARLY' as const,
-      })),
-      ...forgotCheckinData.map((req) => ({
-        ...req,
-        request_type: 'FORGOT_CHECKIN' as const,
-        checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
-        checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
-      })),
-    ];
-
-    // Sort by created_at desc (or other criteria)
-    const sortField =
-      orderBy && typeof orderBy === 'object' && orderBy.created_at
-        ? 'created_at'
-        : 'created_at';
-    const sortOrder =
-      orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc'
-        ? 'asc'
-        : 'desc';
-
-    allRequests.sort((a, b) => {
-      const aDate = new Date(a[sortField]).getTime();
-      const bDate = new Date(b[sortField]).getTime();
-      return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
-    });
-
-    // Apply pagination to the combined results
-    const total = allRequests.length;
-    const paginatedRequests = allRequests.slice(skip, skip + take);
-
-    return buildPaginationResponse(
-      paginatedRequests,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
+      ),
+      metadata: {
+        access_scope: accessScope.type,
+        managed_divisions: accessScope.divisionIds,
+        managed_teams: accessScope.teamIds,
+        filters_applied: {
+          leads_only: paginationDto.leads_only || false,
+          division_restriction: accessScope.type === 'DIVISION_ONLY',
+          team_restriction: accessScope.type === 'TEAM_ONLY',
+        }
+      }
+    };
   }
+
+  // ==================== EXISTING METHODS ====================
 
   async getAllMyRequests(
     userId: number,
@@ -2032,7 +1982,7 @@ export class RequestsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Không tìm thấy late/early request');
+      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
     const updatedRequest = await this.prisma.late_early_requests.update({
@@ -2049,7 +1999,7 @@ export class RequestsService {
 
     return {
       success: true,
-      message: 'Đã duyệt late/early request thành công',
+      message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
       data: updatedRequest,
     };
   }
@@ -2064,7 +2014,7 @@ export class RequestsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Không tìm thấy late/early request');
+      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
     const updatedRequest = await this.prisma.late_early_requests.update({
@@ -2079,7 +2029,7 @@ export class RequestsService {
 
     return {
       success: true,
-      message: 'Đã từ chối late/early request thành công',
+      message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
       data: updatedRequest,
     };
   }
@@ -2145,7 +2095,7 @@ export class RequestsService {
       case RequestType.FORGOT_CHECKIN:
         return await this.approveForgotCheckinRequest(id, approverId);
       default:
-        throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
+        throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
   }
 
@@ -2179,7 +2129,7 @@ export class RequestsService {
           rejectedReason,
         );
       default:
-        throw new BadRequestException(`Loại request không hợp lệ: ${type}`);
+        throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
   }
 
@@ -2205,9 +2155,7 @@ export class RequestsService {
     );
 
     if (existingRequest) {
-      throw new BadRequestException(
-        'Đã có đơn xin bổ sung chấm công cho ngày này',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
     // Validate thời gian checkin/checkout
@@ -2220,9 +2168,7 @@ export class RequestsService {
       );
 
       if (checkoutTime <= checkinTime) {
-        throw new BadRequestException(
-          'Thời gian checkout phải sau thời gian checkin',
-        );
+        throw new BadRequestException(REQUEST_ERRORS.INVALID_TIME_RANGE);
       }
     }
 
@@ -2657,5 +2603,270 @@ export class RequestsService {
     }
 
     return whereConditions;
+  }
+
+  // ==================== ENHANCED HELPER METHODS ====================
+
+  /**
+   * Lấy danh sách divisions mà user quản lý (cho Division Head)
+   */
+  private async getUserManagedDivisions(userId: number): Promise<number[]> {
+    // Lấy divisions mà user là Division Head
+    const userDivisions = await this.prisma.user_division.findMany({
+      where: {
+        userId: userId,
+        role: {
+          name: ROLE_NAMES.DIVISION_HEAD,
+        },
+      },
+      select: {
+        divisionId: true,
+      },
+    });
+
+    return [...new Set(userDivisions.map(ud => ud.divisionId).filter((id): id is number => id !== null))];
+  }
+
+  /**
+   * Xác định scope truy cập theo role
+   */
+  private async determineAccessScope(userId: number, role: string): Promise<{
+    type: 'DIVISION_ONLY' | 'ALL_ACCESS' | 'TEAM_ONLY' | 'SELF_ONLY';
+    divisionIds?: number[];
+    teamIds?: number[];
+  }> {
+    switch (role) {
+      case ROLE_NAMES.DIVISION_HEAD: {
+        const managedDivisions = await this.getUserManagedDivisions(userId);
+        return {
+          type: 'DIVISION_ONLY',
+          divisionIds: managedDivisions,
+        };
+      }
+
+      case ROLE_NAMES.SUPER_ADMIN:
+      case ROLE_NAMES.ADMIN:
+      case ROLE_NAMES.HR_MANAGER:
+        return {
+          type: 'ALL_ACCESS',
+        };
+
+      case ROLE_NAMES.PROJECT_MANAGER:
+      case ROLE_NAMES.TEAM_LEADER: {
+        // TODO: Implement team-based access later
+        const userTeams = await this.getUserManagedTeams(userId);
+        return {
+          type: 'TEAM_ONLY',
+          teamIds: userTeams,
+        };
+      }
+
+      default:
+        return {
+          type: 'SELF_ONLY',
+        };
+    }
+  }
+
+  /**
+   * Lấy danh sách leadership roles
+   */
+  private getLeadershipRoles(): string[] {
+    return [
+      ROLE_NAMES.DIVISION_HEAD,
+      ROLE_NAMES.PROJECT_MANAGER,
+      ROLE_NAMES.TEAM_LEADER,
+      ROLE_NAMES.HR_MANAGER,
+    ];
+  }
+
+  /**
+   * Lấy danh sách teams mà user quản lý (cho Team Leader/Project Manager)
+   */
+  private async getUserManagedTeams(userId: number): Promise<number[]> {
+    // Lấy teams mà user là Team Leader
+    const userTeams = await this.prisma.user_division.findMany({
+      where: {
+        userId: userId,
+        role: {
+          name: { in: [ROLE_NAMES.TEAM_LEADER, ROLE_NAMES.PROJECT_MANAGER] },
+        },
+        teamId: { not: null },
+      },
+      select: {
+        teamId: true,
+      },
+    });
+
+    return [...new Set(userTeams.map(ut => ut.teamId).filter((id): id is number => id !== null))];
+  }
+
+  /**
+   * Build role-based where conditions
+   */
+  private buildRoleBasedWhereConditions(
+    accessScope: any,
+    filters: RequestPaginationDto,
+  ): any {
+    const whereConditions: any = {};
+
+    // Apply access scope restrictions
+    if (accessScope.type === 'DIVISION_ONLY' && accessScope.divisionIds?.length > 0) {
+      whereConditions.user = {
+        user_division: {
+          some: {
+            divisionId: { in: accessScope.divisionIds },
+          },
+        },
+      };
+    } else if (accessScope.type === 'TEAM_ONLY' && accessScope.teamIds?.length > 0) {
+      whereConditions.user = {
+        user_division: {
+          some: {
+            teamId: { in: accessScope.teamIds },
+          },
+        },
+      };
+    } else if (accessScope.type === 'SELF_ONLY') {
+      // This will be handled by userIds filter in main logic
+      return whereConditions;
+    }
+
+    // Apply additional filters for Admin/HR
+    if (accessScope.type === 'ALL_ACCESS') {
+      // Admin can filter by division_id
+      if (filters.division_id) {
+        whereConditions.user = {
+          ...whereConditions.user,
+          user_division: {
+            some: {
+              divisionId: filters.division_id,
+            },
+          },
+        };
+      }
+
+      // Admin can filter by leads_only
+      if (filters.leads_only) {
+        const leadershipRoles = this.getLeadershipRoles();
+        whereConditions.user = {
+          ...whereConditions.user,
+          user_information: {
+            role: {
+              name: { in: leadershipRoles },
+            },
+          },
+        };
+      }
+
+      // Admin can filter by team_id
+      if (filters.team_id) {
+        whereConditions.user = {
+          ...whereConditions.user,
+          user_division: {
+            some: {
+              teamId: filters.team_id,
+            },
+          },
+        };
+      }
+    }
+
+    return whereConditions;
+  }
+
+  /**
+   * Check if role is admin-level
+   */
+  private isAdminRole(role: string): boolean {
+    return [
+      ROLE_NAMES.SUPER_ADMIN,
+      ROLE_NAMES.ADMIN,
+      ROLE_NAMES.HR_MANAGER,
+    ].includes(role as any);
+  }
+
+  /**
+   * Determine if request is high priority
+   */
+  private isHighPriorityRequest(request: any): boolean {
+    // 1. Requests từ leadership roles
+    if (this.getLeadershipRoles().includes(request.user?.user_information?.role?.name)) {
+      return true;
+    }
+
+    // 2. Day off > 3 ngày
+    if (request.type === 'day_off' && request.duration_days >= 3) {
+      return true;
+    }
+
+    // 3. Overtime > 4 giờ
+    if (request.type === 'overtime' && request.duration_hours >= 4) {
+      return true;
+    }
+
+    // 4. Requests pending > 3 ngày
+    if (request.status === 'PENDING') {
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      if (new Date(request.created_at) <= threeDaysAgo) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Lấy danh sách user IDs trong teams
+   */
+  private async getTeamUserIds(teamIds: number[]): Promise<number[]> {
+    const teamUsers = await this.prisma.user_division.findMany({
+      where: {
+        teamId: { in: teamIds },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    return [...new Set(teamUsers.map(tu => tu.userId))];
+  }
+
+  /**
+   * Filter requests để chỉ lấy high priority requests
+   */
+  private async filterHighPriorityRequests(
+    result: any,
+    paginationDto: RequestPaginationDto,
+  ): Promise<any> {
+    if (!result.data || result.data.length === 0) {
+      return result;
+    }
+
+    // Filter requests based on high priority criteria
+    const highPriorityRequests = result.data.filter((request: any) => 
+      this.isHighPriorityRequest(request)
+    );
+
+    // Rebuild pagination with filtered data
+    const filteredTotal = highPriorityRequests.length;
+    const page = paginationDto.page || 1;
+    const limit = paginationDto.limit || 10;
+    const totalPages = Math.ceil(filteredTotal / limit);
+
+    // Apply pagination to filtered results
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedData = highPriorityRequests.slice(startIndex, endIndex);
+
+    return {
+      data: paginatedData,
+      pagination: {
+        total: filteredTotal,
+        page: page,
+        limit: limit,
+        totalPages: totalPages,
+      },
+    };
   }
 }

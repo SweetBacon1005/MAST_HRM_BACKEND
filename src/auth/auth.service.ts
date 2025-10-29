@@ -22,6 +22,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './services/otp.service';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import { DEVICE_CATEGORIES, ASSET_STATUSES } from '../assets/constants/asset.constants';
+import { AUTH_ERRORS, USER_ERRORS } from '../common/constants/error-messages.constants';
 
 @Injectable()
 export class AuthService {
@@ -56,7 +57,7 @@ export class AuthService {
   async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<TokensDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
-      throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS);
     }
 
     const tokens = await this.getTokens(Number(user.id), user.email);
@@ -73,7 +74,7 @@ export class AuthService {
 
   private validatePasswordStrength(password: string): void {
     if (password.length < 8) {
-      throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự');
+      throw new BadRequestException(AUTH_ERRORS.PASSWORD_TOO_SHORT);
     }
 
     // Kiểm tra có ít nhất 1 chữ hoa, 1 chữ thường, 1 số
@@ -82,28 +83,26 @@ export class AuthService {
     const hasNumber = /\d/.test(password);
 
     if (!hasUpperCase || !hasLowerCase || !hasNumber) {
-      throw new BadRequestException(
-        'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số',
-      );
+      throw new BadRequestException(AUTH_ERRORS.PASSWORD_WEAK);
     }
 
     // Kiểm tra không chứa ký tự đặc biệt nguy hiểm
     const dangerousChars = /[<>'"&]/;
     if (dangerousChars.test(password)) {
-      throw new BadRequestException('Mật khẩu chứa ký tự không được phép');
+      throw new BadRequestException(AUTH_ERRORS.PASSWORD_INVALID_CHARS);
     }
   }
 
   async register(registerDto: RegisterDto): Promise<TokensDto> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
-      throw new BadRequestException('Email đã tồn tại');
+      throw new BadRequestException(AUTH_ERRORS.EMAIL_ALREADY_EXISTS);
     }
 
     // Validate email format (đã được validate trong DTO)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(registerDto.email)) {
-      throw new BadRequestException('Email không hợp lệ');
+      throw new BadRequestException(AUTH_ERRORS.INVALID_EMAIL_FORMAT);
     }
 
     // Kiểm tra độ mạnh mật khẩu
@@ -143,12 +142,12 @@ export class AuthService {
       // Lấy userId từ payload thay vì từ DTO
       const userId = payload.sub;
       if (!userId) {
-        throw new UnauthorizedException('Refresh token không hợp lệ');
+        throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
       }
 
       const user = await this.usersService.findById(Number(userId));
       if (!user || user.deleted_at) {
-        throw new UnauthorizedException('User không tồn tại hoặc đã bị xóa');
+        throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
       }
 
       const tokens = await this.getTokens(Number(user.id), user.email);
@@ -158,7 +157,7 @@ export class AuthService {
         throw error;
       }
       throw new UnauthorizedException(
-        'Refresh token không hợp lệ hoặc đã hết hạn',
+        AUTH_ERRORS.INVALID_REFRESH_TOKEN,
       );
     }
   }
@@ -167,13 +166,13 @@ export class AuthService {
     // TODO: Implement token blacklisting if needed
     // Có thể thêm logic để blacklist token hoặc invalidate session
 
-    return { message: 'Đăng xuất thành công' };
+    return { message: AUTH_ERRORS.LOGOUT_SUCCESS };
   }
 
   async getProfile(userId: number): Promise<any> {
     const user = await this.usersService.findById(userId);
     if (!user || user.deleted_at) {
-      throw new NotFoundException('User không tồn tại hoặc đã bị xóa');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     try {
@@ -399,14 +398,14 @@ export class AuthService {
     if (!user) {
       // Không trả về lỗi để tránh email enumeration attack
       return {
-        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+        message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       return {
-        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+        message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
@@ -417,7 +416,7 @@ export class AuthService {
     );
     if (!canSendOTP) {
       throw new BadRequestException(
-        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.',
+        AUTH_ERRORS.TOO_MANY_REQUESTS,
       );
     }
 
@@ -437,12 +436,12 @@ export class AuthService {
     // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Email không tồn tại trong hệ thống');
+      throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      throw new NotFoundException('Tài khoản đã bị xóa');
+      throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
     // Validate mật khẩu mới
@@ -455,7 +454,7 @@ export class AuthService {
       OtpType.PASSWORD_RESET,
     );
     if (!isValidOTP) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+      throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
     // Mã hóa mật khẩu mới
@@ -467,7 +466,7 @@ export class AuthService {
     // Cleanup tất cả OTP của user này sau khi reset thành công
     await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
 
-    return { message: 'Đặt lại mật khẩu thành công' };
+    return { message: AUTH_ERRORS.PASSWORD_RESET_SUCCESS };
   }
 
   async verifyOTP(
@@ -478,12 +477,12 @@ export class AuthService {
     // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Email không tồn tại trong hệ thống');
+      throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      throw new NotFoundException('Tài khoản đã bị xóa');
+      throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
     // Xác thực OTP và đánh dấu đã sử dụng
@@ -495,7 +494,7 @@ export class AuthService {
 
     if (!isValidOTP) {
       return {
-        message: 'Mã OTP không hợp lệ hoặc đã hết hạn',
+        message: AUTH_ERRORS.OTP_INVALID_OR_EXPIRED,
         isValid: false,
       };
     }
@@ -514,7 +513,7 @@ export class AuthService {
     );
 
     return {
-      message: 'Mã OTP hợp lệ',
+      message: AUTH_ERRORS.OTP_VALID,
       isValid: true,
       resetToken,
     };
@@ -533,18 +532,18 @@ export class AuthService {
 
       // Kiểm tra token có đúng purpose và email không
       if (decoded.purpose !== 'password_reset' || decoded.email !== email) {
-        throw new BadRequestException('Token không hợp lệ');
+        throw new BadRequestException(AUTH_ERRORS.INVALID_TOKEN);
       }
 
       // Kiểm tra user có tồn tại không
       const user = await this.usersService.findByEmail(email);
       if (!user) {
-        throw new NotFoundException('Email không tồn tại trong hệ thống');
+        throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
       }
 
       // Kiểm tra user có bị xóa không
       if (user.deleted_at) {
-        throw new NotFoundException('Tài khoản đã bị xóa');
+        throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
       }
 
       // Validate mật khẩu mới
@@ -559,13 +558,13 @@ export class AuthService {
       // Cleanup tất cả OTP của user này sau khi reset thành công
       await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
 
-      return { message: 'Đặt lại mật khẩu thành công' };
+      return { message: AUTH_ERRORS.PASSWORD_RESET_SUCCESS };
     } catch (error) {
       if (
         error.name === 'JsonWebTokenError' ||
         error.name === 'TokenExpiredError'
       ) {
-        throw new BadRequestException('Token không hợp lệ hoặc đã hết hạn');
+        throw new BadRequestException(AUTH_ERRORS.TOKEN_INVALID_OR_EXPIRED);
       }
       throw error;
     }
@@ -580,17 +579,17 @@ export class AuthService {
     // Lấy thông tin user
     const user = await this.usersService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User không tồn tại');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      throw new NotFoundException('Tài khoản đã bị xóa');
+      throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
     // Kiểm tra mật khẩu hiện tại
     if (!user.password) {
-      throw new BadRequestException('Tài khoản chưa có mật khẩu');
+      throw new BadRequestException(AUTH_ERRORS.ACCOUNT_NO_PASSWORD);
     }
 
     const isCurrentPasswordValid = await bcrypt.compare(
@@ -598,7 +597,7 @@ export class AuthService {
       user.password,
     );
     if (!isCurrentPasswordValid) {
-      throw new BadRequestException('Mật khẩu hiện tại không đúng');
+      throw new BadRequestException(AUTH_ERRORS.CURRENT_PASSWORD_INCORRECT);
     }
 
     // Validate mật khẩu mới
@@ -607,7 +606,7 @@ export class AuthService {
     // Kiểm tra mật khẩu mới có khác mật khẩu hiện tại không
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
     if (isSamePassword) {
-      throw new BadRequestException('Mật khẩu mới phải khác mật khẩu hiện tại');
+      throw new BadRequestException(AUTH_ERRORS.NEW_PASSWORD_SAME_AS_CURRENT);
     }
 
     // Mã hóa mật khẩu mới
@@ -616,7 +615,7 @@ export class AuthService {
     // Cập nhật mật khẩu
     await this.usersService.updatePassword(userId, hashedNewPassword);
 
-    return { message: 'Thay đổi mật khẩu thành công' };
+    return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
 
   async sendChangePasswordOTP(email: string): Promise<{ message: string }> {
@@ -625,14 +624,14 @@ export class AuthService {
     if (!user) {
       // Không trả về lỗi để tránh email enumeration attack
       return {
-        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+        message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       return {
-        message: 'Nếu email tồn tại, mã OTP đã được gửi đến email của bạn',
+        message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
@@ -643,7 +642,7 @@ export class AuthService {
     );
     if (!canSendOTP) {
       throw new BadRequestException(
-        'Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau 1 giờ.',
+        AUTH_ERRORS.TOO_MANY_REQUESTS,
       );
     }
 
@@ -663,12 +662,12 @@ export class AuthService {
     // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new NotFoundException('Email không tồn tại trong hệ thống');
+      throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
     // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
-      throw new NotFoundException('Tài khoản đã bị xóa');
+      throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
     // Validate mật khẩu mới
@@ -681,7 +680,7 @@ export class AuthService {
       OtpType.CHANGE_PASSWORD,
     );
     if (!isValidOTP) {
-      throw new BadRequestException('Mã OTP không hợp lệ hoặc đã hết hạn');
+      throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
     // Mã hóa mật khẩu mới
@@ -693,7 +692,7 @@ export class AuthService {
     // Cleanup tất cả OTP của user này sau khi change thành công
     await this.otpService.cleanupExpiredOTPs(email, OtpType.CHANGE_PASSWORD);
 
-    return { message: 'Thay đổi mật khẩu thành công' };
+    return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
 
   private async getTokens(userId: number, email: string): Promise<TokensDto> {

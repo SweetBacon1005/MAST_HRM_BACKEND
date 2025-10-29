@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -169,7 +170,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     return user;
@@ -196,7 +197,7 @@ export class UsersService {
     const user = await this.findById(id);
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     const updatedUser = await this.prisma.users.update({
@@ -216,7 +217,7 @@ export class UsersService {
       data: { deleted_at: new Date() },
     });
 
-    return { message: 'Xóa người dùng thành công' };
+    return { message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY };
   }
 
   async updatePassword(userId: number, hashedPassword: string) {

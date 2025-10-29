@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   Param,
 } from '@nestjs/common';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber } from 'class-validator';
 import {
   ApiTags,
   ApiOperation,
@@ -17,33 +18,111 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiProperty,
+  ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { RequirePermission } from '../decorators/require-permission.decorator';
-import { GetUser } from '../decorators/get-user.decorator';
 import { PrismaService } from '../../database/prisma.service';
 
-export class CreateRoleDto {
+export class CreateSystemRoleDto {
+  @ApiProperty({
+    description: 'Tên role',
+    example: 'system_admin',
+  })
+  @IsString()
+  @IsNotEmpty()
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Mô tả role',
+    example: 'Quản trị viên hệ thống',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
+
+  @ApiProperty({
+    description: 'Danh sách ID permissions',
+    example: [1, 2, 3],
+    type: [Number],
+  })
+  @IsArray()
+  @IsNumber({}, { each: true })
   permission_ids: number[];
 }
 
-export class UpdateRoleDto {
+export class UpdateSystemRoleDto {
+  @ApiPropertyOptional({
+    description: 'Tên role',
+    example: 'system_admin',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
   name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Mô tả role',
+    example: 'Quản trị viên hệ thống',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Danh sách ID permissions',
+    example: [1, 2, 3],
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsNumber({}, { each: true })
   permission_ids?: number[];
 }
 
 export class CreatePermissionDto {
+  @ApiProperty({
+    description: 'Tên permission',
+    example: 'user.create',
+  })
+  @IsString()
+  @IsNotEmpty()
   name: string;
+
+  @ApiPropertyOptional({
+    description: 'Mô tả permission',
+    example: 'Tạo người dùng mới',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 }
 
 export class SystemConfigDto {
+  @ApiProperty({
+    description: 'Key cấu hình',
+    example: 'max_login_attempts',
+  })
+  @IsString()
+  @IsNotEmpty()
   key: string;
+
+  @ApiProperty({
+    description: 'Giá trị cấu hình',
+    example: '5',
+  })
+  @IsString()
+  @IsNotEmpty()
   value: string;
+
+  @ApiPropertyOptional({
+    description: 'Mô tả cấu hình',
+    example: 'Số lần đăng nhập sai tối đa',
+  })
+  @IsOptional()
+  @IsString()
   description?: string;
 }
 
@@ -63,7 +142,7 @@ export class SystemAdminController {
     status: 201,
     description: 'Tạo role thành công',
   })
-  async createRole(@Body() createRoleDto: CreateRoleDto) {
+  async createRole(@Body() createRoleDto: CreateSystemRoleDto) {
     const { permission_ids, ...roleData } = createRoleDto;
 
     // Kiểm tra tên role đã tồn tại chưa
@@ -109,7 +188,7 @@ export class SystemAdminController {
   })
   async updateRole(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateRoleDto: UpdateRoleDto,
+    @Body() updateRoleDto: UpdateSystemRoleDto,
   ) {
     const { permission_ids, ...roleData } = updateRoleDto;
 

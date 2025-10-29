@@ -19,7 +19,7 @@ export class PermissionCheckerService {
   async canAccessRequest(
     context: UserPermissionContext,
     requestUserId: number,
-    requestType?: string,
+    _requestType?: string,
   ): Promise<boolean> {
     // Admin có thể xem tất cả
     if (this.hasAnyRole(context.roles, [ROLE_NAMES.SUPER_ADMIN, ROLE_NAMES.ADMIN])) {

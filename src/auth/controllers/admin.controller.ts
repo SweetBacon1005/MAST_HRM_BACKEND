@@ -654,54 +654,6 @@ export class AdminController {
 
   // === BULK OPERATIONS ===
 
-  @Post('bulk/assign-roles')
-  @RequirePermission('user.update')
-  @ApiOperation({ summary: 'Gán role hàng loạt cho nhiều user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán role hàng loạt thành công',
-  })
-  async bulkAssignRoles(
-    @Body() data: { user_ids: number[]; role_id: number },
-    @GetUser('id') adminId: number,
-  ) {
-    const { user_ids, role_id } = data;
-
-    // Kiểm tra role tồn tại
-    const role = await this.prisma.roles.findUnique({
-      where: { id: role_id },
-    });
-
-    if (!role) {
-      throw new Error('Role không tồn tại');
-    }
-
-    // Kiểm tra quyền gán role này
-    const hasPermission =
-      await this.roleHierarchyService.hasRoleManagementPermission(
-        adminId,
-        role.name,
-      );
-
-    if (!hasPermission) {
-      throw new Error(`Bạn không có quyền gán role ${role.name}`);
-    }
-
-    // Thực hiện gán role hàng loạt
-    const result = await this.prisma.user_information.updateMany({
-      where: {
-        user_id: { in: user_ids },
-      },
-      data: {
-        role_id: role_id,
-      },
-    });
-
-    return {
-      message: `Đã gán role ${role.name} cho ${result.count} người dùng`,
-      updated_count: result.count,
-    };
-  }
 
   @Post('bulk/transfer-division')
   @RequirePermission('personnel.transfer.create')

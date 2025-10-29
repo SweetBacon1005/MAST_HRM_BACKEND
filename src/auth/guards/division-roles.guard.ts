@@ -87,9 +87,13 @@ export class DivisionRolesGuard implements CanActivate {
 
     // Kiểm tra RequireTeamLeader
     if (requireTeamLeader) {
-      const isTeamLeader = userDivisions.some(
-        (userDiv) => userDiv.teamLeader === user.id,
-      );
+      // Kiểm tra user có phải là team leader không thông qua bảng teams
+      const isTeamLeader = await this.prisma.teams.findFirst({
+        where: {
+          leader_id: user.id,
+          deleted_at: null,
+        },
+      });
 
       if (!isTeamLeader) {
         throw new ForbiddenException(

@@ -32,15 +32,12 @@ import {
 import { GetUser } from '../decorators/get-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import {
-  AssignProjectManagerDto,
-  AssignTeamLeaderDto,
-  AssignDivisionHeadDto,
-} from '../dto/role-assignment.dto';
-import {
-  AssignRoleDto,
-  BulkAssignRoleDto,
   UpdateUserRoleDto,
 } from '../dto/role-management.dto';
+import {
+  UnifiedRoleAssignmentDto,
+  UnifiedRoleAssignmentResponseDto,
+} from '../dto/unified-role-assignment.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
@@ -58,6 +55,93 @@ export class RoleManagementController {
     private readonly roleAssignmentService: RoleAssignmentService,
     private readonly prisma: PrismaService,
   ) {}
+
+  // ==================== UNIFIED ROLE ASSIGNMENT API ====================
+
+  @Post('assign-unified')
+  @RequirePermission('role.update')
+  @ApiOperation({ 
+    summary: 'API thống nhất gán role cho user',
+    description: 'Gán role cho một hoặc nhiều user với logic nghiệp vụ đầy đủ. Thay thế tất cả các API gán role riêng lẻ.'
+  })
+  @ApiBody({ type: UnifiedRoleAssignmentDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Gán role thành công',
+    type: UnifiedRoleAssignmentResponseDto,
+    schema: {
+      example: {
+        success: true,
+        results: [
+          {
+            userId: 123,
+            success: true,
+            message: 'Gán PM thành công cho project ABC',
+            user: {
+              id: 123,
+              name: 'Nguyễn Văn A',
+              email: 'a.nguyen@company.com',
+              role: {
+                id: 4,
+                name: 'project_manager'
+              }
+            },
+            context: {
+              project: {
+                id: 10,
+                name: 'Project ABC',
+                code: 'ABC001'
+              }
+            },
+            replacedUser: {
+              id: 456,
+              name: 'Nguyễn Văn B',
+              email: 'b.nguyen@company.com'
+            }
+          }
+        ],
+        summary: {
+          total: 1,
+          successful: 1,
+          failed: 0
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu đầu vào không hợp lệ hoặc thiếu context yêu cầu',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Role project_manager yêu cầu projectId',
+        error: 'Bad Request'
+      }
+    }
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền gán role này',
+    schema: {
+      example: {
+        statusCode: 403,
+        message: 'Bạn không có quyền gán role project_manager',
+        error: 'Forbidden'
+      }
+    }
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy role, user, project, team hoặc division',
+  })
+  async assignRoleUnified(
+    @Body() dto: UnifiedRoleAssignmentDto,
+    @GetUser('id') managerId: number,
+  ): Promise<UnifiedRoleAssignmentResponseDto> {
+    return await this.roleAssignmentService.assignRoleUnified(dto, managerId);
+  }
+
+  // ==================== READ-ONLY ENDPOINTS ====================
 
   @Get('assignable-roles')
   @RequirePermission('role.read')
@@ -153,191 +237,6 @@ export class RoleManagementController {
     };
   }
 
-  @Post('assign-role')
-  @RequirePermission('role.update')
-  @ApiOperation({
-    summary: 'Gán role cho user (với kiểm tra phân cấp)',
-    deprecated: true,
-    description:
-      'API này sẽ được thay thế bởi /role-assignment/project-manager và /role-assignment/team-leader cho logic chuyển giao tốt hơn',
-  })
-  @ApiBody({ type: AssignRoleDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán role thành công',
-    schema: {
-      example: {
-        message: 'Gán role thành công',
-        user: {
-          id: 1,
-          name: 'Nguyễn Văn A',
-          email: 'user@example.com',
-          role: {
-            id: 2,
-            name: 'team_leader',
-            description: 'Team Leader',
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Không có quyền gán role này',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy user hoặc role',
-  })
-  async assignRole(
-    @Body() assignRoleDto: AssignRoleDto,
-    @GetUser('id') managerId: number,
-  ) {
-    const { userId, roleId, roleName } = assignRoleDto;
-
-    // Kiểm tra user tồn tại
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId, deleted_at: null },
-      include: {
-        user_information: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy user');
-    }
-
-    // Kiểm tra role tồn tại
-    const role = await this.prisma.roles.findUnique({
-      where: { id: roleId, deleted_at: null },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    // Kiểm tra roleName nếu được cung cấp
-    if (roleName && role.name !== roleName) {
-      throw new BadRequestException('Role ID và Role Name không khớp');
-    }
-
-    const targetRoleName = role.name;
-
-    // Kiểm tra quyền quản lý role
-    const canManage = await this.roleHierarchyService.canUserManageUserRole(
-      managerId,
-      userId,
-      targetRoleName,
-    );
-
-    if (!canManage) {
-      throw new ForbiddenException('Bạn không có quyền gán role này cho user');
-    }
-
-    // Kiểm tra permission cụ thể cho role
-    const hasRolePermission =
-      await this.roleHierarchyService.hasRoleManagementPermission(
-        managerId,
-        targetRoleName,
-      );
-
-    if (!hasRolePermission) {
-      throw new ForbiddenException(
-        `Bạn không có quyền quản lý role ${targetRoleName}`,
-      );
-    }
-
-    // Lưu role cũ để log
-    const oldRole = user.user_information?.[0]?.role;
-
-    // Cập nhật role trong user_information
-    const updated = await this.prisma.user_information.updateMany({
-      where: { user_id: userId },
-      data: { role_id: roleId },
-    });
-
-    if (updated.count === 0) {
-      throw new BadRequestException('Không thể cập nhật role cho user');
-    }
-
-    // Nếu gán role division_head hoặc team_leader, cập nhật user_division
-    if (
-      targetRoleName === ROLE_NAMES.DIVISION_HEAD ||
-      targetRoleName === ROLE_NAMES.TEAM_LEADER
-    ) {
-      await this.prisma.user_division.updateMany({
-        where: { userId },
-        data: { role_id: roleId },
-      });
-    }
-
-    // Xác định causer_type dựa trên role của manager
-    const managerRole = await this.permissionService.getUserRole(managerId);
-    const causerType =
-      managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-        ? CAUSER_TYPES.DIVISION_MASTER
-        : CAUSER_TYPES.USERS;
-
-    // Log activity
-    await this.prisma.activity_log.create({
-      data: {
-        log_name: 'role_management',
-        causer_id: managerId,
-        causer_type: causerType,
-        subject_id: userId,
-        subject_type: SUBJECT_TYPES.USERS,
-        event: ACTIVITY_LOG_EVENTS.ASSIGN_ROLE,
-        description: `Gán role ${role.name} cho user ${user.user_information?.name || user.email}`,
-        properties: JSON.stringify({
-          old_role: oldRole?.name,
-          new_role: role.name,
-          old_role_id: oldRole?.id,
-          new_role_id: role.id,
-          division_id:
-            managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-              ? (
-                  await this.prisma.user_division.findFirst({
-                    where: { userId: managerId },
-                  })
-                )?.divisionId
-              : null,
-        }),
-        batch_uuid: '',
-      },
-    });
-
-    // Lấy thông tin user sau khi cập nhật
-    const updatedUser = await this.prisma.users.findUnique({
-      where: { id: userId },
-      include: {
-        user_information: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    return {
-      message: 'Gán role thành công',
-      warning:
-        'API này sẽ được thay thế. Vui lòng sử dụng /role-assignment/project-manager hoặc /role-assignment/team-leader cho PM và Team Leader',
-      user: {
-        id: updatedUser?.id,
-        name: updatedUser?.user_information?.[0]?.name || '',
-        email: updatedUser?.email,
-        role: updatedUser?.user_information?.[0]?.role,
-      },
-      changes: {
-        from: oldRole?.name || null,
-        to: role.name,
-      },
-    };
-  }
 
   @Get('hierarchy')
   @RequirePermission('role.read')
@@ -467,202 +366,25 @@ export class RoleManagementController {
     @Body() updateUserRoleDto: UpdateUserRoleDto,
     @GetUser('id') managerId: number,
   ) {
-    // Re-use logic từ assignRole
-    const assignDto: AssignRoleDto = {
-      userId,
+    // Use unified API
+    const unifiedDto: UnifiedRoleAssignmentDto = {
+      targetUserId: [userId],
       roleId: updateUserRoleDto.roleId,
-    };
-
-    return this.assignRole(assignDto, managerId);
-  }
-
-  @Post('bulk-assign-role')
-  @RequirePermission('role.update')
-  @ApiOperation({ summary: 'Gán role hàng loạt cho nhiều user' })
-  @ApiBody({ type: BulkAssignRoleDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán role hàng loạt thành công',
-    schema: {
-      example: {
-        message: 'Gán role thành công cho 5 user',
-        totalUsers: 5,
-        successCount: 5,
-        failedCount: 0,
-        results: [
-          {
-            userId: 1,
-            success: true,
-            message: 'Gán role thành công',
-          },
-        ],
+      assignment: {
+        reason: updateUserRoleDto.reason,
       },
-    },
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Không có quyền gán role này',
-  })
-  async bulkAssignRole(
-    @Body() bulkAssignRoleDto: BulkAssignRoleDto,
-    @GetUser('id') managerId: number,
-  ) {
-    const { userIds, roleId, roleName } = bulkAssignRoleDto;
+    };
 
-    if (!userIds || userIds.length === 0) {
-      throw new BadRequestException('Danh sách user không được trống');
-    }
-
-    // Kiểm tra role tồn tại
-    const role = await this.prisma.roles.findUnique({
-      where: { id: roleId, deleted_at: null },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    // Kiểm tra roleName nếu được cung cấp
-    if (roleName && role.name !== roleName) {
-      throw new BadRequestException('Role ID và Role Name không khớp');
-    }
-
-    const targetRoleName = role.name;
-
-    // Kiểm tra quyền quản lý role
-    const hasRolePermission =
-      await this.roleHierarchyService.hasRoleManagementPermission(
-        managerId,
-        targetRoleName,
-      );
-
-    if (!hasRolePermission) {
-      throw new ForbiddenException(
-        `Bạn không có quyền quản lý role ${targetRoleName}`,
-      );
-    }
-
-    const results: Array<{
-      userId: number;
-      success: boolean;
-      message: string;
-    }> = [];
-    let successCount = 0;
-    let failedCount = 0;
-
-    // Xử lý từng user
-    for (const userId of userIds) {
-      try {
-        // Kiểm tra quyền quản lý từng user
-        const canManage = await this.roleHierarchyService.canUserManageUserRole(
-          managerId,
-          userId,
-          targetRoleName,
-        );
-
-        if (!canManage) {
-          results.push({
-            userId,
-            success: false,
-            message: 'Không có quyền gán role cho user này',
-          });
-          failedCount++;
-          continue;
-        }
-
-        // Lấy role cũ trước khi cập nhật
-        const oldUserInfo = await this.prisma.user_information.findFirst({
-          where: { user_id: userId },
-          include: { role: true },
-        });
-
-        // Cập nhật role
-        const updated = await this.prisma.user_information.updateMany({
-          where: { user_id: userId },
-          data: { role_id: roleId },
-        });
-
-        if (updated.count > 0) {
-          // Nếu gán role division_head hoặc team_leader, cập nhật user_division
-          if (
-            targetRoleName === ROLE_NAMES.DIVISION_HEAD ||
-            targetRoleName === ROLE_NAMES.TEAM_LEADER
-          ) {
-            await this.prisma.user_division.updateMany({
-              where: { userId },
-              data: { role_id: roleId },
-            });
-          }
-
-          // Xác định causer_type
-          const managerRole =
-            await this.permissionService.getUserRole(managerId);
-          const causerType =
-            managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-              ? CAUSER_TYPES.DIVISION_MASTER
-              : CAUSER_TYPES.USERS;
-
-          // Log activity
-          await this.prisma.activity_log.create({
-            data: {
-              log_name: 'role_management',
-              causer_id: managerId,
-              causer_type: causerType,
-              subject_id: userId,
-              subject_type: SUBJECT_TYPES.USERS,
-              event: ACTIVITY_LOG_EVENTS.BULK_ASSIGN_ROLE,
-              description: `Gán role ${role.name} (bulk)`,
-              properties: JSON.stringify({
-                old_role: oldUserInfo?.role?.name,
-                new_role: role.name,
-                old_role_id: oldUserInfo?.role?.id,
-                new_role_id: role.id,
-                division_id:
-                  managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-                    ? (
-                        await this.prisma.user_division.findFirst({
-                          where: { userId: managerId },
-                        })
-                      )?.divisionId
-                    : null,
-              }),
-              batch_uuid: '',
-            },
-          });
-
-          results.push({
-            userId,
-            success: true,
-            message: 'Gán role thành công',
-          });
-          successCount++;
-        } else {
-          results.push({
-            userId,
-            success: false,
-            message: 'Không thể cập nhật role',
-          });
-          failedCount++;
-        }
-      } catch (error: any) {
-        results.push({
-          userId,
-          success: false,
-          message: error.message || 'Lỗi không xác định',
-        });
-        failedCount++;
-      }
-    }
-
+    const result = await this.roleAssignmentService.assignRoleUnified(unifiedDto, managerId);
+    
+    // Return single result for backward compatibility
     return {
-      message: `Gán role thành công cho ${successCount}/${userIds.length} user`,
-      totalUsers: userIds.length,
-      successCount,
-      failedCount,
-      roleName: role.name,
-      results,
+      message: result.results[0]?.message || 'Cập nhật role thành công',
+      user: result.results[0]?.user,
+      success: result.results[0]?.success,
     };
   }
+
 
   @Get('user/:userId/role-history')
   @RequirePermission('role.read')
@@ -1027,99 +749,7 @@ export class RoleManagementController {
     };
   }
 
-  // ==================== ROLE ASSIGNMENT APIs ====================
-
-  @Post('assign-project-manager')
-  @RequirePermission('role.update')
-  @ApiOperation({ summary: 'Gán PM cho project (với logic chuyển giao)' })
-  @ApiBody({ type: AssignProjectManagerDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán PM thành công hoặc yêu cầu xác nhận chuyển giao',
-  })
-  async assignProjectManager(
-    @Body() dto: AssignProjectManagerDto,
-    @GetUser('id') managerId: number,
-  ) {
-    return await this.roleAssignmentService.assignProjectManager(
-      dto,
-      managerId,
-    );
-  }
-
-  @Post('assign-team-leader')
-  @RequirePermission('role.update')
-  @ApiOperation({ summary: 'Gán Team Leader cho team (với logic chuyển giao)' })
-  @ApiBody({ type: AssignTeamLeaderDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán Team Leader thành công hoặc yêu cầu xác nhận chuyển giao',
-  })
-  async assignTeamLeader(
-    @Body() dto: AssignTeamLeaderDto,
-    @GetUser('id') managerId: number,
-  ) {
-    return await this.roleAssignmentService.assignTeamLeader(dto, managerId);
-  }
-
-  @Post('assign-division-head')
-  @RequirePermission('role.manage.division_head')
-  @ApiOperation({ 
-    summary: 'Gán Division Head cho division (HR Manager/Admin)',
-    description: 'Gán user làm Division Head của một division cụ thể. Chỉ HR Manager, Admin, Super Admin có quyền thực hiện.'
-  })
-  @ApiBody({ type: AssignDivisionHeadDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Gán Division Head thành công hoặc yêu cầu xác nhận chuyển giao',
-    schema: {
-      type: 'object',
-      properties: {
-        assignment: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            user_id: { type: 'number' },
-            role_name: { type: 'string' },
-            assignment_type: { type: 'string' },
-            context_id: { type: 'number' },
-            context_type: { type: 'string' },
-            assigned_by: { type: 'number' },
-            assigned_at: { type: 'string' },
-            reason: { type: 'string' },
-            status: { type: 'string' },
-          },
-        },
-        message: { type: 'string' },
-        previousDivisionHead: {
-          type: 'object',
-          nullable: true,
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Division đã có Division Head (cần confirmTransfer: true)',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Không có quyền gán Division Head',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy division hoặc user',
-  })
-  async assignDivisionHead(
-    @Body() dto: AssignDivisionHeadDto,
-    @GetUser('id') managerId: number,
-  ) {
-    return await this.roleAssignmentService.assignDivisionHead(dto, managerId);
-  }
+  // ==================== READ-ONLY ROLE INFO ENDPOINTS ====================
 
   @Get('project/:projectId/current-pm')
   @RequirePermission('role.read')

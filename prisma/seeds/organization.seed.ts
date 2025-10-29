@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { DivisionStatus, DivisionType, PrismaClient } from '@prisma/client';
 
 export async function seedOrganization(prisma: PrismaClient) {
   console.log('🏛️ Seeding organization data...');
@@ -9,9 +9,9 @@ export async function seedOrganization(prisma: PrismaClient) {
     {
       id: 1,
       name: 'Technology Division',
-      is_active_project: 1,
-      type: 1,
-      status: 1,
+      is_active_project: true,
+      type: DivisionType.TECHNICAL,
+      status: DivisionStatus.ACTIVE,
       level: 1,
       address: 'Tầng 5, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-01-01'),
@@ -21,9 +21,9 @@ export async function seedOrganization(prisma: PrismaClient) {
     {
       id: 2,
       name: 'Human Resources',
-      is_active_project: 0,
-      type: 2,
-      status: 1,
+      is_active_project: false,
+      type: DivisionType.BUSINESS,
+      status: DivisionStatus.ACTIVE,
       level: 1,
       address: 'Tầng 3, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-01-01'),
@@ -33,9 +33,9 @@ export async function seedOrganization(prisma: PrismaClient) {
     {
       id: 3,
       name: 'Quality Assurance',
-      is_active_project: 1,
-      type: 1,
-      status: 1,
+      is_active_project: true,
+      type: DivisionType.TECHNICAL,
+      status: DivisionStatus.ACTIVE,
       level: 2,
       parent_id: 1,
       address: 'Tầng 5, Tòa nhà ABC, Hà Nội',
@@ -46,9 +46,9 @@ export async function seedOrganization(prisma: PrismaClient) {
     {
       id: 4,
       name: 'Development Team A',
-      is_active_project: 1,
-      type: 1,
-      status: 1,
+      is_active_project: true,
+      type: DivisionType.TECHNICAL,
+      status: DivisionStatus.ACTIVE,
       level: 2,
       parent_id: 1,
       address: 'Tầng 6, Tòa nhà ABC, Hà Nội',
@@ -59,9 +59,9 @@ export async function seedOrganization(prisma: PrismaClient) {
     {
       id: 5,
       name: 'Development Team B',
-      is_active_project: 1,
-      type: 1,
-      status: 1,
+      is_active_project: true,
+      type: DivisionType.TECHNICAL,
+      status: DivisionStatus.ACTIVE,
       level: 2,
       parent_id: 1,
       address: 'Tầng 7, Tòa nhà ABC, Hà Nội',

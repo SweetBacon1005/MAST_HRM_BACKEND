@@ -40,6 +40,11 @@ import {
   UpdateTeamDto,
   TeamPaginationDto,
 } from './dto/team.dto';
+import {
+  CreateUserDivisionDto,
+  UpdateUserDivisionDto,
+  UserDivisionPaginationDto,
+} from './dto/user-division.dto';
 import { GetUser } from 'src/auth/decorators/get-user.decorator';
 
 @ApiTags('divisions')
@@ -652,6 +657,304 @@ export class DivisionController {
   })
   deleteRotationMember(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.deleteRotationMember(id);
+  }
+
+  // === USER DIVISION ASSIGNMENT ===
+
+  @Post('user-assignments')
+  @RequirePermission('division.assignment.create')
+  @ApiOperation({ summary: 'Thêm user vào division' })
+  @ApiResponse({
+    status: 201,
+    description: 'Thêm user vào division thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Thêm user vào division thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            userId: { type: 'number', example: 5 },
+            divisionId: { type: 'number', example: 2 },
+            role_id: { type: 'number', example: 3 },
+            teamId: { type: 'number', example: 1 },
+            description: { type: 'string', example: 'Developer chính của team' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 5 },
+                email: { type: 'string', example: 'user@example.com' },
+                user_information: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', example: 'Nguyễn Văn A' },
+                    code: { type: 'string', example: 'NV001' },
+                    avatar: { type: 'string', example: 'avatar.jpg' },
+                  },
+                },
+              },
+            },
+            division: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 2 },
+                name: { type: 'string', example: 'Phòng Phát triển' },
+              },
+            },
+            role: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 3 },
+                name: { type: 'string', example: 'Developer' },
+              },
+            },
+            team: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 1 },
+                name: { type: 'string', example: 'Team Frontend' },
+              },
+            },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User đã được gán vào division này hoặc dữ liệu không hợp lệ',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User, Division, Role hoặc Team không tồn tại',
+  })
+  createUserDivision(@Body() createUserDivisionDto: CreateUserDivisionDto) {
+    return this.divisionService.createUserDivision(createUserDivisionDto);
+  }
+
+  @Get('user-assignments')
+  @RequirePermission('division.assignment.read')
+  @ApiOperation({ summary: 'Lấy danh sách user division assignments có phân trang' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách assignments thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              userId: { type: 'number', example: 5 },
+              divisionId: { type: 'number', example: 2 },
+              role_id: { type: 'number', example: 3 },
+              teamId: { type: 'number', example: 1 },
+              description: { type: 'string', example: 'Developer chính của team' },
+              user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 5 },
+                  email: { type: 'string', example: 'user@example.com' },
+                  user_information: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', example: 'Nguyễn Văn A' },
+                      code: { type: 'string', example: 'NV001' },
+                      avatar: { type: 'string', example: 'avatar.jpg' },
+                    },
+                  },
+                },
+              },
+              division: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 2 },
+                  name: { type: 'string', example: 'Phòng Phát triển' },
+                },
+              },
+              role: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 3 },
+                  name: { type: 'string', example: 'Developer' },
+                },
+              },
+              team: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  name: { type: 'string', example: 'Team Frontend' },
+                },
+              },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 50 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 5 },
+          },
+        },
+      },
+    },
+  })
+  findAllUserDivisions(@Query() paginationDto: UserDivisionPaginationDto) {
+    return this.divisionService.findAllUserDivisions(paginationDto);
+  }
+
+  @Get('user-assignments/:id')
+  @RequirePermission('division.assignment.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết user division assignment' })
+  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin assignment thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy assignment',
+  })
+  findOneUserDivision(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.findOneUserDivision(id);
+  }
+
+  @Patch('user-assignments/:id')
+  @RequirePermission('division.assignment.update')
+  @ApiOperation({ summary: 'Cập nhật user division assignment' })
+  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật assignment thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu không hợp lệ',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy assignment, role hoặc team',
+  })
+  updateUserDivision(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserDivisionDto: UpdateUserDivisionDto,
+  ) {
+    return this.divisionService.updateUserDivision(id, updateUserDivisionDto);
+  }
+
+  @Delete('user-assignments/:id')
+  @RequirePermission('division.assignment.delete')
+  @ApiOperation({ summary: 'Xóa user khỏi division' })
+  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa user khỏi division thành công',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy assignment',
+  })
+  removeUserDivision(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.removeUserDivision(id);
+  }
+
+  @Get(':id/users')
+  @RequirePermission('division.read')
+  @ApiOperation({ summary: 'Lấy danh sách users trong division' })
+  @ApiParam({ name: 'id', description: 'ID của division' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách users thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              userId: { type: 'number', example: 5 },
+              divisionId: { type: 'number', example: 2 },
+              role_id: { type: 'number', example: 3 },
+              teamId: { type: 'number', example: 1 },
+              description: { type: 'string', example: 'Developer chính của team' },
+              user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 5 },
+                  email: { type: 'string', example: 'user@example.com' },
+                  user_information: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', example: 'Nguyễn Văn A' },
+                      code: { type: 'string', example: 'NV001' },
+                      avatar: { type: 'string', example: 'avatar.jpg' },
+                      position: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'number', example: 1 },
+                          name: { type: 'string', example: 'Developer' },
+                        },
+                      },
+                      level: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'number', example: 2 },
+                          name: { type: 'string', example: 'Junior' },
+                          coefficient: { type: 'number', example: 1.2 },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              role: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 3 },
+                  name: { type: 'string', example: 'Developer' },
+                },
+              },
+              team: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  name: { type: 'string', example: 'Team Frontend' },
+                },
+              },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        meta: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 20 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 2 },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy division',
+  })
+  getUsersByDivision(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() paginationDto: UserDivisionPaginationDto,
+  ) {
+    return this.divisionService.getUsersByDivision(id, paginationDto);
   }
 
   // === TEAM MANAGEMENT ===

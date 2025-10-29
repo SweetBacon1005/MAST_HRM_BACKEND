@@ -1,43 +1,42 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  Query,
-  UseGuards,
+  Get,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
+  ApiBearerAuth,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
-  ApiQuery,
+  ApiTags,
 } from '@nestjs/swagger';
+import { ASSET_PERMISSIONS } from '../auth/constants/permission.constants';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionGuard } from '../auth/guards/permission.guard';
 import { AssetsService } from './assets.service';
-import { CreateAssetDto } from './dto/create-asset.dto';
-import { UpdateAssetDto } from './dto/update-asset.dto';
 import {
-  CreateAssetRequestDto,
   ApproveAssetRequestDto,
+  CreateAssetRequestDto,
   FulfillAssetRequestDto,
 } from './dto/asset-request.dto';
+import { CreateAssetDto } from './dto/create-asset.dto';
 import {
   AssetPaginationDto,
   AssetRequestPaginationDto,
 } from './dto/pagination-queries.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { UpdateAssetDto } from './dto/update-asset.dto';
 
 @ApiTags('Assets Management')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('assets')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
@@ -45,9 +44,8 @@ export class AssetsController {
   // ===== ASSET CRUD FOR HR =====
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Tạo tài sản mới (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: 'Tạo tài sản mới' })
   @ApiResponse({
     status: 201,
     description: 'Tạo tài sản thành công',
@@ -74,9 +72,8 @@ export class AssetsController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Lấy danh sách tài sản (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.READ)
+  @ApiOperation({ summary: 'Lấy danh sách tài sản' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách tài sản',
@@ -126,9 +123,8 @@ export class AssetsController {
   }
 
   @Get('statistics')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Thống kê tài sản (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.STATISTICS)
+  @ApiOperation({ summary: 'Thống kê tài sản' })
   @ApiResponse({
     status: 200,
     description: 'Thống kê tài sản',
@@ -169,64 +165,9 @@ export class AssetsController {
     return this.assetsService.getAssetStatistics();
   }
 
-  @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Lấy chi tiết tài sản (HR only)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Chi tiết tài sản',
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            name: { type: 'string', example: 'Laptop Dell XPS 13' },
-            asset_code: { type: 'string', example: 'LAPTOP-001' },
-            category: { type: 'string', example: 'Laptop' },
-            status: { type: 'string', example: 'AVAILABLE' },
-            purchase_date: { type: 'string', format: 'date' },
-            purchase_price: { type: 'string', example: '25000000' },
-            assigned_user: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 123 },
-                email: { type: 'string', example: 'user@example.com' },
-                user_information: {
-                  type: 'object',
-                  properties: {
-                    name: { type: 'string', example: 'Nguyễn Văn A' },
-                  },
-                },
-              },
-            },
-            asset_requests: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number', example: 1 },
-                  request_type: { type: 'string', example: 'REQUEST' },
-                  status: { type: 'string', example: 'PENDING' },
-                  created_at: { type: 'string', format: 'date-time' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  })
-  findOneAsset(@Param('id', ParseIntPipe) id: number) {
-    return this.assetsService.findOneAsset(id);
-  }
-
   @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Cập nhật tài sản (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Cập nhật tài sản' })
   @ApiResponse({
     status: 200,
     description: 'Cập nhật tài sản thành công',
@@ -256,9 +197,8 @@ export class AssetsController {
   }
 
   @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Xóa tài sản (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.DELETE)
+  @ApiOperation({ summary: 'Xóa tài sản' })
   @ApiResponse({
     status: 200,
     description: 'Xóa tài sản thành công',
@@ -276,9 +216,8 @@ export class AssetsController {
   // ===== ASSET ASSIGNMENT =====
 
   @Post(':id/assign')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Gán tài sản cho user (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.ASSIGN)
+  @ApiOperation({ summary: 'Gán tài sản cho user' })
   @ApiResponse({
     status: 200,
     description: 'Gán tài sản thành công',
@@ -303,13 +242,17 @@ export class AssetsController {
     @Body() body: { user_id: number; notes?: string },
     @Request() req: any,
   ) {
-    return this.assetsService.assignAsset(assetId, body.user_id, req.user.id, body.notes);
+    return this.assetsService.assignAsset(
+      assetId,
+      body.user_id,
+      req.user.id,
+      body.notes,
+    );
   }
 
   @Post(':id/unassign')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Thu hồi tài sản từ user (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.UNASSIGN)
+  @ApiOperation({ summary: 'Thu hồi tài sản từ user' })
   @ApiResponse({
     status: 200,
     description: 'Thu hồi tài sản thành công',
@@ -340,7 +283,10 @@ export class AssetsController {
   // ===== USER DEVICES FROM ASSETS =====
 
   @Get('my-devices')
-  @ApiOperation({ summary: 'Lấy danh sách thiết bị được gán cho user hiện tại' })
+  @RequirePermission(ASSET_PERMISSIONS.READ)
+  @ApiOperation({
+    summary: 'Lấy danh sách thiết bị được gán cho user hiện tại',
+  })
   @ApiResponse({
     status: 200,
     description: 'Danh sách thiết bị của user',
@@ -374,7 +320,8 @@ export class AssetsController {
   // ===== ASSET REQUESTS FOR USERS =====
 
   @Post('requests')
-  @ApiOperation({ summary: 'Tạo request tài sản (User)' })
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_CREATE)
+  @ApiOperation({ summary: 'Tạo request tài sản' })
   @ApiResponse({
     status: 201,
     description: 'Tạo request tài sản thành công',
@@ -396,12 +343,16 @@ export class AssetsController {
       },
     },
   })
-  createAssetRequest(@Body() createAssetRequestDto: CreateAssetRequestDto, @Request() req: any) {
+  createAssetRequest(
+    @Body() createAssetRequestDto: CreateAssetRequestDto,
+    @Request() req: any,
+  ) {
     createAssetRequestDto.user_id = req.user.id;
     return this.assetsService.createAssetRequest(createAssetRequestDto);
   }
 
   @Get('requests')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_READ)
   @ApiOperation({ summary: 'Lấy danh sách request tài sản' })
   @ApiResponse({
     status: 200,
@@ -453,6 +404,7 @@ export class AssetsController {
   }
 
   @Get('requests/:id')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_READ)
   @ApiOperation({ summary: 'Lấy chi tiết request tài sản' })
   @ApiResponse({
     status: 200,
@@ -466,8 +418,14 @@ export class AssetsController {
             id: { type: 'number', example: 1 },
             request_type: { type: 'string', example: 'REQUEST' },
             category: { type: 'string', example: 'Laptop' },
-            description: { type: 'string', example: 'Cần laptop cho công việc development' },
-            justification: { type: 'string', example: 'Laptop hiện tại đã hỏng' },
+            description: {
+              type: 'string',
+              example: 'Cần laptop cho công việc development',
+            },
+            justification: {
+              type: 'string',
+              example: 'Laptop hiện tại đã hỏng',
+            },
             status: { type: 'string', example: 'PENDING' },
             priority: { type: 'string', example: 'NORMAL' },
             expected_date: { type: 'string', format: 'date' },
@@ -505,9 +463,8 @@ export class AssetsController {
   // ===== ASSET REQUEST APPROVAL FOR HR =====
 
   @Post('requests/:id/approve')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Duyệt/từ chối request tài sản (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
+  @ApiOperation({ summary: 'Duyệt/từ chối request tài sản' })
   @ApiResponse({
     status: 200,
     description: 'Xử lý request thành công',
@@ -537,9 +494,8 @@ export class AssetsController {
   }
 
   @Post('requests/:id/fulfill')
-  @UseGuards(RolesGuard)
-  @Roles(ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Giao tài sản theo request (HR only)' })
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
+  @ApiOperation({ summary: 'Giao tài sản theo request' })
   @ApiResponse({
     status: 200,
     description: 'Giao tài sản thành công',
@@ -565,5 +521,58 @@ export class AssetsController {
     @Request() req: any,
   ) {
     return this.assetsService.fulfillAssetRequest(id, fulfillDto, req.user.id);
+  }
+
+  @Get(':id')
+  @RequirePermission(ASSET_PERMISSIONS.READ)
+  @ApiOperation({ summary: 'Lấy chi tiết tài sản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Chi tiết tài sản',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Laptop Dell XPS 13' },
+            asset_code: { type: 'string', example: 'LAPTOP-001' },
+            category: { type: 'string', example: 'Laptop' },
+            status: { type: 'string', example: 'AVAILABLE' },
+            purchase_date: { type: 'string', format: 'date' },
+            purchase_price: { type: 'string', example: '25000000' },
+            assigned_user: {
+              type: 'object',
+              properties: {
+                id: { type: 'number', example: 123 },
+                email: { type: 'string', example: 'user@example.com' },
+                user_information: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', example: 'Nguyễn Văn A' },
+                  },
+                },
+              },
+            },
+            asset_requests: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  request_type: { type: 'string', example: 'REQUEST' },
+                  status: { type: 'string', example: 'PENDING' },
+                  created_at: { type: 'string', format: 'date-time' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  findOneAsset(@Param('id', ParseIntPipe) id: number) {
+    return this.assetsService.findOneAsset(id);
   }
 }

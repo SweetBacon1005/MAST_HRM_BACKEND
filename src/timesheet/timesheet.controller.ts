@@ -82,8 +82,61 @@ export class TimesheetController {
 
   @Get('my-timesheets')
   @RequirePermission('timesheet.read')
-  @ApiOperation({ summary: 'Lấy danh sách timesheet của tôi có phân trang' })
-  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
+  @ApiOperation({ 
+    summary: 'Lấy danh sách timesheet của tôi có phân trang với requests trong ngày',
+    description: 'Trả về danh sách timesheets của user kèm theo tất cả requests (remote work, day off, overtime, late/early, forgot checkin) trong ngày đó'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Lấy danh sách thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              user_id: { type: 'number' },
+              work_date: { type: 'string', format: 'date' },
+              checkin: { type: 'string', format: 'date-time' },
+              checkout: { type: 'string', format: 'date-time' },
+              status: { type: 'string' },
+              requests: {
+                type: 'array',
+                description: 'Danh sách requests trong ngày đó',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    request_type: { 
+                      type: 'string',
+                      enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+                    },
+                    status: { type: 'string' },
+                    reason: { type: 'string' },
+                    created_at: { type: 'string', format: 'date-time' },
+                    approved_at: { type: 'string', format: 'date-time' },
+                    approved_by: { type: 'number' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            totalPages: { type: 'number' }
+          }
+        }
+      }
+    }
+  })
   findMyTimesheets(
     @GetCurrentUser('id') userId: number,
     @Query() paginationDto: TimesheetPaginationDto,
