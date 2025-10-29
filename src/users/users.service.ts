@@ -119,6 +119,7 @@ export class UsersService {
           updated_at: true,
           user_information: {
             select: {
+              name: true,
               role: {
                 select: {
                   id: true,
@@ -141,6 +142,7 @@ export class UsersService {
     // Transform data giống như findAll
     const transformedData = data.map((user) => ({
       ...user,
+      name: user.user_information?.[0]?.name,
       role: user.user_information?.[0]?.role,
       position: user.user_information?.[0]?.position,
       user_information: undefined,

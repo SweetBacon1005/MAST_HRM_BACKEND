@@ -51,6 +51,9 @@ export class UserProfileService {
       where: { id: userId, deleted_at: null },
       include: {
         user_information: {
+          select: {
+            name: true,
+          },
           include: {
             position: true,
             role: true,
