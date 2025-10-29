@@ -142,12 +142,13 @@ export class UsersService {
     // Transform data giống như findAll
     const transformedData = data.map((user) => ({
       ...user,
-      name: user.user_information?.[0]?.name,
-      role: user.user_information?.[0]?.role,
-      position: user.user_information?.[0]?.position,
+      name: user.user_information?.name,
+      role: user.user_information?.role,
+      position: user.user_information?.position,
       user_information: undefined,
     }));
 
+    console.log(transformedData);
     return buildPaginationResponse(
       transformedData,
       total,
