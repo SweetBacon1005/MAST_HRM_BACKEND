@@ -33,6 +33,7 @@ import {
   AssetRequestPaginationDto,
 } from './dto/pagination-queries.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { AssignAssetDto, UnassignAssetDto } from './dto/assign-asset.dto';
 
 @ApiTags('Assets Management')
 @ApiBearerAuth('JWT-auth')
@@ -239,7 +240,7 @@ export class AssetsController {
   })
   assignAsset(
     @Param('id', ParseIntPipe) assetId: number,
-    @Body() body: { user_id: number; notes?: string },
+    @Body() body: AssignAssetDto,
     @Request() req: any,
   ) {
     return this.assetsService.assignAsset(
@@ -274,7 +275,7 @@ export class AssetsController {
   })
   unassignAsset(
     @Param('id', ParseIntPipe) assetId: number,
-    @Body() body: { notes?: string },
+    @Body() body: UnassignAssetDto,
     @Request() req: any,
   ) {
     return this.assetsService.unassignAsset(assetId, req.user.id, body.notes);

@@ -78,11 +78,26 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'team.delete', description: 'Xóa team' },
     { name: 'team.manage', description: 'Quản lý team (tất cả quyền)' },
     
-    // Contract & Device Management
+    // Asset Management
+    { name: 'asset.create', description: 'Tạo tài sản mới' },
+    { name: 'asset.read', description: 'Xem thông tin tài sản' },
+    { name: 'asset.update', description: 'Cập nhật thông tin tài sản' },
+    { name: 'asset.delete', description: 'Xóa tài sản' },
+    { name: 'asset.assign', description: 'Gán tài sản cho người dùng' },
+    { name: 'asset.unassign', description: 'Thu hồi tài sản từ người dùng' },
+    { name: 'asset.statistics', description: 'Xem thống kê tài sản' },
+    
+    // Asset Request Management
+    { name: 'asset.request.create', description: 'Tạo yêu cầu tài sản' },
+    { name: 'asset.request.read', description: 'Xem yêu cầu tài sản' },
+    { name: 'asset.request.approve', description: 'Duyệt/từ chối yêu cầu tài sản' },
+    { name: 'asset.request.reject', description: 'Từ chối yêu cầu tài sản' },
+    
+    // Contract & Device Management (Legacy - sẽ được thay thế bởi Asset Management)
     { name: 'contract.read', description: 'Xem hợp đồng' },
     { name: 'contract.manage', description: 'Quản lý hợp đồng' },
-    { name: 'device.read', description: 'Xem thiết bị' },
-    { name: 'device.manage', description: 'Quản lý thiết bị' },
+    { name: 'device.read', description: 'Xem thiết bị (legacy)' },
+    { name: 'device.manage', description: 'Quản lý thiết bị (legacy)' },
     
     // Personnel Transfer Management
     { name: 'personnel.transfer.read', description: 'Xem đơn điều chuyển nhân sự' },
@@ -163,6 +178,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read', 'report.export', 'analytics.view',
         'organization.read', 'organization.manage', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
+        'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager', 'role.manage.admin', 'role.manage.all',
@@ -183,6 +200,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read', 'report.export',
         'organization.read', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
+        'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager',
@@ -202,6 +221,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read',
         'report.read', 'report.export', 'analytics.view',
         'organization.read',
+        'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
       ],
@@ -221,6 +241,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read', 'report.export', 'analytics.view',
         'organization.read', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'asset.read', 'asset.assign', 'asset.unassign', 'asset.statistics',
+        'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'device.read',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
@@ -241,6 +263,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read',
         'organization.read',
         'team.read', 'team.update', 'team.manage',
+        'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
         'role.read', 'role.manage.employee',
       ],
@@ -259,6 +282,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read',
         'organization.read',
         'team.read',
+        'asset.read', 'asset.request.create',
         'personnel.transfer.read',
         'role.read',
       ],
