@@ -6,7 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "postinstall": "prisma generate && prisma db push --accept-data-loss",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && nest build",
     "db:push": "prisma db push --accept-data-loss && prisma generate",
     "db:push:force": "prisma db push --force-reset && prisma generate",
     "migrate:dev": "prisma migrate dev",
@@ -60,7 +61,7 @@
     "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "uuid": "^13.0.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
