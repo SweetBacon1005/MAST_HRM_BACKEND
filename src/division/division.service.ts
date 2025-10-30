@@ -2105,7 +2105,7 @@ export class DivisionService {
   // === USER DIVISION ASSIGNMENT ===
 
   async createUserDivision(createUserDivisionDto: CreateUserDivisionDto) {
-    const { userId, divisionId, role_id, teamId, description } =
+    const { userId, divisionId, roleId: role_id, teamId, description } =
       createUserDivisionDto;
 
     // Kiểm tra user tồn tại
@@ -2227,13 +2227,13 @@ export class DivisionService {
         {
           user: {
             user_information: {
-              name: { contains: paginationDto.search, mode: 'insensitive' },
+              name: { contains: paginationDto.search},
             },
           },
         },
         {
           division: {
-            name: { contains: paginationDto.search, mode: 'insensitive' },
+            name: { contains: paginationDto.search},
           },
         },
       ];
@@ -2243,7 +2243,7 @@ export class DivisionService {
       whereConditions.divisionId = paginationDto.divisionId;
     if (paginationDto.userId) whereConditions.userId = paginationDto.userId;
     if (paginationDto.teamId) whereConditions.teamId = paginationDto.teamId;
-    if (paginationDto.role_id) whereConditions.role_id = paginationDto.role_id;
+    if (paginationDto.roleId) whereConditions.role_id = paginationDto.roleId;
 
     const [userDivisions, total] = await Promise.all([
       this.prisma.user_division.findMany({
@@ -2371,9 +2371,9 @@ export class DivisionService {
     }
 
     // Kiểm tra role tồn tại (nếu có)
-    if (updateUserDivisionDto.role_id) {
+    if (updateUserDivisionDto.roleId) {
       const role = await this.prisma.roles.findFirst({
-        where: { id: updateUserDivisionDto.role_id, deleted_at: null },
+        where: { id: updateUserDivisionDto.roleId, deleted_at: null },
       });
       if (!role) {
         throw new NotFoundException('Role không tồn tại');
@@ -2489,7 +2489,7 @@ export class DivisionService {
     }
 
     if (paginationDto.teamId) whereConditions.teamId = paginationDto.teamId;
-    if (paginationDto.role_id) whereConditions.role_id = paginationDto.role_id;
+    if (paginationDto.roleId) whereConditions.role_id = paginationDto.roleId;
 
     const [userDivisions, total] = await Promise.all([
       this.prisma.user_division.findMany({

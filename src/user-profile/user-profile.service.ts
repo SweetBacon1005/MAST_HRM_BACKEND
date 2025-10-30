@@ -50,27 +50,13 @@ export class UserProfileService {
     const userProfile = await this.prisma.users.findFirst({
       where: { id: userId, deleted_at: null },
       include: {
-        user_information: {
-          select: {
-            name: true,
-            position: true,
-            role: true,
-            level: true,
-            language: true,
-          },
-        },
+        user_information: true,
         user_division: {
           where: { division: { deleted_at: null } },
           select: {
-            division: {
-              select: { id: true, name: true },
-            },
-            role: {
-              select: { id: true, name: true },
-            },
-            team: {
-              select: { id: true, name: true },
-            },
+            division: true,
+            role: true,
+            team: true
           },
         },
         education: {
@@ -84,13 +70,6 @@ export class UserProfileService {
         },
         user_skills: {
           where: { deleted_at: null },
-          select: {
-            skill: {
-              select: {
-                position: true,
-              },
-            },
-          },
         },
       },
     });

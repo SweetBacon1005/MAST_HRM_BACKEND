@@ -24,16 +24,6 @@ export class UsersPaginationDto extends PaginationDto {
   position_id?: number;
 
   @ApiProperty({
-    description: 'ID văn phòng',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  office_id?: number;
-
-  @ApiProperty({
     description: 'ID vai trò',
     example: 1,
     required: false,

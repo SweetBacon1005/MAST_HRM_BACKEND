@@ -8,6 +8,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -68,39 +69,37 @@ export class UsersService {
 
   async findAllPaginated(paginationDto: UsersPaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: any = { deleted_at: null };
+    const where: Prisma.usersWhereInput = { deleted_at: null };
 
     // Thêm filter theo search (tên hoặc email)
     if (paginationDto.search) {
       where.OR = [
         {
-          name: {
-            contains: paginationDto.search,
-          },
-        },
-        {
-          email: {
-            contains: paginationDto.search,
+          user_information: {
+            name: {
+              contains: paginationDto.search,
+            },
           },
         },
       ];
     }
 
     // Thêm filter theo user_information
-    const userInfoFilters: any = {};
+    const userInfoFilters: Prisma.user_informationWhereInput = {};
     if (paginationDto.position_id) {
-      userInfoFilters.position_id = paginationDto.position_id;
-    }
-    if (paginationDto.office_id) {
-      userInfoFilters.office_id = paginationDto.office_id;
+      userInfoFilters.position = {
+        id: paginationDto.position_id,
+      };
     }
     if (paginationDto.role_id) {
-      userInfoFilters.role_id = paginationDto.role_id;
+      userInfoFilters.role = {
+        id: paginationDto.role_id,
+      };
     }
 
     if (Object.keys(userInfoFilters).length > 0) {
       where.user_information = {
-        some: userInfoFilters,
+        ...userInfoFilters,
       };
     }
 

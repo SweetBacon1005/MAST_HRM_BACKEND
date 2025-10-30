@@ -7,6 +7,7 @@ export class CreateUserDivisionDto {
     description: 'ID của user',
     example: 1,
   })
+  @Transform(({ value }) => Number(value))
   @IsInt()
   userId: number;
 
@@ -14,6 +15,7 @@ export class CreateUserDivisionDto {
     description: 'ID của division (bắt buộc)',
     example: 1,
   })
+  @Transform(({ value }) => Number(value))
   @IsInt()
   divisionId: number;
 
@@ -22,14 +24,16 @@ export class CreateUserDivisionDto {
     example: 2,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
-  role_id?: number;
+  roleId?: number;
 
   @ApiPropertyOptional({
     description: 'ID của team trong division',
     example: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   teamId?: number;
 
@@ -41,7 +45,6 @@ export class CreateUserDivisionDto {
   @IsString()
   @MaxLength(500)
   description?: string;
-
 }
 
 export class UpdateUserDivisionDto {
@@ -50,14 +53,16 @@ export class UpdateUserDivisionDto {
     example: 3,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
-  role_id?: number;
+  roleId?: number;
 
   @ApiPropertyOptional({
     description: 'ID của team trong division',
     example: 2,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   teamId?: number;
 
@@ -69,7 +74,6 @@ export class UpdateUserDivisionDto {
   @IsString()
   @MaxLength(500)
   description?: string;
-
 }
 
 export class UserDivisionPaginationDto {
@@ -79,6 +83,7 @@ export class UserDivisionPaginationDto {
     default: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   page?: number = 1;
 
@@ -88,6 +93,7 @@ export class UserDivisionPaginationDto {
     default: 10,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   limit?: number = 10;
 
@@ -104,6 +110,7 @@ export class UserDivisionPaginationDto {
     example: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   divisionId?: number;
 
@@ -112,6 +119,7 @@ export class UserDivisionPaginationDto {
     example: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   userId?: number;
 
@@ -120,6 +128,7 @@ export class UserDivisionPaginationDto {
     example: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   teamId?: number;
 
@@ -128,8 +137,9 @@ export class UserDivisionPaginationDto {
     example: 2,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
-  role_id?: number;
+  roleId?: number;
 }
 
 export class UnassignedUsersPaginationDto {
@@ -166,6 +176,7 @@ export class UnassignedUsersPaginationDto {
     example: 1,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   positionId?: number;
 
@@ -174,6 +185,7 @@ export class UnassignedUsersPaginationDto {
     example: 2,
   })
   @IsOptional()
+  @Transform(({ value }) => Number(value))
   @IsInt()
   levelId?: number;
 
