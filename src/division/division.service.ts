@@ -4,9 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DIVISION_ERRORS, USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import { Prisma } from '@prisma/client';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
+import {
+  DIVISION_ERRORS,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
 import { DateFormatUtil } from '../common/utils/date-format.util';
 import {
   buildPaginationQuery,
@@ -43,7 +46,7 @@ export class DivisionService {
   // === DIVISION CRUD ===
 
   async create(createDivisionDto: CreateDivisionDto) {
-    const { founding_at, is_active_project, ...rest } = createDivisionDto;
+    const { ...rest } = createDivisionDto;
 
     // Kiểm tra parent_id nếu có
     if (createDivisionDto.parent_id) {
@@ -54,6 +57,8 @@ export class DivisionService {
         throw new NotFoundException(DIVISION_ERRORS.PARENT_DIVISION_NOT_FOUND);
       }
     }
+
+    const founding_at = new Date();
 
     // Kiểm tra tên phòng ban trùng lặp
     const existingDivision = await this.prisma.divisions.findFirst({
@@ -69,8 +74,7 @@ export class DivisionService {
     return await this.prisma.divisions.create({
       data: {
         ...rest,
-        founding_at: new Date(founding_at),
-        is_active_project: is_active_project,
+        founding_at: founding_at,
       },
       include: {
         parent: {
@@ -113,14 +117,6 @@ export class DivisionService {
       where.status = paginationDto.status;
     }
 
-    if (paginationDto.level !== undefined) {
-      where.level = paginationDto.level;
-    }
-
-    if (paginationDto.is_active_project !== undefined) {
-      where.is_active_project = paginationDto.is_active_project;
-    }
-
     const [data, total] = await Promise.all([
       this.prisma.divisions.findMany({
         where,
@@ -149,8 +145,6 @@ export class DivisionService {
     // Transform data để có format nhất quán
     const transformedData = data.map((division) => ({
       ...division,
-      is_active_project: division.is_active_project,
-      founding_at: division.founding_at.toISOString().split('T')[0],
       member_count: division._count.user_division,
       project_count: division._count.projects,
     }));
@@ -207,8 +201,6 @@ export class DivisionService {
 
     return {
       ...division,
-      is_active_project: division.is_active_project,
-      founding_at: division.founding_at.toISOString().split('T')[0],
       member_count: division._count.user_division,
       project_count: division._count.projects,
     };
@@ -251,16 +243,8 @@ export class DivisionService {
       }
     }
 
-    const { founding_at, is_active_project, ...rest } = updateDivisionDto;
+    const { ...rest } = updateDivisionDto;
     const updateData: any = { ...rest };
-
-    if (founding_at) {
-      updateData.founding_at = new Date(founding_at);
-    }
-
-    if (is_active_project !== undefined) {
-      updateData.is_active_project = is_active_project;
-    }
 
     return await this.prisma.divisions.update({
       where: { id },
@@ -355,8 +339,6 @@ export class DivisionService {
 
     return divisions.map((division) => ({
       ...division,
-      is_active_project: division.is_active_project,
-      founding_at: division.founding_at.toISOString().split('T')[0],
       member_count: division._count.user_division,
       project_count: division._count.projects,
     }));
@@ -679,7 +661,11 @@ export class DivisionService {
         orderBy: orderBy || { created_at: 'desc' },
         include: {
           user: {
-            select: { id: true, email: true, user_information: { select: { name: true } } },
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
           },
           division: {
             select: { id: true, name: true },
@@ -708,7 +694,11 @@ export class DivisionService {
       where: { id, deleted_at: null },
       include: {
         user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
         division: {
           select: { id: true, name: true },
@@ -752,7 +742,11 @@ export class DivisionService {
       data: updateData,
       include: {
         user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
         division: {
           select: { id: true, name: true },
@@ -846,7 +840,10 @@ export class DivisionService {
     const now = new Date();
     const targetMonth = month || now.getMonth() + 1;
 
-    const recentBirthdayEmployees = await this.getRecentBirthdayEmployees(divisionId, targetMonth);
+    const recentBirthdayEmployees = await this.getRecentBirthdayEmployees(
+      divisionId,
+      targetMonth,
+    );
 
     return {
       division: {
@@ -861,209 +858,231 @@ export class DivisionService {
   /**
    * API riêng cho thông tin làm việc
    */
-async getWorkInfo(divisionId: number, workDate?: string) {
-  // 1️⃣ Kiểm tra phòng ban
-  const division = await this.prisma.divisions.findUnique({
-    where: { id: divisionId, deleted_at: null },
-  });
-  if (!division) throw new NotFoundException('Không tìm thấy phòng ban');
+  async getWorkInfo(divisionId: number, workDate?: string) {
+    // 1️⃣ Kiểm tra phòng ban
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: divisionId, deleted_at: null },
+    });
+    if (!division) throw new NotFoundException('Không tìm thấy phòng ban');
 
-  // 2️⃣ Xác định ngày làm việc
-  const targetDate = workDate ? new Date(workDate) : new Date();
-  const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+    // 2️⃣ Xác định ngày làm việc
+    const targetDate = workDate ? new Date(workDate) : new Date();
+    const dateStr =
+      DateFormatUtil.formatDate(targetDate) ||
+      targetDate.toISOString().split('T')[0];
 
-  // 3️⃣ Lấy danh sách userId trong phòng ban
-  const divisionUsers = await this.prisma.user_division.findMany({
-    where: { divisionId },
-    select: { userId: true },
-  });
-  const userIds = divisionUsers.map(u => u.userId);
-  const totalMembers = userIds.length;
+    // 3️⃣ Lấy danh sách userId trong phòng ban
+    const divisionUsers = await this.prisma.user_division.findMany({
+      where: { divisionId },
+      select: { userId: true },
+    });
+    const userIds = divisionUsers.map((u) => u.userId);
+    const totalMembers = userIds.length;
 
-  if (!totalMembers) {
-    return {
-      division: { id: division.id, name: division.name },
-      work_date: dateStr,
-      working_info: { total_members: 0, working_count: 0, work_date: dateStr, employees: [] },
-      leave_requests: { paid_leave_count: 0, unpaid_leave_count: 0, employees: [] },
-      late_info: { late_count: 0, early_count: 0, employees: [] },
-    };
-  }
-
-  // 4️⃣ Định nghĩa include chung cho user
-  const userSelect = {
-    select: {
-      id: true,
-      user_information: {
-        select: { name: true, email: true, avatar: true, position: true },
-      },
-    },
-  };
-
-  // 5️⃣ Lấy dữ liệu song song để tối ưu hiệu suất
-  const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-  const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-
-  const [
-    leaveEmployees,
-    [paidCount, unpaidCount],
-    lateEmployees,
-    [lateCount, earlyCount],
-    workingEmployees,
-    workingCount,
-  ] = await Promise.all([
-    // Nhân viên nghỉ phép
-    this.prisma.day_offs.findMany({
-      where: {
-        user_id: { in: userIds },
-        work_date: targetDate,
-        status: 'APPROVED',
-        deleted_at: null,
-      },
-      include: { user: userSelect },
-    }),
-
-    // Đếm nghỉ có phép / không phép
-    Promise.all([
-      this.prisma.day_offs.count({
-        where: {
-          user_id: { in: userIds },
-          work_date: { gte: startOfMonth, lte: endOfMonth },
-          status: 'APPROVED',
-          type: 'PAID',
-          deleted_at: null,
-        },
-      }),
-      this.prisma.day_offs.count({
-        where: {
-          user_id: { in: userIds },
-          work_date: { gte: startOfMonth, lte: endOfMonth },
-          status: 'APPROVED',
-          type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
-          deleted_at: null,
-        },
-      }),
-    ]),
-
-    // Nhân viên đi muộn
-    this.prisma.time_sheets.findMany({
-      where: {
-        user_id: { in: userIds },
-        work_date: targetDate,
-        late_time: { not: null },
-        deleted_at: null,
-      },
-      include: { user: userSelect },
-    }),
-
-    // Đếm đi muộn / về sớm
-    Promise.all([
-      this.prisma.time_sheets.count({
-        where: {
-          user_id: { in: userIds },
-          work_date: { gte: startOfMonth, lte: endOfMonth },
-          late_time: { gt: 0 },
-          deleted_at: null,
-        },
-      }),
-      this.prisma.time_sheets.count({
-        where: {
-          user_id: { in: userIds },
-          work_date: { gte: startOfMonth, lte: endOfMonth },
-          early_time: { gt: 0 },
-          deleted_at: null,
-        },
-      }),
-    ]),
-
-    // Nhân viên đi làm
-    this.prisma.time_sheets.findMany({
-      where: {
-        user_id: { in: userIds },
-        work_date: targetDate,
-        checkin: { not: null },
-        deleted_at: null,
-      },
-      include: { user: userSelect },
-    }),
-
-    // Đếm số người đi làm
-    this.prisma.time_sheets.count({
-      where: {
-        user_id: { in: userIds },
-        work_date: targetDate,
-        checkin: { not: null },
-        deleted_at: null,
-      },
-    }),
-  ]);
-
-  // 6️⃣ Định dạng dữ liệu trả về
-  const leaveRequests = {
-    paid_leave_count: paidCount,
-    unpaid_leave_count: unpaidCount,
-    employees: leaveEmployees.map(l => ({
-      user_id: l.user.id,
-      name: l?.user?.user_information?.name,
-      email: l?.user?.user_information?.email,
-      avatar: l?.user?.user_information?.avatar,
-      position: l?.user?.user_information?.position,
-      work_date: DateFormatUtil.formatDate(l.work_date),
-      status: 'Có phép',
-    })),
-  };
-
-  const lateInfo = {
-    late_count: lateCount,
-    early_count: earlyCount,
-    employees: lateEmployees.map(ts => ({
-      user_id: ts.user.id,
-      name: ts?.user?.user_information?.name,
-      email: ts?.user?.user_information?.email,
-      avatar: ts?.user?.user_information?.avatar,
-      position: ts?.user?.user_information?.position,
-      checkin_time: DateFormatUtil.formatTime(ts.checkin),
-      late_minutes: ts.late_time || 0,
-      status: 'Không phép',
-      duration: `${Math.floor((ts.late_time || 0) / 60)}h${(ts.late_time || 0) % 60}m`,
-    })),
-  };
-
-  const workingInfo = {
-    total_members: totalMembers,
-    working_count: workingCount,
-    work_date: dateStr,
-    employees: workingEmployees.map(ts => {
-      const duration = ts.checkout && ts.checkin
-        ? (() => {
-            const minutes = DateFormatUtil.getDifferenceInMinutes(ts.checkin, ts.checkout);
-            return `${Math.floor(minutes / 60)}h${minutes % 60}m`;
-          })()
-        : 'Chưa checkout';
+    if (!totalMembers) {
       return {
+        division: { id: division.id, name: division.name },
+        work_date: dateStr,
+        working_info: {
+          total_members: 0,
+          working_count: 0,
+          work_date: dateStr,
+          employees: [],
+        },
+        leave_requests: {
+          paid_leave_count: 0,
+          unpaid_leave_count: 0,
+          employees: [],
+        },
+        late_info: { late_count: 0, early_count: 0, employees: [] },
+      };
+    }
+
+    // 4️⃣ Định nghĩa include chung cho user
+    const userSelect = {
+      select: {
+        id: true,
+        user_information: {
+          select: { name: true, email: true, avatar: true, position: true },
+        },
+      },
+    };
+
+    // 5️⃣ Lấy dữ liệu song song để tối ưu hiệu suất
+    const startOfMonth = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth(),
+      1,
+    );
+    const endOfMonth = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth() + 1,
+      0,
+    );
+
+    const [
+      leaveEmployees,
+      [paidCount, unpaidCount],
+      lateEmployees,
+      [lateCount, earlyCount],
+      workingEmployees,
+      workingCount,
+    ] = await Promise.all([
+      // Nhân viên nghỉ phép
+      this.prisma.day_offs.findMany({
+        where: {
+          user_id: { in: userIds },
+          work_date: targetDate,
+          status: 'APPROVED',
+          deleted_at: null,
+        },
+        include: { user: userSelect },
+      }),
+
+      // Đếm nghỉ có phép / không phép
+      Promise.all([
+        this.prisma.day_offs.count({
+          where: {
+            user_id: { in: userIds },
+            work_date: { gte: startOfMonth, lte: endOfMonth },
+            status: 'APPROVED',
+            type: 'PAID',
+            deleted_at: null,
+          },
+        }),
+        this.prisma.day_offs.count({
+          where: {
+            user_id: { in: userIds },
+            work_date: { gte: startOfMonth, lte: endOfMonth },
+            status: 'APPROVED',
+            type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
+            deleted_at: null,
+          },
+        }),
+      ]),
+
+      // Nhân viên đi muộn
+      this.prisma.time_sheets.findMany({
+        where: {
+          user_id: { in: userIds },
+          work_date: targetDate,
+          late_time: { not: null },
+          deleted_at: null,
+        },
+        include: { user: userSelect },
+      }),
+
+      // Đếm đi muộn / về sớm
+      Promise.all([
+        this.prisma.time_sheets.count({
+          where: {
+            user_id: { in: userIds },
+            work_date: { gte: startOfMonth, lte: endOfMonth },
+            late_time: { gt: 0 },
+            deleted_at: null,
+          },
+        }),
+        this.prisma.time_sheets.count({
+          where: {
+            user_id: { in: userIds },
+            work_date: { gte: startOfMonth, lte: endOfMonth },
+            early_time: { gt: 0 },
+            deleted_at: null,
+          },
+        }),
+      ]),
+
+      // Nhân viên đi làm
+      this.prisma.time_sheets.findMany({
+        where: {
+          user_id: { in: userIds },
+          work_date: targetDate,
+          checkin: { not: null },
+          deleted_at: null,
+        },
+        include: { user: userSelect },
+      }),
+
+      // Đếm số người đi làm
+      this.prisma.time_sheets.count({
+        where: {
+          user_id: { in: userIds },
+          work_date: targetDate,
+          checkin: { not: null },
+          deleted_at: null,
+        },
+      }),
+    ]);
+
+    // 6️⃣ Định dạng dữ liệu trả về
+    const leaveRequests = {
+      paid_leave_count: paidCount,
+      unpaid_leave_count: unpaidCount,
+      employees: leaveEmployees.map((l) => ({
+        user_id: l.user.id,
+        name: l?.user?.user_information?.name,
+        email: l?.user?.user_information?.email,
+        avatar: l?.user?.user_information?.avatar,
+        position: l?.user?.user_information?.position,
+        work_date: DateFormatUtil.formatDate(l.work_date),
+        status: 'Có phép',
+      })),
+    };
+
+    const lateInfo = {
+      late_count: lateCount,
+      early_count: earlyCount,
+      employees: lateEmployees.map((ts) => ({
         user_id: ts.user.id,
         name: ts?.user?.user_information?.name,
         email: ts?.user?.user_information?.email,
         avatar: ts?.user?.user_information?.avatar,
         position: ts?.user?.user_information?.position,
         checkin_time: DateFormatUtil.formatTime(ts.checkin),
-        checkout_time: DateFormatUtil.formatTime(ts.checkout),
-        status: ts.late_time && ts.late_time > 0 ? 'Không phép' : 'Có phép',
-        duration,
-      };
-    }),
-  };
+        late_minutes: ts.late_time || 0,
+        status: 'Không phép',
+        duration: `${Math.floor((ts.late_time || 0) / 60)}h${(ts.late_time || 0) % 60}m`,
+      })),
+    };
 
-  // 7️⃣ Trả kết quả
-  return {
-    division: { id: division.id, name: division.name },
-    work_date: dateStr,
-    working_info: workingInfo,
-    leave_requests: leaveRequests,
-    late_info: lateInfo,
-  };
-}
+    const workingInfo = {
+      total_members: totalMembers,
+      working_count: workingCount,
+      work_date: dateStr,
+      employees: workingEmployees.map((ts) => {
+        const duration =
+          ts.checkout && ts.checkin
+            ? (() => {
+                const minutes = DateFormatUtil.getDifferenceInMinutes(
+                  ts.checkin,
+                  ts.checkout,
+                );
+                return `${Math.floor(minutes / 60)}h${minutes % 60}m`;
+              })()
+            : 'Chưa checkout';
+        return {
+          user_id: ts.user.id,
+          name: ts?.user?.user_information?.name,
+          email: ts?.user?.user_information?.email,
+          avatar: ts?.user?.user_information?.avatar,
+          position: ts?.user?.user_information?.position,
+          checkin_time: DateFormatUtil.formatTime(ts.checkin),
+          checkout_time: DateFormatUtil.formatTime(ts.checkout),
+          status: ts.late_time && ts.late_time > 0 ? 'Không phép' : 'Có phép',
+          duration,
+        };
+      }),
+    };
 
+    // 7️⃣ Trả kết quả
+    return {
+      division: { id: division.id, name: division.name },
+      work_date: dateStr,
+      working_info: workingInfo,
+      leave_requests: leaveRequests,
+      late_info: lateInfo,
+    };
+  }
 
   /**
    * API riêng cho thống kê theo năm
@@ -1081,7 +1100,10 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     // Xác định năm hiện tại nếu không được cung cấp
     const targetYear = year || new Date().getFullYear();
 
-    const attendanceStats = await this.getAttendanceStatsByMonth(divisionId, targetYear);
+    const attendanceStats = await this.getAttendanceStatsByMonth(
+      divisionId,
+      targetYear,
+    );
 
     return {
       division: {
@@ -1110,7 +1132,9 @@ async getWorkInfo(divisionId: number, workDate?: string) {
 
     // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
-    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+    const dateStr =
+      DateFormatUtil.formatDate(targetDate) ||
+      targetDate.toISOString().split('T')[0];
 
     // Lấy danh sách user_id trong division
     const divisionUsers = await this.prisma.user_division.findMany({
@@ -1138,7 +1162,7 @@ async getWorkInfo(divisionId: number, workDate?: string) {
       },
       include: {
         user: {
-          select: { 
+          select: {
             id: true,
             user_information: {
               select: {
@@ -1157,7 +1181,7 @@ async getWorkInfo(divisionId: number, workDate?: string) {
       name: leave?.user?.user_information?.name,
       avatar: leave?.user?.user_information?.avatar,
       position: leave?.user?.user_information?.position,
-       work_date: DateFormatUtil.formatDate(leave.work_date),
+      work_date: DateFormatUtil.formatDate(leave.work_date),
       status: leave.status === 'APPROVED' ? 'Có phép' : 'Không phép',
     }));
 
@@ -1183,7 +1207,9 @@ async getWorkInfo(divisionId: number, workDate?: string) {
 
     // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
-    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+    const dateStr =
+      DateFormatUtil.formatDate(targetDate) ||
+      targetDate.toISOString().split('T')[0];
 
     // Lấy danh sách user_id trong division
     const divisionUsers = await this.prisma.user_division.findMany({
@@ -1258,7 +1284,9 @@ async getWorkInfo(divisionId: number, workDate?: string) {
 
     // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
-    const dateStr = DateFormatUtil.formatDate(targetDate) || targetDate.toISOString().split('T')[0];
+    const dateStr =
+      DateFormatUtil.formatDate(targetDate) ||
+      targetDate.toISOString().split('T')[0];
 
     // Lấy danh sách user_id trong division
     const divisionUsers = await this.prisma.user_division.findMany({
@@ -1307,15 +1335,22 @@ async getWorkInfo(divisionId: number, workDate?: string) {
       position: timesheet?.user?.user_information?.position,
       checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
       checkout_time: DateFormatUtil.formatTime(timesheet.checkout),
-      status: timesheet.late_time && timesheet.late_time > 0 ? 'Không phép' : 'Có phép',
-      duration: timesheet.checkout && timesheet.checkin ? 
-        (() => {
-          const minutes = DateFormatUtil.getDifferenceInMinutes(timesheet.checkin, timesheet.checkout);
-          const hours = Math.floor(minutes / 60);
-          const remainingMinutes = minutes % 60;
-          return `${hours}h${remainingMinutes}m`;
-        })() : 
-        'Chưa checkout',
+      status:
+        timesheet.late_time && timesheet.late_time > 0
+          ? 'Không phép'
+          : 'Có phép',
+      duration:
+        timesheet.checkout && timesheet.checkin
+          ? (() => {
+              const minutes = DateFormatUtil.getDifferenceInMinutes(
+                timesheet.checkin,
+                timesheet.checkout,
+              );
+              const hours = Math.floor(minutes / 60);
+              const remainingMinutes = minutes % 60;
+              return `${hours}h${remainingMinutes}m`;
+            })()
+          : 'Chưa checkout',
     }));
 
     return {
@@ -1330,7 +1365,8 @@ async getWorkInfo(divisionId: number, workDate?: string) {
    * Tính: Số lượng đi làm / Tổng số nhân viên trong division
    */
   private async getWorkingInfo(divisionId: number, date: Date) {
-    const dateStr = DateFormatUtil.formatDate(date) || date.toISOString().split('T')[0];
+    const dateStr =
+      DateFormatUtil.formatDate(date) || date.toISOString().split('T')[0];
 
     // Lấy danh sách user_id trong division
     const divisionUsers = await this.prisma.user_division.findMany({
@@ -1555,7 +1591,9 @@ async getWorkInfo(divisionId: number, workDate?: string) {
           user_id: emp.user_id,
           name: emp.name,
           avatar: emp.avatar,
-          birthday: DateFormatUtil.formatDate(emp.birthday) || emp.birthday.toISOString().split('T')[0],
+          birthday:
+            DateFormatUtil.formatDate(emp.birthday) ||
+            emp.birthday.toISOString().split('T')[0],
           birthday_date: birthday.getDate(),
           birthday_month: birthday.getMonth() + 1,
           days_until_birthday: diffDays,
@@ -2067,7 +2105,8 @@ async getWorkInfo(divisionId: number, workDate?: string) {
   // === USER DIVISION ASSIGNMENT ===
 
   async createUserDivision(createUserDivisionDto: CreateUserDivisionDto) {
-    const { userId, divisionId, role_id, teamId, description } = createUserDivisionDto;
+    const { userId, divisionId, role_id, teamId, description } =
+      createUserDivisionDto;
 
     // Kiểm tra user tồn tại
     const user = await this.prisma.users.findFirst({
@@ -2103,14 +2142,16 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     // Kiểm tra team tồn tại và thuộc division (nếu có)
     if (teamId) {
       const team = await this.prisma.teams.findFirst({
-        where: { 
-          id: teamId, 
+        where: {
+          id: teamId,
           division_id: divisionId,
-          deleted_at: null 
+          deleted_at: null,
         },
       });
       if (!team) {
-        throw new NotFoundException('Team không tồn tại hoặc không thuộc division này');
+        throw new NotFoundException(
+          'Team không tồn tại hoặc không thuộc division này',
+        );
       }
     }
 
@@ -2198,7 +2239,8 @@ async getWorkInfo(divisionId: number, workDate?: string) {
       ];
     }
 
-    if (paginationDto.divisionId) whereConditions.divisionId = paginationDto.divisionId;
+    if (paginationDto.divisionId)
+      whereConditions.divisionId = paginationDto.divisionId;
     if (paginationDto.userId) whereConditions.userId = paginationDto.userId;
     if (paginationDto.teamId) whereConditions.teamId = paginationDto.teamId;
     if (paginationDto.role_id) whereConditions.role_id = paginationDto.role_id;
@@ -2316,7 +2358,10 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     };
   }
 
-  async updateUserDivision(id: number, updateUserDivisionDto: UpdateUserDivisionDto) {
+  async updateUserDivision(
+    id: number,
+    updateUserDivisionDto: UpdateUserDivisionDto,
+  ) {
     const existingUserDivision = await this.prisma.user_division.findFirst({
       where: { id },
     });
@@ -2338,14 +2383,16 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     // Kiểm tra team tồn tại và thuộc division (nếu có)
     if (updateUserDivisionDto.teamId) {
       const team = await this.prisma.teams.findFirst({
-        where: { 
-          id: updateUserDivisionDto.teamId, 
+        where: {
+          id: updateUserDivisionDto.teamId,
           division_id: existingUserDivision.divisionId,
-          deleted_at: null 
+          deleted_at: null,
         },
       });
       if (!team) {
-        throw new NotFoundException('Team không tồn tại hoặc không thuộc division này');
+        throw new NotFoundException(
+          'Team không tồn tại hoặc không thuộc division này',
+        );
       }
     }
 
@@ -2414,7 +2461,10 @@ async getWorkInfo(divisionId: number, workDate?: string) {
     };
   }
 
-  async getUsersByDivision(divisionId: number, paginationDto: UserDivisionPaginationDto = {}) {
+  async getUsersByDivision(
+    divisionId: number,
+    paginationDto: UserDivisionPaginationDto = {},
+  ) {
     // Kiểm tra division tồn tại
     const division = await this.prisma.divisions.findFirst({
       where: { id: divisionId, deleted_at: null },

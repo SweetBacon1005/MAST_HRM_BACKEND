@@ -121,7 +121,7 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
     const batchProjects = await Promise.all(
       batch.map((project) =>
         prisma.projects.upsert({
-          where: { code: project.code },
+          where: { id: project.id },
           update: {},
           create: project,
         }),

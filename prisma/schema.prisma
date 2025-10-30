@@ -68,14 +68,12 @@ model divisions {
     is_active_project        Boolean                    @default(true)
     type                     DivisionType?
     status                   DivisionStatus?
-    level                    Int?
     address                  String?
     parent_id                Int?
     parent                   divisions?                 @relation("DivisionParent", fields: [parent_id], references: [id])
     children                 divisions[]                @relation("DivisionParent")
     founding_at              DateTime
     description              String?
-    total_member             Int?
     created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at               DateTime                   @updatedAt
     deleted_at               DateTime?                  @db.DateTime(6)
@@ -88,7 +86,6 @@ model divisions {
     @@index([parent_id])
     @@index([type])
     @@index([status])
-    @@index([level])
 }
 
 model levels {

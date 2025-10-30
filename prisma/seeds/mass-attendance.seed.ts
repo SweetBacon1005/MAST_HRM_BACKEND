@@ -66,7 +66,7 @@ function calculateWorkTime(checkin: Date, checkout: Date) {
 
 // Hàm tạo ngày làm việc (loại bỏ cuối tuần)
 function getWorkDays(startDate: Date, endDate: Date): Date[] {
-  const workDays = [];
+  const workDays: Date[] = [];
   const current = new Date(startDate);
   
   while (current <= endDate) {
