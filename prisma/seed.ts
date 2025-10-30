@@ -14,6 +14,13 @@ import { seedScheduleWorks } from './seeds/schedule-works.seed';
 import { seedAssets } from './seeds/assets.seed';
 import { seedRequests } from './seeds/requests.seed';
 import { seedLateEarlyRequests } from './seeds/late-early-requests.seed';
+import { seedMassUsers } from './seeds/mass-users.seed';
+import { seedMassProjects } from './seeds/mass-projects.seed';
+import { seedMassAttendance } from './seeds/mass-attendance.seed';
+import { seedMassRequests } from './seeds/mass-requests.seed';
+import { seedMassAssets } from './seeds/mass-assets.seed';
+import { seedMassReports } from './seeds/mass-reports.seed';
+import { seedAdditionalTestData } from './seeds/additional-test-data.seed';
 
 const prisma = new PrismaClient();
 
@@ -86,6 +93,61 @@ async function main() {
     await seedLateEarlyRequests();
     console.log('✅ Late/early requests data seeded successfully!\n');
 
+    // === MASS DATA SEEDING ===
+    console.log('🚀 =================================');
+    console.log('🚀 BẮT ĐẦU SEED MASS DATA...');
+    console.log('🚀 =================================\n');
+
+    // 14. Seed mass users (150+ employees)
+    const massUsersData = await seedMassUsers(prisma, {
+      ...basicData,
+      ...rbacData,
+    });
+    console.log('✅ Mass users data seeded successfully!\n');
+
+    // 15. Seed mass projects and tasks
+    const massProjectsData = await seedMassProjects(prisma, {
+      ...usersData,
+      ...massUsersData,
+    });
+    console.log('✅ Mass projects data seeded successfully!\n');
+
+    // 16. Seed mass attendance data
+    const massAttendanceData = await seedMassAttendance(prisma, {
+      ...usersData,
+      ...massUsersData,
+    });
+    console.log('✅ Mass attendance data seeded successfully!\n');
+
+    // 17. Seed mass requests
+    const massRequestsData = await seedMassRequests(prisma, {
+      ...usersData,
+      ...massUsersData,
+    });
+    console.log('✅ Mass requests data seeded successfully!\n');
+
+    // 18. Seed mass assets
+    const massAssetsData = await seedMassAssets(prisma, {
+      ...usersData,
+      ...massUsersData,
+    });
+    console.log('✅ Mass assets data seeded successfully!\n');
+
+    // 19. Seed mass reports and evaluations
+    const massReportsData = await seedMassReports(prisma, {
+      ...usersData,
+      ...massUsersData,
+      ...massProjectsData,
+    });
+    console.log('✅ Mass reports data seeded successfully!\n');
+
+    // 20. Seed additional test data
+    const additionalTestData = await seedAdditionalTestData(prisma, {
+      ...usersData,
+      ...massUsersData,
+    });
+    console.log('✅ Additional test data seeded successfully!\n');
+
     // Summary
     console.log('🎉 =================================');
     console.log('✅ SEED DATABASE HOÀN THÀNH!');
@@ -112,7 +174,18 @@ async function main() {
     console.log('- Children, user skills, overtime history');
     console.log('- Time sheets, daily reports, project allocations');
     console.log('- User divisions, group assignments');
-    console.log(`- ${dayOffsData.dayOffs.length} day off requests\n`);
+    console.log(`- ${dayOffsData.dayOffs.length} day off requests`);
+    
+    // Mass data summary
+    console.log('\n📊 MASS DATA SUMMARY:');
+    console.log(`- ${massUsersData.totalCreated} additional users created`);
+    console.log(`- ${massProjectsData.totalProjects} additional projects with ${massProjectsData.totalTasks} tasks`);
+    console.log(`- ${massAttendanceData.totalTimesheets} timesheets, ${massAttendanceData.totalSessions} sessions, ${massAttendanceData.totalLogs} logs`);
+    console.log(`- ${massRequestsData.totalRequests} total requests (${massRequestsData.totalDayOffs} day-offs, ${massRequestsData.totalRemoteWork} remote work, ${massRequestsData.totalOvertime} overtime)`);
+    console.log(`- ${massAssetsData.totalAssets} assets with ${massAssetsData.totalAssetRequests} asset requests`);
+    console.log(`- ${massReportsData.totalDailyReports} daily reports, ${massReportsData.totalPmReports} PM reports, ${massReportsData.totalEvaluations} evaluations`);
+    console.log(`- ${additionalTestData.totalUserSkills} user skills, ${additionalTestData.totalUserCertificates} certificates, ${additionalTestData.totalEducation} education records`);
+    console.log(`- ${additionalTestData.totalExperience} work experiences, ${additionalTestData.totalUserDivisions} user divisions, ${additionalTestData.totalHolidays} holidays\n`);
 
     console.log('🔑 Thông tin đăng nhập:');
     console.log('Admin: admin@company.com / 123456');
@@ -135,7 +208,8 @@ async function main() {
     console.log('✓ Học vấn và kinh nghiệm làm việc');
     console.log('✓ Ngày nghỉ lễ và thông tin gia đình');
     console.log('✓ Lịch sử tăng ca và nhóm làm việc');
-    console.log('✓ Sample requests cho user@example.com (remote work, day-off, overtime, late/early)\n');
+    console.log('✓ Sample requests cho user@example.com (remote work, day-off, overtime, late/early)');
+    console.log('✓ MASS DATA: 150+ users, 50+ projects, attendance logs, requests, assets, reports\n');
 
     console.log('📁 Cấu trúc seed files (đã tối ưu hóa):');
     console.log('├── prisma/seed.ts (main file)');
@@ -150,7 +224,13 @@ async function main() {
     console.log('    ├── misc-data.seed.ts ⚡ (tối ưu hóa)');
     console.log('    ├── day-offs.seed.ts ⚡ (createMany + skipDuplicates)');
     console.log('    ├── assets.seed.ts ⚡ (createMany + skipDuplicates)');
-    console.log('    └── requests.seed.ts ⚡ (sample requests for testing)');
+    console.log('    ├── requests.seed.ts ⚡ (sample requests for testing)');
+    console.log('    ├── mass-users.seed.ts ⚡ (150+ users with Vietnamese names)');
+    console.log('    ├── mass-projects.seed.ts ⚡ (50+ projects with tasks)');
+    console.log('    ├── mass-attendance.seed.ts ⚡ (3 months attendance data)');
+    console.log('    ├── mass-requests.seed.ts ⚡ (thousands of requests)');
+    console.log('    ├── mass-assets.seed.ts ⚡ (hundreds of assets)');
+    console.log('    └── mass-reports.seed.ts ⚡ (reports and evaluations)');
     console.log('\n🚀 Tối ưu hóa đã áp dụng:');
     console.log('• createMany() với skipDuplicates: true cho dữ liệu không cần update');
     console.log('• upsert() batch cho dữ liệu có ID cố định');

@@ -120,6 +120,9 @@ export class UsersService {
           user_information: {
             select: {
               name: true,
+              avatar: true,
+              phone: true,
+              address: true,
               role: {
                 select: {
                   id: true,
@@ -130,6 +133,22 @@ export class UsersService {
                 select: {
                   id: true,
                   name: true,
+                },
+              },
+            },
+          },
+          user_division: {
+            select: {
+              division: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  created_at: true,
+                  updated_at: true,
+                  deleted_at: true,
+                  status: true,
+                  type: true,
                 },
               },
             },
@@ -148,7 +167,6 @@ export class UsersService {
       user_information: undefined,
     }));
 
-    console.log(transformedData);
     return buildPaginationResponse(
       transformedData,
       total,
