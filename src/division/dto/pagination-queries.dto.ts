@@ -44,17 +44,4 @@ export class DivisionPaginationDto extends PaginationDto {
   @IsOptional()
   @IsEnum(DivisionStatus)
   status?: DivisionStatus;
-
-  @ApiProperty({
-    description: 'Lọc theo cấp độ phòng ban',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  })
-  @IsInt()
-  level?: number; 
 }

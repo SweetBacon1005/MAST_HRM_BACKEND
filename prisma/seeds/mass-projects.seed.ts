@@ -114,22 +114,28 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
   
   // Tạo projects với batch processing
   const batchSize = 25;
-  const createdProjects: any[] = [];
+  let createdProjects: any[] = [];
   
   for (let i = 0; i < projectData.length; i += batchSize) {
     const batch = projectData.slice(i, i + batchSize);
-    const batchProjects = await Promise.all(
-      batch.map((project) =>
-        prisma.projects.upsert({
-          where: { id: project.id },
-          update: {},
-          create: project,
-        }),
-      ),
-    );
-    createdProjects.push(...batchProjects);
+    
+    // Sử dụng createMany để tối ưu performance
+    await prisma.projects.createMany({
+      data: batch,
+      skipDuplicates: true,
+    });
+    
     console.log(`✓ Created projects batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(projectData.length / batchSize)}`);
   }
+  
+  // Lấy lại các projects đã tạo để sử dụng cho tasks và roles
+  createdProjects = await prisma.projects.findMany({
+    where: {
+      code: {
+        in: projectData.map(p => p.code)
+      }
+    }
+  });
 
   // Tạo project role assignments
   console.log('👥 Tạo project role assignments...');

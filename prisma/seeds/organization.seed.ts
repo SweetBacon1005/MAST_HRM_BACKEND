@@ -12,11 +12,9 @@ export async function seedOrganization(prisma: PrismaClient) {
       is_active_project: true,
       type: DivisionType.TECHNICAL,
       status: DivisionStatus.ACTIVE,
-      level: 1,
       address: 'Tầng 5, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-01-01'),
       description: 'Phòng ban công nghệ chính',
-      total_member: 50,
     },
     {
       id: 2,
@@ -24,11 +22,9 @@ export async function seedOrganization(prisma: PrismaClient) {
       is_active_project: false,
       type: DivisionType.BUSINESS,
       status: DivisionStatus.ACTIVE,
-      level: 1,
       address: 'Tầng 3, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-01-01'),
       description: 'Phòng nhân sự',
-      total_member: 10,
     },
     {
       id: 3,
@@ -36,12 +32,10 @@ export async function seedOrganization(prisma: PrismaClient) {
       is_active_project: true,
       type: DivisionType.TECHNICAL,
       status: DivisionStatus.ACTIVE,
-      level: 2,
       parent_id: 1,
       address: 'Tầng 5, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-06-01'),
       description: 'Phòng đảm bảo chất lượng',
-      total_member: 15,
     },
     {
       id: 4,
@@ -49,12 +43,10 @@ export async function seedOrganization(prisma: PrismaClient) {
       is_active_project: true,
       type: DivisionType.TECHNICAL,
       status: DivisionStatus.ACTIVE,
-      level: 2,
       parent_id: 1,
       address: 'Tầng 6, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-03-01'),
       description: 'Nhóm phát triển A',
-      total_member: 20,
     },
     {
       id: 5,
@@ -62,19 +54,17 @@ export async function seedOrganization(prisma: PrismaClient) {
       is_active_project: true,
       type: DivisionType.TECHNICAL,
       status: DivisionStatus.ACTIVE,
-      level: 2,
       parent_id: 1,
       address: 'Tầng 7, Tòa nhà ABC, Hà Nội',
       founding_at: new Date('2020-09-01'),
       description: 'Nhóm phát triển B',
-      total_member: 15,
     },
   ];
 
   // Tạo divisions theo thứ tự level để tránh lỗi foreign key
   // Level 1 (parent divisions) trước
-  const level1Divisions = divisionData.filter(d => d.level === 1);
-  const level2Divisions = divisionData.filter(d => d.level === 2);
+  const level1Divisions = divisionData.filter(d => d.parent_id === undefined);
+  const level2Divisions = divisionData.filter(d => d.parent_id !== undefined);
 
   // Tạo level 1 divisions trước (không có parent_id)
   await prisma.divisions.createMany({
