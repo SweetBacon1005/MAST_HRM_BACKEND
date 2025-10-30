@@ -118,18 +118,18 @@ export class AssetsService {
     // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
-        { name: { contains: paginationDto.search, mode: 'insensitive' } },
-        { asset_code: { contains: paginationDto.search, mode: 'insensitive' } },
-        { description: { contains: paginationDto.search, mode: 'insensitive' } },
-        { brand: { contains: paginationDto.search, mode: 'insensitive' } },
-        { model: { contains: paginationDto.search, mode: 'insensitive' } },
+        { name: { contains: paginationDto.search} },
+        { asset_code: { contains: paginationDto.search} },
+        { description: { contains: paginationDto.search} },
+        { brand: { contains: paginationDto.search} },
+        { model: { contains: paginationDto.search} },
       ];
     }
 
     if (paginationDto.category) whereConditions.category = paginationDto.category;
     if (paginationDto.status) whereConditions.status = paginationDto.status;
     if (paginationDto.assigned_to) whereConditions.assigned_to = paginationDto.assigned_to;
-    if (paginationDto.brand) whereConditions.brand = { contains: paginationDto.brand, mode: 'insensitive' };
+    if (paginationDto.brand) whereConditions.brand = { contains: paginationDto.brand};
 
     const [assets, total] = await Promise.all([
       this.prisma.assets.findMany({
@@ -630,9 +630,9 @@ export class AssetsService {
     // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
-        { description: { contains: paginationDto.search, mode: 'insensitive' } },
-        { justification: { contains: paginationDto.search, mode: 'insensitive' } },
-        { category: { contains: paginationDto.search, mode: 'insensitive' } },
+        { description: { contains: paginationDto.search} },
+        { justification: { contains: paginationDto.search} },
+        { category: { contains: paginationDto.search} },
       ];
     }
 

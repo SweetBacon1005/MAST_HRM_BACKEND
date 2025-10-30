@@ -984,14 +984,13 @@ export class UserProfileService {
   async findAllRoles(paginationDto: RolePaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.rolesWhereInput = {
       deleted_at: null,
     };
 
     if (paginationDto.search) {
       whereConditions.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
     }
 
@@ -1215,7 +1214,6 @@ export class UserProfileService {
     if (paginationDto.search) {
       whereConditions.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
     }
 
@@ -1398,14 +1396,13 @@ export class UserProfileService {
   async findAllPositions(paginationDto: PositionPaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.positionsWhereInput = {
       deleted_at: null,
     };
 
     if (paginationDto.search) {
       whereConditions.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
     }
 
@@ -1579,14 +1576,13 @@ export class UserProfileService {
   async findAllLanguages(paginationDto: LanguagePaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.languagesWhereInput = {
       deleted_at: null,
     };
 
     if (paginationDto.search) {
       whereConditions.name = {
         contains: paginationDto.search,
-        mode: 'insensitive',
       };
     }
 

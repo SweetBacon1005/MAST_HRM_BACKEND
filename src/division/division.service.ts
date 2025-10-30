@@ -2483,7 +2483,7 @@ export class DivisionService {
     if (paginationDto.search) {
       whereConditions.user = {
         user_information: {
-          name: { contains: paginationDto.search, mode: 'insensitive' },
+          name: { contains: paginationDto.search},
         },
       };
     }
@@ -2569,16 +2569,16 @@ export class DivisionService {
     if (paginationDto.search) {
       whereConditions.OR = [
         {
-          email: { contains: paginationDto.search, mode: 'insensitive' },
+          email: { contains: paginationDto.search},
         },
         {
           user_information: {
-            name: { contains: paginationDto.search, mode: 'insensitive' },
+            name: { contains: paginationDto.search},
           },
         },
         {
           user_information: {
-            code: { contains: paginationDto.search, mode: 'insensitive' },
+            code: { contains: paginationDto.search},
           },
         },
       ];

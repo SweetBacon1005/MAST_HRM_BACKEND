@@ -364,7 +364,7 @@ export class AttendanceService {
     if (paginationDto.shift_name) {
       where.name = {
         contains: paginationDto.shift_name,
-        mode: 'insensitive',
+        
       };
     }
 
