@@ -10,12 +10,17 @@ export class PrismaService
 
   constructor() {
     super({
-      log: [
-        { emit: 'event', level: 'query' },
-        { emit: 'event', level: 'error' },
-        { emit: 'event', level: 'info' },
-        { emit: 'event', level: 'warn' },
-      ],
+      log: process.env.NODE_ENV === 'development' 
+        ? [
+            { emit: 'event', level: 'query' },
+            { emit: 'event', level: 'error' },
+            { emit: 'event', level: 'info' },
+            { emit: 'event', level: 'warn' },
+          ]
+        : [
+            { emit: 'event', level: 'error' },
+            { emit: 'event', level: 'warn' },
+          ],
       datasources: {
         db: {
           url: process.env.DATABASE_URL,
@@ -68,6 +73,53 @@ export class PrismaService
       this.logger.debug('🔄 Database connections cleaned up');
     } catch (error) {
       this.logger.error('❌ Error cleaning up connections:', error);
+    }
+  }
+
+  /**
+   * Kiểm tra số lượng connection hiện tại
+   */
+  async checkConnectionCount() {
+    try {
+      const result = await this.$queryRaw`
+        SELECT 
+          COUNT(*) as total_connections,
+          SUM(CASE WHEN COMMAND != 'Sleep' THEN 1 ELSE 0 END) as active_connections,
+          SUM(CASE WHEN COMMAND = 'Sleep' THEN 1 ELSE 0 END) as idle_connections
+        FROM INFORMATION_SCHEMA.PROCESSLIST
+        WHERE DB = DATABASE()
+      ` as any[];
+
+      const stats = result[0];
+      this.logger.log(`📊 DB Connections - Total: ${stats.total_connections}, Active: ${stats.active_connections}, Idle: ${stats.idle_connections}`);
+      
+      // Cảnh báo nếu có quá nhiều connection
+      if (stats.total_connections > 50) {
+        this.logger.warn(`⚠️  Too many database connections: ${stats.total_connections}`);
+      }
+
+      return stats;
+    } catch (error) {
+      this.logger.error('❌ Error checking connection count:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Force close idle connections
+   */
+  async closeIdleConnections() {
+    try {
+      await this.$queryRaw`
+        SELECT CONCAT('KILL ', id, ';') as kill_query
+        FROM INFORMATION_SCHEMA.PROCESSLIST 
+        WHERE COMMAND = 'Sleep' 
+        AND TIME > 300 
+        AND DB = DATABASE()
+      `;
+      this.logger.log('🧹 Closed idle connections');
+    } catch (error) {
+      this.logger.error('❌ Error closing idle connections:', error);
     }
   }
 }

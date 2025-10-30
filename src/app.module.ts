@@ -18,7 +18,7 @@ import { ReportsModule } from './reports/reports.module';
 import { UploadModule } from './upload/upload.module';
 import { AssetsModule } from './assets/assets.module';
 import { CommonModule } from './common/common.module';
-import { PrismaService } from './database/prisma.service';
+import { DatabaseModule } from './database/database.module';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
@@ -29,6 +29,7 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    DatabaseModule, // Global database module
     ScheduleModule.forRoot(),
     CommonModule, // Add shared services
     AuthModule,
@@ -49,7 +50,6 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
   controllers: [AppController],
   providers: [
     AppService, 
-    PrismaService, 
     GlobalAuthGuard, 
     Reflector,
     {

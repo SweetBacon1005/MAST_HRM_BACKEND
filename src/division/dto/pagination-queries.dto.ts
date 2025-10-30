@@ -56,20 +56,5 @@ export class DivisionPaginationDto extends PaginationDto {
     return Number(value);
   })
   @IsInt()
-  level?: number;
-
-  @ApiProperty({
-    description: 'Lọc theo trạng thái dự án hoạt động',
-    example: true,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    if (typeof value === 'boolean') return value;
-    return undefined;
-  })
-  @IsBoolean()
-  is_active_project?: boolean;
+  level?: number; 
 }
