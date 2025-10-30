@@ -28,18 +28,18 @@ import { UpdateUserInformationDto } from './dto/update-user-information.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
 // CRUD DTOs
-import { CreateRoleDto } from './roles/dto/create-role.dto';
-import { UpdateRoleDto } from './roles/dto/update-role.dto';
-import { RolePaginationDto } from './roles/dto/role-pagination.dto';
-import { CreateLevelDto } from './levels/dto/create-level.dto';
-import { UpdateLevelDto } from './levels/dto/update-level.dto';
-import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
-import { CreatePositionDto } from './positions/dto/create-position.dto';
-import { UpdatePositionDto } from './positions/dto/update-position.dto';
-import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
 import { CreateLanguageDto } from './languages/dto/create-language.dto';
-import { UpdateLanguageDto } from './languages/dto/update-language.dto';
 import { LanguagePaginationDto } from './languages/dto/language-pagination.dto';
+import { UpdateLanguageDto } from './languages/dto/update-language.dto';
+import { CreateLevelDto } from './levels/dto/create-level.dto';
+import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
+import { UpdateLevelDto } from './levels/dto/update-level.dto';
+import { CreatePositionDto } from './positions/dto/create-position.dto';
+import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
+import { UpdatePositionDto } from './positions/dto/update-position.dto';
+import { CreateRoleDto } from './roles/dto/create-role.dto';
+import { RolePaginationDto } from './roles/dto/role-pagination.dto';
+import { UpdateRoleDto } from './roles/dto/update-role.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -53,8 +53,6 @@ export class UserProfileService {
         user_information: {
           select: {
             name: true,
-          },
-          include: {
             position: true,
             role: true,
             level: true,
@@ -63,7 +61,7 @@ export class UserProfileService {
         },
         user_division: {
           where: { division: { deleted_at: null } },
-          include: {
+          select: {
             division: {
               select: { id: true, name: true },
             },
@@ -86,9 +84,9 @@ export class UserProfileService {
         },
         user_skills: {
           where: { deleted_at: null },
-          include: {
+          select: {
             skill: {
-              include: {
+              select: {
                 position: true,
               },
             },
@@ -1177,7 +1175,7 @@ export class UserProfileService {
     // Thêm permissions mới
     if (permissionIds.length > 0) {
       await this.prisma.permission_role.createMany({
-        data: permissionIds.map(permissionId => ({
+        data: permissionIds.map((permissionId) => ({
           role_id: roleId,
           permission_id: permissionId,
         })),
@@ -1323,7 +1321,10 @@ export class UserProfileService {
     }
 
     // Kiểm tra coefficient đã tồn tại (nếu có thay đổi coefficient)
-    if (updateLevelDto.level && updateLevelDto.level !== existingLevel.coefficient) {
+    if (
+      updateLevelDto.level &&
+      updateLevelDto.level !== existingLevel.coefficient
+    ) {
       const duplicateCoefficient = await this.prisma.levels.findFirst({
         where: {
           coefficient: updateLevelDto.level,
@@ -1501,7 +1502,10 @@ export class UserProfileService {
     }
 
     // Kiểm tra tên position đã tồn tại (nếu có thay đổi tên)
-    if (updatePositionDto.name && updatePositionDto.name !== existingPosition.name) {
+    if (
+      updatePositionDto.name &&
+      updatePositionDto.name !== existingPosition.name
+    ) {
       const duplicatePosition = await this.prisma.positions.findFirst({
         where: {
           name: updatePositionDto.name,
@@ -1669,7 +1673,10 @@ export class UserProfileService {
     }
 
     // Kiểm tra tên ngôn ngữ đã tồn tại (nếu có thay đổi)
-    if (updateLanguageDto.name && updateLanguageDto.name !== existingLanguage.name) {
+    if (
+      updateLanguageDto.name &&
+      updateLanguageDto.name !== existingLanguage.name
+    ) {
       const duplicateLanguage = await this.prisma.languages.findFirst({
         where: {
           name: updateLanguageDto.name,
