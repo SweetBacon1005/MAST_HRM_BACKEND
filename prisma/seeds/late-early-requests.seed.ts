@@ -1,8 +1,6 @@
 import { PrismaClient, LateEarlyType, TimesheetStatus } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-export async function seedLateEarlyRequests() {
+export async function seedLateEarlyRequests(prisma: PrismaClient) {
   console.log('🌱 Seeding late/early requests...');
 
   // Tìm user có email user@example.com

@@ -2548,4 +2548,142 @@ export class DivisionService {
       paginationDto.limit || 10,
     );
   }
+
+  async getUnassignedUsers(paginationDto: any = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    // Build where conditions for users not in any division
+    const whereConditions: any = {
+      deleted_at: null,
+      user_information: {
+        deleted_at: null,
+        status: 'ACTIVE',
+      },
+      // Users không có trong bảng user_division
+      user_division: {
+        none: {},
+      },
+    };
+
+    // Build search conditions
+    if (paginationDto.search) {
+      whereConditions.OR = [
+        {
+          email: { contains: paginationDto.search, mode: 'insensitive' },
+        },
+        {
+          user_information: {
+            name: { contains: paginationDto.search, mode: 'insensitive' },
+          },
+        },
+        {
+          user_information: {
+            code: { contains: paginationDto.search, mode: 'insensitive' },
+          },
+        },
+      ];
+    }
+
+    // Filter by position
+    if (paginationDto.positionId) {
+      whereConditions.user_information = {
+        ...whereConditions.user_information,
+        position_id: paginationDto.positionId,
+      };
+    }
+
+    // Filter by level
+    if (paginationDto.levelId) {
+      whereConditions.user_information = {
+        ...whereConditions.user_information,
+        level_id: paginationDto.levelId,
+      };
+    }
+
+    // Build orderBy
+    let finalOrderBy: any = { created_at: 'desc' };
+    if (paginationDto.sortBy) {
+      const sortOrder = paginationDto.sortOrder || 'asc';
+      switch (paginationDto.sortBy) {
+        case 'name':
+          finalOrderBy = { user_information: { name: sortOrder } };
+          break;
+        case 'email':
+          finalOrderBy = { email: sortOrder };
+          break;
+        case 'created_at':
+          finalOrderBy = { created_at: sortOrder };
+          break;
+        default:
+          finalOrderBy = { created_at: 'desc' };
+      }
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.users.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: finalOrderBy,
+        select: {
+          id: true,
+          email: true,
+          created_at: true,
+          user_information: {
+            select: {
+              name: true,
+              code: true,
+              avatar: true,
+              birthday: true,
+              phone: true,
+              address: true,
+              position: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              level: {
+                select: {
+                  id: true,
+                  name: true,
+                  coefficient: true,
+                },
+              },
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.users.count({ where: whereConditions }),
+    ]);
+
+    // Transform data để dễ sử dụng
+    const transformedUsers = users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: user.user_information?.name || '',
+      code: user.user_information?.code || '',
+      avatar: user.user_information?.avatar || '',
+      birthday: user.user_information?.birthday || null,
+      phone: user.user_information?.phone || '',
+      address: user.user_information?.address || '',
+      position: user.user_information?.position || null,
+      level: user.user_information?.level || null,
+      role: user.user_information?.role || null,
+      created_at: user.created_at,
+    }));
+
+    return buildPaginationResponse(
+      transformedUsers,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
 }

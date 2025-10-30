@@ -1,8 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
-
-export async function seedAssets() {
+export async function seedAssets(prisma: PrismaClient) {
   console.log('🌱 Seeding assets...');
 
   // Lấy một số user để gán tài sản và làm creator

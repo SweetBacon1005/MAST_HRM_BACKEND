@@ -22,7 +22,19 @@ import { seedMassAssets } from './seeds/mass-assets.seed';
 import { seedMassReports } from './seeds/mass-reports.seed';
 import { seedAdditionalTestData } from './seeds/additional-test-data.seed';
 
-const prisma = new PrismaClient();
+// Sử dụng singleton pattern để tránh tạo nhiều connection
+const prisma = globalThis.prisma || new PrismaClient({
+  log: ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
+}
 
 async function main() {
   console.log('🌱 Bắt đầu seed database...');
@@ -82,7 +94,7 @@ async function main() {
     console.log('✅ Day offs data seeded successfully!\n');
 
     // 11. Seed assets
-    await seedAssets();
+    await seedAssets(prisma);
     console.log('✅ Assets seeded successfully!\n');
 
     // 12. Seed requests for user@example.com
@@ -90,7 +102,7 @@ async function main() {
     console.log('✅ Requests data seeded successfully!\n');
 
     // 13. Seed late/early requests
-    await seedLateEarlyRequests();
+    await seedLateEarlyRequests(prisma);
     console.log('✅ Late/early requests data seeded successfully!\n');
 
     // === MASS DATA SEEDING ===
