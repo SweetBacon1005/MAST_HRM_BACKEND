@@ -183,7 +183,13 @@ export class UsersService {
         user_information: {
           include: {
             role: true,
-            position: true,
+            position: true, 
+            level: true,
+          },
+        },
+        user_division: {
+          include: {
+            division: true,
           },
         },
       },

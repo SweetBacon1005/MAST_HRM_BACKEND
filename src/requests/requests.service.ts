@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REQUEST_ERRORS, USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
 import {
   DayOffStatus,
   DayOffType,
@@ -13,6 +12,11 @@ import {
 } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { PermissionCheckerService } from '../auth/services/permission-checker.service';
+import {
+  REQUEST_ERRORS,
+  SUCCESS_MESSAGES,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import {
   buildPaginationQuery,
@@ -1011,10 +1015,16 @@ export class RequestsService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     // Determine access scope based on role
-    const accessScope = await this.determineAccessScope(requesterId!, requesterRole!);
+    const accessScope = await this.determineAccessScope(
+      requesterId!,
+      requesterRole!,
+    );
 
     // Build role-based where conditions
-    const roleBasedConditions = this.buildRoleBasedWhereConditions(accessScope, paginationDto);
+    const roleBasedConditions = this.buildRoleBasedWhereConditions(
+      accessScope,
+      paginationDto,
+    );
 
     // Apply role-based filtering logic
     let userIds: number[] | undefined;
@@ -1022,13 +1032,17 @@ export class RequestsService {
     if (accessScope.type === 'DIVISION_ONLY') {
       // Division Head chỉ xem requests trong divisions mình quản lý
       if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
-        const divisionUserIds = await this.getDivisionUserIds(accessScope.divisionIds);
+        const divisionUserIds = await this.getDivisionUserIds(
+          accessScope.divisionIds,
+        );
         userIds = divisionUserIds;
-        
+
         // Division Head có thể filter theo team trong division
         if (paginationDto.team_id) {
-          const teamUserIds = await this.getTeamUserIds([paginationDto.team_id]);
-          userIds = userIds.filter(id => teamUserIds.includes(id));
+          const teamUserIds = await this.getTeamUserIds([
+            paginationDto.team_id,
+          ]);
+          userIds = userIds.filter((id) => teamUserIds.includes(id));
         }
       } else {
         // Không có division nào để quản lý
@@ -1042,13 +1056,17 @@ export class RequestsService {
     } else if (accessScope.type === 'ALL_ACCESS') {
       // Admin/HR có thể xem tất cả hoặc filter theo các tiêu chí
       if (paginationDto.division_id) {
-        const divisionUserIds = await this.getDivisionUserIds([paginationDto.division_id]);
+        const divisionUserIds = await this.getDivisionUserIds([
+          paginationDto.division_id,
+        ]);
         userIds = divisionUserIds;
       }
 
       // Filter theo leadership roles nếu leads_only=true
       if (paginationDto.leads_only) {
-        const leadUserIds = await this.getLeadUserIds(paginationDto.division_id);
+        const leadUserIds = await this.getLeadUserIds(
+          paginationDto.division_id,
+        );
         userIds = userIds
           ? userIds.filter((id) => leadUserIds.includes(id))
           : leadUserIds;
@@ -1058,7 +1076,7 @@ export class RequestsService {
       if (paginationDto.team_id) {
         const teamUserIds = await this.getTeamUserIds([paginationDto.team_id]);
         userIds = userIds
-          ? userIds.filter(id => teamUserIds.includes(id))
+          ? userIds.filter((id) => teamUserIds.includes(id))
           : teamUserIds;
       }
     } else if (accessScope.type === 'TEAM_ONLY') {
@@ -1076,7 +1094,9 @@ export class RequestsService {
 
     // Filter theo role của requester nếu có
     if (paginationDto.requester_role) {
-      const roleUserIds = await this.getUserIdsByRole(paginationDto.requester_role);
+      const roleUserIds = await this.getUserIdsByRole(
+        paginationDto.requester_role,
+      );
       userIds = userIds
         ? userIds.filter((id) => roleUserIds.includes(id))
         : roleUserIds;
@@ -1085,12 +1105,12 @@ export class RequestsService {
     // Nếu có userIds filter, sử dụng method getRequestsByUserIds
     if (userIds && userIds.length > 0) {
       let result = await this.getRequestsByUserIds(userIds, paginationDto);
-      
+
       // Apply high priority filter if requested
       if (paginationDto.high_priority_only) {
         result = await this.filterHighPriorityRequests(result, paginationDto);
       }
-      
+
       // Add metadata về access scope và filters
       return {
         ...result,
@@ -1106,8 +1126,8 @@ export class RequestsService {
             division_id: paginationDto.division_id,
             team_id: paginationDto.team_id,
             requester_role: paginationDto.requester_role,
-          }
-        }
+          },
+        },
       };
     } else if (userIds && userIds.length === 0) {
       // Không có user nào match filter
@@ -1126,8 +1146,8 @@ export class RequestsService {
             leads_only: paginationDto.leads_only || false,
             division_restriction: accessScope.type === 'DIVISION_ONLY',
             team_restriction: accessScope.type === 'TEAM_ONLY',
-          }
-        }
+          },
+        },
       };
     }
 
@@ -1147,8 +1167,8 @@ export class RequestsService {
           leads_only: paginationDto.leads_only || false,
           division_restriction: accessScope.type === 'DIVISION_ONLY',
           team_restriction: accessScope.type === 'TEAM_ONLY',
-        }
-      }
+        },
+      },
     };
   }
 
@@ -2624,13 +2644,22 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(userDivisions.map(ud => ud.divisionId).filter((id): id is number => id !== null))];
+    return [
+      ...new Set(
+        userDivisions
+          .map((ud) => ud.divisionId)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
   }
 
   /**
    * Xác định scope truy cập theo role
    */
-  private async determineAccessScope(userId: number, role: string): Promise<{
+  private async determineAccessScope(
+    userId: number,
+    role: string,
+  ): Promise<{
     type: 'DIVISION_ONLY' | 'ALL_ACCESS' | 'TEAM_ONLY' | 'SELF_ONLY';
     divisionIds?: number[];
     teamIds?: number[];
@@ -2698,7 +2727,13 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(userTeams.map(ut => ut.teamId).filter((id): id is number => id !== null))];
+    return [
+      ...new Set(
+        userTeams
+          .map((ut) => ut.teamId)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
   }
 
   /**
@@ -2711,7 +2746,10 @@ export class RequestsService {
     const whereConditions: any = {};
 
     // Apply access scope restrictions
-    if (accessScope.type === 'DIVISION_ONLY' && accessScope.divisionIds?.length > 0) {
+    if (
+      accessScope.type === 'DIVISION_ONLY' &&
+      accessScope.divisionIds?.length > 0
+    ) {
       whereConditions.user = {
         user_division: {
           some: {
@@ -2719,7 +2757,10 @@ export class RequestsService {
           },
         },
       };
-    } else if (accessScope.type === 'TEAM_ONLY' && accessScope.teamIds?.length > 0) {
+    } else if (
+      accessScope.type === 'TEAM_ONLY' &&
+      accessScope.teamIds?.length > 0
+    ) {
       whereConditions.user = {
         user_division: {
           some: {
@@ -2791,7 +2832,11 @@ export class RequestsService {
    */
   private isHighPriorityRequest(request: any): boolean {
     // 1. Requests từ leadership roles
-    if (this.getLeadershipRoles().includes(request.user?.user_information?.role?.name)) {
+    if (
+      this.getLeadershipRoles().includes(
+        request.user?.user_information?.role?.name,
+      )
+    ) {
       return true;
     }
 
@@ -2829,7 +2874,7 @@ export class RequestsService {
       },
     });
 
-    return [...new Set(teamUsers.map(tu => tu.userId))];
+    return [...new Set(teamUsers.map((tu) => tu.userId))];
   }
 
   /**
@@ -2844,8 +2889,8 @@ export class RequestsService {
     }
 
     // Filter requests based on high priority criteria
-    const highPriorityRequests = result.data.filter((request: any) => 
-      this.isHighPriorityRequest(request)
+    const highPriorityRequests = result.data.filter((request: any) =>
+      this.isHighPriorityRequest(request),
     );
 
     // Rebuild pagination with filtered data

@@ -1,6 +1,7 @@
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { IsOptional, IsEnum, IsInt, IsDateString } from 'class-validator';
 import { CreateAssetDto } from './create-asset.dto';
+import { AssetStatus } from '@prisma/client';
 
 export class UpdateAssetDto extends PartialType(CreateAssetDto) {
   @ApiPropertyOptional({
@@ -10,7 +11,7 @@ export class UpdateAssetDto extends PartialType(CreateAssetDto) {
   })
   @IsOptional()
   @IsEnum(['AVAILABLE', 'ASSIGNED', 'MAINTENANCE', 'RETIRED', 'LOST', 'DAMAGED'])
-  status?: string;
+  status?: AssetStatus;
 
   @ApiPropertyOptional({
     description: 'ID user được gán tài sản',

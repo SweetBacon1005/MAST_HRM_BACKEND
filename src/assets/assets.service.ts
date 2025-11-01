@@ -42,21 +42,7 @@ export class AssetsService {
     });
 
     if (existingAsset) {
-      throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
-    }
-
-    // Check if serial_number already exists (if provided)
-    if (createAssetDto.serial_number) {
-      const existingSerial = await this.prisma.assets.findFirst({
-        where: {
-          serial_number: createAssetDto.serial_number,
-          deleted_at: null,
-        },
-      });
-
-      if (existingSerial) {
-        throw new BadRequestException(ASSET_ERRORS.SERIAL_NUMBER_EXISTS);
-      }
+      throw new BadRequestException(ASSET_ERRORS.ASSET_CODE_EXISTS);
     }
 
     const asset = await this.prisma.assets.create({

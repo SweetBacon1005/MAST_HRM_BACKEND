@@ -350,64 +350,30 @@ export class DivisionService {
     const skip = (page - 1) * limit;
 
     // Build where conditions for user_information filters
-    const userInfoWhere: any = {
+    const userInfoWhere: Prisma.user_informationWhereInput = {
       deleted_at: null,
     };
 
-    if (queryDto.positionId) {
-      userInfoWhere.position_id = queryDto.positionId;
+    if (queryDto.position_id) {
+      userInfoWhere.position_id = queryDto.position_id;
     }
 
-    if (queryDto.levelId) {
-      userInfoWhere.level_id = queryDto.levelId;
-    }
 
     // Build where conditions
-    const whereConditions: any = {
+    const whereConditions: Prisma.user_divisionWhereInput = {
       divisionId: divisionId,
       user: {
-        deleted_at: null,
-        user_information: {
-          some: userInfoWhere,
-        },
+        user_information: userInfoWhere,
       },
     };
 
-    // Filter by team
-    if (queryDto.teamId) {
-      whereConditions.teamId = queryDto.teamId;
-    }
-
-    // Filter by search (name)
-    if (queryDto.search) {
-      whereConditions.user = {
-        ...whereConditions.user,
-        name: {
-          contains: queryDto.search,
-        },
-      };
-    }
-
-    // Filter by skill
-    if (queryDto.skillId) {
-      whereConditions.user = {
-        ...whereConditions.user,
-        user_skills: {
-          some: {
-            skill_id: queryDto.skillId,
-            deleted_at: null,
-          },
-        },
-      };
-    }
-
     // Build orderBy
-    let orderBy: any = { created_at: 'desc' };
+    let orderBy: Prisma.user_divisionOrderByWithRelationInput = { created_at: 'desc' };
     if (queryDto.sortBy) {
       const sortOrder = queryDto.sortOrder || 'asc';
       switch (queryDto.sortBy) {
         case 'name':
-          orderBy = { user: { name: sortOrder } };
+          orderBy = { user: { user_information: { name: sortOrder } } };
           break;
         case 'join_date':
           orderBy = { created_at: sortOrder };
@@ -903,7 +869,7 @@ export class DivisionService {
       select: {
         id: true,
         user_information: {
-          select: { name: true, email: true, avatar: true, position: true },
+          select: { name: true, personal_email: true, avatar: true, position: true },
         },
       },
     };
@@ -1021,7 +987,7 @@ export class DivisionService {
       employees: leaveEmployees.map((l) => ({
         user_id: l.user.id,
         name: l?.user?.user_information?.name,
-        email: l?.user?.user_information?.email,
+        email: l?.user?.user_information?.personal_email,
         avatar: l?.user?.user_information?.avatar,
         position: l?.user?.user_information?.position,
         work_date: DateFormatUtil.formatDate(l.work_date),
@@ -1035,7 +1001,7 @@ export class DivisionService {
       employees: lateEmployees.map((ts) => ({
         user_id: ts.user.id,
         name: ts?.user?.user_information?.name,
-        email: ts?.user?.user_information?.email,
+        email: ts?.user?.user_information?.personal_email,
         avatar: ts?.user?.user_information?.avatar,
         position: ts?.user?.user_information?.position,
         checkin_time: DateFormatUtil.formatTime(ts.checkin),
@@ -1063,7 +1029,7 @@ export class DivisionService {
         return {
           user_id: ts.user.id,
           name: ts?.user?.user_information?.name,
-          email: ts?.user?.user_information?.email,
+          email: ts?.user?.user_information?.personal_email,
           avatar: ts?.user?.user_information?.avatar,
           position: ts?.user?.user_information?.position,
           checkin_time: DateFormatUtil.formatTime(ts.checkin),
@@ -2443,21 +2409,36 @@ export class DivisionService {
     };
   }
 
-  async removeUserDivision(id: number) {
-    const userDivision = await this.prisma.user_division.findFirst({
-      where: { id },
+  async removeUserDivision(user_id: number) {
+    const user = await this.prisma.users.findFirst({
+      where: { id: user_id },
+      include: {
+        user_division: {
+          where: {
+            deleted_at: null,
+          },
+        },
+      },
     });
 
-    if (!userDivision) {
-      throw new NotFoundException('Không tìm thấy user division assignment');
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy user');
     }
 
-    await this.prisma.user_division.delete({
-      where: { id },
+    await this.prisma.user_division.update({
+      where: { id: user.user_division[0].id },
+      data: {
+        deleted_at: new Date(),
+      },
     });
+
+    if (user.user_division.length === 0) {
+      throw new BadRequestException('User không có assignment trong division');
+    }
 
     return {
       message: 'Xóa user khỏi division thành công',
+      data: user,
     };
   }
 
@@ -2475,8 +2456,9 @@ export class DivisionService {
 
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.user_divisionWhereInput = {
       divisionId,
+      deleted_at: null,
     };
 
     // Build search conditions

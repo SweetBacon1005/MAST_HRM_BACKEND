@@ -207,12 +207,10 @@ export class AuthService {
         used_leave_days: 0,
         assigned_devices: [],
         organization: {
-          position_id: null,
-          level_id: null,
-          office_id: null,
-          role_id: null,
-          division_id: null,
-          team_id: null,
+          position_id: user.user_information?.position_id,
+          level_id: user.user_information?.level_id,
+          role_id: user.user_information?.role_id,
+          division_id: user.user_division?.[0]?.division?.id || null,
         },
       };
     }

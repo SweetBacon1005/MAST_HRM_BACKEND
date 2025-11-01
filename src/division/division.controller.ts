@@ -442,10 +442,10 @@ export class DivisionController {
     return this.divisionService.updateUserDivision(id, updateUserDivisionDto);
   }
 
-  @Delete('user-assignments/:id')
+  @Delete('user-assignments/:user_id')
   @RequirePermission('division.assignment.delete')
   @ApiOperation({ summary: 'Xóa user khỏi division' })
-  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiParam({ name: 'user_id', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Xóa user khỏi division thành công',
@@ -454,8 +454,8 @@ export class DivisionController {
     status: 404,
     description: 'Không tìm thấy assignment',
   })
-  removeUserDivision(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.removeUserDivision(id);
+  removeUserDivision(@Param('user_id', ParseIntPipe) user_id: number) {
+    return this.divisionService.removeUserDivision(user_id);
   }
 
   @Get('teams')

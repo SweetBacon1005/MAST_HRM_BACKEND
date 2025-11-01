@@ -57,6 +57,7 @@ export const USER_ERRORS = {
 // === ASSET ERRORS ===
 export const ASSET_ERRORS = {
   ASSET_NOT_FOUND: 'Không tìm thấy tài sản',
+  ASSET_CODE_EXISTS: 'Mã tài sản đã tồn tại',
   SERIAL_NUMBER_EXISTS: 'Số serial đã tồn tại',
   ASSET_ALREADY_ASSIGNED: 'Tài sản đã được gán cho người khác',
   ASSET_NOT_ASSIGNED: 'Tài sản chưa được gán cho ai',

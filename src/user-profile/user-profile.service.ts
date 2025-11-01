@@ -70,6 +70,9 @@ export class UserProfileService {
         },
         user_skills: {
           where: { deleted_at: null },
+          include: {
+            skill: true,
+          },
         },
       },
     });

@@ -865,11 +865,12 @@ model user_division {
 
     created_at DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at DateTime @updatedAt
-
+    deleted_at DateTime? @db.DateTime()
     @@index([userId])
     @@index([role_id])
     @@index([divisionId])
     @@index([teamId])
+    @@index([deleted_at])
 }
 
 model teams {
