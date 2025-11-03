@@ -158,6 +158,23 @@ export const VALIDATION_ERRORS = {
   INVALID_ENUM_VALUE: 'Giá trị không nằm trong danh sách cho phép',
 } as const;
 
+// === NEWS ERRORS ===
+export const NEWS_ERRORS = {
+  NEWS_NOT_FOUND: 'Không tìm thấy tin tức',
+  UNAUTHORIZED_UPDATE: 'Bạn không có quyền cập nhật tin tức này',
+  UNAUTHORIZED_DELETE: 'Bạn không có quyền xóa tin tức này',
+  UNAUTHORIZED_SUBMIT: 'Bạn không có quyền gửi tin tức này để duyệt',
+  CANNOT_UPDATE_STATUS: 'Chỉ có thể cập nhật tin tức ở trạng thái nháp hoặc bị từ chối',
+  CANNOT_SUBMIT_STATUS: 'Chỉ có thể gửi tin tức ở trạng thái nháp hoặc bị từ chối để duyệt',
+  CANNOT_REVIEW_STATUS: 'Chỉ có thể duyệt/từ chối tin tức ở trạng thái chờ duyệt',
+  NEWS_CREATED_SUCCESS: 'Tạo tin tức thành công',
+  NEWS_UPDATED_SUCCESS: 'Cập nhật tin tức thành công',
+  NEWS_DELETED_SUCCESS: 'Xóa tin tức thành công',
+  NEWS_SUBMITTED_SUCCESS: 'Gửi tin tức để duyệt thành công',
+  NEWS_APPROVED_SUCCESS: 'Duyệt tin tức thành công',
+  NEWS_REJECTED_SUCCESS: 'Từ chối tin tức thành công',
+} as const;
+
 // === SYSTEM ERRORS ===
 export const SYSTEM_ERRORS = {
   DATABASE_CONNECTION_FAILED: 'Kết nối cơ sở dữ liệu thất bại',
@@ -195,6 +212,7 @@ export type TimesheetError = typeof TIMESHEET_ERRORS[keyof typeof TIMESHEET_ERRO
 export type AttendanceError = typeof ATTENDANCE_ERRORS[keyof typeof ATTENDANCE_ERRORS];
 export type ProjectError = typeof PROJECT_ERRORS[keyof typeof PROJECT_ERRORS];
 export type RoleError = typeof ROLE_ERRORS[keyof typeof ROLE_ERRORS];
+export type NewsError = typeof NEWS_ERRORS[keyof typeof NEWS_ERRORS];
 export type ValidationError = typeof VALIDATION_ERRORS[keyof typeof VALIDATION_ERRORS];
 export type SystemError = typeof SYSTEM_ERRORS[keyof typeof SYSTEM_ERRORS];
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];

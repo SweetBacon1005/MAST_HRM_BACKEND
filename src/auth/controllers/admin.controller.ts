@@ -19,12 +19,12 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { PrismaService } from '../../database/prisma.service';
-import { GetUser } from '../decorators/get-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
+import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 
 export class CreateUserDto {
   name: string;
@@ -410,7 +410,7 @@ export class AdminController {
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
-    @GetUser('id') adminId: number,
+    @GetCurrentUser('id') adminId: number,
   ) {
     // Kiểm tra quyền sửa role nếu có
     if (updateUserDto.role_id) {
@@ -491,7 +491,7 @@ export class AdminController {
   })
   async deleteUser(
     @Param('id', ParseIntPipe) id: number,
-    @GetUser('id') adminId: number,
+    @GetCurrentUser('id') adminId: number,
   ) {
     // Kiểm tra quyền xóa user
     const canManage = await this.roleHierarchyService.canUserManageUserRole(
@@ -666,7 +666,7 @@ export class AdminController {
   })
   async bulkTransferDivision(
     @Body() data: { user_ids: number[]; division_id: number; type?: number },
-    @GetUser('id') adminId: number,
+    @GetCurrentUser('id') adminId: number,
   ) {
     const { user_ids, division_id, type = 1 } = data;
 

@@ -748,7 +748,7 @@ export class RoleAssignmentService {
 
     const allowedRoles = [ROLE_NAMES.HR_MANAGER, ROLE_NAMES.ADMIN, ROLE_NAMES.SUPER_ADMIN];
     
-    if (!allowedRoles.includes(managerRole.role.name as any)) {
+    if (!allowedRoles.includes(managerRole?.role?.name as any)) {
       throw new ForbiddenException('Chỉ HR Manager, Admin hoặc Super Admin mới có thể gán Division Head');
     }
   }

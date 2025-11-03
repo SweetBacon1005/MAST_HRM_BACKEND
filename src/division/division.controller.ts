@@ -17,7 +17,6 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { GetUser } from 'src/auth/decorators/get-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
@@ -46,6 +45,7 @@ import {
   UserDivisionPaginationDto,
 } from './dto/user-division.dto';
 import { WorkInfoQueryDto } from './dto/work-info-query.dto';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
 @ApiTags('divisions')
 @Controller('divisions')
@@ -1086,7 +1086,8 @@ export class DivisionController {
   })
   createRotationMember(
     @Body() createRotationDto: CreateRotationMemberDto,
-    @GetUser('id') requesterId: number,
+    @GetCurrentUser('id') requesterId: number,
+    @GetCurrentUser('role') role: string,
   ) {
     return this.divisionService.createRotationMember(
       createRotationDto,

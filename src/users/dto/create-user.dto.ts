@@ -1,5 +1,6 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsEnum, IsString, MinLength } from 'class-validator';
+import { ROLE_NAMES } from 'src/auth/constants/role.constants';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -24,4 +25,13 @@ export class CreateUserDto {
   @IsString({ message: 'Mật khẩu phải là chuỗi' })
   @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' })
   password: string;
+
+  @ApiProperty({
+    description: 'Vai trò người dùng',
+    example: ROLE_NAMES.ADMIN,
+    enum: ROLE_NAMES,
+  })
+  @IsString({ message: 'Vai trò phải là chuỗi' })
+  @IsEnum(ROLE_NAMES, { message: 'Vai trò không hợp lệ' })
+  role: string;
 }

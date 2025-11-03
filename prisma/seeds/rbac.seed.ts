@@ -78,6 +78,14 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'team.delete', description: 'Xóa team' },
     { name: 'team.manage', description: 'Quản lý team (tất cả quyền)' },
     
+    // News Management
+    { name: 'news.read', description: 'Xem tin tức' },
+    { name: 'news.create', description: 'Tạo tin tức mới' },
+    { name: 'news.update', description: 'Cập nhật tin tức' },
+    { name: 'news.delete', description: 'Xóa tin tức' },
+    { name: 'news.submit', description: 'Gửi tin tức để duyệt' },
+    { name: 'news.approve', description: 'Duyệt tin tức' },
+    
     // Asset Management
     { name: 'asset.create', description: 'Tạo tài sản mới' },
     { name: 'asset.read', description: 'Xem thông tin tài sản' },
@@ -132,6 +140,7 @@ export async function seedRBAC(prisma: PrismaClient) {
   const roleData = [
     { name: 'super_admin', description: 'Quản trị viên tối cao - toàn quyền hệ thống' },
     { name: 'admin', description: 'Quản trị viên - quản lý toàn bộ hệ thống' },
+    { name: 'company_owner', description: 'Chủ công ty - quản lý cấp cao và duyệt tin tức' },
     { name: 'hr_manager', description: 'Quản lý nhân sự - quản lý nhân viên và chấm công' },
     { name: 'project_manager', description: 'Quản lý dự án - quản lý dự án và phân công' },
     { name: 'division_head', description: 'Trưởng phòng ban - quản lý phòng ban và nhân viên' },
@@ -178,12 +187,37 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read', 'report.export', 'analytics.view',
         'organization.read', 'organization.manage', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager', 'role.manage.admin', 'role.manage.all',
         'system.admin'
+      ],
+    },
+
+    // COMPANY OWNER - Chủ công ty
+    {
+      role: 'company_owner',
+      permissions: [
+        'user.read', 'user.create', 'user.update', 'user.delete',
+        'project.read', 'project.create', 'project.update', 'project.delete', 'project.assign',
+        'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.delete', 'timesheet.approve', 'timesheet.statistics',
+        'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'leave.read', 'leave.create', 'leave.approve', 'leave.balance.manage',
+        'request.read', 'request.create', 'request.approve', 'request.reject',
+        'division.read', 'division.create', 'division.update', 'division.delete',
+        'division.assignment.read', 'division.assignment.create', 'division.assignment.update', 'division.assignment.delete',
+        'report.read', 'report.export', 'analytics.view',
+        'organization.read', 'organization.manage', 'division.manage',
+        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
+        'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
+        'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
+        'contract.read', 'contract.manage', 'device.read', 'device.manage',
+        'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
+        'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager',
       ],
     },
 
@@ -200,6 +234,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read', 'report.export',
         'organization.read', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',

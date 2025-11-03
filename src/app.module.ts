@@ -17,8 +17,10 @@ import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
 import { UploadModule } from './upload/upload.module';
 import { AssetsModule } from './assets/assets.module';
+import { NewsModule } from './news/news.module';
 import { CommonModule } from './common/common.module';
 import { DatabaseModule } from './database/database.module';
+import { PermissionModule } from './auth/permission.module';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
@@ -29,9 +31,10 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    DatabaseModule, // Global database module
+    DatabaseModule, 
+    PermissionModule,
     ScheduleModule.forRoot(),
-    CommonModule, // Add shared services
+    CommonModule,
     AuthModule,
     UsersModule,
     UserProfileModule,
@@ -45,6 +48,7 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
     ReportsModule,
     UploadModule,
     AssetsModule,
+    NewsModule,
     AppCommonModule,
   ],
   controllers: [AppController],
@@ -55,7 +59,7 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
     {
       provide: APP_INTERCEPTOR,
       useClass: DateFormatInterceptor,
-    },
+    }
   ],
 })
 export class AppModule {}

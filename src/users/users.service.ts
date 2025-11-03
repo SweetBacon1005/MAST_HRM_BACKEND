@@ -22,6 +22,33 @@ export class UsersService {
         ...userData,
         password: password,
         email_verified_at: new Date(),
+        user_information: {
+          create: {
+            personal_email: userData.email,
+            nationality: '',
+            name: userData.name,
+            code: '',
+            avatar: '',
+            gender: '',
+            marital: '',
+            role: {
+              connect: {
+                id: Number(userData.role),
+              },
+            },
+            birthday: '',
+            address: '',
+            temp_address: '',
+            phone: '',
+            tax_code: '',
+            description: '',
+            note: '',
+            overview: '',
+            expertise: '',
+            technique: '',
+            main_task: '',
+          }
+        },
       },
     });
 

@@ -6,6 +6,7 @@ export const ROLE_NAMES = {
   DIVISION_HEAD: 'division_head',
   PROJECT_MANAGER: 'project_manager',
   HR_MANAGER: 'hr_manager',
+  COMPANY_OWNER: 'company_owner',
   ADMIN: 'admin',
   SUPER_ADMIN: 'super_admin',
 } as const;

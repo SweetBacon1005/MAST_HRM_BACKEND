@@ -60,7 +60,7 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS);
     }
 
-    const tokens = await this.getTokens(Number(user.id), user.email);
+    const tokens = await this.getTokens(Number(user.id), user.email, user.user_information?.role?.name || '');
     
     // Log successful login
     await this.activityLogService.logUserLogin(
@@ -99,22 +99,19 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.EMAIL_ALREADY_EXISTS);
     }
 
-    // Validate email format (đã được validate trong DTO)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(registerDto.email)) {
       throw new BadRequestException(AUTH_ERRORS.INVALID_EMAIL_FORMAT);
     }
 
-    // Kiểm tra độ mạnh mật khẩu
     this.validatePasswordStrength(registerDto.password);
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 12); // Tăng salt rounds
+    const hashedPassword = await bcrypt.hash(registerDto.password, 12);
     const user = await this.usersService.create({
       ...registerDto,
       password: hashedPassword,
     });
 
-    // Log user registration
     await this.activityLogService.logCrudOperation(
       'User',
       Number(user.id),
@@ -126,7 +123,7 @@ export class AuthService {
       }
     );
 
-    const tokens = await this.getTokens(Number(user.id), user.email);
+    const tokens = await this.getTokens(Number(user.id), user.email, registerDto.role);
     return tokens;
   }
 
@@ -150,7 +147,7 @@ export class AuthService {
         throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
       }
 
-      const tokens = await this.getTokens(Number(user.id), user.email);
+      const tokens = await this.getTokens(Number(user.id), user.email, user?.user_information?.role?.name || '');
       return tokens;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
@@ -693,12 +690,13 @@ export class AuthService {
     return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
 
-  private async getTokens(userId: number, email: string): Promise<TokensDto> {
+  private async getTokens(userId: number, email: string, role: string): Promise<TokensDto> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
           sub: userId,
           email,
+          role,
         },
         {
           secret: this.configService.get<string>('JWT_SECRET'),
@@ -709,6 +707,7 @@ export class AuthService {
         {
           sub: userId,
           email,
+          role,
         },
         {
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),

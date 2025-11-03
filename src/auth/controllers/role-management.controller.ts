@@ -29,7 +29,6 @@ import {
   ROLE_NAMES,
   SUBJECT_TYPES,
 } from '../constants/role.constants';
-import { GetUser } from '../decorators/get-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import {
   UpdateUserRoleDto,
@@ -43,6 +42,7 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleAssignmentService } from '../services/role-assignment.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
+import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 
 @ApiTags('role-management')
 @Controller('role-management')
@@ -136,7 +136,7 @@ export class RoleManagementController {
   })
   async assignRoleUnified(
     @Body() dto: UnifiedRoleAssignmentDto,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ): Promise<UnifiedRoleAssignmentResponseDto> {
     return await this.roleAssignmentService.assignRoleUnified(dto, managerId);
   }
@@ -150,7 +150,7 @@ export class RoleManagementController {
     status: 200,
     description: 'Lấy danh sách roles thành công',
   })
-  async getAssignableRoles(@GetUser('id') userId: number) {
+  async getAssignableRoles(@GetCurrentUser('id') userId: number) {
     const userRole = await this.permissionService.getUserRole(userId);
     if (!userRole) {
       return {
@@ -214,7 +214,7 @@ export class RoleManagementController {
   })
   async canManageUserRole(
     @Param('userId', ParseIntPipe) targetUserId: number,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     const canManage = await this.roleHierarchyService.canUserManageUserRole(
       managerId,
@@ -261,7 +261,7 @@ export class RoleManagementController {
   })
   async getRoleOptionsForUser(
     @Param('userId', ParseIntPipe) targetUserId: number,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     // Kiểm tra có thể quản lý user này không
     const canManage = await this.roleHierarchyService.canUserManageUserRole(
@@ -323,7 +323,7 @@ export class RoleManagementController {
   })
   async canManageRotationMember(
     @Param('rotationId', ParseIntPipe) rotationId: number,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     // Lấy thông tin điều chuyển
     const rotation = await this.prisma.rotation_members.findUnique({
@@ -364,7 +364,7 @@ export class RoleManagementController {
   async updateUserRole(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() updateUserRoleDto: UpdateUserRoleDto,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     // Use unified API
     const unifiedDto: UnifiedRoleAssignmentDto = {
@@ -453,7 +453,7 @@ export class RoleManagementController {
   })
   async revokeUserRole(
     @Param('userId', ParseIntPipe) userId: number,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     // Kiểm tra user tồn tại và lấy role hiện tại
     const user = await this.prisma.users.findUnique({
@@ -653,7 +653,7 @@ export class RoleManagementController {
   })
   async getUserProjects(
     @Param('userId', ParseIntPipe) userId: number,
-    @GetUser('id') managerId: number,
+    @GetCurrentUser('id') managerId: number,
   ) {
     // Kiểm tra user tồn tại
     const user = await this.prisma.users.findUnique({
