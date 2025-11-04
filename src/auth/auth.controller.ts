@@ -26,6 +26,7 @@ import { SendChangePasswordOtpDto } from './dto/send-change-password-otp.dto';
 import { ChangePasswordWithOtpDto } from './dto/change-password-with-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordWithTokenDto } from './dto/reset-password-with-token.dto';
+import { ProfileResponseDto } from './dto/profile-response.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionGuard } from './guards/permission.guard';
@@ -115,73 +116,13 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'Thông tin user với thông tin bổ sung',
-    schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'number', example: 1 },
-        name: { type: 'string', example: 'Nguyễn Văn A' },
-        email: { type: 'string', example: 'user@example.com' },
-        email_verified_at: { type: 'string', format: 'date-time' },
-        created_at: { type: 'string', format: 'date-time' },
-        updated_at: { type: 'string', format: 'date-time' },
-        join_date: {
-          type: 'string',
-          format: 'date',
-          description: 'Thời gian gia nhập công ty',
-        },
-        today_attendance: {
-          type: 'object',
-          properties: {
-            checkin: { type: 'string', format: 'date-time', nullable: true },
-            checkout: { type: 'string', format: 'date-time', nullable: true },
-            total_work_time: {
-              type: 'number',
-              description: 'Tổng thời gian làm việc (phút)',
-            },
-            status: {
-              type: 'string',
-              enum: ['PENDING', 'APPROVED', 'REJECTED'],
-            },
-          },
-        },
-        remaining_leave_days: {
-          type: 'number',
-          description: 'Số ngày phép còn lại trong tháng',
-        },
-        assigned_devices: {
-          type: 'array',
-          description: 'Danh sách thiết bị được cấp từ assets',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number', example: 1 },
-              name: { type: 'string', example: 'Laptop Dell XPS 13' },
-              type: { type: 'string', example: 'laptop' },
-              code: { type: 'string', example: 'LAPTOP-001' },
-              brand: { type: 'string', example: 'Dell' },
-              model: { type: 'string', example: 'XPS 13 9320' },
-              serial: { type: 'string', nullable: true, example: 'SN123456' },
-              assigned_date: {
-                type: 'string',
-                format: 'date',
-                example: '2024-01-01',
-              },
-              notes: {
-                type: 'string',
-                nullable: true,
-                example: 'Thiết bị mới',
-              },
-            },
-          },
-        },
-      },
-    },
+    type: ProfileResponseDto,
   })
   @ApiResponse({
     status: 401,
     description: 'Token không hợp lệ',
   })
-  async getProfile(@GetCurrentUser('id') userId: number) {
+  async getProfile(@GetCurrentUser('id') userId: number): Promise<ProfileResponseDto> {
     return this.authService.getProfile(userId);
   }
 

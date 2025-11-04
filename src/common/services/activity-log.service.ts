@@ -49,6 +49,23 @@ export enum ActivityEvent {
   SYSTEM_BACKUP = 'system.backup',
   SYSTEM_RESTORE = 'system.restore',
   SYSTEM_MAINTENANCE = 'system.maintenance',
+  
+  // News events
+  NEWS_CREATED = 'news.created',
+  NEWS_UPDATED = 'news.updated',
+  NEWS_DELETED = 'news.deleted',
+  NEWS_SUBMITTED = 'news.submitted',
+  NEWS_APPROVED = 'news.approved',
+  NEWS_REJECTED = 'news.rejected',
+  NEWS_VIEWED = 'news.viewed',
+  
+  // Notification events
+  NOTIFICATION_CREATED = 'notification.created',
+  NOTIFICATION_UPDATED = 'notification.updated',
+  NOTIFICATION_DELETED = 'notification.deleted',
+  NOTIFICATION_READ = 'notification.read',
+  NOTIFICATION_UNREAD = 'notification.unread',
+  NOTIFICATION_VIEWED = 'notification.viewed',
 }
 
 export enum SubjectType {
@@ -58,6 +75,8 @@ export enum SubjectType {
   DIVISION = 'Division',
   TIMESHEET = 'Timesheet',
   SYSTEM = 'System',
+  NEWS = 'News',
+  NOTIFICATION = 'Notification',
 }
 
 @Injectable()
@@ -304,6 +323,94 @@ export class ActivityLogService {
       properties: {
         operation,
         changes,
+      },
+    });
+  }
+
+  /**
+   * Log news operations
+   */
+  async logNewsOperation(
+    operation: 'created' | 'updated' | 'deleted' | 'submitted' | 'approved' | 'rejected' | 'viewed',
+    newsId: number,
+    userId: number,
+    newsTitle?: string,
+    details?: Record<string, any>
+  ): Promise<void> {
+    const eventMap = {
+      created: ActivityEvent.NEWS_CREATED,
+      updated: ActivityEvent.NEWS_UPDATED,
+      deleted: ActivityEvent.NEWS_DELETED,
+      submitted: ActivityEvent.NEWS_SUBMITTED,
+      approved: ActivityEvent.NEWS_APPROVED,
+      rejected: ActivityEvent.NEWS_REJECTED,
+      viewed: ActivityEvent.NEWS_VIEWED,
+    };
+
+    const descriptionMap = {
+      created: 'Tạo tin tức mới',
+      updated: 'Cập nhật tin tức',
+      deleted: 'Xóa tin tức',
+      submitted: 'Gửi tin tức để duyệt',
+      approved: 'Phê duyệt tin tức',
+      rejected: 'Từ chối tin tức',
+      viewed: 'Xem tin tức',
+    };
+
+    await this.log({
+      logName: 'News Management',
+      description: newsTitle ? `${descriptionMap[operation]}: "${newsTitle}"` : descriptionMap[operation],
+      subjectType: SubjectType.NEWS,
+      event: eventMap[operation],
+      subjectId: newsId,
+      causerId: userId,
+      properties: {
+        operation,
+        news_title: newsTitle,
+        ...details,
+      },
+    });
+  }
+
+  /**
+   * Log notification operations
+   */
+  async logNotificationOperation(
+    operation: 'created' | 'updated' | 'deleted' | 'read' | 'unread' | 'viewed',
+    notificationId: number,
+    userId: number,
+    notificationTitle?: string,
+    details?: Record<string, any>
+  ): Promise<void> {
+    const eventMap = {
+      created: ActivityEvent.NOTIFICATION_CREATED,
+      updated: ActivityEvent.NOTIFICATION_UPDATED,
+      deleted: ActivityEvent.NOTIFICATION_DELETED,
+      read: ActivityEvent.NOTIFICATION_READ,
+      unread: ActivityEvent.NOTIFICATION_UNREAD,
+      viewed: ActivityEvent.NOTIFICATION_VIEWED,
+    };
+
+    const descriptionMap = {
+      created: 'Tạo thông báo mới',
+      updated: 'Cập nhật thông báo',
+      deleted: 'Xóa thông báo',
+      read: 'Đánh dấu đã đọc thông báo',
+      unread: 'Đánh dấu chưa đọc thông báo',
+      viewed: 'Xem thông báo',
+    };
+
+    await this.log({
+      logName: 'Notification Management',
+      description: notificationTitle ? `${descriptionMap[operation]}: "${notificationTitle}"` : descriptionMap[operation],
+      subjectType: SubjectType.NOTIFICATION,
+      event: eventMap[operation],
+      subjectId: notificationId,
+      causerId: userId,
+      properties: {
+        operation,
+        notification_title: notificationTitle,
+        ...details,
       },
     });
   }

@@ -130,7 +130,6 @@ export class UsersService {
       };
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.users.findMany({
         where,
@@ -184,7 +183,6 @@ export class UsersService {
       this.prisma.users.count({ where }),
     ]);
 
-    // Transform data giống như findAll
     const transformedData = data.map((user) => ({
       ...user,
       name: user.user_information?.name,

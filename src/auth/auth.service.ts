@@ -356,6 +356,14 @@ export class AuthService {
       notes: asset.notes || '',
     }));
 
+    const unreadNotifications = await this.prisma.user_notifications.count({
+      where: {
+        user_id: userId,
+        is_read: false,
+        deleted_at: null,
+      },
+    });
+
     return {
       join_date: userInfo?.user?.created_at.toISOString().split('T')[0],
       today_attendance: {
@@ -380,6 +388,7 @@ export class AuthService {
         division_id: userDivision?.divisionId || null,
         team_id: userDivision?.teamId || null,
       },
+      unread_notifications: unreadNotifications,
     };
   }
 

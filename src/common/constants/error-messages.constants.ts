@@ -175,6 +175,20 @@ export const NEWS_ERRORS = {
   NEWS_REJECTED_SUCCESS: 'Từ chối tin tức thành công',
 } as const;
 
+// === NOTIFICATION ERRORS ===
+export const NOTIFICATION_ERRORS = {
+  NOTIFICATION_NOT_FOUND: 'Không tìm thấy thông báo',
+  UNAUTHORIZED_ACCESS: 'Bạn không có quyền truy cập thông báo này',
+  UNAUTHORIZED_UPDATE: 'Bạn không có quyền cập nhật thông báo này',
+  UNAUTHORIZED_DELETE: 'Bạn không có quyền xóa thông báo này',
+  UNAUTHORIZED_CREATE: 'Bạn không có quyền tạo thông báo',
+  NOTIFICATION_CREATED_SUCCESS: 'Tạo thông báo thành công',
+  NOTIFICATION_UPDATED_SUCCESS: 'Cập nhật thông báo thành công',
+  NOTIFICATION_DELETED_SUCCESS: 'Xóa thông báo thành công',
+  NOTIFICATION_MARKED_READ_SUCCESS: 'Đánh dấu đã đọc thành công',
+  NOTIFICATION_MARKED_UNREAD_SUCCESS: 'Đánh dấu chưa đọc thành công',
+} as const;
+
 // === SYSTEM ERRORS ===
 export const SYSTEM_ERRORS = {
   DATABASE_CONNECTION_FAILED: 'Kết nối cơ sở dữ liệu thất bại',
@@ -213,6 +227,7 @@ export type AttendanceError = typeof ATTENDANCE_ERRORS[keyof typeof ATTENDANCE_E
 export type ProjectError = typeof PROJECT_ERRORS[keyof typeof PROJECT_ERRORS];
 export type RoleError = typeof ROLE_ERRORS[keyof typeof ROLE_ERRORS];
 export type NewsError = typeof NEWS_ERRORS[keyof typeof NEWS_ERRORS];
+export type NotificationError = typeof NOTIFICATION_ERRORS[keyof typeof NOTIFICATION_ERRORS];
 export type ValidationError = typeof VALIDATION_ERRORS[keyof typeof VALIDATION_ERRORS];
 export type SystemError = typeof SYSTEM_ERRORS[keyof typeof SYSTEM_ERRORS];
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];

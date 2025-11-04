@@ -38,8 +38,6 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 export class NewsController {
   constructor(private readonly newsService: NewsService) {}
 
-  // === CRUD Operations ===
-
   @Post()
   @RequirePermission('news.create')
   @ApiOperation({ summary: 'Tạo tin tức mới' })
@@ -63,8 +61,11 @@ export class NewsController {
   @ApiParam({ name: 'id', description: 'ID của tin tức (UUID)' })
   @ApiResponse({ status: 200, description: 'Lấy thông tin tin tức thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
-  async findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.newsService.findOne(id);
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') viewerId: number,
+  ) {
+    return this.newsService.findOne(id, viewerId);
   }
 
   @Patch(':id')

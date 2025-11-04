@@ -18,6 +18,7 @@ import { ReportsModule } from './reports/reports.module';
 import { UploadModule } from './upload/upload.module';
 import { AssetsModule } from './assets/assets.module';
 import { NewsModule } from './news/news.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { CommonModule } from './common/common.module';
 import { DatabaseModule } from './database/database.module';
 import { PermissionModule } from './auth/permission.module';
@@ -49,6 +50,7 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
     UploadModule,
     AssetsModule,
     NewsModule,
+    NotificationsModule,
     AppCommonModule,
   ],
   controllers: [AppController],

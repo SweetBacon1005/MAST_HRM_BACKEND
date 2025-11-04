@@ -10,6 +10,7 @@ import { SystemAdminController } from './controllers/system-admin.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
 import { RoleAssignmentService } from './services/role-assignment.service';
@@ -22,6 +23,7 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
 @Module({
   imports: [
     UsersModule,
+    NotificationsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

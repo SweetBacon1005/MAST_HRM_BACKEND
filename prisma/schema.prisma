@@ -516,8 +516,10 @@ model users {
     approved_asset_requests          asset_requests[]          @relation("AssetRequestApprover")
     divisions                        divisions[]                  
     teams                            teams[]
-    authored_news                    news[]            @relation("NewsAuthor")
-    reviewed_news                    news[]            @relation("NewsReviewer")
+    authored_news                    news[]                @relation("NewsAuthor")
+    reviewed_news                    news[]                @relation("NewsReviewer")
+    created_notifications            notifications[]       @relation("NotificationCreator")
+    user_notifications               user_notifications[]
 }
 
 model working_times {
@@ -1350,23 +1352,63 @@ enum NewsStatus {
 }
 
 model news {
-    id          Int      @id @default(autoincrement())
-    title       String      @db.VarChar(255)
-    content     String      @db.Text
-    status      NewsStatus  @default(DRAFT)
-    author_id   Int
-    author      users       @relation("NewsAuthor", fields: [author_id], references: [id])
-    reason      String?     @db.Text
-    reviewer_id Int?
-    reviewer    users?      @relation("NewsReviewer", fields: [reviewer_id], references: [id])
-    reviewed_at DateTime?   @db.DateTime()
-    created_at  DateTime    @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime    @updatedAt
-    deleted_at  DateTime?   @db.DateTime()
+    id            Int             @id @default(autoincrement())
+    title         String          @db.VarChar(255)
+    content       String          @db.Text
+    status        NewsStatus      @default(DRAFT)
+    author_id     Int
+    author        users           @relation("NewsAuthor", fields: [author_id], references: [id])
+    reason        String?         @db.Text
+    reviewer_id   Int?
+    reviewer      users?          @relation("NewsReviewer", fields: [reviewer_id], references: [id])
+    reviewed_at   DateTime?       @db.DateTime()
+    created_at    DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime        @updatedAt
+    deleted_at    DateTime?       @db.DateTime()
+    notifications notifications[]
 
     @@index([author_id])
     @@index([reviewer_id])
     @@index([status])
+    @@index([created_at])
+    @@index([deleted_at])
+}
+
+model notifications {
+    id                 Int                  @id @default(autoincrement())
+    title              String               @db.VarChar(255)
+    content            String               @db.Text
+    news_id            Int?
+    news               news?                @relation(fields: [news_id], references: [id])
+    created_by         Int?
+    creator            users?               @relation("NotificationCreator", fields: [created_by], references: [id])
+    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime             @updatedAt
+    deleted_at         DateTime?            @db.DateTime()
+    user_notifications user_notifications[]
+
+    @@index([news_id])
+    @@index([created_by])
+    @@index([created_at])
+    @@index([deleted_at])
+}
+
+model user_notifications {
+    id              Int           @id @default(autoincrement())
+    notification_id Int
+    notification    notifications @relation(fields: [notification_id], references: [id])
+    user_id         Int
+    user            users         @relation(fields: [user_id], references: [id])
+    is_read         Boolean       @default(false)
+    read_at         DateTime?     @db.DateTime()
+    created_at      DateTime      @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime      @updatedAt
+    deleted_at      DateTime?     @db.DateTime()
+
+    @@unique([notification_id, user_id])
+    @@index([user_id])
+    @@index([notification_id])
+    @@index([is_read])
     @@index([created_at])
     @@index([deleted_at])
 }

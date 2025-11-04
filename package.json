@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "postinstall": "prisma db push --accept-data-loss && prisma generate",
+    "postinstall": "prisma db push --accept-data-loss && prisma generate && ts-node prisma/seed-basic.ts",
     "vercel-build": "prisma generate && nest build",
     "db:push": "prisma db push --accept-data-loss && prisma generate",
     "db:push:force": "prisma db push --force-reset && prisma generate",

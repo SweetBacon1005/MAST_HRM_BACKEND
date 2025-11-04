@@ -82,20 +82,20 @@ async function main() {
     console.log('✅ Essential misc data seeded successfully!\n');
 
     // 10. Seed basic day offs
-    const dayOffsData = await seedDayOffs(prisma, usersData);
-    console.log('✅ Basic day offs seeded successfully!\n');
+    // const dayOffsData = await seedDayOffs(prisma, usersData);
+    // console.log('✅ Basic day offs seeded successfully!\n');
 
     // 11. Seed basic assets
-    await seedAssets(prisma);
-    console.log('✅ Basic assets seeded successfully!\n');
+    // await seedAssets(prisma);
+    // console.log('✅ Basic assets seeded successfully!\n');
 
     // 12. Seed basic requests
-    await seedRequests(prisma, usersData);
-    console.log('✅ Basic requests seeded successfully!\n');
+    // await seedRequests(prisma, usersData);
+    // console.log('✅ Basic requests seeded successfully!\n');
 
     // 13. Seed basic late/early requests
-    await seedLateEarlyRequests(prisma);
-    console.log('✅ Basic late/early requests seeded successfully!\n');
+    // await seedLateEarlyRequests(prisma);
+    // console.log('✅ Basic late/early requests seeded successfully!\n');
 
     // === BASIC DATA SEEDING COMPLETED ===
     console.log('✅ =================================');

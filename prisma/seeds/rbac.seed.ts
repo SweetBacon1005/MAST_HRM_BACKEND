@@ -86,6 +86,13 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'news.submit', description: 'Gửi tin tức để duyệt' },
     { name: 'news.approve', description: 'Duyệt tin tức' },
     
+    // Notification Management
+    { name: 'notification.read', description: 'Xem thông báo của mình' },
+    { name: 'notification.create', description: 'Tạo thông báo mới' },
+    { name: 'notification.update', description: 'Cập nhật thông báo' },
+    { name: 'notification.delete', description: 'Xóa thông báo' },
+    { name: 'notification.manage', description: 'Quản lý tất cả thông báo' },
+    
     // Asset Management
     { name: 'asset.create', description: 'Tạo tài sản mới' },
     { name: 'asset.read', description: 'Xem thông tin tài sản' },
@@ -188,6 +195,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'organization.read', 'organization.manage', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
+        'notification.read', 'notification.create', 'notification.update', 'notification.delete', 'notification.manage',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
@@ -213,6 +221,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'organization.read', 'organization.manage', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
+        'notification.read', 'notification.create', 'notification.update', 'notification.delete', 'notification.manage',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
@@ -235,6 +244,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'organization.read', 'division.manage',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit',
+        'notification.read', 'notification.delete',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
@@ -258,7 +268,9 @@ export async function seedRBAC(prisma: PrismaClient) {
         'organization.read',
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
+        'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
+        'news.read'
       ],
     },
 
@@ -280,7 +292,9 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'device.read',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject',
+        'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
+        'news.read'
       ],
     },
 
@@ -300,7 +314,9 @@ export async function seedRBAC(prisma: PrismaClient) {
         'team.read', 'team.update', 'team.manage',
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
+        'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee',
+        'news.read'
       ],
     },
 
@@ -319,7 +335,9 @@ export async function seedRBAC(prisma: PrismaClient) {
         'team.read',
         'asset.read', 'asset.request.create',
         'personnel.transfer.read',
+        'notification.read', 'notification.delete',
         'role.read',
+        'news.read'
       ],
     },
   ];

@@ -4,18 +4,24 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NewsStatus, Prisma, roles } from '@prisma/client';
+import { NewsStatus, Prisma } from '@prisma/client';
 import * as DOMPurify from 'isomorphic-dompurify';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { NEWS_ERRORS } from '../common/constants/error-messages.constants';
+import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { NewsPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
 
 @Injectable()
 export class NewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+    private readonly activityLogService: ActivityLogService,
+  ) {}
 
   private sanitizeHtmlContent(content: string): string {
     const cleanContent = DOMPurify.sanitize(content, {
@@ -63,6 +69,15 @@ export class NewsService {
         status: NewsStatus.DRAFT,
       },
     });
+
+    // Log activity
+    await this.activityLogService.logNewsOperation(
+      'created',
+      news.id,
+      authorId,
+      news.title,
+      { status: news.status }
+    );
 
     return news;
   }
@@ -152,7 +167,7 @@ export class NewsService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, viewerId?: number) {
     const news = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
       include: {
@@ -175,6 +190,17 @@ export class NewsService {
 
     if (!news) {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
+    }
+
+    // Log activity nếu có viewerId và không phải là author
+    if (viewerId && viewerId !== news.author_id) {
+      await this.activityLogService.logNewsOperation(
+        'viewed',
+        news.id,
+        viewerId,
+        news.title,
+        { author_id: news.author_id }
+      );
     }
 
     return {
@@ -217,6 +243,19 @@ export class NewsService {
       },
     });
 
+    // Log activity
+    await this.activityLogService.logNewsOperation(
+      'updated',
+      updatedNews.id,
+      userId,
+      updatedNews.title,
+      { 
+        previous_status: existingNews.status,
+        new_status: updatedNews.status,
+        changes: updateNewsDto
+      }
+    );
+
     return updatedNews;
   }
 
@@ -249,6 +288,18 @@ export class NewsService {
       },
     });
 
+    // Log activity
+    await this.activityLogService.logNewsOperation(
+      'submitted',
+      updatedNews.id,
+      userId,
+      updatedNews.title,
+      { 
+        previous_status: existingNews.status,
+        new_status: updatedNews.status
+      }
+    );
+
     return updatedNews;
   }
 
@@ -280,6 +331,34 @@ export class NewsService {
       },
     });
 
+    await this.activityLogService.logNewsOperation(
+      status === 'APPROVED' ? 'approved' : 'rejected',
+      updatedNews.id,
+      reviewerId,
+      updatedNews.title,
+      { 
+        previous_status: existingNews.status,
+        new_status: updatedNews.status,
+        reason: reason,
+        author_id: existingNews.author_id
+      }
+    );
+
+    if (status === 'APPROVED') {
+      try {
+        await this.notificationsService.create(
+          {
+            title: updatedNews.title,
+            content: `Tin tức "${updatedNews.title}" đã được phê duyệt`,
+            news_id: updatedNews.id,
+          },
+          reviewerId,
+        );
+      } catch (error) {
+        console.error('Failed to create news notification:', error);
+      }
+    }
+
     return updatedNews;
   }
 
@@ -292,16 +371,55 @@ export class NewsService {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
     }
 
-    if (existingNews.author_id !== userId || role !== ROLE_NAMES.ADMIN && role !== ROLE_NAMES.SUPER_ADMIN && role !== ROLE_NAMES.COMPANY_OWNER) {
+    if (
+      existingNews.author_id !== userId ||
+      (role !== ROLE_NAMES.ADMIN &&
+        role !== ROLE_NAMES.SUPER_ADMIN &&
+        role !== ROLE_NAMES.COMPANY_OWNER)
+    ) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_DELETE);
     }
 
-    const deletedNews = await this.prisma.news.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-      },
-    });
+    const now = new Date();
+
+    await this.prisma.$transaction([
+      // Soft delete user_notifications trước khi soft delete notifications
+      this.prisma.user_notifications.updateMany({
+        where: {
+          notification: {
+            news_id: id,
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+        data: { deleted_at: now },
+      }),
+      // Sau đó soft delete notifications
+      this.prisma.notifications.updateMany({
+        where: { 
+          news_id: id,
+          deleted_at: null 
+        },
+        data: { deleted_at: now },
+      }),
+      // Cuối cùng soft delete news
+      this.prisma.news.update({
+        where: { id },
+        data: { deleted_at: now },
+      }),
+    ]);
+
+    await this.activityLogService.logNewsOperation(
+      'deleted',
+      id,
+      userId,
+      existingNews.title,
+      { 
+        status: existingNews.status,
+        author_id: existingNews.author_id,
+        cascade_deleted: true
+      }
+    );
 
     return { message: NEWS_ERRORS.NEWS_DELETED_SUCCESS };
   }
