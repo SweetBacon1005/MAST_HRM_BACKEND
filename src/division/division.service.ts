@@ -1490,13 +1490,9 @@ export class DivisionService {
     };
   }
 
-  /**
-   * Lấy danh sách nhân viên sinh nhật gần nhất trong tháng
-   */
   private async getRecentBirthdayEmployees(divisionId: number, month: number) {
     const now = new Date();
 
-    // Lấy danh sách user_id trong division hiện tại
     const divisionUsers = await this.prisma.user_division.findMany({
       where: {
         divisionId: divisionId,
@@ -1512,7 +1508,6 @@ export class DivisionService {
       return [];
     }
 
-    // Lấy danh sách nhân viên có sinh nhật trong tháng
     const employees = await this.prisma.user_information.findMany({
       where: {
         user_id: { in: userIds },
@@ -1529,7 +1524,6 @@ export class DivisionService {
       },
     });
 
-    // Lọc và format theo tháng sinh nhật
     const birthdayEmployees = employees
       .filter((emp) => {
         const birthdayMonth = new Date(emp.birthday).getMonth() + 1;
@@ -1538,18 +1532,29 @@ export class DivisionService {
       .map((emp) => {
         const birthday = new Date(emp.birthday);
         const currentYear = now.getFullYear();
-        const nextBirthday = new Date(
-          currentYear,
-          birthday.getMonth(),
-          birthday.getDate(),
-        );
-
-        // Tính số ngày tới sinh nhật
         const today = new Date(
           now.getFullYear(),
           now.getMonth(),
           now.getDate(),
         );
+
+        const birthdayThisYear = new Date(
+          currentYear,
+          birthday.getMonth(),
+          birthday.getDate(),
+        );
+
+        let nextBirthday;
+        if (birthdayThisYear < today) {
+          nextBirthday = new Date(
+            currentYear + 1,
+            birthday.getMonth(),
+            birthday.getDate(),
+          );
+        } else {
+          nextBirthday = birthdayThisYear;
+        }
+
         const diffTime = nextBirthday.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -1565,16 +1570,13 @@ export class DivisionService {
           days_until_birthday: diffDays,
         };
       })
+      .filter((emp) => emp.days_until_birthday > 0) 
       .sort((a, b) => a.days_until_birthday - b.days_until_birthday)
-      .slice(0, 10); // Lấy 10 người gần nhất
+      .slice(0, 10);
 
     return birthdayEmployees;
   }
 
-  /**
-   * Lấy thống kê attendance theo từng tháng trong năm
-   * Trả về: số giờ đi muộn, số giờ muộn thực tế (approved), số giờ OT
-   */
   private async getAttendanceStatsByMonth(divisionId: number, year: number) {
     const stats: Array<{
       month: number;

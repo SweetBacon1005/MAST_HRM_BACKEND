@@ -31,7 +31,6 @@ export class PaginationDto {
   })
   @IsInt({ message: 'Kích thước trang phải là số nguyên' })
   @Min(1, { message: 'Kích thước trang phải lớn hơn 0' })
-  @Max(100, { message: 'Kích thước trang không được quá 100' })
   limit?: number = 10;
 
   @ApiProperty({

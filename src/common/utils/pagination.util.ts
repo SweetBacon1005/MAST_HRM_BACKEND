@@ -13,7 +13,7 @@ export interface PaginationResult {
 
 export function buildPaginationQuery(options: PaginationOptions): PaginationResult {
   const page = options.page || 1;
-  const limit = Math.min(options.limit || 10, 100); // Giới hạn tối đa 100
+  const limit = options.limit || 10;
   const skip = (page - 1) * limit;
 
   const result: PaginationResult = {

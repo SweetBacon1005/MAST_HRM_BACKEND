@@ -69,6 +69,7 @@ export class UsersService {
         updated_at: true,
         user_information: {
           select: {
+            avatar: true,
             role: {
               select: {
                 id: true,
@@ -98,7 +99,6 @@ export class UsersService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.usersWhereInput = { deleted_at: null };
 
-    // Thêm filter theo search (tên hoặc email)
     if (paginationDto.search) {
       where.OR = [
         {
@@ -111,7 +111,6 @@ export class UsersService {
       ];
     }
 
-    // Thêm filter theo user_information
     const userInfoFilters: Prisma.user_informationWhereInput = {};
     if (paginationDto.position_id) {
       userInfoFilters.position = {
@@ -185,6 +184,9 @@ export class UsersService {
 
     const transformedData = data.map((user) => ({
       ...user,
+      avatar: user.user_information?.avatar,
+      phone: user.user_information?.phone,
+      address: user.user_information?.address,
       name: user.user_information?.name,
       role: user.user_information?.role,
       position: user.user_information?.position,
