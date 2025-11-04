@@ -8,6 +8,15 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OtpType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import {
+  ASSET_STATUSES,
+  DEVICE_CATEGORIES,
+} from '../assets/constants/asset.constants';
+import {
+  AUTH_ERRORS,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
+import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
 import { UsersService } from '../users/users.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -20,9 +29,6 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokensDto } from './dto/tokens.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './services/otp.service';
-import { ActivityLogService } from '../common/services/activity-log.service';
-import { DEVICE_CATEGORIES, ASSET_STATUSES } from '../assets/constants/asset.constants';
-import { AUTH_ERRORS, USER_ERRORS } from '../common/constants/error-messages.constants';
 
 @Injectable()
 export class AuthService {
@@ -41,12 +47,10 @@ export class AuthService {
       return null;
     }
 
-    // Kiểm tra user có bị xóa không (soft delete)
     if (user.deleted_at) {
       return null;
     }
 
-    // Kiểm tra mật khẩu
     if (user.password && (await bcrypt.compare(password, user.password))) {
       const { password: _, ...result } = user;
       return result;
@@ -54,19 +58,26 @@ export class AuthService {
     return null;
   }
 
-  async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string): Promise<TokensDto> {
+  async login(
+    loginDto: LoginDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<TokensDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS);
     }
 
-    const tokens = await this.getTokens(Number(user.id), user.email, user.user_information?.role?.name || '');
-    
-    // Log successful login
+    const tokens = await this.getTokens(
+      Number(user.id),
+      user.email,
+      user.user_information?.role?.name || '',
+    );
+
     await this.activityLogService.logUserLogin(
       Number(user.id),
       ipAddress,
-      userAgent
+      userAgent,
     );
 
     return tokens;
@@ -77,7 +88,6 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.PASSWORD_TOO_SHORT);
     }
 
-    // Kiểm tra có ít nhất 1 chữ hoa, 1 chữ thường, 1 số
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumber = /\d/.test(password);
@@ -86,7 +96,6 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.PASSWORD_WEAK);
     }
 
-    // Kiểm tra không chứa ký tự đặc biệt nguy hiểm
     const dangerousChars = /[<>'"&]/;
     if (dangerousChars.test(password)) {
       throw new BadRequestException(AUTH_ERRORS.PASSWORD_INVALID_CHARS);
@@ -120,10 +129,14 @@ export class AuthService {
       {
         email: user.email,
         registration_method: 'self_register',
-      }
+      },
     );
 
-    const tokens = await this.getTokens(Number(user.id), user.email, registerDto.role);
+    const tokens = await this.getTokens(
+      Number(user.id),
+      user.email,
+      registerDto.role,
+    );
     return tokens;
   }
 
@@ -136,7 +149,6 @@ export class AuthService {
         },
       );
 
-      // Lấy userId từ payload thay vì từ DTO
       const userId = payload.sub;
       if (!userId) {
         throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
@@ -147,22 +159,21 @@ export class AuthService {
         throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
       }
 
-      const tokens = await this.getTokens(Number(user.id), user.email, user?.user_information?.role?.name || '');
+      const tokens = await this.getTokens(
+        Number(user.id),
+        user.email,
+        user?.user_information?.role?.name || '',
+      );
       return tokens;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      throw new UnauthorizedException(
-        AUTH_ERRORS.INVALID_REFRESH_TOKEN,
-      );
+      throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
     }
   }
 
   async logOut(_userId: number): Promise<{ message: string }> {
-    // TODO: Implement token blacklisting if needed
-    // Có thể thêm logic để blacklist token hoặc invalidate session
-
     return { message: AUTH_ERRORS.LOGOUT_SUCCESS };
   }
 
@@ -173,7 +184,6 @@ export class AuthService {
     }
 
     try {
-      // Lấy thông tin bổ sung
       const additionalInfo = await this.getUserAdditionalInfo(userId);
 
       const { password: _, ...result } = user;
@@ -182,12 +192,11 @@ export class AuthService {
         ...additionalInfo,
       };
     } catch (error) {
-      // Log error nhưng vẫn trả về thông tin cơ bản
       console.error('Error getting additional user info:', error);
 
       const { password: _, ...result } = user;
       return {
-        ...result,
+        ...result,  
         join_date: user.created_at,
         today_attendance: {
           checkin: null,
@@ -222,7 +231,6 @@ export class AuthService {
       today.toISOString().split('T')[0] + 'T23:59:59.999Z',
     );
 
-    // Tháng hiện tại để tính leave days
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
     const monthStart = new Date(currentYear, currentMonth, 1);
@@ -236,7 +244,6 @@ export class AuthService {
       999,
     );
 
-    // Thực hiện tất cả queries song song để tối ưu performance
     const [
       userInfo,
       todayTimesheet,
@@ -244,7 +251,6 @@ export class AuthService {
       assignedDevices,
       userDivision,
     ] = await Promise.all([
-      // Lấy thông tin user cơ bản
       this.prisma.user_information.findFirst({
         where: {
           user_id: userId,
@@ -262,7 +268,6 @@ export class AuthService {
         },
       }),
 
-      // Lấy thông tin chấm công hôm nay
       this.prisma.time_sheets.findFirst({
         where: {
           user_id: userId,
@@ -283,7 +288,6 @@ export class AuthService {
         },
       }),
 
-      // Tính tổng số ngày phép đã sử dụng trong tháng
       this.prisma.day_offs.aggregate({
         where: {
           user_id: userId,
@@ -300,7 +304,6 @@ export class AuthService {
         },
       }),
 
-      // Lấy danh sách thiết bị được cấp từ assets
       this.prisma.assets.findMany({
         where: {
           assigned_to: userId,
@@ -324,7 +327,6 @@ export class AuthService {
         },
       }),
 
-      // Lấy thông tin division và team từ user_division
       this.prisma.user_division.findFirst({
         where: {
           userId: userId,
@@ -337,13 +339,11 @@ export class AuthService {
       }),
     ]);
 
-    // Tính số ngày phép còn lại (mặc định 12 ngày/năm)
     const annualLeaveQuota = 12;
-    const monthlyLeaveQuota = annualLeaveQuota / 12; // Chia đều theo tháng
+    const monthlyLeaveQuota = annualLeaveQuota / 12;
     const usedLeave = usedLeaveDays._count.id || 0;
     const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
 
-    // Format assigned devices from assets
     const formattedDevices = assignedDevices.map((asset) => ({
       id: asset.id,
       name: asset.name || 'Unknown Asset',
@@ -376,11 +376,10 @@ export class AuthService {
         is_complete: todayTimesheet?.is_complete || false,
         has_attendance: !!todayTimesheet,
       },
-      remaining_leave_days: Math.round(remainingLeave * 10) / 10, // Làm tròn 1 chữ số thập phân
+      remaining_leave_days: Math.round(remainingLeave * 10) / 10,
       annual_leave_quota: annualLeaveQuota,
       used_leave_days: usedLeave,
       assigned_devices: formattedDevices,
-      // Thêm thông tin tổ chức
       organization: {
         position_id: userInfo?.position_id || null,
         level_id: userInfo?.level_id || null,
@@ -397,34 +396,27 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const { email } = forgotPasswordDto;
 
-    // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      // Không trả về lỗi để tránh email enumeration attack
       return {
         message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       return {
         message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
-    // Kiểm tra rate limit
     const canSendOTP = await this.otpService.checkOTPRateLimit(
       email,
       OtpType.PASSWORD_RESET,
     );
     if (!canSendOTP) {
-      throw new BadRequestException(
-        AUTH_ERRORS.TOO_MANY_REQUESTS,
-      );
+      throw new BadRequestException(AUTH_ERRORS.TOO_MANY_REQUESTS);
     }
 
-    // Tạo và gửi OTP
     await this.otpService.generateAndSendOTP(email, OtpType.PASSWORD_RESET);
 
     return {
@@ -437,21 +429,17 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const { email, otp, newPassword } = resetPasswordDto;
 
-    // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    // Validate mật khẩu mới
     this.validatePasswordStrength(newPassword);
 
-    // Xác thực OTP
     const isValidOTP = await this.otpService.verifyOTP(
       email,
       otp,
@@ -461,13 +449,10 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
-    // Mã hóa mật khẩu mới
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Cập nhật mật khẩu
     await this.usersService.updatePassword(user.id, hashedPassword);
 
-    // Cleanup tất cả OTP của user này sau khi reset thành công
     await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
 
     return { message: AUTH_ERRORS.PASSWORD_RESET_SUCCESS };
@@ -478,18 +463,15 @@ export class AuthService {
   ): Promise<{ message: string; isValid: boolean; resetToken?: string }> {
     const { email, otp } = verifyOtpDto;
 
-    // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    // Xác thực OTP và đánh dấu đã sử dụng
     const isValidOTP = await this.otpService.verifyOTP(
       email,
       otp,
@@ -503,7 +485,6 @@ export class AuthService {
       };
     }
 
-    // Tạo temporary reset token có thời hạn 15 phút
     const resetToken = this.jwtService.sign(
       {
         email,
@@ -529,37 +510,29 @@ export class AuthService {
     const { email, resetToken, newPassword } = resetPasswordWithTokenDto;
 
     try {
-      // Xác thực reset token
       const decoded = this.jwtService.verify(resetToken, {
         secret: this.configService.get('JWT_SECRET'),
       });
 
-      // Kiểm tra token có đúng purpose và email không
       if (decoded.purpose !== 'password_reset' || decoded.email !== email) {
         throw new BadRequestException(AUTH_ERRORS.INVALID_TOKEN);
       }
 
-      // Kiểm tra user có tồn tại không
       const user = await this.usersService.findByEmail(email);
       if (!user) {
         throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
       }
 
-      // Kiểm tra user có bị xóa không
       if (user.deleted_at) {
         throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
       }
 
-      // Validate mật khẩu mới
       this.validatePasswordStrength(newPassword);
 
-      // Mã hóa mật khẩu mới
       const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-      // Cập nhật mật khẩu
       await this.usersService.updatePassword(user.id, hashedPassword);
 
-      // Cleanup tất cả OTP của user này sau khi reset thành công
       await this.otpService.cleanupExpiredOTPs(email, OtpType.PASSWORD_RESET);
 
       return { message: AUTH_ERRORS.PASSWORD_RESET_SUCCESS };
@@ -580,18 +553,15 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const { currentPassword, newPassword } = changePasswordDto;
 
-    // Lấy thông tin user
     const user = await this.usersService.findById(userId);
     if (!user) {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    // Kiểm tra mật khẩu hiện tại
     if (!user.password) {
       throw new BadRequestException(AUTH_ERRORS.ACCOUNT_NO_PASSWORD);
     }
@@ -604,53 +574,42 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.CURRENT_PASSWORD_INCORRECT);
     }
 
-    // Validate mật khẩu mới
     this.validatePasswordStrength(newPassword);
 
-    // Kiểm tra mật khẩu mới có khác mật khẩu hiện tại không
     const isSamePassword = await bcrypt.compare(newPassword, user.password);
     if (isSamePassword) {
       throw new BadRequestException(AUTH_ERRORS.NEW_PASSWORD_SAME_AS_CURRENT);
     }
 
-    // Mã hóa mật khẩu mới
     const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
-    // Cập nhật mật khẩu
     await this.usersService.updatePassword(userId, hashedNewPassword);
 
     return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
 
   async sendChangePasswordOTP(email: string): Promise<{ message: string }> {
-    // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      // Không trả về lỗi để tránh email enumeration attack
       return {
         message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       return {
         message: AUTH_ERRORS.OTP_SENT_IF_EMAIL_EXISTS,
       };
     }
 
-    // Kiểm tra rate limit
     const canSendOTP = await this.otpService.checkOTPRateLimit(
       email,
       OtpType.CHANGE_PASSWORD,
     );
     if (!canSendOTP) {
-      throw new BadRequestException(
-        AUTH_ERRORS.TOO_MANY_REQUESTS,
-      );
+      throw new BadRequestException(AUTH_ERRORS.TOO_MANY_REQUESTS);
     }
 
-    // Tạo và gửi OTP
     await this.otpService.generateAndSendOTP(email, OtpType.CHANGE_PASSWORD);
 
     return {
@@ -663,21 +622,17 @@ export class AuthService {
     otp: string,
     newPassword: string,
   ): Promise<{ message: string }> {
-    // Kiểm tra email có tồn tại không
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException(AUTH_ERRORS.EMAIL_NOT_FOUND);
     }
 
-    // Kiểm tra user có bị xóa không
     if (user.deleted_at) {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    // Validate mật khẩu mới
     this.validatePasswordStrength(newPassword);
 
-    // Xác thực OTP
     const isValidOTP = await this.otpService.verifyOTP(
       email,
       otp,
@@ -687,19 +642,20 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
-    // Mã hóa mật khẩu mới
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Cập nhật mật khẩu
     await this.usersService.updatePassword(user.id, hashedPassword);
 
-    // Cleanup tất cả OTP của user này sau khi change thành công
     await this.otpService.cleanupExpiredOTPs(email, OtpType.CHANGE_PASSWORD);
 
     return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
 
-  private async getTokens(userId: number, email: string, role: string): Promise<TokensDto> {
+  private async getTokens(
+    userId: number,
+    email: string,
+    role: string,
+  ): Promise<TokensDto> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {

@@ -215,6 +215,9 @@ export class UsersService {
           },
         },
         user_division: {
+          where: {
+            deleted_at: null,
+          },
           include: {
             division: true,
           },
@@ -226,7 +229,10 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    return user;
+    return {
+      ...user,
+      user_division: user.user_division[0] || null,
+    };
   }
 
   async findByEmail(email: string) {
