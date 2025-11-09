@@ -1,14 +1,17 @@
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UsersService } from '../../users/users.service';
+import { getRoleLevel } from '../constants/role.constants';
+import { RoleAssignmentService } from '../services/role-assignment.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private roleAssignmentService: RoleAssignmentService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -22,10 +25,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException('Token không hợp lệ');
     }
-    return {
-      id: payload.sub,
-      email: payload.email,
-      role: payload.role,
-    };
+
+    try {
+      const userRoles = await this.roleAssignmentService.getUserRoles(
+        payload.sub,
+      );
+      const roleNames = userRoles.roles.map((role) => role.name);
+
+      const sortedRoles = roleNames.sort(
+        (a, b) => getRoleLevel(b) - getRoleLevel(a),
+      );
+
+      return {
+        id: payload.sub,
+        email: payload.email,
+        roles: sortedRoles,
+      };
+    } catch (error) {
+      console.error('Error fetching user roles:', error);
+      return {
+        id: payload.sub,
+        email: payload.email,
+        roles: [],
+      };
+    }
   }
 }

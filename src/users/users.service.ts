@@ -8,11 +8,15 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, ScopeType } from '@prisma/client';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private roleAssignmentService: RoleAssignmentService,
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
     const { password, ...userData } = createUserDto;
@@ -31,11 +35,6 @@ export class UsersService {
             avatar: '',
             gender: '',
             marital: '',
-            role: {
-              connect: {
-                id: Number(userData.role),
-              },
-            },
             birthday: '',
             address: '',
             temp_address: '',
@@ -51,6 +50,16 @@ export class UsersService {
         },
       },
     });
+
+    // Tạo role assignment cho user mới (company scope)
+    if (userData.role) {
+      await this.roleAssignmentService.assignRole({
+        user_id: user.id,
+        role_id: Number(userData.role),
+        scope_type: ScopeType.COMPANY,
+        assigned_by: 1,
+      });
+    }
 
     const { password: _, ...result } = user;
     return result;
@@ -70,13 +79,20 @@ export class UsersService {
         user_information: {
           select: {
             avatar: true,
-            role: {
+            position: {
               select: {
                 id: true,
                 name: true,
               },
             },
-            position: {
+          },
+        },
+        user_role_assignments: {
+          where: {
+            deleted_at: null,
+          },
+          select: {
+            role: {
               select: {
                 id: true,
                 name: true,
@@ -117,11 +133,8 @@ export class UsersService {
         id: paginationDto.position_id,
       };
     }
-    if (paginationDto.role_id) {
-      userInfoFilters.role = {
-        id: paginationDto.role_id,
-      };
-    }
+    // Note: role_id filtering is now handled by role assignments
+    // TODO: Implement role filtering via role assignments if needed
 
     if (Object.keys(userInfoFilters).length > 0) {
       where.user_information = {
@@ -147,12 +160,6 @@ export class UsersService {
               avatar: true,
               phone: true,
               address: true,
-              role: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
               position: {
                 select: {
                   id: true,
@@ -188,7 +195,7 @@ export class UsersService {
       phone: user.user_information?.phone,
       address: user.user_information?.address,
       name: user.user_information?.name,
-      role: user.user_information?.role,
+      // role: handled by role assignments
       position: user.user_information?.position,
       user_information: undefined,
     }));
@@ -209,7 +216,6 @@ export class UsersService {
       include: {
         user_information: {
           include: {
-            role: true,
             position: true, 
             level: true,
           },
@@ -221,6 +227,7 @@ export class UsersService {
           include: {
             division: true,
           },
+          take: 1, // Only take the first element
         },
       },
     });
@@ -229,9 +236,14 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
+    // Lấy role assignments của user
+    const roleAssignments = await this.roleAssignmentService.getUserRoles(id);
+
+    // Convert user_division from array to object
     return {
       ...user,
       user_division: user.user_division[0] || null,
+      role_assignments: roleAssignments.roles,
     };
   }
 
@@ -242,12 +254,14 @@ export class UsersService {
         deleted_at: null,
       },
       include: {
-        user_information: {
+        user_role_assignments: {
+          where: {
+            deleted_at: null,
+          },
           include: {
             role: true,
-            position: true,
           },
-        },
+        }
       },
     });
   }

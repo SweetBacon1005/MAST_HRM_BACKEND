@@ -61,16 +61,6 @@ export class UpdateTeamDto {
   name?: string;
 
   @ApiProperty({
-    description: 'ID người lãnh đạo team (user_id)',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  leaderId?: number;
-
-  @ApiProperty({
     description: 'Ngày thành lập team',
     example: '2022-01-25',
     required: false,

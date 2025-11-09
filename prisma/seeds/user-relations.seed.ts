@@ -3,63 +3,55 @@ import { PrismaClient } from '@prisma/client';
 export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
   console.log('🔗 Seeding user relationships...');
 
-  const { users, roles, projects } = seedData;
+  const { users, projects } = seedData;
 
   // 1. Tạo user_division - sử dụng createMany với skipDuplicates
   console.log('🏢 Tạo user division assignments...');
   const userDivisionData = [
     {
       userId: users[0].id,
-      role_id: roles[0].id, // admin
       divisionId: 1, // Technology Division
       teamId: null,
       description: 'System Administrator',
     },
     {
       userId: users[1].id,
-      role_id: roles[1].id, // manager
       divisionId: 2, // Human Resources
       teamId: null,
       description: 'HR Manager',
     },
     {
       userId: users[2].id,
-      role_id: roles[2].id, // team_leader
       divisionId: 4, // Development Team A
       teamId: 1, // Backend Team
       description: 'Backend Team Leader',
     },
     {
       userId: users[3].id,
-      role_id: roles[2].id, // team_leader
       divisionId: 4, // Development Team A
       teamId: 2, // Frontend Team
       description: 'Frontend Team Leader',
     },
     {
       userId: users[4].id,
-      role_id: roles[3].id, // developer
       divisionId: 5, // Development Team B
       teamId: 3, // Mobile Team
       description: 'Mobile Developer',
     },
     {
       userId: users[5].id,
-      role_id: roles[4].id, // tester
       divisionId: 3, // Quality Assurance
       teamId: 4, // QA Team
       description: 'Senior QA Tester',
     },
     {
       userId: users[6].id,
-      role_id: roles[3].id, // developer
       divisionId: 1, // Technology Division
       teamId: 5, // DevOps Team
       description: 'DevOps Engineer',
     },
     {
       userId: users[7].id,
-      role_id: roles[5].id, // employee
       divisionId: 1, // Technology Division
       teamId: 6, // UI/UX Team
       description: 'UI/UX Designer',
@@ -79,44 +71,44 @@ export async function seedUserRelations(prisma: PrismaClient, seedData: any) {
       user_id: users[2].id, // John Doe
       start_date: new Date('2024-02-16'),
       end_date: new Date('2024-04-20'),
+      role_id: 1, // Admin role
       man_day: 45,
       allocation: 80, // 80% allocation
       skill_id: 1, // Node.js skill
       coefficient: 2.0, // Senior level
-      role_id: roles[2].id, // team_leader
     },
     // Jane Smith (Frontend Developer) - E-Commerce Platform
     {
       user_id: users[3].id, // Jane Smith
       start_date: new Date('2024-03-01'),
       end_date: new Date('2024-04-01'),
+      role_id: 1, // Admin role
       man_day: 22,
       allocation: 70, // 70% allocation
       skill_id: 10, // React.js skill
       coefficient: 2.0, // Senior level
-      role_id: roles[2].id, // team_leader
     },
     // Mike Johnson (Mobile Developer) - XYZ Banking Mobile App
     {
       user_id: users[4].id, // Mike Johnson
       start_date: new Date('2024-02-01'),
       end_date: new Date('2024-08-01'),
+      role_id: 1, // Admin role
       man_day: 120,
       allocation: 100, // 100% allocation
       skill_id: 17, // React Native skill
       coefficient: 1.5, // Middle level
-      role_id: roles[3].id, // developer
     },
     // Sarah Wilson (QA Tester) - ABC CRM System
     {
       user_id: users[5].id, // Sarah Wilson
       start_date: new Date('2024-03-01'),
       end_date: new Date('2024-04-20'),
+      role_id: 1, // Admin role
       man_day: 35,
       allocation: 60, // 60% allocation
       skill_id: 21, // Manual Testing skill
       coefficient: 2.0, // Senior level
-      role_id: roles[4].id, // tester
     },
   ];
 

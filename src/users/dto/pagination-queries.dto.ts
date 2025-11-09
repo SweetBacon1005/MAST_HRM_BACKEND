@@ -23,13 +23,4 @@ export class UsersPaginationDto extends PaginationDto {
   @IsInt()
   position_id?: number;
 
-  @ApiProperty({
-    description: 'ID vai trò',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  role_id?: number;
 }

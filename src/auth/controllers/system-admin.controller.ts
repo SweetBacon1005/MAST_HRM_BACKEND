@@ -1,30 +1,36 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseIntPipe,
-  Param,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber } from 'class-validator';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
+  ApiOperation,
   ApiParam,
   ApiProperty,
   ApiPropertyOptional,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { PrismaService } from '../../database/prisma.service';
+import { RequirePermission } from '../decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
-import { RequirePermission } from '../decorators/require-permission.decorator';
-import { PrismaService } from '../../database/prisma.service';
 
 export class CreateSystemRoleDto {
   @ApiProperty({
@@ -234,9 +240,8 @@ export class SystemAdminController {
     description: 'Xóa role thành công',
   })
   async deleteRole(@Param('id', ParseIntPipe) id: number) {
-    // Kiểm tra role có đang được sử dụng không
-    const userCount = await this.prisma.user_information.count({
-      where: { role_id: id },
+    const userCount = await this.prisma.user_role_assignment.count({
+      where: { role_id: id, deleted_at: null },
     });
 
     if (userCount > 0) {
@@ -245,7 +250,6 @@ export class SystemAdminController {
       );
     }
 
-    // Xóa role (soft delete)
     await this.prisma.roles.update({
       where: { id },
       data: { deleted_at: new Date() },
@@ -481,7 +485,6 @@ export class SystemAdminController {
       include: {
         user_information: {
           include: {
-            role: true,
             position: true,
             level: true,
           },
@@ -495,12 +498,10 @@ export class SystemAdminController {
     });
 
     if (format === 'csv') {
-      // Chuyển đổi sang CSV format (đơn giản)
       const csvData = users.map((user) => ({
         id: user.id,
         name: user.user_information?.name || '',
         email: user.email,
-        role: user.user_information?.role?.name || '',
         division: user.user_division?.[0]?.division?.name || '',
         created_at: user.created_at,
       }));

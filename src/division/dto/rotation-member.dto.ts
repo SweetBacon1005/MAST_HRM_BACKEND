@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsInt, IsDateString, IsOptional, Min } from 'class-validator';
+import { IsInt, IsDateString, IsOptional, Min, IsEnum } from 'class-validator';
+import { RotationType } from '@prisma/client';
 
 export class CreateRotationMemberDto {
   @ApiProperty({
@@ -18,18 +19,18 @@ export class CreateRotationMemberDto {
   })
   @Type(() => Number)
   @IsInt({ message: 'ID phòng ban đích phải là số nguyên' })
+  @IsOptional()
   @Min(1, { message: 'ID phòng ban đích phải lớn hơn 0' })
-  division_id: number;
+  division_id?: number;
 
   @ApiProperty({
     description: 'Loại điều chuyển (1: Vĩnh viễn, 2: Tạm thời)',
-    example: 1,
-    required: false,
+    example: RotationType.PERMANENT,
+    required: true,
+    enum: RotationType,
   })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Loại điều chuyển phải là số nguyên' })
-  type?: number;
+  @IsEnum(RotationType)
+  type: RotationType;
 
   @ApiProperty({
     description: 'Ngày điều chuyển',
@@ -56,13 +57,13 @@ export class UpdateRotationMemberDto {
 
   @ApiProperty({
     description: 'Loại điều chuyển (1: Vĩnh viễn, 2: Tạm thời)',
-    example: 1,
+    example: RotationType.PERMANENT,
+    enum: RotationType,
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Loại điều chuyển phải là số nguyên' })
-  type?: number;
+  @IsEnum(RotationType)
+  type?: RotationType;
 
   @ApiProperty({
     description: 'Ngày điều chuyển',
@@ -134,16 +135,13 @@ export class RotationMemberPaginationDto {
 
   @ApiProperty({
     description: 'Lọc theo loại điều chuyển',
-    example: 1,
+    example: RotationType.PERMANENT,
+    enum: RotationType,
     required: false,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  })
-  @IsInt({ message: 'Loại điều chuyển phải là số nguyên' })
-  type?: number;
+  @IsEnum(RotationType)
+  type?: RotationType;
 
   @ApiProperty({
     description: 'Lọc từ ngày',

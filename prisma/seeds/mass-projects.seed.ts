@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ScopeType } from '@prisma/client';
 
 // Danh sách tên dự án thực tế
 const PROJECT_NAMES = [
@@ -112,14 +112,12 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
 
   console.log(`🚀 Tạo ${numberOfProjects} projects...`);
   
-  // Tạo projects với batch processing
   const batchSize = 25;
   let createdProjects: any[] = [];
   
   for (let i = 0; i < projectData.length; i += batchSize) {
     const batch = projectData.slice(i, i + batchSize);
     
-    // Sử dụng createMany để tối ưu performance
     await prisma.projects.createMany({
       data: batch,
       skipDuplicates: true,
@@ -128,7 +126,6 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
     console.log(`✓ Created projects batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(projectData.length / batchSize)}`);
   }
   
-  // Lấy lại các projects đã tạo để sử dụng cho tasks và roles
   createdProjects = await prisma.projects.findMany({
     where: {
       code: {
@@ -150,32 +147,26 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
 
     for (let i = 0; i < selectedUsers.length; i++) {
       const user = selectedUsers[i];
-      // Get user's role from user_information
-      const userInfo = await prisma.user_information.findUnique({
-        where: { user_id: user.id },
+      const userRoleAssignment = await prisma.user_role_assignment.findFirst({
+        where: { 
+          user_id: user.id,
+          scope_type: ScopeType.COMPANY,
+          deleted_at: null,
+        },
         include: { role: true }
       });
 
-      if (userInfo) {
+      if (userRoleAssignment) {
         projectRoleData.push({
           project_id: project.id,
           user_id: user.id,
-          role_id: userInfo.role_id,
+          role_id: userRoleAssignment.role_id,
           position_in_project: i === 0 ? 1 : (i === 1 ? 2 : 3), // 1: monitor, 2: supporter, 3: implementor
         });
       }
     }
   }
 
-  // Batch create project roles
-  for (let i = 0; i < projectRoleData.length; i += batchSize) {
-    const batch = projectRoleData.slice(i, i + batchSize);
-    await prisma.project_role_user.createMany({
-      data: batch,
-      skipDuplicates: true,
-    });
-    console.log(`✓ Created project roles batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(projectRoleData.length / batchSize)}`);
-  }
 
   // Tạo tasks cho mỗi project
   console.log('📋 Tạo tasks cho projects...');
@@ -185,15 +176,8 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
     // Mỗi project có 10-30 tasks
     const taskCount = Math.floor(Math.random() * 21) + 10;
     
-    // Get project members
-    const projectMembers = await prisma.project_role_user.findMany({
-      where: { project_id: project.id },
-      include: { user: true }
-    });
-
     for (let i = 0; i < taskCount; i++) {
       const taskType = TASK_TYPES[Math.floor(Math.random() * TASK_TYPES.length)];
-      const assignedUser = projectMembers[Math.floor(Math.random() * projectMembers.length)];
       
       const taskStartDate = randomDateBetween(project.start_date, project.end_date);
       const taskDueDate = new Date(taskStartDate.getTime() + (Math.random() * 14 + 1) * 24 * 60 * 60 * 1000); // 1-14 days
@@ -201,7 +185,6 @@ export async function seedMassProjects(prisma: PrismaClient, seedData: any) {
       taskData.push({
         project_id: project.id,
         issue_id: Math.floor(Math.random() * 10000) + 1000, // Random issue ID
-        user_id: assignedUser.user_id,
         title: generateTaskTitle(project.name, taskType),
         issue_type: taskType,
         status: TASK_STATUSES[Math.floor(Math.random() * TASK_STATUSES.length)],

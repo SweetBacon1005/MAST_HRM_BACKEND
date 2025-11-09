@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Delete,
   ForbiddenException,
   Get,
   NotFoundException,
@@ -23,16 +22,12 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import {
   ACTIVE_PROJECT_STATUSES,
-  ACTIVITY_LOG_EVENTS,
-  CAUSER_TYPES,
   PROJECT_POSITIONS,
   ROLE_NAMES,
-  SUBJECT_TYPES,
 } from '../constants/role.constants';
+import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
-import {
-  UpdateUserRoleDto,
-} from '../dto/role-management.dto';
+import { UpdateUserRoleDto } from '../dto/role-management.dto';
 import {
   UnifiedRoleAssignmentDto,
   UnifiedRoleAssignmentResponseDto,
@@ -42,7 +37,6 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleAssignmentService } from '../services/role-assignment.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
-import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 
 @ApiTags('role-management')
 @Controller('role-management')
@@ -60,9 +54,10 @@ export class RoleManagementController {
 
   @Post('assign-unified')
   @RequirePermission('role.update')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'API thống nhất gán role cho user',
-    description: 'Gán role cho một hoặc nhiều user với logic nghiệp vụ đầy đủ. Thay thế tất cả các API gán role riêng lẻ.'
+    description:
+      'Gán role cho một hoặc nhiều user với logic nghiệp vụ đầy đủ. Thay thế tất cả các API gán role riêng lẻ.',
   })
   @ApiBody({ type: UnifiedRoleAssignmentDto })
   @ApiResponse({
@@ -83,30 +78,30 @@ export class RoleManagementController {
               email: 'a.nguyen@company.com',
               role: {
                 id: 4,
-                name: 'project_manager'
-              }
+                name: 'project_manager',
+              },
             },
             context: {
               project: {
                 id: 10,
                 name: 'Project ABC',
-                code: 'ABC001'
-              }
+                code: 'ABC001',
+              },
             },
             replacedUser: {
               id: 456,
               name: 'Nguyễn Văn B',
-              email: 'b.nguyen@company.com'
-            }
-          }
+              email: 'b.nguyen@company.com',
+            },
+          },
         ],
         summary: {
           total: 1,
           successful: 1,
-          failed: 0
-        }
-      }
-    }
+          failed: 0,
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 400,
@@ -115,9 +110,9 @@ export class RoleManagementController {
       example: {
         statusCode: 400,
         message: 'Role project_manager yêu cầu projectId',
-        error: 'Bad Request'
-      }
-    }
+        error: 'Bad Request',
+      },
+    },
   })
   @ApiResponse({
     status: 403,
@@ -126,9 +121,9 @@ export class RoleManagementController {
       example: {
         statusCode: 403,
         message: 'Bạn không có quyền gán role project_manager',
-        error: 'Forbidden'
-      }
-    }
+        error: 'Forbidden',
+      },
+    },
   })
   @ApiResponse({
     status: 404,
@@ -138,7 +133,79 @@ export class RoleManagementController {
     @Body() dto: UnifiedRoleAssignmentDto,
     @GetCurrentUser('id') managerId: number,
   ): Promise<UnifiedRoleAssignmentResponseDto> {
-    return await this.roleAssignmentService.assignRoleUnified(dto, managerId);
+    if (!dto.targetUserId || dto.targetUserId.length === 0) {
+      throw new BadRequestException('Cần ít nhất một user để gán role');
+    }
+
+    if (!dto.roleId) {
+      throw new BadRequestException('Role ID là bắt buộc');
+    }
+
+    await this.validateAssignmentPermission(managerId, dto.roleId, dto);
+
+    const result = await this.roleAssignmentService.assignRoleUnified(
+      dto.targetUserId,
+      dto.roleId,
+      managerId,
+      {
+        projectId: dto.context?.projectId,
+        teamId: dto.context?.teamId,
+        divisionId: dto.context?.divisionId,
+      }
+    );
+
+    // Format response
+    const formattedResults = await Promise.all(
+      result.results.map(async (r: any) => {
+        if (r.success) {
+          const user = await this.prisma.users.findUnique({
+            where: { id: r.userId },
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: { name: true }
+              }
+            }
+          });
+
+          const role = await this.prisma.roles.findUnique({
+            where: { id: dto.roleId },
+            select: { id: true, name: true }
+          });
+
+          return {
+            userId: r.userId,
+            success: true,
+            message: this.getSuccessMessage(role?.name || '', dto.context),
+            user: {
+              id: user?.id || 0,
+              name: user?.user_information?.[0]?.name || '',
+              email: user?.email || '',
+              role: role || { id: 0, name: '' }
+            },
+            context: await this.getContextInfo(dto.context),
+            replacedUser: r.replacedUser ? {
+              id: r.replacedUser.id,
+              name: r.replacedUser.user_information?.name,
+              email: r.replacedUser.email
+            } : undefined
+          };
+        } else {
+          return {
+            userId: r.userId,
+            success: false,
+            message: r.error || 'Có lỗi xảy ra khi gán role'
+          };
+        }
+      })
+    );
+
+    return {
+      success: result.summary.failed === 0,
+      results: formattedResults,
+      summary: result.summary
+    };
   }
 
   // ==================== READ-ONLY ENDPOINTS ====================
@@ -151,8 +218,8 @@ export class RoleManagementController {
     description: 'Lấy danh sách roles thành công',
   })
   async getAssignableRoles(@GetCurrentUser('id') userId: number) {
-    const userRole = await this.permissionService.getUserRole(userId);
-    if (!userRole) {
+    const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+    if (!userRoles || userRoles.roles.length === 0) {
       return {
         assignableRoles: [],
         hierarchy: this.roleHierarchyService.getAllRolesByHierarchy(),
@@ -160,22 +227,29 @@ export class RoleManagementController {
       };
     }
 
+    const userRoleNames = userRoles.roles.map(r => r.name);
+    const highestRole = this.getHighestRole(userRoleNames);
+    
     let assignableRoleNames: string[] = [];
 
-    // Logic đặc biệt cho division_head
-    if (userRole.name === ROLE_NAMES.DIVISION_HEAD) {
-      // Division head chỉ có thể gán team_leader và project_manager
+    if (this.isHighLevelRole(highestRole)) {
       assignableRoleNames = [
-        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.DIVISION_HEAD,
         ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.HR_MANAGER,
+      ];
+    } else if (highestRole === ROLE_NAMES.DIVISION_HEAD) {
+      assignableRoleNames = [
+        ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.EMPLOYEE,
       ];
     } else {
-      // Logic chung cho các role khác
-      assignableRoleNames =
-        await this.roleHierarchyService.getAssignableRoles(userId);
+      assignableRoleNames = [];
     }
 
-    // Lấy thông tin chi tiết của các roles
     const roles = await this.prisma.roles.findMany({
       where: {
         name: { in: assignableRoleNames },
@@ -191,17 +265,38 @@ export class RoleManagementController {
       assignableRoles: roles,
       hierarchy: this.roleHierarchyService.getAllRolesByHierarchy(),
       userRole: {
-        id: userRole.id,
-        name: userRole.name,
+        id: userRoles.roles[0]?.id,
+        name: highestRole,
       },
-      restrictions:
-        userRole.name === ROLE_NAMES.DIVISION_HEAD
-          ? {
-              scope: 'division_only',
-              message: 'Chỉ có thể gán role cho nhân viên trong cùng phòng ban',
-            }
-          : null,
+      restrictions: this.getRestrictions(highestRole),
     };
+  }
+
+  private getRestrictions(roleName: string) {
+    switch (roleName) {
+      case ROLE_NAMES.DIVISION_HEAD:
+        return {
+          scope: 'division_only',
+          message: 'Chỉ có thể gán role cho nhân viên trong cùng phòng ban',
+          allowedRoles: [
+            ROLE_NAMES.PROJECT_MANAGER,
+            ROLE_NAMES.TEAM_LEADER,
+            ROLE_NAMES.EMPLOYEE,
+          ],
+        };
+      case ROLE_NAMES.SUPER_ADMIN:
+      case ROLE_NAMES.ADMIN:
+      case ROLE_NAMES.COMPANY_OWNER:
+        return {
+          scope: 'company_wide',
+          message: 'Có thể gán role cho tất cả nhân viên trong công ty',
+        };
+      default:
+        return {
+          scope: 'none',
+          message: 'Không có quyền gán role',
+        };
+    }
   }
 
   @Get('user/:userId/manageable')
@@ -237,7 +332,6 @@ export class RoleManagementController {
     };
   }
 
-
   @Get('hierarchy')
   @RequirePermission('role.read')
   @ApiOperation({ summary: 'Lấy thông tin phân cấp roles' })
@@ -263,31 +357,34 @@ export class RoleManagementController {
     @Param('userId', ParseIntPipe) targetUserId: number,
     @GetCurrentUser('id') managerId: number,
   ) {
-    // Kiểm tra có thể quản lý user này không
-    const canManage = await this.roleHierarchyService.canUserManageUserRole(
-      managerId,
-      targetUserId,
-    );
+    // Kiểm tra quyền quản lý user
+    const canManage = await this.canManageUser(managerId, targetUserId);
 
     if (!canManage) {
       throw new ForbiddenException('Bạn không có quyền quản lý user này');
     }
 
-    // Lấy danh sách roles có thể gán
-    const managerRole = await this.permissionService.getUserRole(managerId);
+    // Lấy roles có thể gán
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
+    const highestManagerRole = this.getHighestRole(managerRoleNames);
+    
     let assignableRoleNames: string[] = [];
 
-    // Logic đặc biệt cho division_head
-    if (managerRole?.name === ROLE_NAMES.DIVISION_HEAD) {
-      // Division head chỉ có thể gán team_leader và project_manager
+    if (this.isHighLevelRole(highestManagerRole)) {
       assignableRoleNames = [
-        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.DIVISION_HEAD,
         ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.HR_MANAGER,
       ];
-    } else {
-      // Logic chung cho các role khác
-      assignableRoleNames =
-        await this.roleHierarchyService.getAssignableRoles(managerId);
+    } else if (highestManagerRole === ROLE_NAMES.DIVISION_HEAD) {
+      assignableRoleNames = [
+        ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.EMPLOYEE,
+      ];
     }
 
     const roles = await this.prisma.roles.findMany({
@@ -301,14 +398,71 @@ export class RoleManagementController {
       },
     });
 
-    // Lấy role hiện tại của user
-    const currentRole = await this.permissionService.getUserRole(targetUserId);
+    // Lấy role hiện tại của target user
+    const targetUserRoles = await this.roleAssignmentService.getUserRoles(targetUserId);
+    const currentRole = targetUserRoles.roles.length > 0 ? {
+      id: targetUserRoles.roles[0].id,
+      name: this.getHighestRole(targetUserRoles.roles.map(r => r.name))
+    } : null;
 
     return {
       availableRoles: roles,
       currentRole,
       canManage,
+      restrictions: this.getRestrictions(highestManagerRole),
     };
+  }
+
+  /**
+   * Kiểm tra có thể quản lý user không
+   */
+  private async canManageUser(managerId: number, targetUserId: number): Promise<boolean> {
+    if (managerId === targetUserId) return false;
+
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
+    const highestManagerRole = this.getHighestRole(managerRoleNames);
+
+    // High-level roles có thể quản lý tất cả
+    if (this.isHighLevelRole(highestManagerRole)) {
+      return true;
+    }
+
+    // Division head chỉ quản lý trong division của mình
+    if (highestManagerRole === ROLE_NAMES.DIVISION_HEAD) {
+      return await this.isUserInSameDivision(managerId, targetUserId);
+    }
+
+    return false;
+  }
+
+  /**
+   * Kiểm tra user có trong cùng division không
+   */
+  private async isUserInSameDivision(managerId: number, targetUserId: number): Promise<boolean> {
+    const managerDivision = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: managerId,
+        role: {
+          name: ROLE_NAMES.DIVISION_HEAD,
+          deleted_at: null
+        },
+        deleted_at: null
+      },
+      select: { scope_id: true }
+    });
+
+    if (!managerDivision?.scope_id) return false;
+
+    const targetDivision = await this.prisma.user_division.findFirst({
+      where: {
+        userId: targetUserId,
+        deleted_at: null
+      },
+      select: { divisionId: true }
+    });
+
+    return targetDivision?.divisionId === managerDivision.scope_id;
   }
 
   @Get('rotation-member/:rotationId/can-manage')
@@ -348,480 +502,184 @@ export class RoleManagementController {
     };
   }
 
-  @Patch('user/:userId/role')
-  @RequirePermission('role.update')
-  @ApiOperation({ summary: 'Cập nhật role cho user (cách khác)' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
-  @ApiBody({ type: UpdateUserRoleDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật role thành công',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Không có quyền cập nhật role',
-  })
-  async updateUserRole(
-    @Param('userId', ParseIntPipe) userId: number,
-    @Body() updateUserRoleDto: UpdateUserRoleDto,
-    @GetCurrentUser('id') managerId: number,
-  ) {
-    // Use unified API
-    const unifiedDto: UnifiedRoleAssignmentDto = {
-      targetUserId: [userId],
-      roleId: updateUserRoleDto.roleId,
-      assignment: {
-        reason: updateUserRoleDto.reason,
-      },
-    };
+  // ==================== HELPER METHODS ====================
 
-    const result = await this.roleAssignmentService.assignRoleUnified(unifiedDto, managerId);
-    
-    // Return single result for backward compatibility
-    return {
-      message: result.results[0]?.message || 'Cập nhật role thành công',
-      user: result.results[0]?.user,
-      success: result.results[0]?.success,
-    };
+  /**
+   * Validate quyền gán role
+   */
+  private async validateAssignmentPermission(
+    managerId: number,
+    roleId: number,
+    dto: UnifiedRoleAssignmentDto
+  ) {
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
+    const targetRole = await this.prisma.roles.findUnique({
+      where: { id: roleId, deleted_at: null },
+      select: { name: true }
+    });
+
+    if (!targetRole) {
+      throw new NotFoundException('Role không tồn tại');
+    }
+
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
+    const highestManagerRole = this.getHighestRole(managerRoleNames);
+
+    // Kiểm tra quyền theo hierarchy
+    if (this.isHighLevelRole(highestManagerRole)) {
+      // Admin, super_admin, company_owner có thể gán tất cả roles
+      return;
+    }
+
+    if (highestManagerRole === ROLE_NAMES.DIVISION_HEAD) {
+      // Division head chỉ có thể gán PM, team_leader, employee
+      const allowedRoles = [
+        ROLE_NAMES.PROJECT_MANAGER,
+        ROLE_NAMES.TEAM_LEADER,
+        ROLE_NAMES.EMPLOYEE
+      ];
+
+      if (!allowedRoles.includes(targetRole.name as any)) {
+        throw new ForbiddenException(
+          `Division Head không thể gán role ${targetRole.name}`
+        );
+      }
+
+      // Kiểm tra scope - division head chỉ gán trong division của mình
+      await this.validateDivisionScope(managerId, dto);
+    } else {
+      throw new ForbiddenException('Bạn không có quyền gán role này');
+    }
   }
 
-
-  @Get('user/:userId/role-history')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy lịch sử thay đổi role của user' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy lịch sử thành công',
-  })
-  async getUserRoleHistory(@Param('userId', ParseIntPipe) userId: number) {
-    const history = await this.prisma.activity_log.findMany({
+  /**
+   * Kiểm tra scope division
+   */
+  private async validateDivisionScope(managerId: number, dto: UnifiedRoleAssignmentDto) {
+    // Lấy division của manager
+    const managerDivision = await this.prisma.user_role_assignment.findFirst({
       where: {
-        subject_id: userId,
-        event: {
-          in: ['role.assigned', 'role.bulk_assigned'],
+        user_id: managerId,
+        role: {
+          name: ROLE_NAMES.DIVISION_HEAD,
+          deleted_at: null
         },
+        deleted_at: null
       },
-      orderBy: { created_at: 'desc' },
-      take: 50,
-      include: {
-        causer: {
-          select: {
-            id: true,
-            user_information: {
-              select: {
-                name: true,
-              },
-            },
-            email: true,
-          },
-        },
-      },
+      select: { scope_id: true }
     });
 
-    return {
-      userId,
-      totalChanges: history.length,
-      history: history.map((log) => ({
-        id: log.id,
-        event: log.event,
-        description: log.description,
-        changedBy:
-          log.causer?.user_information?.[0]?.name ||
-          log.causer?.email ||
-          'System',
-        changes:
-          typeof log.properties === 'string'
-            ? JSON.parse(log.properties)
-            : log.properties || {},
-        changedAt: log.created_at,
-      })),
-    };
-  }
-
-  @Delete('user/:userId/role')
-  @RequirePermission('role.update')
-  @ApiOperation({ summary: 'Thu hồi role của user (reset về employee)' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Thu hồi role thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Không thể thu hồi role do ràng buộc nghiệp vụ',
-  })
-  async revokeUserRole(
-    @Param('userId', ParseIntPipe) userId: number,
-    @GetCurrentUser('id') managerId: number,
-  ) {
-    // Kiểm tra user tồn tại và lấy role hiện tại
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId, deleted_at: null },
-      include: {
-        user_information: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy user');
+    if (!managerDivision?.scope_id) {
+      throw new ForbiddenException('Không tìm thấy division của bạn');
     }
 
-    const currentRole = user.user_information?.[0]?.role;
-    if (!currentRole || currentRole.name === ROLE_NAMES.EMPLOYEE) {
-      throw new BadRequestException(
-        'User đã ở role employee hoặc không có role',
-      );
-    }
-
-    // Kiểm tra quyền thu hồi
-    const canManage = await this.roleHierarchyService.canUserManageUserRole(
-      managerId,
-      userId,
-    );
-
-    if (!canManage) {
-      throw new ForbiddenException(
-        'Bạn không có quyền thu hồi role của user này',
-      );
-    }
-
-    // Kiểm tra ràng buộc nghiệp vụ trước khi thu hồi
-    if (currentRole.name === ROLE_NAMES.PROJECT_MANAGER) {
-      // Kiểm tra có đang là PM chính của dự án đang hoạt động không
-      const activePMProjects = await this.prisma.project_role_user.findMany({
+    // Kiểm tra tất cả target users có trong cùng division không
+    for (const userId of dto.targetUserId) {
+      const userDivision = await this.prisma.user_division.findFirst({
         where: {
-          user_id: userId,
-          position_in_project: PROJECT_POSITIONS.MONITOR, // PM chính
-          project: {
-            status: {
-              in: ACTIVE_PROJECT_STATUSES as any,
-            },
-            deleted_at: null,
-          },
+          userId: userId,
+          deleted_at: null
         },
-        include: {
-          project: {
-            select: {
-              project_role_user: {
-                select: {
-                  user: {
-                    select: {
-                      user_information: {
-                        select: {
-                          name: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              code: true,
-            },
-          },
-        },
+        select: { divisionId: true }
       });
 
-      if (activePMProjects.length > 0) {
-        const projectNames = activePMProjects
-          .map((p) => p?.project?.project_role_user?.[0]?.user?.user_information?.name)
-          .join(', ');
-        throw new BadRequestException(
-          `Không thể thu hồi role PM khi đang là PM chính của các dự án đang hoạt động: ${projectNames}. Vui lòng chuyển giao quyền trước.`,
+      if (userDivision?.divisionId !== managerDivision.scope_id) {
+        throw new ForbiddenException(
+          `User ${userId} không thuộc division của bạn`
         );
       }
     }
+  }
 
-    // Lấy role "employee" (role mặc định)
-    const employeeRole = await this.prisma.roles.findFirst({
-      where: { name: ROLE_NAMES.EMPLOYEE, deleted_at: null },
+  /**
+   * Kiểm tra role cấp cao
+   */
+  private isHighLevelRole(roleName: string): boolean {
+    return [
+      ROLE_NAMES.SUPER_ADMIN,
+      ROLE_NAMES.ADMIN,
+      ROLE_NAMES.COMPANY_OWNER
+    ].includes(roleName as any);
+  }
+
+  /**
+   * Lấy role cao nhất từ danh sách
+   */
+  private getHighestRole(roleNames: string[]): string {
+    if (!roleNames || roleNames.length === 0) return ROLE_NAMES.EMPLOYEE;
+
+    return roleNames.reduce((highest, current) => {
+      const currentLevel = this.getRoleLevel(current);
+      const highestLevel = this.getRoleLevel(highest);
+      return currentLevel > highestLevel ? current : highest;
     });
+  }
 
-    if (!employeeRole) {
-      throw new NotFoundException('Không tìm thấy role mặc định (employee)');
+  /**
+   * Lấy level của role
+   */
+  private getRoleLevel(roleName: string): number {
+    const hierarchy = {
+      [ROLE_NAMES.SUPER_ADMIN]: 100,
+      [ROLE_NAMES.ADMIN]: 90,
+      [ROLE_NAMES.COMPANY_OWNER]: 80,
+      [ROLE_NAMES.HR_MANAGER]: 70,
+      [ROLE_NAMES.DIVISION_HEAD]: 60,
+      [ROLE_NAMES.PROJECT_MANAGER]: 50,
+      [ROLE_NAMES.TEAM_LEADER]: 40,
+      [ROLE_NAMES.EMPLOYEE]: 10,
+    };
+    return hierarchy[roleName] || 0;
+  }
+
+  /**
+   * Tạo success message
+   */
+  private getSuccessMessage(roleName: string, context?: any): string {
+    switch (roleName) {
+      case ROLE_NAMES.PROJECT_MANAGER:
+        return `Gán PM thành công cho project ${context?.projectId || ''}`;
+      case ROLE_NAMES.TEAM_LEADER:
+        return `Gán Team Leader thành công cho team ${context?.teamId || ''}`;
+      case ROLE_NAMES.DIVISION_HEAD:
+        return `Gán Division Head thành công cho division ${context?.divisionId || ''}`;
+      default:
+        return `Gán role ${roleName as any} thành công`;
+    }
+  }
+
+  /**
+   * Lấy thông tin context
+   */
+  private async getContextInfo(context?: any) {
+    if (!context) return null;
+
+    const result: any = {};
+
+    if (context.projectId) {
+      const project = await this.prisma.projects.findUnique({
+        where: { id: context.projectId },
+        select: { id: true, name: true, code: true }
+      });
+      result.project = project;
     }
 
-    // Cập nhật role về employee
-    await this.prisma.user_information.updateMany({
-      where: { user_id: userId },
-      data: { role_id: employeeRole.id },
-    });
-
-    // Cập nhật user_division nếu cần
-    await this.prisma.user_division.updateMany({
-      where: { userId },
-      data: { role_id: employeeRole.id },
-    });
-
-    // Xác định causer_type
-    const managerRole = await this.permissionService.getUserRole(managerId);
-    const causerType =
-      managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-        ? CAUSER_TYPES.DIVISION_MASTER
-        : CAUSER_TYPES.USERS;
-
-    // Log activity
-    await this.prisma.activity_log.create({
-      data: {
-        log_name: 'role_management',
-        causer_id: managerId,
-        causer_type: causerType,
-        subject_id: userId,
-        subject_type: SUBJECT_TYPES.USERS,
-        event: ACTIVITY_LOG_EVENTS.REVOKE_ROLE,
-        description: `Thu hồi role ${currentRole.name} của user ${user.user_information?.name || user.email}`,
-        properties: JSON.stringify({
-          old_role: currentRole.name,
-          new_role: ROLE_NAMES.EMPLOYEE,
-          old_role_id: currentRole.id,
-          new_role_id: employeeRole.id,
-          division_id:
-            managerRole?.name === ROLE_NAMES.DIVISION_HEAD
-              ? (
-                  await this.prisma.user_division.findFirst({
-                    where: { userId: managerId },
-                  })
-                )?.divisionId
-              : null,
-        }),
-        batch_uuid: '',
-      },
-    });
-
-    return {
-      message: 'Thu hồi role thành công',
-      user: {
-        id: user.id,
-        name: user.user_information?.name || '',
-        email: user.email,
-        role: {
-          id: employeeRole.id,
-          name: ROLE_NAMES.EMPLOYEE,
-        },
-      },
-      changes: {
-        from: currentRole.name,
-        to: ROLE_NAMES.EMPLOYEE,
-      },
-    };
-  }
-
-  @Get('user/:userId/projects')
-  @RequirePermission('role.view')
-  @ApiOperation({ summary: 'Lấy danh sách dự án mà user đang tham gia' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách dự án thành công',
-    schema: {
-      example: {
-        user: {
-          id: 1,
-          name: 'Nguyễn Văn A',
-          email: 'user@example.com',
-        },
-        projects: [
-          {
-            id: 1,
-            name: 'Dự án ABC',
-            code: 'ABC001',
-            status: 'IN_PROGRESS',
-            position: 'monitor', // PM chính
-            role: 'project_manager',
-          },
-          {
-            id: 2,
-            name: 'Dự án XYZ',
-            code: 'XYZ002',
-            status: 'OPEN',
-            position: 'supporter', // Hỗ trợ
-            role: 'project_manager',
-          },
-        ],
-        summary: {
-          total_projects: 2,
-          as_monitor: 1, // PM chính
-          as_supporter: 1, // Hỗ trợ
-          active_projects: 2,
-        },
-      },
-    },
-  })
-  async getUserProjects(
-    @Param('userId', ParseIntPipe) userId: number,
-    @GetCurrentUser('id') managerId: number,
-  ) {
-    // Kiểm tra user tồn tại
-    const user = await this.prisma.users.findUnique({
-      where: { id: userId, deleted_at: null },
-      select: {
-        id: true,
-        email: true,
-        user_information: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy user');
+    if (context.teamId) {
+      const team = await this.prisma.teams.findUnique({
+        where: { id: context.teamId },
+        select: { id: true, name: true }
+      });
+      result.team = team;
     }
 
-    // Kiểm tra quyền xem thông tin user
-    const canManage = await this.roleHierarchyService.canUserManageUserRole(
-      managerId,
-      userId,
-    );
-
-    if (!canManage) {
-      throw new ForbiddenException(
-        'Bạn không có quyền xem thông tin dự án của user này',
-      );
+    if (context.divisionId) {
+      const division = await this.prisma.divisions.findUnique({
+        where: { id: context.divisionId },
+        select: { id: true, name: true }
+      });
+      result.division = division;
     }
 
-    // Lấy danh sách dự án
-    const userProjects = await this.prisma.project_role_user.findMany({
-      where: {
-        user_id: userId,
-        project: {
-          deleted_at: null,
-        },
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-            status: true,
-            start_date: true,
-            end_date: true,
-          },
-        },
-      },
-      orderBy: {
-        project: {
-          start_date: 'desc',
-        },
-      },
-    });
-
-    // Xử lý dữ liệu
-    const projects = userProjects.map((up) => ({
-      id: up.project.id,
-      name: up.project.name,
-      code: up.project.code,
-      status: up.project.status,
-      start_date: up.project.start_date,
-      end_date: up.project.end_date,
-      position:
-        up.position_in_project === PROJECT_POSITIONS.MONITOR
-          ? 'monitor'
-          : up.position_in_project === PROJECT_POSITIONS.SUPPORTER
-            ? 'supporter'
-            : 'implementor',
-      position_code: up.position_in_project,
-      role_id: up.role_id,
-    }));
-
-    // Tính toán thống kê
-    const summary = {
-      total_projects: projects.length,
-      as_monitor: projects.filter((p) => p.position === 'monitor').length,
-      as_supporter: projects.filter((p) => p.position === 'supporter').length,
-      as_implementor: projects.filter((p) => p.position === 'implementor')
-        .length,
-      active_projects: projects.filter((p) =>
-        ACTIVE_PROJECT_STATUSES.includes(p.status as any),
-      ).length,
-    };
-
-    return {
-      user,
-      projects,
-      summary,
-    };
-  }
-
-  // ==================== READ-ONLY ROLE INFO ENDPOINTS ====================
-
-  @Get('project/:projectId/current-pm')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy thông tin PM hiện tại của project' })
-  @ApiParam({ name: 'projectId', description: 'ID của project' })
-  async getCurrentProjectManager(
-    @Param('projectId', ParseIntPipe) projectId: number,
-  ) {
-    return await this.roleAssignmentService.getProjectManagerInfo(projectId);
-  }
-
-  @Get('team/:teamId/current-leader')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy thông tin Team Leader hiện tại của team' })
-  @ApiParam({ name: 'teamId', description: 'ID của team' })
-  async getCurrentTeamLeader(@Param('teamId', ParseIntPipe) teamId: number) {
-    return await this.roleAssignmentService.getTeamLeaderInfo(teamId);
-  }
-
-  @Get('division/:divisionId/current-head')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy thông tin Division Head hiện tại của division' })
-  @ApiParam({ name: 'divisionId', description: 'ID của division' })
-  @ApiResponse({
-    status: 200,
-    description: 'Thông tin Division Head hiện tại',
-    schema: {
-      type: 'object',
-      properties: {
-        divisionHead: {
-          type: 'object',
-          nullable: true,
-          properties: {
-            id: { type: 'number' },
-            user_information: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                email: { type: 'string' },
-              },
-            },
-          },
-        },
-        division: {
-          type: 'object',
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-      },
-    },
-  })
-  async getCurrentDivisionHead(@Param('divisionId', ParseIntPipe) divisionId: number) {
-    return await this.roleAssignmentService.getDivisionHeadInfo(divisionId);
-  }
-
-  @Get('project/:projectId/pm-history')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy lịch sử PM của project' })
-  @ApiParam({ name: 'projectId', description: 'ID của project' })
-  async getProjectManagerHistory(
-    @Param('projectId', ParseIntPipe) projectId: number,
-  ) {
-    return await this.roleAssignmentService.getProjectManagerHistory(projectId);
-  }
-
-  @Get('team/:teamId/leader-history')
-  @RequirePermission('role.read')
-  @ApiOperation({ summary: 'Lấy lịch sử Team Leader của team' })
-  @ApiParam({ name: 'teamId', description: 'ID của team' })
-  async getTeamLeaderHistory(@Param('teamId', ParseIntPipe) teamId: number) {
-    return await this.roleAssignmentService.getTeamLeaderHistory(teamId);
+    return result;
   }
 }

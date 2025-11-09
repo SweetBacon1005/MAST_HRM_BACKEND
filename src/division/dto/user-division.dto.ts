@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -11,22 +11,17 @@ export class CreateUserDivisionDto {
   @IsInt()
   userId: number;
 
+  @ApiHideProperty()
+  @IsOptional()
+  assignerId?: number;
+
   @ApiProperty({
     description: 'ID của division (bắt buộc)',
     example: 1,
   })
   @Transform(({ value }) => Number(value))
-  @IsInt()
-  divisionId: number;
-
-  @ApiPropertyOptional({
-    description: 'ID của role trong division',
-    example: 2,
-  })
   @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  roleId?: number;
+  divisionId?: number;
 
   @ApiPropertyOptional({
     description: 'ID của team trong division',
@@ -48,15 +43,6 @@ export class CreateUserDivisionDto {
 }
 
 export class UpdateUserDivisionDto {
-  @ApiPropertyOptional({
-    description: 'ID của role trong division',
-    example: 3,
-  })
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  roleId?: number;
-
   @ApiPropertyOptional({
     description: 'ID của team trong division',
     example: 2,

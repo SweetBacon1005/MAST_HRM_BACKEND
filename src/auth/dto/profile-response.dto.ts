@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ScopeType } from '@prisma/client';
 
 export class TodayAttendanceDto {
   @ApiPropertyOptional({ description: 'Thời gian check-in', example: '2024-01-15T08:00:00Z' })
@@ -55,15 +56,26 @@ export class AssignedDeviceDto {
   notes: string;
 }
 
+export class RoleAssignmentDto {
+  @ApiProperty({ description: 'ID role', example: 1 })
+  id: number;
+
+  @ApiProperty({ description: 'Tên role', example: 'Manager' })
+  name: string;
+
+  @ApiProperty({ description: 'Loại scope', example: 'division', enum: ScopeType })
+  scope_type: ScopeType;
+
+  @ApiPropertyOptional({ description: 'ID scope', example: 5 })
+  scope_id?: number | null;
+}
+
 export class OrganizationDto {
   @ApiPropertyOptional({ description: 'ID vị trí', example: 1 })
   position_id?: number | null;
 
   @ApiPropertyOptional({ description: 'ID cấp bậc', example: 2 })
   level_id?: number | null;
-
-  @ApiPropertyOptional({ description: 'ID vai trò', example: 3 })
-  role_id?: number | null;
 
   @ApiPropertyOptional({ description: 'ID phòng ban', example: 5 })
   division_id?: number | null;
@@ -112,8 +124,6 @@ export class UserInformationDto {
   @ApiPropertyOptional({ description: 'ID cấp bậc', example: 2 })
   level_id?: number | null;
 
-  @ApiPropertyOptional({ description: 'ID vai trò', example: 3 })
-  role_id?: number | null;
 
   @ApiProperty({ description: 'Thời gian tạo', example: '2024-01-15T10:00:00Z' })
   created_at: Date;
@@ -170,4 +180,7 @@ export class ProfileResponseDto {
 
   @ApiProperty({ description: 'Số notification chưa đọc', example: 7 })
   unread_notifications: number;
+
+  @ApiProperty({ description: 'Danh sách role assignments', type: [RoleAssignmentDto] })
+  role_assignments: RoleAssignmentDto[];
 }

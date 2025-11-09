@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { RoleManagementController } from './controllers/role-management.controller';
 import { AdminController } from './controllers/admin.controller';
 import { SystemAdminController } from './controllers/system-admin.controller';
+import { RoleAssignmentController } from './controllers/role-assignment.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
@@ -22,7 +23,7 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
 
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     NotificationsModule,
     PassportModule,
     JwtModule.registerAsync({
@@ -41,6 +42,7 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     RoleManagementController,
     AdminController,
     SystemAdminController,
+    RoleAssignmentController,
   ],
   providers: [
     AuthService,
@@ -55,6 +57,6 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     DivisionRolesGuard,
     EnhancedRolesGuard,
   ],
-  exports: [AuthService, DivisionRolesGuard, EnhancedRolesGuard],
+  exports: [AuthService, RoleAssignmentService, DivisionRolesGuard, EnhancedRolesGuard],
 })
 export class AuthModule {}

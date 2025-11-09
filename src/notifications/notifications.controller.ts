@@ -26,6 +26,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { isAdmin, extractUserRoleInfo } from '../auth/utils/role.utils';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
 
@@ -56,10 +57,11 @@ export class NotificationsController {
   async findAll(
     @Query() paginationDto: NotificationPaginationDto,
     @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('role') userRole: string,
+    @GetCurrentUser() user: any,
   ) {
-    const isAdmin = userRole === ROLE_NAMES.ADMIN || userRole === ROLE_NAMES.SUPER_ADMIN || userRole === ROLE_NAMES.COMPANY_OWNER;
-    return this.notificationsService.findAll(paginationDto, userId, isAdmin);
+    const userInfo = extractUserRoleInfo(user);
+    const userIsAdmin = isAdmin(userInfo);
+    return this.notificationsService.findAll(paginationDto, userId, userIsAdmin);
   }
 
   @Get(':id')
@@ -71,10 +73,11 @@ export class NotificationsController {
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('role') userRole: string,
+    @GetCurrentUser() user: any,
   ) {
-    const isAdmin = userRole === ROLE_NAMES.ADMIN || userRole === ROLE_NAMES.SUPER_ADMIN || userRole === ROLE_NAMES.COMPANY_OWNER;
-    return this.notificationsService.findOne(id, userId, isAdmin);
+    const userInfo = extractUserRoleInfo(user);
+    const userIsAdmin = isAdmin(userInfo);
+    return this.notificationsService.findOne(id, userId, userIsAdmin);
   }
 
   @Patch(':id')

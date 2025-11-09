@@ -9,7 +9,7 @@ export class NotificationCreatorDto {
 
   @ApiPropertyOptional({ description: 'Thông tin người tạo' })
   user_information?: {
-    name: string;
+    name: string | null;
   } | null;
 }
 
@@ -30,7 +30,7 @@ export class NotificationUserDto {
 
   @ApiPropertyOptional({ description: 'Thông tin user' })
   user_information?: {
-    name: string;
+    name: string | null;
   };
 }
 

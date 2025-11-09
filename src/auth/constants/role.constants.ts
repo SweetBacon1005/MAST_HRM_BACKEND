@@ -52,3 +52,31 @@ export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
   PROJECT_STATUS.OPEN,
   PROJECT_STATUS.IN_PROGRESS,
 ];
+
+// Role hierarchy - số càng cao thì quyền càng lớn
+export const ROLE_HIERARCHY = {
+  [ROLE_NAMES.SUPER_ADMIN]: 100,
+  [ROLE_NAMES.ADMIN]: 90,
+  [ROLE_NAMES.COMPANY_OWNER]: 80,
+  [ROLE_NAMES.HR_MANAGER]: 70,
+  [ROLE_NAMES.DIVISION_HEAD]: 60,
+  [ROLE_NAMES.PROJECT_MANAGER]: 50,
+  [ROLE_NAMES.TEAM_LEADER]: 40,
+  [ROLE_NAMES.EMPLOYEE]: 10,
+} as const;
+
+// Helper function để lấy level của role
+export const getRoleLevel = (roleName: string): number => {
+  return ROLE_HIERARCHY[roleName as keyof typeof ROLE_HIERARCHY] || 0;
+};
+
+// Helper function để lấy role cao nhất từ danh sách roles
+export const getHighestRole = (roles: string[]): string | null => {
+  if (!roles || roles.length === 0) return null;
+  
+  return roles.reduce((highest, current) => {
+    const currentLevel = getRoleLevel(current);
+    const highestLevel = getRoleLevel(highest);
+    return currentLevel > highestLevel ? current : highest;
+  });
+};

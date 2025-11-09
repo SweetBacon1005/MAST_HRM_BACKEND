@@ -25,6 +25,7 @@ import { PermissionModule } from './auth/permission.module';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
+import { MeetingRoomsModule } from './meeting-rooms/meeting-rooms.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { Reflector, APP_INTERCEPTOR } from '@nestjs/core';
     AssetsModule,
     NewsModule,
     NotificationsModule,
+    MeetingRoomsModule,
     AppCommonModule,
   ],
   controllers: [AppController],

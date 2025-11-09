@@ -37,9 +37,9 @@ import { UpdateLevelDto } from './levels/dto/update-level.dto';
 import { CreatePositionDto } from './positions/dto/create-position.dto';
 import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
 import { UpdatePositionDto } from './positions/dto/update-position.dto';
-import { CreateRoleDto } from './roles/dto/create-role.dto';
-import { RolePaginationDto } from './roles/dto/role-pagination.dto';
-import { UpdateRoleDto } from './roles/dto/update-role.dto';
+import { CreateSkillDto } from './skills/dto/create-skill.dto';
+import { SkillPaginationDto } from './skills/dto/skill-pagination.dto';
+import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 
 @Injectable()
 export class UserProfileService {
@@ -55,8 +55,7 @@ export class UserProfileService {
           where: { division: { deleted_at: null } },
           select: {
             division: true,
-            role: true,
-            team: true
+            team: true,
           },
         },
         education: {
@@ -84,12 +83,10 @@ export class UserProfileService {
     return userProfile;
   }
 
-  // Cập nhật thông tin cá nhân
   async updateUserInformation(
     userId: number,
     updateDto: UpdateUserInformationDto,
   ) {
-    // Kiểm tra user có tồn tại không
     const user = await this.prisma.users.findFirst({
       where: { id: userId, deleted_at: null },
     });
@@ -103,13 +100,6 @@ export class UserProfileService {
     });
     if (!position) {
       throw new NotFoundException('Không tìm thấy vị trí');
-    }
-
-    const role = await this.prisma.roles.findFirst({
-      where: { id: updateDto.role_id, deleted_at: null },
-    });
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy vai trò');
     }
 
     const level = await this.prisma.levels.findFirst({
@@ -126,15 +116,13 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy ngôn ngữ');
     }
 
-    const { position_id, role_id, level_id, language_id, ...rest } = updateDto;
+    const { position_id, level_id, language_id, ...rest } = updateDto;
 
-    // Kiểm tra xem user_information đã tồn tại chưa
     const existingInfo = await this.prisma.user_information.findFirst({
       where: { user_id: userId, ...{ deleted_at: null } },
     });
 
     if (existingInfo) {
-      // Cập nhật thông tin hiện có
       return await this.prisma.user_information.update({
         where: { id: existingInfo.id },
         data: {
@@ -143,7 +131,6 @@ export class UserProfileService {
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
           code: updateDto.code || '',
-          avatar: updateDto.avatar || '',
           gender: updateDto.gender || '',
           status: 'ACTIVE',
           birthday: updateDto.birthday
@@ -160,13 +147,11 @@ export class UserProfileService {
           technique: updateDto.technique || '',
           main_task: updateDto.main_task || '',
           position: { connect: { id: position.id } },
-          role: { connect: { id: role.id } },
           level: { connect: { id: level.id } },
           language: { connect: { id: language.id } },
         },
         include: {
           position: true,
-          role: true,
           level: true,
           language: true,
         },
@@ -181,7 +166,6 @@ export class UserProfileService {
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
           code: updateDto.code || '',
-          avatar: updateDto.avatar || '',
           gender: updateDto.gender || '',
           marital: updateDto.marital || '',
           birthday: updateDto.birthday
@@ -192,7 +176,6 @@ export class UserProfileService {
           temp_address: updateDto.temp_address || '',
           phone: updateDto.phone || '',
           tax_code: updateDto.tax_code || '',
-          role_id: updateDto.role_id || 1,
           description: updateDto.description || '',
           level_id: updateDto.level_id || 1,
           note: updateDto.note || '',
@@ -204,7 +187,6 @@ export class UserProfileService {
         },
         include: {
           position: true,
-          role: true,
           level: true,
           language: true,
         },
@@ -601,18 +583,13 @@ export class UserProfileService {
     });
   }
 
-  // Lấy danh sách các tham chiếu (positions, offices, roles, levels, languages)
+  // Lấy danh sách các tham chiếu (positions, offices, levels, languages)
   async getPositions() {
     return await this.prisma.positions.findMany({
       where: { deleted_at: null },
     });
   }
 
-  async getRoles() {
-    return await this.prisma.roles.findMany({
-      where: { deleted_at: null },
-    });
-  }
 
   async getLevels() {
     return await this.prisma.levels.findMany({
@@ -648,7 +625,6 @@ export class UserProfileService {
         data: { avatar: avatarUrl },
         include: {
           position: true,
-          role: true,
           level: true,
           language: true,
         },
@@ -676,7 +652,6 @@ export class UserProfileService {
           temp_address: '',
           phone: '',
           tax_code: '',
-          role_id: 1, // Default role
           status: 'ACTIVE',
           description: '',
           level_id: 1, // Default level
@@ -689,7 +664,6 @@ export class UserProfileService {
         },
         include: {
           position: true,
-          role: true,
           level: true,
           language: true,
         },
@@ -797,14 +771,12 @@ export class UserProfileService {
       deleted_at: null,
     };
 
-    // Thêm filter theo skill_id
     if (paginationDto.skill_id) {
       where.skill_id = {
         equals: paginationDto.skill_id,
       };
     }
 
-    // Thêm filter theo level range
     if (paginationDto.min_level) {
       where.experience = {
         gte: paginationDto.min_level,
@@ -816,7 +788,6 @@ export class UserProfileService {
       };
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.user_skills.findMany({
         where,
@@ -868,35 +839,6 @@ export class UserProfileService {
     );
   }
 
-  async getRolesPaginated(paginationDto: ReferencePaginationDto) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.rolesWhereInput = { deleted_at: null };
-
-    // Thêm filter theo search
-    if (paginationDto.search) {
-      where.name = {
-        contains: paginationDto.search,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.roles.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { name: 'asc' },
-      }),
-      this.prisma.roles.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
 
   async getLevelsPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
@@ -932,14 +874,12 @@ export class UserProfileService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.languagesWhereInput = { deleted_at: null };
 
-    // Thêm filter theo search
     if (paginationDto.search) {
       where.name = {
         contains: paginationDto.search,
       };
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.languages.findMany({
         where,
@@ -956,216 +896,6 @@ export class UserProfileService {
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
-  }
-
-  // ===== ROLES CRUD METHODS =====
-  async createRole(createRoleDto: CreateRoleDto) {
-    // Kiểm tra tên role đã tồn tại
-    const existingRole = await this.prisma.roles.findFirst({
-      where: {
-        name: createRoleDto.name,
-        deleted_at: null,
-      },
-    });
-
-    if (existingRole) {
-      throw new BadRequestException('Tên role đã tồn tại');
-    }
-
-    const role = await this.prisma.roles.create({
-      data: {
-        name: createRoleDto.name,
-      },
-    });
-
-    return {
-      message: 'Tạo role thành công',
-      data: role,
-    };
-  }
-
-  async findAllRoles(paginationDto: RolePaginationDto = {}) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const whereConditions: Prisma.rolesWhereInput = {
-      deleted_at: null,
-    };
-
-    if (paginationDto.search) {
-      whereConditions.name = {
-        contains: paginationDto.search,
-      };
-    }
-
-    const [roles, total] = await Promise.all([
-      this.prisma.roles.findMany({
-        where: whereConditions,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          _count: {
-            select: {
-              user_information: true,
-              permission_role: true,
-            },
-          },
-        },
-      }),
-      this.prisma.roles.count({ where: whereConditions }),
-    ]);
-
-    return buildPaginationResponse(
-      roles,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findOneRole(id: number) {
-    const role = await this.prisma.roles.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-      include: {
-        permission_role: {
-          include: {
-            permission: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            user_information: true,
-          },
-        },
-      },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    return {
-      data: role,
-    };
-  }
-
-  async updateRole(id: number, updateRoleDto: UpdateRoleDto) {
-    const existingRole = await this.prisma.roles.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-    });
-
-    if (!existingRole) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    // Kiểm tra tên role đã tồn tại (nếu có thay đổi tên)
-    if (updateRoleDto.name && updateRoleDto.name !== existingRole.name) {
-      const duplicateRole = await this.prisma.roles.findFirst({
-        where: {
-          name: updateRoleDto.name,
-          id: { not: id },
-          deleted_at: null,
-        },
-      });
-
-      if (duplicateRole) {
-        throw new BadRequestException('Tên role đã tồn tại');
-      }
-    }
-
-    const updatedRole = await this.prisma.roles.update({
-      where: { id },
-      data: {
-        ...updateRoleDto,
-        updated_at: new Date(),
-      },
-    });
-
-    return {
-      message: 'Cập nhật role thành công',
-      data: updatedRole,
-    };
-  }
-
-  async removeRole(id: number) {
-    const existingRole = await this.prisma.roles.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-      include: {
-        _count: {
-          select: {
-            user_information: true,
-          },
-        },
-      },
-    });
-
-    if (!existingRole) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    // Kiểm tra xem có user nào đang sử dụng role này không
-    if (existingRole._count.user_information > 0) {
-      throw new BadRequestException(
-        `Không thể xóa role này vì có ${existingRole._count.user_information} user đang sử dụng`,
-      );
-    }
-
-    await this.prisma.roles.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-      },
-    });
-
-    return {
-      message: 'Xóa role thành công',
-    };
-  }
-
-  async assignRolePermissions(roleId: number, permissionIds: number[]) {
-    const role = await this.prisma.roles.findFirst({
-      where: {
-        id: roleId,
-        deleted_at: null,
-      },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy role');
-    }
-
-    // Xóa tất cả permissions hiện tại của role
-    await this.prisma.permission_role.deleteMany({
-      where: { role_id: roleId },
-    });
-
-    // Thêm permissions mới
-    if (permissionIds.length > 0) {
-      await this.prisma.permission_role.createMany({
-        data: permissionIds.map((permissionId) => ({
-          role_id: roleId,
-          permission_id: permissionId,
-        })),
-      });
-    }
-
-    return {
-      message: 'Gán quyền cho role thành công',
-    };
   }
 
   // ===== LEVELS CRUD METHODS =====
@@ -1717,6 +1447,230 @@ export class UserProfileService {
 
     return {
       message: 'Xóa ngôn ngữ thành công',
+    };
+  }
+
+  // ===== SKILLS CRUD =====
+  async createSkill(createSkillDto: CreateSkillDto) {
+    // Kiểm tra position có tồn tại không
+    const existingPosition = await this.prisma.positions.findFirst({
+      where: {
+        id: createSkillDto.position_id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingPosition) {
+      throw new BadRequestException('Vị trí không tồn tại');
+    }
+
+    // Kiểm tra tên skill đã tồn tại chưa trong cùng position
+    const existingSkill = await this.prisma.skills.findFirst({
+      where: {
+        name: createSkillDto.name,
+        position_id: createSkillDto.position_id,
+        deleted_at: null,
+      },
+    });
+
+    if (existingSkill) {
+      throw new BadRequestException('Tên kỹ năng đã tồn tại trong vị trí này');
+    }
+
+    const skill = await this.prisma.skills.create({
+      data: createSkillDto,
+      include: {
+        position: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Tạo kỹ năng thành công',
+      data: skill,
+    };
+  }
+
+  async findAllSkills(paginationDto: SkillPaginationDto = {}) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const whereConditions: Prisma.skillsWhereInput = {
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      whereConditions.name = {
+        contains: paginationDto.search,
+      };
+    }
+
+    const [skills, total] = await Promise.all([
+      this.prisma.skills.findMany({
+        where: whereConditions,
+        skip,
+        take,
+        orderBy: orderBy || { name: 'asc' },
+        include: {
+          position: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          _count: {
+            select: {
+              user_skills: true,
+            },
+          },
+        },
+      }),
+      this.prisma.skills.count({ where: whereConditions }),
+    ]);
+
+    return buildPaginationResponse(
+      skills,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOneSkill(id: number) {
+    const skill = await this.prisma.skills.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        position: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            user_skills: true,
+          },
+        },
+      },
+    });
+
+    if (!skill) {
+      throw new NotFoundException('Không tìm thấy kỹ năng');
+    }
+
+    return {
+      data: skill,
+    };
+  }
+
+  async updateSkill(id: number, updateSkillDto: UpdateSkillDto) {
+    const existingSkill = await this.prisma.skills.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+    });
+
+    if (!existingSkill) {
+      throw new NotFoundException('Không tìm thấy kỹ năng');
+    }
+
+    if (
+      updateSkillDto.position_id &&
+      updateSkillDto.position_id !== existingSkill.position_id
+    ) {
+      const existingPosition = await this.prisma.positions.findFirst({
+        where: {
+          id: updateSkillDto.position_id,
+          deleted_at: null,
+        },
+      });
+
+      if (!existingPosition) {
+        throw new BadRequestException('Vị trí không tồn tại');
+      }
+    }
+
+    if (updateSkillDto.name || updateSkillDto.position_id) {
+      const checkName = updateSkillDto.name || existingSkill.name;
+      const checkPositionId =
+        updateSkillDto.position_id || existingSkill.position_id;
+
+      const duplicateSkill = await this.prisma.skills.findFirst({
+        where: {
+          name: checkName,
+          position_id: checkPositionId,
+          deleted_at: null,
+          NOT: { id },
+        },
+      });
+
+      if (duplicateSkill) {
+        throw new BadRequestException(
+          'Tên kỹ năng đã tồn tại trong vị trí này',
+        );
+      }
+    }
+
+    const skill = await this.prisma.skills.update({
+      where: { id },
+      data: updateSkillDto,
+      include: {
+        position: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Cập nhật kỹ năng thành công',
+      data: skill,
+    };
+  }
+
+  async removeSkill(id: number) {
+    const existingSkill = await this.prisma.skills.findFirst({
+      where: {
+        id,
+        deleted_at: null,
+      },
+      include: {
+        _count: {
+          select: {
+            user_skills: true,
+          },
+        },
+      },
+    });
+
+    if (!existingSkill) {
+      throw new NotFoundException('Không tìm thấy kỹ năng');
+    }
+
+    if (existingSkill._count.user_skills > 0) {
+      throw new BadRequestException(
+        `Không thể xóa kỹ năng này vì có ${existingSkill._count.user_skills} user đang sử dụng`,
+      );
+    }
+
+    await this.prisma.skills.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    return {
+      message: 'Xóa kỹ năng thành công',
     };
   }
 }

@@ -21,6 +21,7 @@ import { seedMassRequests } from './seeds/mass-requests.seed';
 import { seedMassAssets } from './seeds/mass-assets.seed';
 import { seedMassReports } from './seeds/mass-reports.seed';
 import { seedAdditionalTestData } from './seeds/additional-test-data.seed';
+import { seedOfficeIpAddresses } from './seeds/office-ip.seed';
 
 // Sử dụng singleton pattern để tránh tạo nhiều connection
 const prisma = globalThis.prisma || new PrismaClient({
@@ -63,7 +64,7 @@ async function main() {
     console.log('✅ Schedule works data seeded successfully!\n');
 
     // 6. Seed users and user information
-    const usersData = await seedUsers(prisma, { ...basicData, ...rbacData });
+    const usersData = await seedUsers(prisma);
     console.log('✅ Users data seeded successfully!\n');
 
     // 7. Seed projects, customers, and stages
@@ -159,6 +160,10 @@ async function main() {
       ...massUsersData,
     });
     console.log('✅ Additional test data seeded successfully!\n');
+
+    // 21. Seed office IP addresses configuration
+    await seedOfficeIpAddresses();
+    console.log('✅ Office IP addresses seeded successfully!\n');
 
     // Summary
     console.log('🎉 =================================');

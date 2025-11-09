@@ -7,7 +7,9 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PermissionService } from '../services/permission.service';
 import { PrismaService } from '../../database/prisma.service';
+import { RoleAssignmentService } from '../services/role-assignment.service';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { ScopeType } from '@prisma/client';
 import {
   DIVISION_ROLES_KEY,
   DIVISION_ACCESS_KEY,
@@ -20,6 +22,7 @@ export class EnhancedRolesGuard implements CanActivate {
     private reflector: Reflector,
     private permissionService: PermissionService,
     private prisma: PrismaService,
+    private roleAssignmentService: RoleAssignmentService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -30,7 +33,6 @@ export class EnhancedRolesGuard implements CanActivate {
       return false;
     }
 
-    // Lấy tất cả decorators
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
@@ -51,7 +53,6 @@ export class EnhancedRolesGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Nếu không có decorator nào thì cho phép truy cập
     if (
       !requiredRoles &&
       !requiredDivisionRoles &&
@@ -61,15 +62,13 @@ export class EnhancedRolesGuard implements CanActivate {
       return true;
     }
 
-    // Kiểm tra system roles trước
     if (requiredRoles) {
       const hasSystemRole = await this.checkSystemRoles(user.id, requiredRoles);
       if (hasSystemRole) {
-        return true; // System role có ưu tiên cao nhất
+        return true; 
       }
     }
 
-    // Kiểm tra division roles
     if (requiredDivisionRoles) {
       const hasDivisionRole = await this.checkDivisionRoles(
         user.id,
@@ -120,34 +119,18 @@ export class EnhancedRolesGuard implements CanActivate {
     userId: number,
     requiredRoles: string[],
   ): Promise<boolean> {
-    const userInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: userId },
-      include: {
-        role: true,
-      },
-    });
-
-    return (
-      (userInfo?.role && requiredRoles.includes(userInfo.role.name)) || false
-    );
+    const companyRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.COMPANY);
+    
+    return companyRoles.some(role => requiredRoles.includes(role.name));
   }
 
   private async checkDivisionRoles(
     userId: number,
     requiredRoles: string[],
   ): Promise<boolean> {
-    const userDivisions = await this.prisma.user_division.findMany({
-      where: {
-        userId,
-      },
-      include: {
-        role: true,
-      },
-    });
-
-    return userDivisions.some(
-      (userDiv) => userDiv.role && requiredRoles.includes(userDiv.role.name),
-    );
+    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.DIVISION);
+    
+    return divisionRoles.some(role => requiredRoles.includes(role.name));
   }
 
   private async checkDivisionAccess(
@@ -155,26 +138,20 @@ export class EnhancedRolesGuard implements CanActivate {
     divisionId: number,
     roles: string[],
   ): Promise<boolean> {
-    const userDivision = await this.prisma.user_division.findFirst({
-      where: {
-        userId,
-        divisionId,
-      },
-      include: {
-        role: true,
-      },
-    });
-
-    return (
-      (userDivision?.role && roles.includes(userDivision.role.name)) || false
-    );
+    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.DIVISION, divisionId);
+    
+    return divisionRoles.some(role => roles.includes(role.name));
   }
 
   private async checkTeamLeader(userId: number): Promise<boolean> {
-    // Kiểm tra user có phải là team leader không thông qua bảng teams
-    const teamLeaderRecord = await this.prisma.teams.findFirst({
+    const teamLeaderRecord = await this.prisma.user_role_assignment.findFirst({
       where: {
-        leader_id: userId,
+        user_id: userId,
+        role: {
+          name: 'team_leader',
+          deleted_at: null
+        },
+        scope_type: 'TEAM',
         deleted_at: null,
       },
     });

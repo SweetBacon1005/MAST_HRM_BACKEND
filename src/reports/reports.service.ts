@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DayOffStatus, DayOffType, RemoteType } from '@prisma/client';
+import { DayOffStatus, DayOffType, RemoteType, RotationType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { UserQueryService } from '../common/services/user-query.service';
 import { QueryBuilderService } from '../common/services/query-builder.service';
@@ -936,7 +936,7 @@ export class ReportsService {
 
     // Thống kê theo loại điều chuyển
     const typeStats = transfers.reduce((acc, transfer) => {
-      const type = transfer.type === 1 ? 'permanent' : 'temporary';
+      const type = transfer.type;
       if (!acc[type]) {
         acc[type] = 0;
       }
@@ -979,7 +979,7 @@ export class ReportsService {
         id: t.id,
         user: t.user.user_information?.name || '',
         division: t.division,
-        type: t.type === 1 ? 'permanent' : 'temporary',
+        type: t.type,
         date_rotation: t.date_rotation.toISOString().split('T')[0],
       })),
     };

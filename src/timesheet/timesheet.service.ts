@@ -3,8 +3,10 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
-import { TIMESHEET_ERRORS, USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
+import { REQUEST } from '@nestjs/core';
+import type { Request } from 'express';
 import {
   DayOffDuration,
   DayOffStatus,
@@ -13,6 +15,12 @@ import {
   TimesheetStatus,
 } from '@prisma/client';
 import FormData from 'form-data';
+import {
+  SUCCESS_MESSAGES,
+  TIMESHEET_ERRORS,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
+import { IpValidationService } from '../common/services/ip-validation.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -48,6 +56,8 @@ export class TimesheetService {
   constructor(
     private prisma: PrismaService,
     private httpService: HttpService,
+    private ipValidationService: IpValidationService,
+    @Inject(REQUEST) private request: Request,
   ) {}
 
   // === TIMESHEET MANAGEMENT ===
@@ -81,7 +91,9 @@ export class TimesheetService {
       );
 
       if (!needsAttendance) {
-        throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
+        throw new BadRequestException(
+          TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS,
+        );
       }
 
       // Nếu là nghỉ nửa ngày, cho phép tạo timesheet nhưng link với day-off
@@ -313,12 +325,24 @@ export class TimesheetService {
     const today = new Date().toISOString().split('T')[0];
     const checkinTime = new Date();
 
-    // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
+    // Lấy IP của client
+    const clientIp = this.ipValidationService.getClientIp(this.request);
+    
+    // Kiểm tra IP validation
+    const ipValidation = await this.ipValidationService.validateIpForAttendance(
+      userId,
+      clientIp,
+      today,
+    );
+
+    if (!ipValidation.isValid) {
+      throw new BadRequestException(ipValidation.message);
+    }
+
     const idempotencyKey = `checkin_${userId}_${today}`;
 
     return this.prisma.$transaction(
       async (tx) => {
-        // Kiểm tra user tồn tại
         const user = await tx.users.findFirst({
           where: { id: userId, deleted_at: null },
         });
@@ -330,14 +354,12 @@ export class TimesheetService {
         let face_identified: FaceIdentifiedDto | null = null;
         if (image) {
           try {
-            // Tạo form-data
             const formData = new FormData();
             formData.append('image', image.buffer, {
               filename: image.originalname,
               contentType: image.mimetype,
             } as any);
 
-            // Gửi request
             const response = await this.httpService.axiosRef.post(
               process.env.FACE_IDENTIFICATION_URL + '/identify',
               formData,
@@ -373,7 +395,6 @@ export class TimesheetService {
           throw new BadRequestException('Xác thực khuôn mặt không thành công');
         }
 
-        // Kiểm tra idempotency - nếu đã có log check-in hôm nay thì trả về lỗi
         const existingCheckin = await tx.attendance_logs.findFirst({
           where: {
             user_id: userId,
@@ -479,6 +500,12 @@ export class TimesheetService {
           attendance_log: attendanceLog,
           session: newSession,
           message: 'Check-in thành công',
+          ipValidation: {
+            clientIp: ipValidation.clientIp,
+            isOfficeNetwork: ipValidation.isOfficeNetwork,
+            hasApprovedRemoteRequest: ipValidation.hasApprovedRemoteRequest,
+            validationMessage: ipValidation.message,
+          },
         };
       },
       {
@@ -494,6 +521,20 @@ export class TimesheetService {
   ) {
     const today = new Date().toISOString().split('T')[0];
     const checkoutTime = new Date();
+
+    // Lấy IP của client
+    const clientIp = this.ipValidationService.getClientIp(this.request);
+    
+    // Kiểm tra IP validation
+    const ipValidation = await this.ipValidationService.validateIpForAttendance(
+      userId,
+      clientIp,
+      today,
+    );
+
+    if (!ipValidation.isValid) {
+      throw new BadRequestException(ipValidation.message);
+    }
 
     // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkout_${userId}_${today}`;
@@ -573,7 +614,9 @@ export class TimesheetService {
         });
 
         if (existingCheckout) {
-          throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_SUBMITTED);
+          throw new BadRequestException(
+            TIMESHEET_ERRORS.TIMESHEET_ALREADY_SUBMITTED,
+          );
         }
 
         // Tìm session đang mở để checkout
@@ -681,6 +724,12 @@ export class TimesheetService {
             afternoon_minutes: workTimeAfternoon,
           },
           message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
+          ipValidation: {
+            clientIp: ipValidation.clientIp,
+            isOfficeNetwork: ipValidation.isOfficeNetwork,
+            hasApprovedRemoteRequest: ipValidation.hasApprovedRemoteRequest,
+            validationMessage: ipValidation.message,
+          },
         };
       },
       {
@@ -2014,16 +2063,16 @@ export class TimesheetService {
 
     // Combine và format tất cả requests với type identifier
     const allRequests = [
-      ...remoteWorkRequests.map(req => ({
+      ...remoteWorkRequests.map((req) => ({
         ...req,
         type: req.remote_type, // Map remote_type to type for consistency
         request_type: 'remote_work' as const,
       })),
-      ...dayOffRequests.map(req => ({
+      ...dayOffRequests.map((req) => ({
         ...req,
         request_type: 'day_off' as const,
       })),
-      ...overtimeRequests.map(req => ({
+      ...overtimeRequests.map((req) => ({
         ...req,
         duration_hours: req.total_hours, // Map total_hours to duration_hours for consistency
         request_type: 'overtime' as const,
@@ -2031,12 +2080,12 @@ export class TimesheetService {
         start_time: req.start_time?.toTimeString().slice(0, 5),
         end_time: req.end_time?.toTimeString().slice(0, 5),
       })),
-      ...lateEarlyRequests.map(req => ({
+      ...lateEarlyRequests.map((req) => ({
         ...req,
         type: req.request_type, // Map request_type to type for consistency
         request_type: 'late_early' as const,
       })),
-      ...forgotCheckinRequests.map(req => ({
+      ...forgotCheckinRequests.map((req) => ({
         ...req,
         request_type: 'forgot_checkin' as const,
         // Format time fields
@@ -2047,7 +2096,8 @@ export class TimesheetService {
 
     // Sort by created_at desc
     return allRequests.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
   }
 }

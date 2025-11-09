@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-// Response cho User xem danh sách notifications (dựa trên service line 213-228)
 export class UserNotificationResponseDto {
   @ApiProperty({ description: 'ID user_notification', example: 1 })
   id: number;
@@ -36,7 +35,6 @@ export class UserNotificationResponseDto {
   news_id?: number | null;
 }
 
-// Response cho User xem chi tiết notification (dựa trên service line 343-358)
 export class UserNotificationDetailResponseDto {
   @ApiProperty({ description: 'ID user_notification', example: 1 })
   id: number;

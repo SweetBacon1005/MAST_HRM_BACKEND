@@ -4,10 +4,11 @@ import { AssetsController } from './assets.controller';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import { PermissionService } from '../auth/services/permission.service';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 
 @Module({
   controllers: [AssetsController],
-  providers: [AssetsService, ActivityLogService, PermissionService, RoleHierarchyService],
+  providers: [AssetsService, ActivityLogService, PermissionService, RoleHierarchyService, RoleAssignmentService],
   exports: [AssetsService],
 })
 export class AssetsModule {}

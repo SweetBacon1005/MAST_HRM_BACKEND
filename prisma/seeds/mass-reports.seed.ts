@@ -88,101 +88,6 @@ export async function seedMassReports(prisma: PrismaClient, seedData: any) {
   console.log('📝 Tạo daily reports...');
   const dailyReportData: any[] = [];
 
-  for (const user of allUsers) {
-    // Lấy projects mà user tham gia
-    const userProjects = await prisma.project_role_user.findMany({
-      where: { user_id: user.id },
-      include: { project: true },
-    });
-
-    if (userProjects.length === 0) continue;
-
-    // Tạo daily reports cho 80% số ngày làm việc
-    const reportDays = workDays.filter(() => Math.random() < 0.8);
-
-    for (const workDay of reportDays) {
-      // Mỗi ngày có 1-3 reports
-      const reportsPerDay = Math.floor(Math.random() * 3) + 1;
-
-      for (let i = 0; i < reportsPerDay; i++) {
-        const project =
-          userProjects[Math.floor(Math.random() * userProjects.length)];
-        const processType = PROCESS_TYPES[
-          Math.floor(Math.random() * PROCESS_TYPES.length)
-        ] as any;
-        const toolType = TOOL_TYPES[
-          Math.floor(Math.random() * TOOL_TYPES.length)
-        ] as any;
-        const status = ['PENDING', 'APPROVED', 'REJECTED'][
-          Math.floor(Math.random() * 3)
-        ] as any;
-
-        const actualTime = Math.random() * 8 + 1; // 1-9 hours
-        const coefficient = 1 + Math.random() * 1.5; // 1.0-2.5
-
-        const issueKey =
-          toolType === 'JIRA'
-            ? `${project.project.code}-${Math.floor(Math.random() * 1000) + 100}`
-            : toolType === 'REDMINE'
-              ? `#${Math.floor(Math.random() * 10000) + 1000}`
-              : `TASK-${Math.floor(Math.random() * 1000) + 100}`;
-
-        const title =
-          TASK_TITLES[Math.floor(Math.random() * TASK_TITLES.length)];
-
-        dailyReportData.push({
-          user_id: user.id,
-          project_id: project.project.id,
-          coefficient,
-          tool_type: toolType,
-          issue_key: issueKey,
-          title,
-          work_date: workDay,
-          process_type: processType,
-          actual_time: Math.round(actualTime * 100) / 100,
-          status,
-          link_backlog:
-            toolType === 'JIRA'
-              ? `https://company.atlassian.net/browse/${issueKey}`
-              : toolType === 'REDMINE'
-                ? `https://redmine.company.com/issues/${issueKey.replace('#', '')}`
-                : toolType === 'GITHUB'
-                  ? `https://github.com/company/project/issues/${Math.floor(Math.random() * 100) + 1}`
-                  : null,
-          issue_properties:
-            toolType === 'JIRA'
-              ? {
-                  assignee: user.email,
-                  priority: ['Low', 'Medium', 'High'][
-                    Math.floor(Math.random() * 3)
-                  ],
-                  status: ['To Do', 'In Progress', 'Done'][
-                    Math.floor(Math.random() * 3)
-                  ],
-                  story_points: Math.floor(Math.random() * 8) + 1,
-                }
-              : null,
-          description: `Worked on ${title.toLowerCase()}. ${
-            processType === 'DEVELOPMENT'
-              ? 'Implemented core functionality and wrote tests.'
-              : processType === 'TESTING'
-                ? 'Performed testing and found several issues.'
-                : processType === 'ANALYSIS'
-                  ? 'Analyzed requirements and created technical specifications.'
-                  : processType === 'DESIGN'
-                    ? 'Created UI/UX designs and wireframes.'
-                    : processType === 'DEPLOYMENT'
-                      ? 'Deployed to staging environment and verified functionality.'
-                      : 'Maintained existing code and fixed bugs.'
-          }`,
-          reject_reason:
-            status === 'REJECTED'
-              ? 'Thời gian báo cáo không hợp lý hoặc thiếu thông tin chi tiết'
-              : null,
-        });
-      }
-    }
-  }
 
   console.log(`📝 Tạo ${dailyReportData.length} daily reports...`);
 
@@ -204,89 +109,24 @@ export async function seedMassReports(prisma: PrismaClient, seedData: any) {
   const pmReportData: any[] = [];
 
   // Lấy PMs (users có role manager hoặc có position Project Manager)
+  // Lấy danh sách user có role admin hoặc manager từ user_role_assignment
+  const adminManagerRoleAssignments = await prisma.user_role_assignment.findMany({
+    where: {
+      role: { name: { in: ['admin', 'manager'] } },
+      deleted_at: null,
+    },
+    select: { user_id: true },
+  });
+
   const pms = await prisma.user_information.findMany({
     where: {
       OR: [
-        { role: { name: { in: ['admin', 'manager'] } } },
+        { user_id: { in: adminManagerRoleAssignments.map(ra => ra.user_id) } },
         { position: { name: 'Project Manager' } },
       ],
     },
     include: { user: true },
   });
-
-  for (const pm of pms) {
-    // Lấy projects mà PM quản lý
-    const pmProjects = await prisma.project_role_user.findMany({
-      where: {
-        user_id: pm.user_id,
-        position_in_project: 1, // monitor/lead position
-      },
-      include: { project: true },
-    });
-
-    for (const projectRole of pmProjects) {
-      // Tạo weekly reports cho 12 tuần gần đây
-      for (let week = 0; week < 12; week++) {
-        const reportDate = new Date();
-        reportDate.setDate(reportDate.getDate() - week * 7);
-
-        // Chỉ tạo report cho các tuần đã qua
-        if (reportDate > new Date()) continue;
-
-        const weekString = `W${Math.ceil(reportDate.getDate() / 7)}-${reportDate.getMonth() + 1}-${reportDate.getFullYear()}`;
-
-        // Random status values (1: good, 2: warning, 3: serious)
-        const customerFeedback = Math.floor(Math.random() * 3) + 1;
-        const processStatus = Math.floor(Math.random() * 3) + 1;
-        const timelinessStatus = Math.floor(Math.random() * 3) + 1;
-        const qualityStatus = Math.floor(Math.random() * 3) + 1;
-        const costStatus = Math.floor(Math.random() * 3) + 1;
-
-        pmReportData.push({
-          user_id: pm.user_id,
-          project_id: projectRole.project.id,
-          date: reportDate,
-          week: weekString,
-          customer_feedback: customerFeedback,
-          process_status: processStatus,
-          timeliness_status: timelinessStatus,
-          quality_status: qualityStatus,
-          cost_status: costStatus,
-          cost_comment:
-            costStatus === 3
-              ? 'Budget overrun due to additional requirements'
-              : costStatus === 2
-                ? 'Budget tracking needs attention'
-                : 'Budget on track',
-          quality_comment:
-            qualityStatus === 3
-              ? 'Several critical bugs found in testing'
-              : qualityStatus === 2
-                ? 'Minor quality issues need addressing'
-                : 'Quality meets standards',
-          timeliness_comment:
-            timelinessStatus === 3
-              ? 'Significant delays due to technical challenges'
-              : timelinessStatus === 2
-                ? 'Minor delays but recoverable'
-                : 'On schedule',
-          process_comment:
-            processStatus === 3
-              ? 'Process issues affecting team productivity'
-              : processStatus === 2
-                ? 'Process improvements needed'
-                : 'Process running smoothly',
-          customer_feedback_comment:
-            customerFeedback === 3
-              ? 'Customer expressed serious concerns'
-              : customerFeedback === 2
-                ? 'Customer has some concerns'
-                : 'Customer satisfied',
-          note: `Weekly report for ${projectRole.project.name} - Week ${weekString}`,
-        });
-      }
-    }
-  }
 
   console.log(`👨‍💼 Tạo ${pmReportData.length} PM reports...`);
 

@@ -22,6 +22,17 @@ export class RoleHierarchyService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private async getProjectIdsInDivision(divisionId: number): Promise<number[]> {
+    const projects = await this.prisma.projects.findMany({
+      where: {
+        division_id: divisionId,
+        deleted_at: null
+      },
+      select: { id: true }
+    });
+    return projects.map(p => p.id);
+  }
+
   // Định nghĩa cấp bậc vai trò từ thấp đến cao
   private readonly roleHierarchy: RoleHierarchy[] = [
     {
@@ -104,21 +115,15 @@ export class RoleHierarchyService {
     return role ? role.canManage : [];
   }
 
-  /**
-   * Kiểm tra user có thể sửa role của user khác không
-   */
   async canUserManageUserRole(
     managerId: number,
     targetUserId: number,
     newRoleName?: string,
   ): Promise<boolean> {
-    // Lấy role của manager
     const managerRole = await this.permissionService.getUserRole(managerId);
     if (!managerRole) return false;
 
-    // Chỉ division_head mới có thể gán role trong phạm vi này
     if (managerRole.name !== ROLE_NAMES.DIVISION_HEAD) {
-      // Fallback về logic cũ cho các role khác
       const targetRole = await this.permissionService.getUserRole(targetUserId);
       if (!targetRole) return false;
 
@@ -183,13 +188,19 @@ export class RoleHierarchyService {
 
       // 3. Kiểm tra ràng buộc đặc biệt cho project_manager
       if (newRoleName === ROLE_NAMES.PROJECT_MANAGER) {
-        const hasProjectInDivision = await this.prisma.project_role_user.findFirst(
+        const hasProjectInDivision = await this.prisma.user_role_assignment.findFirst(
           {
             where: {
               user_id: targetUserId,
-              project: {
-                division_id: managerDivision.divisionId,
-                deleted_at: null,
+              scope_type: 'PROJECT',
+              role: {
+                name: 'project_manager',
+                deleted_at: null
+              },
+              deleted_at: null,
+              // Check if project belongs to manager's division
+              scope_id: {
+                in: await this.getProjectIdsInDivision(managerDivision.divisionId || 0)
               },
             },
           },
@@ -201,17 +212,16 @@ export class RoleHierarchyService {
 
         // Kiểm tra không được là PM chính của nhiều project cùng lúc
         // PM có thể tham gia nhiều dự án nhưng chỉ được là PM chính của 1 dự án
-        const currentPMProjects = await this.prisma.project_role_user.count({
+        const currentPMProjects = await this.prisma.user_role_assignment.count({
           where: {
             user_id: targetUserId,
-            position_in_project: PROJECT_POSITIONS.MONITOR, // PM chính
-            project: {
-              status: {
-                in: ACTIVE_PROJECT_STATUSES as any, // Dự án đang hoạt động
-              },
-              deleted_at: null,
+            scope_type: 'PROJECT',
+            role: {
+              name: 'project_manager',
+              deleted_at: null
             },
-          },
+            deleted_at: null
+          }
         });
 
         // Cho phép gán PM nếu chưa là PM chính của dự án nào
@@ -226,20 +236,16 @@ export class RoleHierarchyService {
         const currentRole = await this.permissionService.getUserRole(targetUserId);
         if (currentRole?.name === ROLE_NAMES.PROJECT_MANAGER) {
           // Kiểm tra có xung đột về dự án không
-          const conflictingProjects = await this.prisma.project_role_user.count({
+          const conflictingProjects = await this.prisma.user_role_assignment.count({
             where: {
               user_id: targetUserId,
-              position_in_project: PROJECT_POSITIONS.MONITOR, // PM chính
-              project: {
-                status: {
-                  in: ACTIVE_PROJECT_STATUSES as any,
-                },
-                team_id: {
-                  in: await this.getUserTeamIds(targetUserId),
-                },
-                deleted_at: null,
+              scope_type: 'PROJECT',
+              role: {
+                name: 'project_manager',
+                deleted_at: null
               },
-            },
+              deleted_at: null
+            }
           });
 
           if (conflictingProjects > 0) {
@@ -252,26 +258,17 @@ export class RoleHierarchyService {
     return true;
   }
 
-  /**
-   * Lấy danh sách team IDs mà user đang lead
-   */
   private async getUserTeamIds(userId: number): Promise<number[]> {
     const userTeams = await this.prisma.user_division.findMany({
       where: {
         userId,
-        role: { name: ROLE_NAMES.TEAM_LEADER },
       },
-      select: { teamId: true },
+      select: { divisionId: true },
     });
 
-    return userTeams
-      .map((ut) => ut.teamId)
-      .filter((id): id is number => id !== null);
+    return userTeams.map((ut) => ut.divisionId).filter((id): id is number => id !== null);
   }
 
-  /**
-   * Lấy danh sách permissions để quản lý role theo cấp bậc
-   */
   getRoleManagementPermissions(roleName: string): string[] {
     const manageableRoles = this.getManageableRoles(roleName);
     const permissions: string[] = ['role.read'];
@@ -283,9 +280,6 @@ export class RoleHierarchyService {
     return permissions;
   }
 
-  /**
-   * Kiểm tra user có permission để quản lý một role cụ thể không
-   */
   async hasRoleManagementPermission(
     userId: number,
     targetRoleName: string,
@@ -297,9 +291,6 @@ export class RoleHierarchyService {
     );
   }
 
-  /**
-   * Lấy danh sách roles mà user có thể gán cho người khác
-   */
   async getAssignableRoles(userId: number): Promise<string[]> {
     const userRole = await this.permissionService.getUserRole(userId);
     if (!userRole) return [];
@@ -320,65 +311,44 @@ export class RoleHierarchyService {
     return assignableRoles;
   }
 
-  /**
-   * Kiểm tra user có thể phê duyệt điều chuyển nhân sự không
-   */
   async canApprovePersonnelTransfer(
     approverId: number,
     transferUserId: number,
   ): Promise<boolean> {
-    // Kiểm tra quyền phê duyệt điều chuyển
     const hasApprovePermission = await this.permissionService.hasPermission(
       approverId,
       'personnel.transfer.approve',
     );
     if (!hasApprovePermission) return false;
 
-    // Lấy role của approver và user được điều chuyển
     const approverRole = await this.permissionService.getUserRole(approverId);
     const transferUserRole =
       await this.permissionService.getUserRole(transferUserId);
 
     if (!approverRole || !transferUserRole) return false;
 
-    // Kiểm tra approver có thể quản lý role của user được điều chuyển không
     return this.canManageRole(approverRole.name, transferUserRole.name);
   }
 
-  /**
-   * Lấy level của role
-   */
   getRoleLevel(roleName: string): number {
     const role = this.getRoleHierarchy(roleName);
     return role ? role.level : 0;
   }
 
-  /**
-   * So sánh level giữa hai role
-   */
   compareRoleLevel(role1: string, role2: string): number {
     const level1 = this.getRoleLevel(role1);
     const level2 = this.getRoleLevel(role2);
     return level1 - level2;
   }
 
-  /**
-   * Kiểm tra role1 có cấp cao hơn role2 không
-   */
   isHigherRole(role1: string, role2: string): boolean {
     return this.compareRoleLevel(role1, role2) > 0;
   }
 
-  /**
-   * Lấy tất cả roles theo thứ tự cấp bậc
-   */
   getAllRolesByHierarchy(): RoleHierarchy[] {
     return [...this.roleHierarchy].sort((a, b) => a.level - b.level);
   }
 
-  /**
-   * Lấy roles có cấp thấp hơn role được chỉ định
-   */
   getLowerRoles(roleName: string): string[] {
     const role = this.getRoleHierarchy(roleName);
     if (!role) return [];
@@ -388,9 +358,6 @@ export class RoleHierarchyService {
       .map((r) => r.name);
   }
 
-  /**
-   * Lấy roles có cấp cao hơn role được chỉ định
-   */
   getHigherRoles(roleName: string): string[] {
     const role = this.getRoleHierarchy(roleName);
     if (!role) return [];

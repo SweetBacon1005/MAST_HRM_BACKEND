@@ -4,6 +4,7 @@
 
 // === AUTH ERRORS ===
 export const AUTH_ERRORS = {
+  ROLE_NOT_FOUND: 'Vai trò không tồn tại',
   INVALID_CREDENTIALS: 'Email hoặc mật khẩu không đúng',
   EMAIL_ALREADY_EXISTS: 'Email này đã được sử dụng',
   USER_NOT_FOUND: 'Không tìm thấy người dùng',
@@ -72,6 +73,7 @@ export const ASSET_ERRORS = {
 
 // === DIVISION ERRORS ===
 export const DIVISION_ERRORS = {
+  NOT_MANAGED_IN_DIVISION: 'Người dùng không quản lí phòng ban này',
   DIVISION_NOT_FOUND: 'Không tìm thấy phòng ban',
   DIVISION_NAME_EXISTS: 'Tên phòng ban đã tồn tại',
   CANNOT_DELETE_WITH_MEMBERS: 'Không thể xóa phòng ban có thành viên',
@@ -230,4 +232,15 @@ export type NewsError = typeof NEWS_ERRORS[keyof typeof NEWS_ERRORS];
 export type NotificationError = typeof NOTIFICATION_ERRORS[keyof typeof NOTIFICATION_ERRORS];
 export type ValidationError = typeof VALIDATION_ERRORS[keyof typeof VALIDATION_ERRORS];
 export type SystemError = typeof SYSTEM_ERRORS[keyof typeof SYSTEM_ERRORS];
+export const TEAM_ERRORS = {
+  TEAM_NOT_FOUND: 'Không tìm thấy team',
+  TEAM_NAME_EXISTS: 'Tên team đã tồn tại',
+  TEAM_NAME_EXISTS_IN_DIVISION: 'Tên team đã tồn tại trong phòng ban này',
+  TEAM_CANNOT_DELETE_WITH_MEMBERS: 'Không thể xóa team vì còn thành viên',
+  TEAM_CANNOT_DELETE_WITH_PROJECTS: 'Không thể xóa team vì còn dự án',
+  TEAM_INVALID_DIVISION: 'Bạn không có quyền thao tác với team ngoài phòng ban của bạn',
+  TEAM_DIVISION_REQUIRED: 'Cần cung cấp phòng ban cho team',
+  USER_DIVISION_NOT_FOUND: 'Không xác định được phòng ban của bạn',
+} as const;
+
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];

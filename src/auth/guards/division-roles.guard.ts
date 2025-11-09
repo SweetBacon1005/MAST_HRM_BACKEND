@@ -6,17 +6,20 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../database/prisma.service';
+import { RoleAssignmentService } from '../services/role-assignment.service';
 import {
   DIVISION_ROLES_KEY,
   DIVISION_ACCESS_KEY,
   TEAM_LEADER_KEY,
 } from '../decorators/division-roles.decorator';
+import { ScopeType } from '@prisma/client';
 
 @Injectable()
 export class DivisionRolesGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private prisma: PrismaService,
+    private roleAssignmentService: RoleAssignmentService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -27,39 +30,25 @@ export class DivisionRolesGuard implements CanActivate {
       return false;
     }
 
-    // Kiểm tra DivisionRoles decorator
     const requiredDivisionRoles = this.reflector.getAllAndOverride<string[]>(
       DIVISION_ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    // Kiểm tra DivisionAccess decorator
     const divisionAccess = this.reflector.getAllAndOverride<{
       divisionId: number;
       roles: string[];
     }>(DIVISION_ACCESS_KEY, [context.getHandler(), context.getClass()]);
 
-    // Kiểm tra RequireTeamLeader decorator
     const requireTeamLeader = this.reflector.getAllAndOverride<boolean>(
       TEAM_LEADER_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    // Lấy thông tin user divisions và roles
-    const userDivisions = await this.prisma.user_division.findMany({
-      where: {
-        userId: user.id,
-      },
-      include: {
-        role: true,
-        division: true,
-      },
-    });
-
-    // Kiểm tra DivisionRoles
     if (requiredDivisionRoles) {
-      const hasRequiredRole = userDivisions.some((userDiv) =>
-        requiredDivisionRoles.includes(userDiv.role?.name || ''),
+      const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user.id, ScopeType.DIVISION);
+      const hasRequiredRole = divisionRoles.some(role => 
+        requiredDivisionRoles.includes(role.name)
       );
 
       if (!hasRequiredRole) {
@@ -69,13 +58,11 @@ export class DivisionRolesGuard implements CanActivate {
       }
     }
 
-    // Kiểm tra DivisionAccess
     if (divisionAccess) {
       const { divisionId, roles } = divisionAccess;
-      const hasAccessToDivision = userDivisions.some(
-        (userDiv) =>
-          userDiv.divisionId === divisionId &&
-          roles.includes(userDiv.role?.name || ''),
+      const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user.id, ScopeType.DIVISION, divisionId);
+      const hasAccessToDivision = divisionRoles.some(role => 
+        roles.includes(role.name)
       );
 
       if (!hasAccessToDivision) {
@@ -87,10 +74,14 @@ export class DivisionRolesGuard implements CanActivate {
 
     // Kiểm tra RequireTeamLeader
     if (requireTeamLeader) {
-      // Kiểm tra user có phải là team leader không thông qua bảng teams
-      const isTeamLeader = await this.prisma.teams.findFirst({
+      const isTeamLeader = await this.prisma.user_role_assignment.findFirst({
         where: {
-          leader_id: user.id,
+          user_id: user.id,
+          role: {
+            name: 'team_leader',
+            deleted_at: null
+          },
+          scope_type: 'TEAM',
           deleted_at: null,
         },
       });

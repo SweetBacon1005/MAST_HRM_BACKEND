@@ -25,7 +25,7 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
-
+import { RotationType } from '@prisma/client';
 export class CreateUserDto {
   name: string;
   email: string;
@@ -165,8 +165,9 @@ export class AdminController {
         name: true,
         _count: {
           select: {
-            user_information: {
+            user_role_assignment: {
               where: {
+                deleted_at: null,
                 user: {
                   deleted_at: null,
                 },
@@ -179,7 +180,7 @@ export class AdminController {
 
     return userStats.map((role) => ({
       role_name: role.name,
-      user_count: role._count.user_information,
+      user_count: role._count.user_role_assignment,
     }));
   }
 
@@ -312,9 +313,6 @@ export class AdminController {
         include: {
           user_information: {
             include: {
-              role: {
-                select: { id: true, name: true },
-              },
               position: {
                 select: { id: true, name: true },
               },
@@ -326,9 +324,6 @@ export class AdminController {
           user_division: {
             include: {
               division: {
-                select: { id: true, name: true },
-              },
-              role: {
                 select: { id: true, name: true },
               },
             },
@@ -363,7 +358,6 @@ export class AdminController {
       include: {
         user_information: {
           include: {
-            role: true,
             position: true,
             level: true,
           },
@@ -371,6 +365,11 @@ export class AdminController {
         user_division: {
           include: {
             division: true,
+          },
+        },
+        user_role_assignments: {
+          where: { deleted_at: null },
+          include: {
             role: true,
           },
         },
@@ -457,7 +456,6 @@ export class AdminController {
       await this.prisma.user_information.updateMany({
         where: { user_id: id },
         data: {
-          role_id: updateUserDto.role_id,
           position_id: updateUserDto.position_id,
           level_id: updateUserDto.level_id,
           status: updateUserDto.status as any,
@@ -564,7 +562,9 @@ export class AdminController {
         },
         _count: {
           select: {
-            user_information: true,
+            user_role_assignment: {
+              where: { deleted_at: null },
+            },
           },
         },
       },
@@ -573,8 +573,8 @@ export class AdminController {
 
     return roles.map((role) => ({
       ...role,
-      permissions: role.permission_role.map((pr) => pr.permission),
-      user_count: role._count.user_information,
+      permissions: role.permission_role.map(pr => pr.permission),
+      user_count: role._count.user_role_assignment,
       hierarchy_info: this.roleHierarchyService.getRoleHierarchy(role.name),
     }));
   }
@@ -652,7 +652,6 @@ export class AdminController {
     };
   }
 
-  // === BULK OPERATIONS ===
 
 
   @Post('bulk/transfer-division')
@@ -665,12 +664,11 @@ export class AdminController {
     description: 'Điều chuyển hàng loạt thành công',
   })
   async bulkTransferDivision(
-    @Body() data: { user_ids: number[]; division_id: number; type?: number },
+    @Body() data: { user_ids: number[]; division_id: number; type?: RotationType },
     @GetCurrentUser('id') adminId: number,
   ) {
-    const { user_ids, division_id, type = 1 } = data;
+    const { user_ids, division_id, type = RotationType.TEMPORARY } = data;
 
-    // Kiểm tra phòng ban tồn tại
     const division = await this.prisma.divisions.findUnique({
       where: { id: division_id, deleted_at: null },
     });
@@ -679,10 +677,8 @@ export class AdminController {
       throw new Error('Phòng ban không tồn tại');
     }
 
-    // Thực hiện điều chuyển hàng loạt
     const rotations: any[] = [];
     for (const userId of user_ids) {
-      // Kiểm tra quyền điều chuyển từng user
       const canTransfer =
         await this.roleHierarchyService.canApprovePersonnelTransfer(
           adminId,
@@ -699,8 +695,7 @@ export class AdminController {
           },
         });
 
-        // Nếu là điều chuyển vĩnh viễn, cập nhật user_division
-        if (type === 1) {
+        if (type === RotationType.PERMANENT) {
           await this.prisma.user_division.updateMany({
             where: { userId: userId },
             data: { divisionId: division_id },

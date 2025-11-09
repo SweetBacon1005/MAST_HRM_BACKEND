@@ -64,7 +64,9 @@ import { TimesheetService } from './timesheet.service';
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('timesheet')
 export class TimesheetController {
-  constructor(private readonly timesheetService: TimesheetService) {}
+  constructor(
+    private readonly timesheetService: TimesheetService,
+  ) {}
 
   // === TIMESHEET MANAGEMENT ===
 

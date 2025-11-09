@@ -14,9 +14,12 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
@@ -45,7 +48,7 @@ import {
   UserDivisionPaginationDto,
 } from './dto/user-division.dto';
 import { WorkInfoQueryDto } from './dto/work-info-query.dto';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { DIVISION_ERRORS } from 'src/common/constants/error-messages.constants';
 
 @ApiTags('divisions')
 @Controller('divisions')
@@ -88,12 +91,20 @@ export class DivisionController {
 
   @Get('hierarchy')
   @RequirePermission('division.read')
-  @ApiOperation({ summary: 'Lấy cây phòng ban theo cấu trúc phân cấp' })
+  @ApiOperation({
+    summary: 'Lấy cây phòng ban theo cấu trúc phân cấp (Phòng ban cha)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Lấy cây phòng ban thành công',
   })
-  getHierarchy(@Query('parent_id', ParseIntPipe) parentId?: number) {
+  @ApiQuery({
+    name: 'parent_id',
+    description: 'ID của phòng ban cha',
+    required: false,
+    type: Number,
+  })
+  getHierarchy(@Query('parent_id') parentId?: number) {
     return this.divisionService.getDivisionHierarchy(parentId);
   }
 
@@ -104,7 +115,24 @@ export class DivisionController {
     status: 200,
     description: 'Lấy danh sách điều chuyển thành công',
   })
-  findAllRotationMembers(@Query() paginationDto: RotationMemberPaginationDto) {
+  findAllRotationMembers(
+    @Query() paginationDto: RotationMemberPaginationDto,
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    // Nếu là division_head: ép division_id theo division hiện tại của user
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(currentUserId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...paginationDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.division_id = currentDivisionId;
+          }
+          return this.divisionService.findAllRotationMembers(effectiveDto);
+        });
+    }
     return this.divisionService.findAllRotationMembers(paginationDto);
   }
 
@@ -201,7 +229,23 @@ export class DivisionController {
     status: 404,
     description: 'User, Division, Role hoặc Team không tồn tại',
   })
-  createUserDivision(@Body() createUserDivisionDto: CreateUserDivisionDto) {
+  createUserDivision(
+    @Body() createUserDivisionDto: CreateUserDivisionDto,
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(currentUserId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...createUserDivisionDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.divisionId = currentDivisionId;
+          }
+          return this.divisionService.createUserDivision(effectiveDto);
+        });
+    }
     return this.divisionService.createUserDivision(createUserDivisionDto);
   }
 
@@ -282,7 +326,23 @@ export class DivisionController {
       },
     },
   })
-  findAllUserDivisions(@Query() paginationDto: UserDivisionPaginationDto) {
+  findAllUserDivisions(
+    @Query() paginationDto: UserDivisionPaginationDto,
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(currentUserId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...paginationDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.divisionId = currentDivisionId;
+          }
+          return this.divisionService.findAllUserDivisions(effectiveDto);
+        });
+    }
     return this.divisionService.findAllUserDivisions(paginationDto);
   }
 
@@ -403,26 +463,26 @@ export class DivisionController {
     return this.divisionService.getUnassignedUsers(paginationDto);
   }
 
-  @Get('user-assignments/:id')
+  @Get('user-assignments/:userId')
   @RequirePermission('division.assignment.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết user division assignment' })
-  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết user division' })
+  @ApiParam({ name: 'userId', description: 'ID của user' })
   @ApiResponse({
     status: 200,
-    description: 'Lấy thông tin assignment thành công',
+    description: 'Lấy thông tin user division thành công',
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy assignment',
+    description: 'Không tìm thấy user division',
   })
-  findOneUserDivision(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.findOneUserDivision(id);
+  findOneUserDivision(@Param('userId', ParseIntPipe) userId: number) {
+    return this.divisionService.findOneUserDivision(userId);
   }
 
-  @Patch('user-assignments/:id')
+  @Patch('user-assignments/:userId')
   @RequirePermission('division.assignment.update')
   @ApiOperation({ summary: 'Cập nhật user division assignment' })
-  @ApiParam({ name: 'id', description: 'ID của assignment' })
+  @ApiParam({ name: 'userId', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Cập nhật assignment thành công',
@@ -436,26 +496,29 @@ export class DivisionController {
     description: 'Không tìm thấy assignment, role hoặc team',
   })
   updateUserDivision(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
     @Body() updateUserDivisionDto: UpdateUserDivisionDto,
   ) {
-    return this.divisionService.updateUserDivision(id, updateUserDivisionDto);
+    return this.divisionService.updateUserDivision(
+      userId,
+      updateUserDivisionDto,
+    );
   }
 
-  @Delete('user-assignments/:user_id')
+  @Delete('user-assignments/:userId')
   @RequirePermission('division.assignment.delete')
   @ApiOperation({ summary: 'Xóa user khỏi division' })
-  @ApiParam({ name: 'user_id', description: 'ID của user' })
+  @ApiParam({ name: 'userId', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Xóa user khỏi division thành công',
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy assignment',
+    description: 'Không tìm thấy user division',
   })
-  removeUserDivision(@Param('user_id', ParseIntPipe) user_id: number) {
-    return this.divisionService.removeUserDivision(user_id);
+  removeUserDivision(@Param('userId', ParseIntPipe) userId: number) {
+    return this.divisionService.removeUserDivision(userId);
   }
 
   @Get('teams')
@@ -520,7 +583,23 @@ export class DivisionController {
       },
     },
   })
-  findAllTeams(@Query() paginationDto: TeamPaginationDto) {
+  findAllTeams(
+    @Query() paginationDto: TeamPaginationDto,
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(currentUserId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...paginationDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.divisionId = currentDivisionId;
+          }
+          return this.divisionService.findAllTeams(effectiveDto);
+        });
+    }
     return this.divisionService.findAllTeams(paginationDto);
   }
 
@@ -603,7 +682,11 @@ export class DivisionController {
   getDivisionMembers(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: DivisionMembersQueryDto,
+    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('roles') roles: string[],
   ) {
+    queryDto.roles = roles;
+    queryDto.currentUserId = currentUserId;
     return this.divisionService.getDivisionMembers(id, queryDto);
   }
 
@@ -1087,8 +1170,23 @@ export class DivisionController {
   createRotationMember(
     @Body() createRotationDto: CreateRotationMemberDto,
     @GetCurrentUser('id') requesterId: number,
-    @GetCurrentUser('role') role: string,
+    @GetCurrentUser('roles') roles: string[],
   ) {
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(requesterId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...createRotationDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.division_id = currentDivisionId;
+          }
+          return this.divisionService.createRotationMember(
+            effectiveDto,
+            requesterId,
+          );
+        });
+    }
     return this.divisionService.createRotationMember(
       createRotationDto,
       requesterId,
@@ -1114,7 +1212,21 @@ export class DivisionController {
   updateRotationMember(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRotationDto: UpdateRotationMemberDto,
+    @GetCurrentUser('id') requesterId: number,
+    @GetCurrentUser('roles') roles: string[],
   ) {
+    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+      return this.divisionService
+        .findOneUserDivision(requesterId)
+        .then((userDivision) => {
+          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const effectiveDto = { ...updateRotationDto };
+          if (typeof currentDivisionId === 'number') {
+            effectiveDto.division_id = currentDivisionId;
+          }
+          return this.divisionService.updateRotationMember(id, effectiveDto);
+        });
+    }
     return this.divisionService.updateRotationMember(id, updateRotationDto);
   }
 
@@ -1197,6 +1309,4 @@ export class DivisionController {
   removeTeam(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.removeTeam(id);
   }
-
-  // === UNASSIGNED USERS ===
 }

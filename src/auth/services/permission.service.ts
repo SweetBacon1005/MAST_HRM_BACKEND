@@ -1,6 +1,8 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { RoleHierarchyService } from './role-hierarchy.service';
+import { RoleAssignmentService } from './role-assignment.service';
+import { ScopeType } from '@prisma/client';
 
 @Injectable()
 export class PermissionService {
@@ -10,6 +12,7 @@ export class PermissionService {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => RoleHierarchyService))
     private readonly roleHierarchyService: RoleHierarchyService,
+    private readonly roleAssignmentService: RoleAssignmentService,
   ) {}
 
   /**
@@ -18,68 +21,57 @@ export class PermissionService {
    * @param permission - Tên permission cần kiểm tra
    * @returns Promise<boolean>
    */
-  async hasPermission(userId: number, permission: string): Promise<boolean> {
+  async hasPermission(userId: number, permission: string, scopeType?: string, scopeId?: number): Promise<boolean> {
     try {
-      // Lấy thông tin user với role và permissions
-      const user = await this.prisma.users.findUnique({
-        where: {
-          id: userId,
-          deleted_at: null,
-        },
-        include: {
-          user_information: {
-            include: {
-              role: {
-                include: {
-                  permission_role: {
-                    include: {
-                      permission: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (
-        !user ||
-        !user.user_information ||
-        !user.user_information?.role ||
-        !user.user_information?.role?.id
-      ) {
-        this.logger.warn(`User ${userId} not found or has no role assigned`);
+      // Lấy role assignments của user
+      const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+      
+      if (!userRoles || userRoles.roles.length === 0) {
+        this.logger.debug(`User ${userId} has no role assignments`);
         return false;
       }
 
-      const userRole = user.user_information?.role;
-
-      // Lấy danh sách permissions trực tiếp của user
-      const directPermissions = userRole.permission_role.map(
-        (pr) => pr.permission.name,
-      );
+      // Lấy tất cả permissions từ các roles của user
+      const roleIds = userRoles.roles.map(role => role.id);
+      
+      const permissions = await this.prisma.permission_role.findMany({
+        where: {
+          role_id: { in: roleIds },
+          role: { deleted_at: null },
+          permission: { deleted_at: null }
+        },
+        include: {
+          permission: true,
+          role: true
+        }
+      });
 
       // Kiểm tra permission trực tiếp
-      if (directPermissions.includes(permission)) {
-        this.logger.debug(
-          `User ${userId} has direct permission: ${permission}`,
-        );
+      const hasDirectPermission = permissions.some(pr => 
+        pr.permission.name === permission
+      );
+
+      if (hasDirectPermission) {
+        this.logger.debug(`User ${userId} has direct permission: ${permission}`);
         return true;
       }
 
       // Kiểm tra quyền kế thừa từ các role thấp hơn (role hierarchy)
-      const hasInheritedPermission = await this.hasInheritedPermission(
-        userRole.name,
-        permission,
-        userId,
-      );
-
-      if (hasInheritedPermission) {
-        this.logger.debug(
-          `User ${userId} has inherited permission: ${permission} from lower roles`,
+      const userRoleNames = userRoles.roles.map(role => role.name);
+      
+      for (const roleName of userRoleNames) {
+        const hasInheritedPermission = await this.hasInheritedPermission(
+          roleName,
+          permission,
+          userId,
         );
-        return true;
+
+        if (hasInheritedPermission) {
+          this.logger.debug(
+            `User ${userId} has inherited permission: ${permission} from role: ${roleName}`,
+          );
+          return true;
+        }
       }
 
       this.logger.debug(
@@ -207,81 +199,57 @@ export class PermissionService {
    */
   async getUserPermissions(userId: number): Promise<string[]> {
     try {
-      const user = await this.prisma.users.findUnique({
-        where: {
-          id: userId,
-          deleted_at: null,
-        },
-        include: {
-          user_information: {
-            include: {
-              role: {
-                include: {
-                  permission_role: {
-                    include: {
-                      permission: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      });
-
-      if (
-        !user ||
-        !user.user_information ||
-        !user.user_information?.role ||
-        !user.user_information?.role?.permission_role
-      ) {
+      // Lấy role assignments của user
+      const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+      
+      if (!userRoles || userRoles.roles.length === 0) {
         return [];
       }
 
-      return user.user_information?.role?.permission_role.map(
-        (pr) => pr?.permission?.name,
-      );
+      // Lấy tất cả permissions từ các roles của user
+      const roleIds = userRoles.roles.map(role => role.id);
+      
+      const permissions = await this.prisma.permission_role.findMany({
+        where: {
+          role_id: { in: roleIds },
+          role: { deleted_at: null },
+          permission: { deleted_at: null }
+        },
+        include: {
+          permission: true
+        }
+      });
+
+      const permissionNames = [...new Set(permissions.map(pr => pr.permission.name))];
+      
+      return permissionNames;
     } catch (error) {
       this.logger.error(`Error getting permissions for user ${userId}:`, error);
       return [];
     }
   }
 
-  /**
-   * Lấy thông tin role của user
-   * @param userId - ID của user
-   * @returns Promise<{id: number, name: string} | null>
-   */
   async getUserRole(
     userId: number,
   ): Promise<{ id: number; name: string } | null> {
     try {
-      const user = await this.prisma.users.findUnique({
-        where: {
-          id: userId,
-          deleted_at: null,
-        },
-        include: {
-          user_information: {
-            include: {
-              role: true,
-            },
-          },
-        },
-      });
-
-      if (
-        !user ||
-        !user.user_information ||
-        !user.user_information?.role ||
-        !user.user_information?.role?.id
-      ) {
+      const primaryRole = await this.roleAssignmentService.getUserPrimaryRole(userId, ScopeType.COMPANY);
+      
+      if (!primaryRole) {
+        const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+        if (userRoles.roles.length > 0) {
+          const firstRole = userRoles.roles[0];
+          return {
+            id: firstRole.id,
+            name: firstRole.name,
+          };
+        }
         return null;
       }
 
       return {
-        id: user.user_information?.role?.id,
-        name: user.user_information?.role?.name,
+        id: primaryRole.id,
+        name: primaryRole.name,
       };
     } catch (error) {
       this.logger.error(`Error getting role for user ${userId}:`, error);

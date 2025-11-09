@@ -17,6 +17,48 @@ import {
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Helper method to count project members from user_role_assignment
+   */
+  private async getProjectMemberCount(projectId: number): Promise<number> {
+    return await this.prisma.user_role_assignment.count({
+      where: {
+        scope_type: 'PROJECT',
+        scope_id: projectId,
+        deleted_at: null
+      }
+    });
+  }
+
+  private async getProjectMembersData(projectId: number) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: 'PROJECT',
+        scope_id: projectId,
+        deleted_at: null
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } }
+          }
+        },
+        role: {
+          select: { name: true }
+        }
+      }
+    });
+
+    return assignments.map(assignment => ({
+      id: assignment.user.id,
+      name: assignment.user.user_information?.[0]?.name || '',
+      email: assignment.user.email,
+      role: assignment.role?.name || ''
+    }));
+  }
+
   async create(createProjectDto: CreateProjectDto) {
     const { start_date, end_date, ...rest } = createProjectDto;
 
@@ -75,11 +117,6 @@ export class ProjectsService {
         team: {
           select: { id: true, name: true },
         },
-        _count: {
-          select: {
-            project_role_user: true,
-          },
-        },
       },
     });
   }
@@ -125,23 +162,20 @@ export class ProjectsService {
           team: {
             select: { id: true, name: true },
           },
-          _count: {
-            select: {
-              project_role_user: true,
-            },
-          },
         },
       }),
       this.prisma.projects.count({ where }),
     ]);
 
     // Transform dates
-    const transformedData = data.map((project) => ({
-      ...project,
-      start_date: project.start_date.toISOString().split('T')[0],
-      end_date: project.end_date.toISOString().split('T')[0],
-      member_count: project._count?.project_role_user || 0,
-    }));
+    const transformedData = await Promise.all(
+      data.map(async (project) => ({
+        ...project,
+        start_date: project.start_date.toISOString().split('T')[0],
+        end_date: project.end_date.toISOString().split('T')[0],
+        member_count: await this.getProjectMemberCount(project.id),
+      }))
+    );
 
     return buildPaginationResponse(
       transformedData,
@@ -161,18 +195,6 @@ export class ProjectsService {
         team: {
           select: { id: true, name: true },
         },
-        project_role_user: {
-          include: {
-            user: {
-              select: { id: true, email: true, user_information: { select: { name: true } } },
-            },
-          },
-        },
-        _count: {
-          select: {
-            project_role_user: true,
-          },
-        },
       },
     });
 
@@ -184,7 +206,8 @@ export class ProjectsService {
       ...project,
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
-      member_count: project._count?.project_role_user || 0,
+      member_count: await this.getProjectMemberCount(project.id),
+      members: await this.getProjectMembersData(project.id)
     };
   }
 
@@ -241,11 +264,6 @@ export class ProjectsService {
         team: {
           select: { id: true, name: true },
         },
-        _count: {
-          select: {
-            project_role_user: true,
-          },
-        },
       },
     });
   }
@@ -253,14 +271,22 @@ export class ProjectsService {
   async remove(id: number) {
     const project = await this.prisma.projects.findUnique({
       where: { id, deleted_at: null },
-      include: {
-        project_role_user: true,
-      },
     });
 
     if (!project) {
       throw new NotFoundException('Không tìm thấy dự án');
     }
+
+    const projectMembers = await this.prisma.user_role_assignment.updateMany({
+      where: {
+        scope_type: 'PROJECT',
+        scope_id: id,
+        deleted_at: null
+      },
+      data: {
+        deleted_at: new Date()
+      }
+    });
 
     return await this.prisma.projects.update({
       where: { id },
@@ -277,9 +303,11 @@ export class ProjectsService {
       throw new NotFoundException('Không tìm thấy dự án');
     }
 
-    const members = await this.prisma.project_role_user.findMany({
+    const members = await this.prisma.user_role_assignment.findMany({
       where: {
-        project_id: projectId,
+        scope_type: 'PROJECT',
+        scope_id: projectId,
+        deleted_at: null
       },
       include: {
         user: {

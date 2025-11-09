@@ -1,10 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
-export async function seedUsers(prisma: PrismaClient, seedData: any) {
+export async function seedUsers(prisma: PrismaClient) {
   console.log('👤 Seeding users...');
 
-  const { roles } = seedData;
   const hashedPassword = await bcrypt.hash('Mast@123', 12);
   const mastPassword = await bcrypt.hash('Mast@123', 12);
 
@@ -87,7 +86,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '123 Main St, Hà Nội',
       phone: '+84901234567',
       tax_code: 'TAX001',
-      role_id: roles[0].id, // admin
       description: 'System Administrator',
       level_id: 7, // Principal
       note: 'Super admin user',
@@ -113,7 +111,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '456 HR St, Hà Nội',
       phone: '+84901234568',
       tax_code: 'TAX002',
-      role_id: roles[1].id, // manager
       description: 'Human Resources Manager',
       level_id: 6, // Lead
       note: 'HR Manager',
@@ -139,7 +136,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '789 Dev St, Hà Nội',
       phone: '+84901234569',
       tax_code: 'TAX003',
-      role_id: roles[3].id, // developer
       description: 'Senior Backend Developer',
       level_id: 5, // Senior
       note: 'Senior backend developer',
@@ -165,7 +161,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '321 Frontend Ave, Hà Nội',
       phone: '+84901234570',
       tax_code: 'TAX004',
-      role_id: roles[3].id, // developer
       description: 'Senior Frontend Developer',
       level_id: 5, // Senior
       note: 'Senior frontend developer',
@@ -191,7 +186,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '654 Mobile St, TP.HCM',
       phone: '+84901234571',
       tax_code: 'TAX005',
-      role_id: roles[3].id, // developer
       description: 'Mobile Developer',
       level_id: 4, // Middle
       note: 'Mobile developer',
@@ -217,7 +211,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '987 QA Lane, Hà Nội',
       phone: '+84901234572',
       tax_code: 'TAX006',
-      role_id: roles[4].id, // tester
       description: 'Senior QA Tester',
       level_id: 5, // Senior
       note: 'Senior QA tester',
@@ -243,7 +236,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '147 DevOps Rd, Hà Nội',
       phone: '+84901234573',
       tax_code: 'TAX007',
-      role_id: roles[3].id, // developer
       description: 'DevOps Engineer',
       level_id: 4, // Middle
       note: 'DevOps engineer',
@@ -269,7 +261,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '258 Design St, Đà Nẵng',
       phone: '+84901234574',
       tax_code: 'TAX008',
-      role_id: roles[5].id, // employee
       description: 'UI/UX Designer',
       level_id: 3, // Junior
       note: 'UI/UX designer',
@@ -295,7 +286,6 @@ export async function seedUsers(prisma: PrismaClient, seedData: any) {
       temp_address: '123 Example St, Hà Nội',
       phone: '+84901234575',
       tax_code: 'TAX009',
-      role_id: roles[5].id, // employee
       description: 'Example User',
       level_id: 3, // Junior
       note: 'Example user for testing',

@@ -55,7 +55,7 @@ async function main() {
     console.log('✅ Schedule works data seeded successfully!\n');
 
     // 6. Seed essential users (admin, test users)
-    const usersData = await seedUsers(prisma, { ...basicData, ...rbacData });
+    const usersData = await seedUsers(prisma);
     console.log('✅ Essential users seeded successfully!\n');
 
     // 7. Seed basic projects

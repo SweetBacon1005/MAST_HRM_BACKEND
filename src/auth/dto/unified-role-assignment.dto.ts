@@ -2,10 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { 
   IsInt, 
   IsOptional, 
-  IsString, 
   Min, 
-  IsBoolean, 
-  IsDateString,
   IsArray,
   ArrayMinSize,
   ValidateNested,
@@ -33,39 +30,7 @@ export class AssignmentContextDto {
   teamId?: number;
 }
 
-export class AssignmentDetailsDto {
-  @ApiPropertyOptional({ description: 'Assignment tạm thời', default: false })
-  @IsOptional()
-  @IsBoolean()
-  isTemporary?: boolean = false;
-
-  @ApiPropertyOptional({ description: 'Ngày hết hạn (nếu isTemporary = true)' })
-  @IsOptional()
-  @IsDateString()
-  expiresAt?: string;
-
-  @ApiPropertyOptional({ description: 'Lý do gán role' })
-  @IsOptional()
-  @IsString()
-  reason?: string;
-}
-
-export class AssignmentOptionsDto {
-  @ApiPropertyOptional({ description: 'Xác nhận chuyển giao nếu đã có người giữ role', default: false })
-  @IsOptional()
-  @IsBoolean()
-  confirmTransfer?: boolean = false;
-
-  @ApiPropertyOptional({ description: 'Cho phép gán cross-division (chỉ HR_MANAGER+)', default: false })
-  @IsOptional()
-  @IsBoolean()
-  allowCrossDivision?: boolean = false;
-
-  @ApiPropertyOptional({ description: 'Bỏ qua validation nghiệp vụ (chỉ SUPER_ADMIN)', default: false })
-  @IsOptional()
-  @IsBoolean()
-  skipBusinessValidation?: boolean = false;
-}
+// Removed AssignmentDetailsDto and AssignmentOptionsDto as database doesn't support these fields
 
 export class UnifiedRoleAssignmentDto {
   @ApiProperty({ 
@@ -77,7 +42,6 @@ export class UnifiedRoleAssignmentDto {
     ]
   })
   @Transform(({ value }) => {
-    // Chuyển đổi single number thành array để xử lý thống nhất
     return Array.isArray(value) ? value : [value];
   })
   @IsArray()
@@ -95,18 +59,6 @@ export class UnifiedRoleAssignmentDto {
   @ValidateNested()
   @Type(() => AssignmentContextDto)
   context?: AssignmentContextDto;
-
-  @ApiPropertyOptional({ description: 'Chi tiết assignment' })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AssignmentDetailsDto)
-  assignment?: AssignmentDetailsDto;
-
-  @ApiPropertyOptional({ description: 'Tùy chọn assignment' })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AssignmentOptionsDto)
-  options?: AssignmentOptionsDto;
 }
 
 // Response DTOs
@@ -163,18 +115,7 @@ export class UnifiedRoleAssignmentResponseDto {
     failed: number;
   };
 
-  @ApiPropertyOptional({ description: 'Cảnh báo' })
-  warnings?: string[];
-
-  @ApiPropertyOptional({ description: 'Yêu cầu xác nhận (nếu có conflict)' })
-  requiresConfirmation?: boolean;
-
-  @ApiPropertyOptional({ description: 'Thông tin conflict cần giải quyết' })
-  conflictInfo?: {
-    conflictType: string;
-    currentAssignments: any[];
-    suggestedActions: string[];
-  };
+  // Removed complex conflict handling as it's not supported by current database schema
 }
 
 // Enum cho role types để validate context requirements

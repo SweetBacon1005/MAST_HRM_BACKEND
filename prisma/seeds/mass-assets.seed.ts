@@ -128,12 +128,18 @@ export async function seedMassAssets(prisma: PrismaClient, seedData: any) {
   const { massUsers, users: originalUsers } = seedData;
   const allUsers = [...(originalUsers || []), ...(massUsers || [])];
 
-  // Lấy admin users để làm creator
+  // Lấy admin users để làm creator từ user_role_assignment
+  const adminRoleAssignments = await prisma.user_role_assignment.findMany({
+    where: {
+      role: { name: { in: ['admin', 'manager'] } },
+      deleted_at: null,
+    },
+    select: { user_id: true },
+  });
+
   const adminUsers = await prisma.user_information.findMany({
     where: {
-      role: {
-        name: { in: ['admin', 'manager'] }
-      }
+      user_id: { in: adminRoleAssignments.map(ra => ra.user_id) },
     },
     include: { user: true }
   });
@@ -260,12 +266,18 @@ export async function seedMassAssets(prisma: PrismaClient, seedData: any) {
   console.log('📝 Tạo asset requests...');
   const assetRequestData: any[] = [];
 
-  // Lấy managers để làm approver
+  // Lấy managers để làm approver từ user_role_assignment
+  const managerRoleAssignments = await prisma.user_role_assignment.findMany({
+    where: {
+      role: { name: { in: ['admin', 'manager'] } },
+      deleted_at: null,
+    },
+    select: { user_id: true },
+  });
+
   const managers = await prisma.user_information.findMany({
     where: {
-      role: {
-        name: { in: ['admin', 'manager'] }
-      }
+      user_id: { in: managerRoleAssignments.map(ra => ra.user_id) },
     },
     include: { user: true }
   });

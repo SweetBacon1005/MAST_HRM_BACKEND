@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OtpType } from '@prisma/client';
+import { OtpType, ScopeType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import {
   ASSET_STATUSES,
@@ -18,7 +18,9 @@ import {
 } from '../common/constants/error-messages.constants';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import { ROLE_NAMES } from './constants/role.constants';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,6 +31,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokensDto } from './dto/tokens.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { OtpService } from './services/otp.service';
+import { RoleAssignmentService } from './services/role-assignment.service';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +42,8 @@ export class AuthService {
     private otpService: OtpService,
     private prisma: PrismaService,
     private activityLogService: ActivityLogService,
+    private roleAssignmentService: RoleAssignmentService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -71,7 +76,7 @@ export class AuthService {
     const tokens = await this.getTokens(
       Number(user.id),
       user.email,
-      user.user_information?.role?.name || '',
+      user.user_role_assignments.map((assignment) => assignment.role.name),
     );
 
     await this.activityLogService.logUserLogin(
@@ -116,9 +121,25 @@ export class AuthService {
     this.validatePasswordStrength(registerDto.password);
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
+
     const user = await this.usersService.create({
       ...registerDto,
       password: hashedPassword,
+    });
+
+    const role = await this.prisma.roles.findFirst({
+      where: { name: { equals: ROLE_NAMES.EMPLOYEE }, deleted_at: null },
+    });
+
+    if (!role) {
+      throw new BadRequestException(AUTH_ERRORS.ROLE_NOT_FOUND);
+    }
+
+    await this.roleAssignmentService.assignRole({
+      user_id: user.id,
+      role_id: role.id,
+      scope_type: ScopeType.COMPANY,
+      assigned_by: user.id,
     });
 
     await this.activityLogService.logCrudOperation(
@@ -132,45 +153,38 @@ export class AuthService {
       },
     );
 
-    const tokens = await this.getTokens(
-      Number(user.id),
-      user.email,
-      registerDto.role,
-    );
+    const tokens = await this.getTokens(Number(user.id), user.email, [
+      ROLE_NAMES.EMPLOYEE,
+    ]);
     return tokens;
   }
 
   async refresh(refreshTokenDto: RefreshTokenDto): Promise<TokensDto> {
-    try {
-      const payload = await this.jwtService.verify(
-        refreshTokenDto.refresh_token,
-        {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        },
-      );
+    const payload = await this.jwtService.verify(
+      refreshTokenDto.refresh_token,
+      {
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+      },
+    );
 
-      const userId = payload.sub;
-      if (!userId) {
-        throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
-      }
-
-      const user = await this.usersService.findById(Number(userId));
-      if (!user || user.deleted_at) {
-        throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
-      }
-
-      const tokens = await this.getTokens(
-        Number(user.id),
-        user.email,
-        user?.user_information?.role?.name || '',
-      );
-      return tokens;
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
+    const userId = payload.sub;
+    if (!userId) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
     }
+
+    const user = await this.usersService.findById(Number(userId));
+    if (!user || user.deleted_at) {
+      throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
+    }
+
+    const userRoles = await this.roleAssignmentService.getUserRoles(user.id);
+
+    const tokens = await this.getTokens(
+      Number(user.id),
+      user.email,
+      userRoles.roles.map((role) => role.name),
+    );
+    return tokens;
   }
 
   async logOut(_userId: number): Promise<{ message: string }> {
@@ -196,7 +210,7 @@ export class AuthService {
 
       const { password: _, ...result } = user;
       return {
-        ...result,  
+        ...result,
         join_date: user.created_at,
         today_attendance: {
           checkin: null,
@@ -213,11 +227,13 @@ export class AuthService {
         used_leave_days: 0,
         assigned_devices: [],
         organization: {
-          position_id: user.user_information?.position_id,
-          level_id: user.user_information?.level_id,
-          role_id: user.user_information?.role_id,
-          division_id: user.user_division?.[0]?.division?.id || null,
+          position_id: user.user_information?.position_id || null,
+          level_id: user.user_information?.level_id || null,
+          division_id: user.user_division?.division?.id || null,
+          team_id: null,
         },
+        unread_notifications: 0,
+        role_assignments: [],
       };
     }
   }
@@ -250,6 +266,7 @@ export class AuthService {
       usedLeaveDays,
       assignedDevices,
       userDivision,
+      unreadNotifications,
     ] = await Promise.all([
       this.prisma.user_information.findFirst({
         where: {
@@ -259,7 +276,6 @@ export class AuthService {
         select: {
           position_id: true,
           level_id: true,
-          role_id: true,
           user: {
             select: {
               created_at: true,
@@ -334,7 +350,14 @@ export class AuthService {
         select: {
           divisionId: true,
           teamId: true,
-          role_id: true,
+        },
+      }),
+
+      this.prisma.user_notifications.count({
+        where: {
+          user_id: userId,
+          is_read: false,
+          deleted_at: null,
         },
       }),
     ]);
@@ -356,13 +379,8 @@ export class AuthService {
       notes: asset.notes || '',
     }));
 
-    const unreadNotifications = await this.prisma.user_notifications.count({
-      where: {
-        user_id: userId,
-        is_read: false,
-        deleted_at: null,
-      },
-    });
+    // Lấy role assignments của user
+    const userRoles = await this.roleAssignmentService.getUserRoles(userId);
 
     return {
       join_date: userInfo?.user?.created_at.toISOString().split('T')[0],
@@ -383,11 +401,11 @@ export class AuthService {
       organization: {
         position_id: userInfo?.position_id || null,
         level_id: userInfo?.level_id || null,
-        role_id: userInfo?.role_id || null,
         division_id: userDivision?.divisionId || null,
         team_id: userDivision?.teamId || null,
       },
       unread_notifications: unreadNotifications,
+      role_assignments: userRoles.roles,
     };
   }
 
@@ -654,14 +672,14 @@ export class AuthService {
   private async getTokens(
     userId: number,
     email: string,
-    role: string,
+    roles: string[],
   ): Promise<TokensDto> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
           sub: userId,
           email,
-          role,
+          roles,
         },
         {
           secret: this.configService.get<string>('JWT_SECRET'),
@@ -672,7 +690,7 @@ export class AuthService {
         {
           sub: userId,
           email,
-          role,
+          roles,
         },
         {
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),

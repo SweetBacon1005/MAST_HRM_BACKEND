@@ -28,14 +28,6 @@ export class UpdateUserInformationDto {
   @IsString()
   code?: string;
 
-  @ApiProperty({
-    description: 'Đường dẫn avatar',
-    example: '/avatars/user.jpg',
-  })
-  @IsOptional()
-  @IsString()
-  avatar?: string;
-
   @ApiProperty({ description: 'Giới tính', example: 'Nam' })
   @IsOptional()
   @IsString()
@@ -85,10 +77,6 @@ export class UpdateUserInformationDto {
   @IsString()
   tax_code?: string;
 
-  @ApiProperty({ description: 'ID vai trò', example: 1 })
-  @IsOptional()
-  @IsInt()
-  role_id?: number;
 
   @ApiProperty({ description: 'Trạng thái', example: 'Đang làm việc' })
   @IsOptional()
