@@ -319,7 +319,6 @@ export class TimesheetService {
 
   async checkin(
     userId: number,
-    image: Express.Multer.File,
     checkinDto: CheckinDto,
   ) {
     const today = new Date().toISOString().split('T')[0];
@@ -351,48 +350,9 @@ export class TimesheetService {
           throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
-        let face_identified: FaceIdentifiedDto | null = null;
-        if (image) {
-          try {
-            const formData = new FormData();
-            formData.append('image', image.buffer, {
-              filename: image.originalname,
-              contentType: image.mimetype,
-            } as any);
-
-            const response = await this.httpService.axiosRef.post(
-              process.env.FACE_IDENTIFICATION_URL + '/identify',
-              formData,
-              { headers: formData.getHeaders() },
-            );
-
-            const result = response.data;
-
-            console.log(
-              'Face identification result:',
-              result.user_id,
-              userId,
-              typeof result.user_id,
-              typeof userId,
-            );
-            if (Number(result.user_id) !== userId) {
-              throw new BadRequestException(
-                'Xác thực khuôn mặt không thành công',
-              );
-            }
-
-            face_identified = result;
-          } catch (error) {
-            console.error(error);
-            throw new BadRequestException(
-              error.response?.data?.error ||
-                'Xác thực khuôn mặt không thành công',
-            );
-          }
-        }
-
-        if (!face_identified) {
-          throw new BadRequestException('Xác thực khuôn mặt không thành công');
+        // FE must verify face and upload image, then pass photo_url here
+        if (!checkinDto?.photo_url) {
+          throw new BadRequestException('Thiếu photo_url sau khi xác thực ảnh');
         }
 
         const existingCheckin = await tx.attendance_logs.findFirst({
@@ -479,7 +439,7 @@ export class TimesheetService {
             timestamp: checkinTime,
             work_date: new Date(today),
             location_type: checkinDto.location_type || 'OFFICE',
-            photo_url: face_identified.captured_image_url,
+            photo_url: checkinDto.photo_url,
             itempodency_key: idempotencyKey,
             status: 'APPROVED',
           },
@@ -516,7 +476,6 @@ export class TimesheetService {
 
   async checkout(
     userId: number,
-    image: Express.Multer.File,
     checkoutDto: CheckoutDto,
   ) {
     const today = new Date().toISOString().split('T')[0];
@@ -550,43 +509,9 @@ export class TimesheetService {
           throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
-        let face_identified: FaceIdentifiedDto | null = null;
-        if (image) {
-          try {
-            // Tạo form-data
-            const formData = new FormData();
-            formData.append('image', image.buffer, {
-              filename: image.originalname,
-              contentType: image.mimetype,
-            } as any);
-
-            // Gửi request
-            const response = await this.httpService.axiosRef.post(
-              process.env.FACE_IDENTIFICATION_URL + '/identify',
-              formData,
-              { headers: formData.getHeaders() },
-            );
-
-            const result = response.data;
-
-            if (Number(result.user_id) !== userId) {
-              throw new BadRequestException(
-                'Xác thực khuôn mặt không thành công',
-              );
-            }
-
-            face_identified = result;
-          } catch (error) {
-            console.error(error);
-            throw new BadRequestException(
-              error.response?.data?.error ||
-                'Xác thực khuôn mặt không thành công',
-            );
-          }
-        }
-
-        if (!face_identified) {
-          throw new BadRequestException('Xác thực khuôn mặt không thành công');
+        // FE must verify face and upload image, then pass photo_url here
+        if (!checkoutDto?.photo_url) {
+          throw new BadRequestException('Thiếu photo_url sau khi xác thực ảnh');
         }
 
         // Kiểm tra đã check-in hôm nay chưa
@@ -692,7 +617,7 @@ export class TimesheetService {
             timestamp: checkoutTime,
             work_date: new Date(today),
             location_type: checkoutDto.location_type || 'OFFICE',
-            photo_url: face_identified.captured_image_url,
+            photo_url: checkoutDto.photo_url,
             itempodency_key: idempotencyKey,
             status: 'APPROVED',
           },

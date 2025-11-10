@@ -244,17 +244,11 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Check-in' })
   @ApiResponse({ status: 201, description: 'Check-in thành công' })
   @ApiResponse({ status: 400, description: 'Đã check-in hôm nay rồi' })
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    type: CheckinDto, // metadata
-  })
   async checkin(
     @GetCurrentUser('id') userId: number,
-    @UploadedFile() image: Express.Multer.File,
     @Body() checkinDto: CheckinDto,
   ) {
-    return this.timesheetService.checkin(userId, image, checkinDto);
+    return this.timesheetService.checkin(userId, checkinDto);
   }
 
   @Post('checkout')

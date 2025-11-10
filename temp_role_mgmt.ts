@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -20,12 +21,13 @@ import {
 } from '@nestjs/swagger';
 import { PrismaService } from '../../database/prisma.service';
 import {
+  ACTIVE_PROJECT_STATUSES,
+  PROJECT_POSITIONS,
   ROLE_NAMES,
-  getHighestRole,
-  getRoleLevel,
 } from '../constants/role.constants';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
+import { UpdateUserRoleDto } from '../dto/role-management.dto';
 import {
   UnifiedRoleAssignmentDto,
   UnifiedRoleAssignmentResponseDto,
@@ -149,7 +151,7 @@ export class RoleManagementController {
         projectId: dto.context?.projectId,
         teamId: dto.context?.teamId,
         divisionId: dto.context?.divisionId,
-      },
+      }
     );
 
     // Format response
@@ -162,14 +164,14 @@ export class RoleManagementController {
               id: true,
               email: true,
               user_information: {
-                select: { name: true },
-              },
-            },
+                select: { name: true }
+              }
+            }
           });
 
           const role = await this.prisma.roles.findUnique({
             where: { id: dto.roleId },
-            select: { id: true, name: true },
+            select: { id: true, name: true }
           });
 
           return {
@@ -180,31 +182,29 @@ export class RoleManagementController {
               id: user?.id || 0,
               name: user?.user_information?.[0]?.name || '',
               email: user?.email || '',
-              role: role || { id: 0, name: '' },
+              role: role || { id: 0, name: '' }
             },
             context: await this.getContextInfo(dto.context),
-            replacedUser: r.replacedUser
-              ? {
-                  id: r.replacedUser.id,
-                  name: r.replacedUser.user_information?.name,
-                  email: r.replacedUser.email,
-                }
-              : undefined,
+            replacedUser: r.replacedUser ? {
+              id: r.replacedUser.id,
+              name: r.replacedUser.user_information?.name,
+              email: r.replacedUser.email
+            } : undefined
           };
         } else {
           return {
             userId: r.userId,
             success: false,
-            message: r.error || 'Có lỗi xảy ra khi gán role',
+            message: r.error || 'Có lỗi xảy ra khi gán role'
           };
         }
-      }),
+      })
     );
 
     return {
       success: result.summary.failed === 0,
       results: formattedResults,
-      summary: result.summary,
+      summary: result.summary
     };
   }
 
@@ -227,9 +227,9 @@ export class RoleManagementController {
       };
     }
 
-    const userRoleNames = userRoles.roles.map((r) => r.name);
+    const userRoleNames = userRoles.roles.map(r => r.name);
     const highestRole = this.getHighestRole(userRoleNames);
-
+    
     let assignableRoleNames: string[] = [];
 
     if (this.isHighLevelRole(highestRole)) {
@@ -365,11 +365,10 @@ export class RoleManagementController {
     }
 
     // Lấy roles có thể gán
-    const managerRoles =
-      await this.roleAssignmentService.getUserRoles(managerId);
-    const managerRoleNames = managerRoles.roles.map((r) => r.name);
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
     const highestManagerRole = this.getHighestRole(managerRoleNames);
-
+    
     let assignableRoleNames: string[] = [];
 
     if (this.isHighLevelRole(highestManagerRole)) {
@@ -400,15 +399,11 @@ export class RoleManagementController {
     });
 
     // Lấy role hiện tại của target user
-    const targetUserRoles =
-      await this.roleAssignmentService.getUserRoles(targetUserId);
-    const currentRole =
-      targetUserRoles.roles.length > 0
-        ? {
-            id: targetUserRoles.roles[0].id,
-            name: this.getHighestRole(targetUserRoles.roles.map((r) => r.name)),
-          }
-        : null;
+    const targetUserRoles = await this.roleAssignmentService.getUserRoles(targetUserId);
+    const currentRole = targetUserRoles.roles.length > 0 ? {
+      id: targetUserRoles.roles[0].id,
+      name: this.getHighestRole(targetUserRoles.roles.map(r => r.name))
+    } : null;
 
     return {
       availableRoles: roles,
@@ -421,15 +416,11 @@ export class RoleManagementController {
   /**
    * Kiểm tra có thể quản lý user không
    */
-  private async canManageUser(
-    managerId: number,
-    targetUserId: number,
-  ): Promise<boolean> {
+  private async canManageUser(managerId: number, targetUserId: number): Promise<boolean> {
     if (managerId === targetUserId) return false;
 
-    const managerRoles =
-      await this.roleAssignmentService.getUserRoles(managerId);
-    const managerRoleNames = managerRoles.roles.map((r) => r.name);
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
     const highestManagerRole = this.getHighestRole(managerRoleNames);
 
     // High-level roles có thể quản lý tất cả
@@ -448,20 +439,17 @@ export class RoleManagementController {
   /**
    * Kiểm tra user có trong cùng division không
    */
-  private async isUserInSameDivision(
-    managerId: number,
-    targetUserId: number,
-  ): Promise<boolean> {
+  private async isUserInSameDivision(managerId: number, targetUserId: number): Promise<boolean> {
     const managerDivision = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: managerId,
         role: {
           name: ROLE_NAMES.DIVISION_HEAD,
-          deleted_at: null,
+          deleted_at: null
         },
-        deleted_at: null,
+        deleted_at: null
       },
-      select: { scope_id: true },
+      select: { scope_id: true }
     });
 
     if (!managerDivision?.scope_id) return false;
@@ -469,9 +457,9 @@ export class RoleManagementController {
     const targetDivision = await this.prisma.user_division.findFirst({
       where: {
         userId: targetUserId,
-        deleted_at: null,
+        deleted_at: null
       },
-      select: { divisionId: true },
+      select: { divisionId: true }
     });
 
     return targetDivision?.divisionId === managerDivision.scope_id;
@@ -522,20 +510,19 @@ export class RoleManagementController {
   private async validateAssignmentPermission(
     managerId: number,
     roleId: number,
-    dto: UnifiedRoleAssignmentDto,
+    dto: UnifiedRoleAssignmentDto
   ) {
-    const managerRoles =
-      await this.roleAssignmentService.getUserRoles(managerId);
+    const managerRoles = await this.roleAssignmentService.getUserRoles(managerId);
     const targetRole = await this.prisma.roles.findUnique({
       where: { id: roleId, deleted_at: null },
-      select: { name: true },
+      select: { name: true }
     });
 
     if (!targetRole) {
       throw new NotFoundException('Role không tồn tại');
     }
 
-    const managerRoleNames = managerRoles.roles.map((r) => r.name);
+    const managerRoleNames = managerRoles.roles.map(r => r.name);
     const highestManagerRole = this.getHighestRole(managerRoleNames);
 
     // Kiểm tra quyền theo hierarchy
@@ -549,12 +536,12 @@ export class RoleManagementController {
       const allowedRoles = [
         ROLE_NAMES.PROJECT_MANAGER,
         ROLE_NAMES.TEAM_LEADER,
-        ROLE_NAMES.EMPLOYEE,
+        ROLE_NAMES.EMPLOYEE
       ];
 
       if (!allowedRoles.includes(targetRole.name as any)) {
         throw new ForbiddenException(
-          `Division Head không thể gán role ${targetRole.name}`,
+          `Division Head không thể gán role ${targetRole.name}`
         );
       }
 
@@ -568,21 +555,18 @@ export class RoleManagementController {
   /**
    * Kiểm tra scope division
    */
-  private async validateDivisionScope(
-    managerId: number,
-    dto: UnifiedRoleAssignmentDto,
-  ) {
+  private async validateDivisionScope(managerId: number, dto: UnifiedRoleAssignmentDto) {
     // Lấy division của manager
     const managerDivision = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: managerId,
         role: {
           name: ROLE_NAMES.DIVISION_HEAD,
-          deleted_at: null,
+          deleted_at: null
         },
-        deleted_at: null,
+        deleted_at: null
       },
-      select: { scope_id: true },
+      select: { scope_id: true }
     });
 
     if (!managerDivision?.scope_id) {
@@ -594,14 +578,14 @@ export class RoleManagementController {
       const userDivision = await this.prisma.user_division.findFirst({
         where: {
           userId: userId,
-          deleted_at: null,
+          deleted_at: null
         },
-        select: { divisionId: true },
+        select: { divisionId: true }
       });
 
       if (userDivision?.divisionId !== managerDivision.scope_id) {
         throw new ForbiddenException(
-          `User ${userId} không thuộc division của bạn`,
+          `User ${userId} không thuộc division của bạn`
         );
       }
     }
@@ -614,7 +598,7 @@ export class RoleManagementController {
     return [
       ROLE_NAMES.SUPER_ADMIN,
       ROLE_NAMES.ADMIN,
-      ROLE_NAMES.COMPANY_OWNER,
+      ROLE_NAMES.COMPANY_OWNER
     ].includes(roleName as any);
   }
 
@@ -624,14 +608,28 @@ export class RoleManagementController {
   private getHighestRole(roleNames: string[]): string {
     if (!roleNames || roleNames.length === 0) return ROLE_NAMES.EMPLOYEE;
 
-    return getHighestRole(roleNames) || ROLE_NAMES.EMPLOYEE;
+    return roleNames.reduce((highest, current) => {
+      const currentLevel = this.getRoleLevel(current);
+      const highestLevel = this.getRoleLevel(highest);
+      return currentLevel > highestLevel ? current : highest;
+    });
   }
 
   /**
    * Lấy level của role
    */
   private getRoleLevel(roleName: string): number {
-    return getRoleLevel(roleName);
+    const hierarchy = {
+      [ROLE_NAMES.SUPER_ADMIN]: 100,
+      [ROLE_NAMES.ADMIN]: 90,
+      [ROLE_NAMES.COMPANY_OWNER]: 80,
+      [ROLE_NAMES.HR_MANAGER]: 70,
+      [ROLE_NAMES.DIVISION_HEAD]: 60,
+      [ROLE_NAMES.PROJECT_MANAGER]: 50,
+      [ROLE_NAMES.TEAM_LEADER]: 40,
+      [ROLE_NAMES.EMPLOYEE]: 10,
+    };
+    return hierarchy[roleName] || 0;
   }
 
   /**
@@ -661,7 +659,7 @@ export class RoleManagementController {
     if (context.projectId) {
       const project = await this.prisma.projects.findUnique({
         where: { id: context.projectId },
-        select: { id: true, name: true, code: true },
+        select: { id: true, name: true, code: true }
       });
       result.project = project;
     }
@@ -669,7 +667,7 @@ export class RoleManagementController {
     if (context.teamId) {
       const team = await this.prisma.teams.findUnique({
         where: { id: context.teamId },
-        select: { id: true, name: true },
+        select: { id: true, name: true }
       });
       result.team = team;
     }
@@ -677,7 +675,7 @@ export class RoleManagementController {
     if (context.divisionId) {
       const division = await this.prisma.divisions.findUnique({
         where: { id: context.divisionId },
-        select: { id: true, name: true },
+        select: { id: true, name: true }
       });
       result.division = division;
     }
@@ -685,3 +683,4 @@ export class RoleManagementController {
     return result;
   }
 }
+

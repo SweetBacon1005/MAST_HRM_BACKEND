@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { ScopeType } from '@prisma/client';
+import { getRoleLevel } from '../constants/role.constants';
 
 export interface RoleAssignmentData {
   user_id: number;
@@ -157,29 +158,36 @@ export class RoleAssignmentService {
    * Lấy primary role của user trong scope cụ thể
    */
   async getUserPrimaryRole(userId: number, scopeType: ScopeType, scopeId?: number) {
-    const assignment = await this.prisma.user_role_assignment.findFirst({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
         scope_type: scopeType,
         scope_id: scopeId,
-        deleted_at: null
+        deleted_at: null,
       },
-      include: {
-        role: true
-      }
+      include: { role: true },
     });
 
-    return assignment ? {
-      id: assignment.role.id,
-      name: assignment.role.name,
-      scope_type: assignment.scope_type,
-      scope_id: assignment.scope_id
-    } : null;
-  }
+    if (!assignments.length) return null;
 
-  /**
-   * Kiểm tra user có role cụ thể trong scope không
-   */
+    let highest = assignments[0];
+    let highestLevel = getRoleLevel(assignments[0].role.name);
+    for (let i = 1; i < assignments.length; i++) {
+      const level = getRoleLevel(assignments[i].role.name);
+      if (level > highestLevel) {
+        highest = assignments[i];
+        highestLevel = level;
+      }
+    }
+
+    return {
+      id: highest.role.id,
+      name: highest.role.name,
+      scope_type: highest.scope_type,
+      scope_id: highest.scope_id,
+    };
+  }
+  
   async hasRole(userId: number, roleName: string, scopeType: ScopeType, scopeId?: number): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {

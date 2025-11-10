@@ -65,7 +65,6 @@ export const ROLE_HIERARCHY = {
   [ROLE_NAMES.EMPLOYEE]: 10,
 } as const;
 
-// Helper function để lấy level của role
 export const getRoleLevel = (roleName: string): number => {
   return ROLE_HIERARCHY[roleName as keyof typeof ROLE_HIERARCHY] || 0;
 };

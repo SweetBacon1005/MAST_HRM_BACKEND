@@ -1,5 +1,5 @@
 import { ScopeType } from '@prisma/client';
-import { ROLE_HIERARCHY, getRoleLevel, getHighestRole, ROLE_NAMES } from '../constants/role.constants';
+import { getRoleLevel, ROLE_NAMES } from '../constants/role.constants';
 
 export interface UserRoleInfo {
   id: number;
@@ -163,6 +163,8 @@ export const extractUserRoleInfo = (user: any): UserRoleInfo => {
     roleAssignments: user.roleAssignments || []
   };
 };
+
+
 
 
 
