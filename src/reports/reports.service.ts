@@ -460,10 +460,7 @@ export class ReportsService {
     const remoteRecords = timesheets.filter(
       (t) => t.remote === 'REMOTE',
     ).length;
-    const totalPenalties = timesheets.reduce(
-      (sum, t) => sum + (t.fines || 0),
-      0,
-    );
+    const totalPenalties = 0;
 
     // Thống kê theo ngày
     const dailyStats = this.groupAttendanceByPeriod(
@@ -1152,11 +1149,7 @@ export class ReportsService {
         lte: new Date(endDate + 'T23:59:59.999Z'),
       },
       deleted_at: null,
-      OR: [
-        { late_time: { gt: 0 } },
-        { early_time: { gt: 0 } },
-        { fines: { gt: 0 } },
-      ],
+      OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],
     };
 
     if (userIds.length > 0) {
@@ -1196,7 +1189,7 @@ export class ReportsService {
         uv.early_leave_count = (uv.early_leave_count || 0) + 1;
         uv.total_early_minutes = (uv.total_early_minutes || 0) + violation.early_time;
       }
-      uv.total_penalties = (uv.total_penalties || 0) + (violation.fines || 0);
+      uv.total_penalties = (uv.total_penalties || 0) + 0;
     });
 
     return Object.values(userViolations)
@@ -1314,7 +1307,7 @@ export class ReportsService {
           (timesheet.work_time_afternoon || 0)) /
         60;
       us.total_work_hours += workHours;
-      us.total_penalties! += timesheet.fines || 0;
+      us.total_penalties! += 0;
     });
 
     return {
@@ -1343,7 +1336,7 @@ export class ReportsService {
           ((timesheet.work_time_morning || 0) +
             (timesheet.work_time_afternoon || 0)) /
           60,
-        penalties: timesheet.fines || 0,
+        penalties: 0,
         is_remote: timesheet.remote === RemoteType.REMOTE,
         status: timesheet.status,
       })),
@@ -1355,12 +1348,9 @@ export class ReportsService {
    * Tạo báo cáo phạt
    */
   private generatePenaltyReport(timesheets: any[], period: string) {
-    const penaltyRecords = timesheets.filter((t) => (t.fines || 0) > 0);
+    const penaltyRecords: any[] = [];
 
-    const totalPenalties = penaltyRecords.reduce(
-      (sum, t) => sum + (t.fines || 0),
-      0,
-    );
+    const totalPenalties = 0;
     
     const penaltyByUser: Record<number, PenaltyByUser> = {};
 
@@ -1376,14 +1366,12 @@ export class ReportsService {
         };
       }
 
-      penaltyByUser[userId].total_penalty += record.fines || 0;
+      penaltyByUser[userId].total_penalty += 0;
       penaltyByUser[userId].violation_count += 1;
 
       // Ước tính phân bổ phạt
-      if (record.late_time > 0)
-        penaltyByUser[userId].late_penalty += (record.fines || 0) * 0.6;
-      if (record.early_time > 0)
-        penaltyByUser[userId].early_penalty += (record.fines || 0) * 0.4;
+      if (record.late_time > 0) penaltyByUser[userId].late_penalty += 0;
+      if (record.early_time > 0) penaltyByUser[userId].early_penalty += 0;
     });
 
     return {
@@ -1397,7 +1385,7 @@ export class ReportsService {
         date: record.checkin.toISOString().split('T')[0],
         late_minutes: record.late_time || 0,
         early_minutes: record.early_time || 0,
-        penalty_amount: record.fines || 0,
+        penalty_amount: 0,
       })),
       generated_at: new Date(),
     };

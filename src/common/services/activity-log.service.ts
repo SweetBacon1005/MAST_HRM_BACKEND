@@ -98,7 +98,6 @@ export class ActivityLogService {
           causer_type: 'User', // Mặc định là User
           causer_id: data.causerId,
           properties: data.properties || {},
-          batch_uuid: data.batchUuid || uuidv4(),
         },
       });
     } catch (error) {
@@ -124,7 +123,6 @@ export class ActivityLogService {
           causer_type: 'User',
           causer_id: activity.causerId,
           properties: activity.properties || {},
-          batch_uuid: batchUuid,
         })),
       });
     } catch (error) {

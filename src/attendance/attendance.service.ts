@@ -807,10 +807,7 @@ export class AttendanceService {
     const remoteRecords = timesheets.filter(
       (t) => t.remote === 'REMOTE',
     ).length;
-    const totalPenalties = timesheets.reduce(
-      (sum, t) => sum + (t.fines || 0),
-      0,
-    );
+    const totalPenalties = 0;
 
     // Thống kê theo ngày
     const dailyStats = this.groupAttendanceByPeriod(
@@ -904,7 +901,7 @@ export class AttendanceService {
       if (timesheet.early_time && timesheet.early_time > 0)
         grouped[key].early_leave += 1;
       if (timesheet.remote === 1) grouped[key].remote += 1;
-      grouped[key].total_penalties += timesheet.fines || 0;
+      grouped[key].total_penalties += 0;
     });
 
     return Object.values(grouped).sort((a: any, b: any) =>
@@ -932,11 +929,7 @@ export class AttendanceService {
     const violations = await this.prisma.time_sheets.findMany({
       where: {
         ...where,
-        OR: [
-          { late_time: { gt: 0 } },
-          { early_time: { gt: 0 } },
-          { fines: { gt: 0 } },
-        ],
+        OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],
       },
     });
 
@@ -966,7 +959,7 @@ export class AttendanceService {
         userViolations[userId].early_leave_count += 1;
         userViolations[userId].total_early_minutes += violation.early_time;
       }
-      userViolations[userId].total_penalties += violation.fines || 0;
+      userViolations[userId].total_penalties += 0;
     });
 
     return Object.values(userViolations)
@@ -1118,7 +1111,7 @@ export class AttendanceService {
           (timesheet.work_time_afternoon || 0)) /
         60;
       userStats[userId].total_work_hours += workHours;
-      userStats[userId].total_penalties += timesheet.fines || 0;
+      userStats[userId].total_penalties += 0;
     });
 
     return {
@@ -1144,7 +1137,7 @@ export class AttendanceService {
           ((timesheet.work_time_morning || 0) +
             (timesheet.work_time_afternoon || 0)) /
           60,
-        penalties: timesheet.fines || 0,
+        penalties: 0,
         is_remote: timesheet.remote === RemoteType.REMOTE,
         status: timesheet.status,
       })),
@@ -1153,12 +1146,9 @@ export class AttendanceService {
   }
 
   private generatePenaltyReport(timesheets: any[], period: string) {
-    const penaltyRecords = timesheets.filter((t) => (t.fines || 0) > 0);
+    const penaltyRecords: any[] = [];
 
-    const totalPenalties = penaltyRecords.reduce(
-      (sum, t) => sum + (t.fines || 0),
-      0,
-    );
+    const totalPenalties = 0;
     const penaltyByUser: { [key: number]: any } = {};
 
     penaltyRecords.forEach((record) => {
@@ -1173,14 +1163,12 @@ export class AttendanceService {
         };
       }
 
-      penaltyByUser[userId].total_penalty += record.fines || 0;
+      penaltyByUser[userId].total_penalty += 0;
       penaltyByUser[userId].violation_count += 1;
 
       // Ước tính phân bổ phạt (có thể cải thiện với dữ liệu chi tiết hơn)
-      if (record.late_time > 0)
-        penaltyByUser[userId].late_penalty += (record.fines || 0) * 0.6;
-      if (record.early_time > 0)
-        penaltyByUser[userId].early_penalty += (record.fines || 0) * 0.4;
+      if (record.late_time > 0) penaltyByUser[userId].late_penalty += 0;
+      if (record.early_time > 0) penaltyByUser[userId].early_penalty += 0;
     });
 
     return {
@@ -1194,7 +1182,7 @@ export class AttendanceService {
         date: record.checkin.toISOString().split('T')[0],
         late_minutes: record.late_time || 0,
         early_minutes: record.early_time || 0,
-        penalty_amount: record.fines || 0,
+        penalty_amount: 0,
       })),
       generated_at: new Date(),
     };

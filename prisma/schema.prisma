@@ -126,12 +126,11 @@ model permissions {
 model positions {
     id                Int                @id @default(autoincrement())
     name              String             @db.VarChar(255)
-    is_active_project Boolean            @default(false)
     created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at        DateTime           @updatedAt
     deleted_at        DateTime?          @db.DateTime(6)
-    skills            skills[]
     user_information  user_information[]
+    skills            skills[]
 }
 
 model roles {
@@ -140,7 +139,6 @@ model roles {
     created_at           DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at           DateTime               @updatedAt
     deleted_at           DateTime?              @db.DateTime(6)
-    allocations          allocations[]
     permission_role      permission_role[]
     user_role_assignment user_role_assignment[]
 }
@@ -154,7 +152,6 @@ model skills {
     updated_at  DateTime      @updatedAt
     deleted_at  DateTime?     @db.DateTime(6)
     user_skills user_skills[]
-    allocations allocations[]
 
     @@index([position_id])
 }
@@ -238,7 +235,6 @@ model activity_log {
     causer_id    Int
     causer       users    @relation("Causer", fields: [causer_id], references: [id])
     properties   Json
-    batch_uuid   String   @db.Char(36)
     created_at   DateTime @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at   DateTime @updatedAt
 }
@@ -271,28 +267,6 @@ model permission_role {
     @@index([role_id])
 }
 
-model allocations {
-    id          Int       @id @default(autoincrement())
-    user_id     Int
-    user        users     @relation(fields: [user_id], references: [id])
-    start_date  DateTime  @db.Date
-    end_date    DateTime  @db.Date
-    man_day     Int
-    allocation  Int
-    skill_id    Int
-    skill       skills    @relation(fields: [skill_id], references: [id])
-    coefficient Float     @db.Double
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-    role_id     Int
-    role        roles     @relation(fields: [role_id], references: [id])
-    deleted_at  DateTime? @db.DateTime()
-
-    @@index([user_id])
-    @@index([skill_id])
-    @@index([role_id])
-    @@index([start_date, end_date])
-}
 
 model daily_reports {
     id               Int                @id @default(autoincrement())
@@ -349,15 +323,9 @@ model projects {
     team_id              Int?
     team                 teams?               @relation(fields: [team_id], references: [id])
     project_type         ProjectType?
-    billable             Float?
-    budget               Float?
-    rank                 Int?
     industry             IndustryType?
     scope                String?
-    number_process_apply Int?
     description          String?
-    critical             String?
-    note                 String?
     start_date           DateTime
     end_date             DateTime
     created_at           DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
@@ -391,7 +359,6 @@ model users {
     day_offs                         day_offs[]                @relation("user")
     approved_by_user                 day_offs[]                @relation("approved_by_user")
     time_sheets                      time_sheets[]
-    allocations                      allocations[]
     daily_reports                    daily_reports[]
     activity_log_subject             activity_log[]            @relation("Subject")
     activity_log_causer              activity_log[]            @relation("Causer")
@@ -418,20 +385,6 @@ model users {
     assigned_role_assignments        user_role_assignment[]    @relation("UserRoleAssigner")
 }
 
-model checkouts {
-    id            Int      @id @default(autoincrement())
-    user_id       Int
-    checkout_date DateTime @db.Date
-    status        Int
-    request_id    Int?
-
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([user_id])
-    @@index([request_id])
-}
 
 model day_offs {
     id                       Int                  @id @default(autoincrement())

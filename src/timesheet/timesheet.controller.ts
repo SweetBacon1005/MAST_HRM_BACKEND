@@ -255,17 +255,11 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Check-out' })
   @ApiResponse({ status: 200, description: 'Check-out thành công' })
   @ApiResponse({ status: 400, description: 'Chưa check-in hoặc đã check-out' })
-  @UseInterceptors(FileInterceptor('image'))
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    type: CheckoutDto, // metadata
-  })
   checkout(
     @GetCurrentUser('id') userId: number,
-    @UploadedFile() image: Express.Multer.File,
     @Body() checkoutDto: CheckoutDto,
   ) {
-    return this.timesheetService.checkout(userId, image, checkoutDto);
+    return this.timesheetService.checkout(userId, checkoutDto);
   }
 
   @Get('attendance/today')

@@ -64,9 +64,6 @@ export class UserProfileService {
         experience: {
           where: { deleted_at: null },
         },
-        user_certificates: {
-          where: { deleted_at: null },
-        },
         user_skills: {
           where: { deleted_at: null },
           include: {
@@ -376,86 +373,22 @@ export class UserProfileService {
 
   // Quản lý chứng chỉ
   async createUserCertificate(createDto: CreateUserCertificateDto) {
-    return await this.prisma.user_certificates.create({
-      data: {
-        ...createDto,
-        issued_at: new Date(createDto.issued_at),
-        start_date: new Date(createDto.start_date),
-        certificate_id: createDto.certificate_id,
-        type: createDto.type,
-      },
-    });
+    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
   }
 
   async getUserCertificates(userId: number) {
-    return await this.prisma.user_certificates.findMany({
-      where: {
-        user_id: userId,
-        ...{ deleted_at: null },
-      },
-      orderBy: { issued_at: 'desc' },
-    });
+    return [];
   }
 
   async updateUserCertificate(
     certificateId: number,
     updateDto: UpdateUserCertificateDto,
   ) {
-    const certificate = await this.prisma.user_certificates.findFirst({
-      where: {
-        id: certificateId,
-        ...{ deleted_at: null },
-        user_id: updateDto.user_id,
-      },
-    });
-
-    if (!certificate) {
-      throw new NotFoundException('Không tìm thấy thông tin chứng chỉ');
-    }
-
-    if (certificate.user_id !== updateDto.user_id) {
-      throw new ForbiddenException(
-        'Bạn không có quyền cập nhật thông tin chứng chỉ',
-      );
-    }
-
-    return await this.prisma.user_certificates.update({
-      where: { id: certificateId },
-      data: {
-        ...updateDto,
-        certificate_id: updateDto.certificate_id,
-        type: updateDto.type,
-        start_date: updateDto.start_date
-          ? new Date(updateDto.start_date).toISOString()
-          : undefined,
-        issued_at: updateDto.issued_at
-          ? new Date(updateDto.issued_at).toISOString()
-          : undefined,
-      },
-    });
+    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
   }
 
   async deleteUserCertificate(certificateId: number, userId: number) {
-    const certificate = await this.prisma.user_certificates.findFirst({
-      where: { id: certificateId, deleted_at: null },
-    });
-
-    if (!certificate) {
-      throw new NotFoundException('Không tìm thấy thông tin chứng chỉ');
-    }
-
-    if (certificate.user_id !== userId) {
-      throw new ForbiddenException(
-        'Bạn không có quyền xóa thông tin chứng chỉ',
-      );
-    }
-
-    await this.prisma.user_certificates.update({
-      where: { id: certificateId },
-      data: { deleted_at: new Date() },
-    });
-
-    return { message: 'Xóa thông tin chứng chỉ thành công' };
+    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
   }
 
   // Quản lý kỹ năng
@@ -726,39 +659,7 @@ export class UserProfileService {
     userId: number,
     paginationDto: CertificatePaginationDto,
   ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.user_certificatesWhereInput = {
-      user_id: userId,
-      deleted_at: null,
-    };
-
-    // Thêm filter theo certificate_id
-    if (paginationDto.certificate_id) {
-      where.certificate_id = {
-        equals: paginationDto.certificate_id,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.user_certificates.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          certificate: true,
-        },
-      }),
-      this.prisma.user_certificates.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
+    return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
   }
 
   async getUserSkillsPaginated(

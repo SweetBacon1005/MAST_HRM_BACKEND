@@ -80,7 +80,6 @@ export class MeetingRoomsService {
           start_time: start,
           end_time: end,
           organizer_id: userId,
-          status: 'confirmed',
         },
         include: { room: true },
       });
