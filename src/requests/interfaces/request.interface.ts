@@ -1,4 +1,4 @@
-import { DayOffStatus, TimesheetStatus } from '@prisma/client';
+import { DayOffStatus, ApprovalStatus } from '@prisma/client';
 
 export enum RequestType {
   DAY_OFF = 'day-off',

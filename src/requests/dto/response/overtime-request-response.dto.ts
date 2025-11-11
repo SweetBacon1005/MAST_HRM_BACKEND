@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TimesheetStatus } from '@prisma/client';
+import { ApprovalStatus } from '@prisma/client';
 
 export class OvertimeRequestResponseDto {
   @ApiProperty({
@@ -88,10 +88,10 @@ export class OvertimeRequestResponseDto {
 
   @ApiPropertyOptional({
     description: 'Trạng thái của request',
-    enum: TimesheetStatus,
-    example: TimesheetStatus.PENDING,
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
-  status: TimesheetStatus | null;
+  status: ApprovalStatus | null;
 
   @ApiProperty({
     description: 'Thời gian tạo',

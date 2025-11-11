@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationType, RemoteType, SessionType } from '@prisma/client';
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CheckinDto {
@@ -87,13 +87,12 @@ export class CheckinDto {
 export class CheckoutDto {
   @ApiPropertyOptional({
     description: 'Loại địa điểm',
-    example: 'OFFICE',
-    enum: ['OFFICE', 'REMOTE', 'CLIENT_SITE'],
+    example: LocationType.OFFICE,
+    enum: LocationType,
   })
   @IsOptional()
-  @IsString()
-  @IsIn(['OFFICE', 'REMOTE', 'CLIENT_SITE'])
-  location_type?: string;
+  @IsEnum(LocationType)
+  location_type?: LocationType;
 
   @ApiPropertyOptional({
     description: 'Loại phiên làm việc',

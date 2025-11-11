@@ -10,7 +10,7 @@ import {
   DayOffStatus,
   DayOffType,
   RemoteType,
-  TimesheetStatus,
+  ApprovalStatus,
   TimesheetType,
   WorkShiftType,
 } from '@prisma/client';
@@ -169,7 +169,7 @@ export class AttendanceService {
       work_time_afternoon: calculations.afternoon_minutes,
       remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
       is_complete: true,
-      status: TimesheetStatus.PENDING,
+      status: ApprovalStatus.PENDING,
       type: TimesheetType.NORMAL,
     };
 
@@ -650,7 +650,7 @@ export class AttendanceService {
           checkin,
           checkout,
           remote: RemoteType.REMOTE,
-          status: TimesheetStatus.PENDING,
+          status: ApprovalStatus.PENDING,
           is_complete: true,
           type: TimesheetType.NORMAL,
           work_time_morning: is_full_day

@@ -12,7 +12,7 @@ import {
   DayOffStatus,
   HolidayStatus,
   Prisma,
-  TimesheetStatus,
+  ApprovalStatus,
 } from '@prisma/client';
 import FormData from 'form-data';
 import {
@@ -48,7 +48,7 @@ import {
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { DayOffCalculator } from './enums/day-off.enum';
-import { TimesheetStatusManager } from './enums/timesheet-status.enum';
+import { ApprovalStatusManager } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
 
 @Injectable()
@@ -238,10 +238,10 @@ export class TimesheetService {
     // Kiểm tra xem timesheet có thể chỉnh sửa không
     const currentState = timesheet.status
       ? timesheet.status
-      : TimesheetStatus.PENDING;
-    if (!TimesheetStatusManager.canEdit(currentState)) {
+      : ApprovalStatus.PENDING;
+    if (!ApprovalStatusManager.canEdit(currentState)) {
       throw new BadRequestException(
-        `Không thể sửa timesheet ở trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
+        `Không thể sửa timesheet ở trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
       );
     }
 
@@ -272,10 +272,10 @@ export class TimesheetService {
     // Kiểm tra xem timesheet có thể xóa không
     const currentState = timesheet.status
       ? timesheet.status
-      : TimesheetStatus.PENDING;
-    if (!TimesheetStatusManager.canDelete(currentState)) {
+      : ApprovalStatus.PENDING;
+    if (!ApprovalStatusManager.canDelete(currentState)) {
       throw new BadRequestException(
-        `Không thể xóa timesheet ở trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
+        `Không thể xóa timesheet ở trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
       );
     }
 
@@ -1061,7 +1061,7 @@ export class TimesheetService {
     const rejectedTimesheets = await this.prisma.time_sheets.count({
       where: {
         user_id: userId,
-        status: TimesheetStatus.REJECTED, // Từ chối
+        status: ApprovalStatus.REJECTED, // Từ chối
         deleted_at: null,
       },
     });
@@ -1525,7 +1525,7 @@ export class TimesheetService {
         timestamp: new Date(createAttendanceLogDto.timestamp),
         work_date: workDate,
         is_manual: createAttendanceLogDto.is_manual || false,
-        status: createAttendanceLogDto.status || TimesheetStatus.PENDING,
+        status: createAttendanceLogDto.status || ApprovalStatus.PENDING,
       },
       include: {
         user: {
@@ -1712,7 +1712,7 @@ export class TimesheetService {
       where: { id, user_id: updateAttendanceLogDto.userId },
       data: {
         ...updateAttendanceLogDto,
-        status: updateAttendanceLogDto.status || TimesheetStatus.PENDING,
+        status: updateAttendanceLogDto.status || ApprovalStatus.PENDING,
       },
       include: {
         user: {
@@ -1777,13 +1777,13 @@ export class TimesheetService {
 
     // Kiểm tra có thể chuyển trạng thái không
     if (
-      !TimesheetStatusManager.canTransition(
-        timesheet.status || TimesheetStatus.PENDING,
-        TimesheetStatus.APPROVED,
+      !ApprovalStatusManager.canTransition(
+        timesheet.status || ApprovalStatus.PENDING,
+        ApprovalStatus.APPROVED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể submit timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(timesheet.status || TimesheetStatus.PENDING)}`,
+        `Không thể submit timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(timesheet.status || ApprovalStatus.PENDING)}`,
       );
     }
 
@@ -1799,15 +1799,15 @@ export class TimesheetService {
   async approveTimesheet(id: number, _approverId: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetStatus.PENDING;
+    const currentState = timesheet.status || ApprovalStatus.PENDING;
     if (
-      !TimesheetStatusManager.canTransition(
+      !ApprovalStatusManager.canTransition(
         currentState,
-        TimesheetStatus.APPROVED,
+        ApprovalStatus.APPROVED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể duyệt timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
+        `Không thể duyệt timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
       );
     }
 
@@ -1826,15 +1826,15 @@ export class TimesheetService {
   async rejectTimesheet(id: number, _rejectorId: number, _reason?: string) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetStatus.PENDING;
+    const currentState = timesheet.status || ApprovalStatus.PENDING;
     if (
-      !TimesheetStatusManager.canTransition(
+      !ApprovalStatusManager.canTransition(
         currentState,
-        TimesheetStatus.REJECTED,
+        ApprovalStatus.REJECTED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể từ chối timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
+        `Không thể từ chối timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
       );
     }
 
@@ -1853,15 +1853,15 @@ export class TimesheetService {
   async lockTimesheet(id: number, _lockerId: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    const currentState = timesheet.status || TimesheetStatus.PENDING;
+    const currentState = timesheet.status || ApprovalStatus.PENDING;
     if (
-      !TimesheetStatusManager.canTransition(
+      !ApprovalStatusManager.canTransition(
         currentState,
-        TimesheetStatus.APPROVED,
+        ApprovalStatus.APPROVED,
       )
     ) {
       throw new BadRequestException(
-        `Không thể khóa timesheet từ trạng thái: ${TimesheetStatusManager.getStateName(currentState)}`,
+        `Không thể khóa timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
       );
     }
 

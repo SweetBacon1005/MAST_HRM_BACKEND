@@ -50,6 +50,7 @@ export class AssetsService {
         ...createAssetDto,
         category: createAssetDto.category as any,
         purchase_date: createAssetDto.purchase_date ? new Date(createAssetDto.purchase_date) : null,
+        purchase_price: createAssetDto.purchase_price ? parseFloat(createAssetDto.purchase_price) : null,
         warranty_end_date: createAssetDto.warranty_end_date ? new Date(createAssetDto.warranty_end_date) : null,
         created_by: createdBy,
       },
@@ -272,6 +273,9 @@ export class AssetsService {
 
     if (updateAssetDto.purchase_date) {
       updateData.purchase_date = new Date(updateAssetDto.purchase_date);
+    }
+    if (updateAssetDto.purchase_price !== undefined) {
+      updateData.purchase_price = updateAssetDto.purchase_price ? parseFloat(updateAssetDto.purchase_price) : null;
     }
     if (updateAssetDto.warranty_end_date) {
       updateData.warranty_end_date = new Date(updateAssetDto.warranty_end_date);
@@ -551,7 +555,6 @@ export class AssetsService {
       category: createAssetRequestDto.category,
       description: createAssetRequestDto.description,
       justification: createAssetRequestDto.justification,
-      priority: createAssetRequestDto.priority || 'NORMAL',
       expected_date: createAssetRequestDto.expected_date ? new Date(createAssetRequestDto.expected_date) : null,
     };
 
@@ -595,7 +598,6 @@ export class AssetsService {
       properties: {
         request_type: request.request_type,
         category: request.category,
-        priority: request.priority,
         asset_id: request.asset_id,
       },
     });
@@ -625,7 +627,6 @@ export class AssetsService {
     if (paginationDto.status) whereConditions.status = paginationDto.status;
     if (paginationDto.request_type) whereConditions.request_type = paginationDto.request_type;
     if (paginationDto.category) whereConditions.category = paginationDto.category;
-    if (paginationDto.priority) whereConditions.priority = paginationDto.priority;
     if (paginationDto.user_id) whereConditions.user_id = paginationDto.user_id;
     if (paginationDto.approved_by) whereConditions.approved_by = paginationDto.approved_by;
 

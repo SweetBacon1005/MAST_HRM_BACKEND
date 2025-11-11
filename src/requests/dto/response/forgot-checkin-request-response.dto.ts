@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { TimesheetStatus } from '@prisma/client';
+import { ApprovalStatus } from '@prisma/client';
 
 export class  ForgotCheckinRequestResponseDto {
   @ApiProperty({
@@ -63,10 +63,10 @@ export class  ForgotCheckinRequestResponseDto {
 
   @ApiProperty({
     description: 'Trạng thái đơn',
-    enum: TimesheetStatus,
-    example: TimesheetStatus.PENDING,
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
-  status: TimesheetStatus;
+  status: ApprovalStatus;
 
   @ApiProperty({
     description: 'ID người duyệt',

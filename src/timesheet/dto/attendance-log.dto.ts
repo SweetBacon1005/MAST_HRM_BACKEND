@@ -3,10 +3,11 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
-import { TimesheetStatus } from '@prisma/client';
+import { ApprovalStatus, LocationType } from '@prisma/client';
 import {
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -52,13 +53,13 @@ export class CreateAttendanceLogDto {
 
   @ApiPropertyOptional({
     description: 'Loại địa điểm',
-    example: 'office',
-    enum: ['office', 'remote', 'client_site'],
+    example: LocationType.OFFICE,
+    enum: LocationType,
   })
   @IsOptional()
   @IsString()
-  @IsIn(['office', 'remote', 'client_site'])
-  location_type?: string;
+  @IsEnum(LocationType)
+  location_type?: LocationType;
 
   @ApiPropertyOptional({
     description: 'Địa chỉ IP',
@@ -131,11 +132,11 @@ export class CreateAttendanceLogDto {
   @IsOptional()
   @IsString()
   @IsIn([
-    TimesheetStatus.PENDING,
-    TimesheetStatus.APPROVED,
-    TimesheetStatus.REJECTED,
+    ApprovalStatus.PENDING,
+    ApprovalStatus.APPROVED,
+    ApprovalStatus.REJECTED,
   ])
-  status?: TimesheetStatus;
+  status?: ApprovalStatus;
 }
 
 export class UpdateAttendanceLogDto {
@@ -159,11 +160,11 @@ export class UpdateAttendanceLogDto {
   @IsOptional()
   @IsString()
   @IsIn([
-    TimesheetStatus.PENDING,
-    TimesheetStatus.APPROVED,
-    TimesheetStatus.REJECTED,
+    ApprovalStatus.PENDING,
+    ApprovalStatus.APPROVED,
+    ApprovalStatus.REJECTED,
   ])
-  status?: TimesheetStatus;
+  status?: ApprovalStatus;
 }
 
 export class AttendanceLogQueryDto {

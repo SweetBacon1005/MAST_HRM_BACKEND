@@ -4,7 +4,7 @@ import {
   DayOffType,
   PrismaClient,
   RemoteType,
-  TimesheetStatus,
+  ApprovalStatus,
 } from '@prisma/client';
 
 export async function seedRequests(prisma: PrismaClient, seedData: any) {
@@ -35,7 +35,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       remote_type: RemoteType.REMOTE,
       title: 'Xin làm việc từ xa để tập trung hoàn thành dự án',
       reason: 'Cần tập trung làm việc ở nhà để hoàn thành dự án',
-      status: TimesheetStatus.PENDING,
+      status: ApprovalStatus.PENDING,
     },
     {
       user_id: exampleUser.id,
@@ -43,7 +43,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       remote_type: RemoteType.HYBRID,
       title: 'Xin làm việc hybrid để cân bằng hiệu suất',
       reason: 'Làm việc hybrid để cân bằng hiệu suất',
-      status: TimesheetStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-08T09:00:00Z'),
     },
@@ -53,7 +53,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       remote_type: RemoteType.REMOTE,
       title: 'Xin làm việc từ xa do có việc cá nhân',
       reason: 'Có việc cá nhân cần xử lý',
-      status: TimesheetStatus.REJECTED,
+      status: ApprovalStatus.REJECTED,
       rejected_reason: 'Tuần này đã có quá nhiều người remote work',
       updated_at: new Date('2024-12-09T10:30:00Z'),
     },
@@ -164,7 +164,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total_amount: 150000, // 50k/hour * 3 hours 
       reason: 'Hoàn thành tính năng mới cho dự án',
       project_id: firstProject?.id || null, // Nullable trong schema
-      status: TimesheetStatus.PENDING,
+      status: ApprovalStatus.PENDING,
     },
     {
       user_id: exampleUser.id,
@@ -177,7 +177,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total_amount: 150000,
       reason: 'Fix bug khẩn cấp trước deadline',
       project_id: firstProject?.id || null,
-      status: TimesheetStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-06T16:00:00Z'),
     },
@@ -192,7 +192,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       total_amount: 150000,
       reason: 'Deploy production cuối tháng',
       project_id: firstProject?.id || null,
-      status: TimesheetStatus.REJECTED,
+      status: ApprovalStatus.REJECTED,
       rejected_reason: 'Không cần thiết deploy vào cuối tháng',
     },
   ];

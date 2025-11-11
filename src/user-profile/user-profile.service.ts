@@ -12,7 +12,6 @@ import {
 import { PrismaService } from '../database/prisma.service';
 import { CreateEducationDto } from './dto/create-education.dto';
 import { CreateExperienceDto } from './dto/create-experience.dto';
-import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
 import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
   CertificatePaginationDto,
@@ -23,7 +22,6 @@ import {
 } from './dto/pagination-queries.dto';
 import { UpdateEducationDto } from './dto/update-education.dto';
 import { UpdateExperienceDto } from './dto/update-experience.dto';
-import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
 import { UpdateUserInformationDto } from './dto/update-user-information.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
@@ -127,7 +125,6 @@ export class UserProfileService {
           marital: updateDto.marital || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
-          code: updateDto.code || '',
           gender: updateDto.gender || '',
           status: 'ACTIVE',
           birthday: updateDto.birthday
@@ -137,12 +134,7 @@ export class UserProfileService {
           temp_address: updateDto.temp_address || '',
           phone: updateDto.phone || '',
           tax_code: updateDto.tax_code || '',
-          description: updateDto.description || '',
-          note: updateDto.note || '',
-          overview: updateDto.overview || '',
           expertise: updateDto.expertise || '',
-          technique: updateDto.technique || '',
-          main_task: updateDto.main_task || '',
           position: { connect: { id: position.id } },
           level: { connect: { id: level.id } },
           language: { connect: { id: language.id } },
@@ -162,7 +154,6 @@ export class UserProfileService {
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
-          code: updateDto.code || '',
           gender: updateDto.gender || '',
           marital: updateDto.marital || '',
           birthday: updateDto.birthday
@@ -173,13 +164,8 @@ export class UserProfileService {
           temp_address: updateDto.temp_address || '',
           phone: updateDto.phone || '',
           tax_code: updateDto.tax_code || '',
-          description: updateDto.description || '',
           level_id: updateDto.level_id || 1,
-          note: updateDto.note || '',
-          overview: updateDto.overview || '',
           expertise: updateDto.expertise || '',
-          technique: updateDto.technique || '',
-          main_task: updateDto.main_task || '',
           language_id: updateDto.language_id || 1,
         },
         include: {
@@ -371,26 +357,6 @@ export class UserProfileService {
     return { message: 'Xóa thông tin kinh nghiệm thành công' };
   }
 
-  // Quản lý chứng chỉ
-  async createUserCertificate(createDto: CreateUserCertificateDto) {
-    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
-  }
-
-  async getUserCertificates(userId: number) {
-    return [];
-  }
-
-  async updateUserCertificate(
-    certificateId: number,
-    updateDto: UpdateUserCertificateDto,
-  ) {
-    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
-  }
-
-  async deleteUserCertificate(certificateId: number, userId: number) {
-    throw new BadRequestException('Chức năng chứng chỉ hiện không khả dụng');
-  }
-
   // Quản lý kỹ năng
   async createUserSkill(createDto: CreateUserSkillDto) {
     const skill = await this.prisma.skills.findFirst({
@@ -523,7 +489,6 @@ export class UserProfileService {
     });
   }
 
-
   async getLevels() {
     return await this.prisma.levels.findMany({
       where: { deleted_at: null },
@@ -586,13 +551,8 @@ export class UserProfileService {
           phone: '',
           tax_code: '',
           status: 'ACTIVE',
-          description: '',
           level_id: 1, // Default level
-          note: '',
-          overview: '',
           expertise: '',
-          technique: '',
-          main_task: '',
           language_id: 1, // Default language
         },
         include: {
@@ -659,7 +619,12 @@ export class UserProfileService {
     userId: number,
     paginationDto: CertificatePaginationDto,
   ) {
-    return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    return buildPaginationResponse(
+      [],
+      0,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
   }
 
   async getUserSkillsPaginated(
@@ -739,7 +704,6 @@ export class UserProfileService {
       paginationDto.limit || 10,
     );
   }
-
 
   async getLevelsPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);

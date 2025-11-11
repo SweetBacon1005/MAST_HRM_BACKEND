@@ -1,4 +1,4 @@
-import { TimesheetStatus as PrismaTimesheetStatus } from '@prisma/client';
+import { ApprovalStatus as PrismaApprovalStatus } from '@prisma/client';
 /**
  * Loại timesheet
  */
@@ -11,24 +11,24 @@ export enum TimesheetType {
 /**
  * Workflow transitions cho timesheet state
  */
-export class TimesheetStatusManager {
+export class ApprovalStatusManager {
   /**
    * Kiểm tra xem có thể chuyển từ state này sang state khác không
    */
   static canTransition(
-    from: PrismaTimesheetStatus,
-    to: PrismaTimesheetStatus,
+    from: PrismaApprovalStatus,
+    to: PrismaApprovalStatus,
   ): boolean {
     const validTransitions: Record<
-      PrismaTimesheetStatus,
-      PrismaTimesheetStatus[]
+      PrismaApprovalStatus,
+      PrismaApprovalStatus[]
     > = {
-      [PrismaTimesheetStatus.PENDING]: [
-        PrismaTimesheetStatus.APPROVED,
-        PrismaTimesheetStatus.REJECTED,
+      [PrismaApprovalStatus.PENDING]: [
+        PrismaApprovalStatus.APPROVED,
+        PrismaApprovalStatus.REJECTED,
       ],
-      [PrismaTimesheetStatus.APPROVED]: [PrismaTimesheetStatus.REJECTED],
-      [PrismaTimesheetStatus.REJECTED]: [PrismaTimesheetStatus.APPROVED],
+      [PrismaApprovalStatus.APPROVED]: [PrismaApprovalStatus.REJECTED],
+      [PrismaApprovalStatus.REJECTED]: [PrismaApprovalStatus.APPROVED],
     };
 
     return validTransitions[from]?.includes(to) || false;
@@ -37,35 +37,35 @@ export class TimesheetStatusManager {
   /**
    * Kiểm tra xem timesheet có thể chỉnh sửa không
    */
-  static canEdit(state: PrismaTimesheetStatus): boolean {
+  static canEdit(state: PrismaApprovalStatus): boolean {
     return (
       [
-        PrismaTimesheetStatus.PENDING,
-        PrismaTimesheetStatus.REJECTED,
-      ] as PrismaTimesheetStatus[]
+        PrismaApprovalStatus.PENDING,
+        PrismaApprovalStatus.REJECTED,
+      ] as PrismaApprovalStatus[]
     ).includes(state);
   }
 
   /**
    * Kiểm tra xem timesheet có thể xóa không
    */
-  static canDelete(state: PrismaTimesheetStatus): boolean {
+  static canDelete(state: PrismaApprovalStatus): boolean {
     return (
       [
-        PrismaTimesheetStatus.PENDING,
-        PrismaTimesheetStatus.REJECTED,
-      ] as PrismaTimesheetStatus[]
+        PrismaApprovalStatus.PENDING,
+        PrismaApprovalStatus.REJECTED,
+      ] as PrismaApprovalStatus[]
     ).includes(state);
   }
 
   /**
    * Lấy tên trạng thái
    */
-  static getStateName(state: PrismaTimesheetStatus): string {
+  static getStateName(state: PrismaApprovalStatus): string {
     const names = {
-      [PrismaTimesheetStatus.PENDING]: 'Chờ duyệt',
-      [PrismaTimesheetStatus.APPROVED]: 'Đã duyệt',
-      [PrismaTimesheetStatus.REJECTED]: 'Bị từ chối',
+      [PrismaApprovalStatus.PENDING]: 'Chờ duyệt',
+      [PrismaApprovalStatus.APPROVED]: 'Đã duyệt',
+      [PrismaApprovalStatus.REJECTED]: 'Bị từ chối',
     };
 
     return names[state] || 'Không xác định';

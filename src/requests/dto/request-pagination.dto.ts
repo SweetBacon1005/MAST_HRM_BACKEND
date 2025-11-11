@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsDateString, IsEnum, IsInt, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../common/dto/pagination.dto';
-import { TimesheetStatus, RemoteType, DayOffStatus } from '@prisma/client';
+import { ApprovalStatus, RemoteType, DayOffStatus } from '@prisma/client';
 import { ROLE_NAMES } from '../../auth/constants/role.constants';
 
 export enum RequestPriority {
@@ -15,7 +15,7 @@ export enum RequestPriority {
 export class RequestPaginationDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Lọc theo trạng thái',
-    enum: [...Object.values(TimesheetStatus), ...Object.values(DayOffStatus)],
+    enum: [...Object.values(ApprovalStatus), ...Object.values(DayOffStatus)],
     example: 'PENDING',
   })
   @IsOptional()

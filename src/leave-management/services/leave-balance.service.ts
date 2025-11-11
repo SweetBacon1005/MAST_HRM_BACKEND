@@ -83,8 +83,6 @@ export class LeaveBalanceService {
           amount: amount,
           balance_after:
             leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
-          reference_id: referenceId,
-          reference_type: referenceType,
           day_off_id:
             referenceType === 'day_off_refund' ? referenceId : undefined,
           description: description,
@@ -150,23 +148,19 @@ export class LeaveBalanceService {
         },
       });
 
-      // Tạo transaction record với day_off_id
       const transaction = await tx.leave_transactions.create({
         data: {
           user_id: userId,
           transaction_type: LeaveTransactionType.USED,
           leave_type: leaveType,
-          amount: -amount, // Số âm để thể hiện việc trừ
+          amount: -amount, 
           balance_after:
             leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance,
-          reference_id: dayOffId,
-          reference_type: 'day_off',
-          day_off_id: dayOffId, // Thêm direct reference
+          day_off_id: dayOffId, 
           description: description,
         },
       });
 
-      // Cập nhật day_off để đánh dấu đã trừ balance
       await tx.day_offs.update({
         where: { id: dayOffId },
         data: {
@@ -334,7 +328,6 @@ export class LeaveBalanceService {
             leave_type: DayOffType.PAID,
             amount: carryOverDays,
             balance_after: carryOverDays,
-            reference_type: 'annual_reset',
             description: `Chuyển phép năm ${new Date().getFullYear() - 1} sang năm ${new Date().getFullYear()}`,
           },
         });
@@ -350,7 +343,6 @@ export class LeaveBalanceService {
             leave_type: DayOffType.PAID,
             amount: -expiredDays,
             balance_after: carryOverDays,
-            reference_type: 'annual_reset',
             description: `Hết hạn ${expiredDays} ngày phép năm ${new Date().getFullYear() - 1}`,
           },
         });

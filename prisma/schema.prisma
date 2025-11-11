@@ -8,32 +8,32 @@ datasource db {
 }
 
 model rooms {
-    id          Int       @id @default(autoincrement())
-    name        String    @unique @db.VarChar(255)
-    is_active   Boolean   @default(true)
-    created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at  DateTime  @updatedAt
-    deleted_at  DateTime? @db.DateTime(6)
+    id         Int       @id @default(autoincrement())
+    name       String    @unique @db.VarChar(255)
+    is_active  Boolean   @default(true)
+    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at DateTime  @updatedAt
+    deleted_at DateTime? @db.DateTime(6)
 
-    bookings    room_bookings[]
+    bookings room_bookings[]
 
     @@index([is_active])
     @@index([deleted_at])
 }
 
 model room_bookings {
-    id            Int       @id @default(autoincrement())
-    room_id       Int
-    room          rooms     @relation(fields: [room_id], references: [id])
-    title         String    @db.VarChar(255)
-    description   String?   @db.Text
-    start_time    DateTime  @db.DateTime()
-    end_time      DateTime  @db.DateTime()
-    organizer_id  Int
-    organizer     users     @relation("RoomBookingOrganizer", fields: [organizer_id], references: [id])
-    created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime  @updatedAt
-    deleted_at    DateTime? @db.DateTime(6)
+    id           Int       @id @default(autoincrement())
+    room_id      Int
+    room         rooms     @relation(fields: [room_id], references: [id])
+    title        String    @db.VarChar(255)
+    description  String?   @db.Text
+    start_time   DateTime  @db.DateTime()
+    end_time     DateTime  @db.DateTime()
+    organizer_id Int
+    organizer    users     @relation("RoomBookingOrganizer", fields: [organizer_id], references: [id])
+    created_at   DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at   DateTime  @updatedAt
+    deleted_at   DateTime? @db.DateTime(6)
 
     @@index([room_id])
     @@index([organizer_id])
@@ -75,23 +75,23 @@ model experience {
 }
 
 model divisions {
-    id                       Int                        @id @default(autoincrement())
-    name                     String
-    type                     DivisionType?
-    status                   DivisionStatus?
-    address                  String?
-    parent_id                Int?
-    parent                   divisions?                 @relation("DivisionParent", fields: [parent_id], references: [id])
-    children                 divisions[]                @relation("DivisionParent")
-    founding_at              DateTime
-    description              String?
-    created_at               DateTime                   @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at               DateTime                   @updatedAt
-    deleted_at               DateTime?                  @db.DateTime(6)
-    user_division            user_division[]
-    rotation_member          rotation_members[]
-    projects                 projects[]
-    teams                    teams[]
+    id              Int                @id @default(autoincrement())
+    name            String
+    type            DivisionType?
+    status          DivisionStatus?
+    address         String?
+    parent_id       Int?
+    parent          divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
+    children        divisions[]        @relation("DivisionParent")
+    founding_at     DateTime
+    description     String?
+    created_at      DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at      DateTime           @updatedAt
+    deleted_at      DateTime?          @db.DateTime(6)
+    user_division   user_division[]
+    rotation_member rotation_members[]
+    projects        projects[]
+    teams           teams[]
 
     @@index([parent_id])
     @@index([type])
@@ -99,13 +99,13 @@ model divisions {
 }
 
 model levels {
-    id                   Int                    @id @default(autoincrement())
-    name                 String                 @db.VarChar(255)
-    coefficient          Float                  @db.Float
-    created_at           DateTime               @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime               @updatedAt
-    deleted_at           DateTime?              @db.DateTime(6)
-    user_information     user_information[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    coefficient      Float              @db.Float
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
 }
 
 model migrations {
@@ -124,13 +124,13 @@ model permissions {
 }
 
 model positions {
-    id                Int                @id @default(autoincrement())
-    name              String             @db.VarChar(255)
-    created_at        DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at        DateTime           @updatedAt
-    deleted_at        DateTime?          @db.DateTime(6)
-    user_information  user_information[]
-    skills            skills[]
+    id               Int                @id @default(autoincrement())
+    name             String             @db.VarChar(255)
+    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime           @updatedAt
+    deleted_at       DateTime?          @db.DateTime(6)
+    user_information user_information[]
+    skills           skills[]
 }
 
 model roles {
@@ -175,14 +175,9 @@ model user_information {
     phone          String?               @db.VarChar(255)
     tax_code       String?               @db.VarChar(255)
     status         UserInformationStatus @default(ACTIVE)
-    description    String?               @db.VarChar(255)
     level_id       Int?
     level          levels?               @relation(fields: [level_id], references: [id])
-    note           String?               @db.Text
-    overview       String?               @db.Text
     expertise      String?               @db.VarChar(255)
-    technique      String?               @db.VarChar(255)
-    main_task      String?               @db.VarChar(255)
     language_id    Int?
     language       languages?            @relation(fields: [language_id], references: [id])
     created_at     DateTime              @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
@@ -267,33 +262,28 @@ model permission_role {
     @@index([role_id])
 }
 
-
 model daily_reports {
-    id               Int                @id @default(autoincrement())
+    id               Int             @id @default(autoincrement())
     user_id          Int
-    user             users              @relation(fields: [user_id], references: [id])
+    user             users           @relation(fields: [user_id], references: [id])
     project_id       Int
-    project          projects           @relation(fields: [project_id], references: [id])
-    coefficient      Float              @db.Double
-    tool_type        ToolType           @default(OTHER)
-    issue_key        String?            @db.VarChar(255)
-    title            String?            @db.MediumText
-    work_date        DateTime           @db.Date
-    process_type     ProcessType        @default(ANALYSIS)
-    actual_time      Float              @db.Double
-    status           DailyReportStatus? @default(PENDING)
-    link_backlog     String?            @db.MediumText
-    issue_properties Json?
-    description      String?            @db.Text
-    reject_reason    String?            @db.MediumText
-    created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime           @updatedAt
+    project          projects        @relation(fields: [project_id], references: [id])
+    title            String?         @db.MediumText
+    work_date        DateTime        @db.Date
+    actual_time      Float           @db.Double
+    status           ApprovalStatus? @default(PENDING)
+    approved_by      Int?
+    approved_by_user users?          @relation("approved_by_user", fields: [approved_by], references: [id])
+    reviewed_at      DateTime?       @db.DateTime()
+    description      String?         @db.Text
+    reject_reason    String?         @db.MediumText
+    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime        @updatedAt
 
     @@index([user_id])
     @@index([project_id])
     @@index([work_date])
     @@index([status])
-    @@index([issue_key])
 }
 
 model otp_codes {
@@ -312,33 +302,32 @@ model otp_codes {
     @@index([expires_at])
 }
 
-
 model projects {
-    id                   Int                  @id @default(autoincrement())
-    name                 String
-    code                 String
-    status               ProjectStatus        @default(OPEN)
-    division_id          Int?
-    division             divisions?           @relation(fields: [division_id], references: [id])
-    team_id              Int?
-    team                 teams?               @relation(fields: [team_id], references: [id])
-    project_type         ProjectType?
-    industry             IndustryType?
-    scope                String?
-    description          String?
-    start_date           DateTime
-    end_date             DateTime
-    created_at           DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at           DateTime             @updatedAt
-    deleted_at           DateTime?            @db.DateTime()
-    daily_reports        daily_reports[]
-    over_times_history   over_times_history[]
+    id                 Int                  @id @default(autoincrement())
+    name               String
+    code               String
+    status             ProjectStatus        @default(OPEN)
+    division_id        Int?
+    division           divisions?           @relation(fields: [division_id], references: [id])
+    team_id            Int?
+    team               teams?               @relation(fields: [team_id], references: [id])
+    project_type       ProjectType?
+    industry           IndustryType?
+    progress           Float?
+    scope              String?
+    description        String?
+    start_date         DateTime
+    end_date           DateTime
+    created_at         DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at         DateTime             @updatedAt
+    deleted_at         DateTime?            @db.DateTime()
+    daily_reports      daily_reports[]
+    over_times_history over_times_history[]
 
     @@index([deleted_at])
     @@index([division_id])
     @@index([team_id])
 }
-
 
 model users {
     id                               Int                       @id @default(autoincrement())
@@ -383,26 +372,26 @@ model users {
     room_bookings_organized          room_bookings[]           @relation("RoomBookingOrganizer")
     user_role_assignments            user_role_assignment[]
     assigned_role_assignments        user_role_assignment[]    @relation("UserRoleAssigner")
+    daily_report_approver            daily_reports[]           @relation("approved_by_user")
 }
-
 
 model day_offs {
     id                       Int                  @id @default(autoincrement())
     user_id                  Int
     user                     users                @relation("user", fields: [user_id], references: [id])
-    work_date                DateTime             @db.Date // Ngày nghỉ
+    work_date                DateTime             @db.Date
     duration                 DayOffDuration       @default(FULL_DAY)
     status                   DayOffStatus         @default(PENDING)
     type                     DayOffType           @default(PAID)
-    title                    String               @db.VarChar(255) // Tiêu đề đơn xin nghỉ
-    reason                   String?              @db.Text // Lý do nghỉ phép
-    approved_by              Int? // ID người duyệt
+    title                    String               @db.VarChar(255)
+    reason                   String?              @db.Text
+    approved_by              Int?
     approved_by_user         users?               @relation("approved_by_user", fields: [approved_by], references: [id])
-    approved_at              DateTime?            @db.DateTime() // Thời gian duyệt
-    rejected_reason          String?              @db.Text // Lý do từ chối
-    is_past                  Boolean              @default(false) // Nghỉ phép bù (đã làm trước)
-    balance_deducted         Boolean              @default(false) // Đã trừ leave balance chưa
-    deduction_transaction_id Int? // ID của leave transaction khi trừ balance
+    approved_at              DateTime?            @db.DateTime()
+    rejected_reason          String?              @db.Text
+    is_past                  Boolean              @default(false)
+    balance_deducted         Boolean              @default(false)
+    deduction_transaction_id Int?
     created_at               DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at               DateTime             @updatedAt
     deleted_at               DateTime?            @db.DateTime()
@@ -412,10 +401,10 @@ model day_offs {
     @@index([user_id])
     @@index([status])
     @@index([work_date])
-    @@index([user_id, status]) 
-    @@index([user_id, work_date]) 
+    @@index([user_id, status])
+    @@index([user_id, work_date])
     @@index([duration])
-    @@index([deleted_at]) 
+    @@index([deleted_at])
     @@index([approved_by])
     @@index([balance_deducted])
     @@index([deduction_transaction_id])
@@ -441,42 +430,43 @@ model holidays {
 }
 
 model time_sheets {
-    id      Int   @id @default(autoincrement())
-    user_id Int
-    user    users @relation(fields: [user_id], references: [id])
-    work_date DateTime         @db.Date 
-    type      TimesheetType?   @default(NORMAL) 
-    status    TimesheetStatus? @default(PENDING) 
-    checkin          DateTime? @db.DateTime() 
-    checkout         DateTime? @db.DateTime() 
-    checkin_checkout String?
-    work_time_morning   Int? 
-    work_time_afternoon Int?
-    total_work_time     Int?
-    break_time          Int?
-    late_time           Int? 
-    late_time_approved  Int?
-    early_time          Int?
-    early_time_approved Int?
-    remote RemoteType? @default(OFFICE)
-    day_off_id Int?
-    day_off    day_offs? @relation(fields: [day_off_id], references: [id])
-    has_forgot_checkin_request Boolean? @default(false)
-    has_late_early_request     Boolean? @default(false)
-    has_remote_work_request    Boolean? @default(false)
-    forgot_checkin_approved    Boolean? @default(false)
-    late_early_approved        Boolean? @default(false)
-    remote_work_approved       Boolean? @default(false)
-    is_complete Boolean? @default(false) 
-    created_at DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-    attendance_logs         attendance_logs[] 
-    attendance_sessions     attendance_sessions[] 
-    late_early_requests     late_early_requests[] 
-    forgot_checkin_requests forgot_checkin_requests[] 
-    remote_work_requests    remote_work_requests[] 
-    @@unique([user_id, work_date]) 
+    id                         Int                       @id @default(autoincrement())
+    user_id                    Int
+    user                       users                     @relation(fields: [user_id], references: [id])
+    work_date                  DateTime                  @db.Date
+    type                       TimesheetType?            @default(NORMAL)
+    status                     ApprovalStatus?           @default(PENDING)
+    checkin                    DateTime?                 @db.DateTime()
+    checkout                   DateTime?                 @db.DateTime()
+    checkin_checkout           String?
+    work_time_morning          Int?
+    work_time_afternoon        Int?
+    total_work_time            Int?
+    break_time                 Int?
+    late_time                  Int?
+    late_time_approved         Int?
+    early_time                 Int?
+    early_time_approved        Int?
+    remote                     RemoteType?               @default(OFFICE)
+    day_off_id                 Int?
+    day_off                    day_offs?                 @relation(fields: [day_off_id], references: [id])
+    has_forgot_checkin_request Boolean?                  @default(false)
+    has_late_early_request     Boolean?                  @default(false)
+    has_remote_work_request    Boolean?                  @default(false)
+    forgot_checkin_approved    Boolean?                  @default(false)
+    late_early_approved        Boolean?                  @default(false)
+    remote_work_approved       Boolean?                  @default(false)
+    is_complete                Boolean?                  @default(false)
+    created_at                 DateTime                  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at                 DateTime                  @updatedAt
+    deleted_at                 DateTime?                 @db.DateTime()
+    attendance_logs            attendance_logs[]
+    attendance_sessions        attendance_sessions[]
+    late_early_requests        late_early_requests[]
+    forgot_checkin_requests    forgot_checkin_requests[]
+    remote_work_requests       remote_work_requests[]
+
+    @@unique([user_id, work_date])
     @@index([user_id])
     @@index([work_date])
     @@index([user_id, work_date])
@@ -496,25 +486,25 @@ model time_sheets {
 }
 
 model attendance_sessions {
-    id             Int              @id @default(autoincrement())
+    id             Int             @id @default(autoincrement())
     user_id        Int
-    user           users            @relation(fields: [user_id], references: [id])
-    timesheet_id   Int? 
-    timesheet      time_sheets?     @relation(fields: [timesheet_id], references: [id])
-    work_date      DateTime         @db.Date 
-    session_type   SessionType 
-    checkin_time   DateTime?        @db.DateTime()
-    checkout_time  DateTime?        @db.DateTime()
-    duration       Int? 
-    is_open        Boolean          @default(true) // Phiên đã đóng chưa
+    user           users           @relation(fields: [user_id], references: [id])
+    timesheet_id   Int?
+    timesheet      time_sheets?    @relation(fields: [timesheet_id], references: [id])
+    work_date      DateTime        @db.Date
+    session_type   SessionType
+    checkin_time   DateTime?       @db.DateTime()
+    checkout_time  DateTime?       @db.DateTime()
+    duration       Int?
+    is_open        Boolean         @default(true) // Phiên đã đóng chưa
     location_type  LocationType? // 'office', 'remote', 'client_site'
-    checkin_photo  String?          @db.VarChar(500) // Ảnh selfie check in
-    checkout_photo String?          @db.VarChar(500) // Ảnh selfie check out
-    note           String?          @db.Text // Ghi chú
-    status         TimesheetStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
-    created_at     DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at     DateTime         @updatedAt
-    deleted_at     DateTime?        @db.DateTime()
+    checkin_photo  String?         @db.VarChar(500) // Ảnh selfie check in
+    checkout_photo String?         @db.VarChar(500) // Ảnh selfie check out
+    note           String?         @db.Text // Ghi chú
+    status         ApprovalStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    created_at     DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at     DateTime        @updatedAt
+    deleted_at     DateTime?       @db.DateTime()
 
     attendance_logs attendance_logs[] // Relation với attendance_logs
 
@@ -541,12 +531,12 @@ model attendance_logs {
     action_type     String               @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
     timestamp       DateTime             @db.DateTime() // Thời gian thực hiện hành động
     work_date       DateTime             @db.Date // Ngày làm việc
-    location_type   String?              @db.VarChar(20) // 'office', 'remote', 'client_site'
+    location_type   LocationType?
     photo_url       String?              @db.VarChar(500) // Ảnh selfie check in/out
     note            String?              @db.Text // Ghi chú
     itempodency_key String?              @db.VarChar(255) // Mã định danh check in/out từ thiết bị
     is_manual       Boolean              @default(false) // Check in/out thủ công bởi admin
-    status          TimesheetStatus?     @default(PENDING) // 0: pending, 1: approved, 2: rejected
+    status          ApprovalStatus?      @default(PENDING) // 0: pending, 1: approved, 2: rejected
     created_at      DateTime             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at      DateTime             @updatedAt
     deleted_at      DateTime?            @db.DateTime()
@@ -589,43 +579,43 @@ enum RotationType {
 }
 
 model rotation_members {
-    id            Int       @id @default(autoincrement())
+    id            Int          @id @default(autoincrement())
     division_id   Int
-    division      divisions @relation(fields: [division_id], references: [id])
+    division      divisions    @relation(fields: [division_id], references: [id])
     user_id       Int
-    user          users     @relation(fields: [user_id], references: [id])
+    user          users        @relation(fields: [user_id], references: [id])
     type          RotationType
     date_rotation DateTime
-    created_at    DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at    DateTime  @updatedAt
-    deleted_at    DateTime? @db.DateTime()
+    created_at    DateTime     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at    DateTime     @updatedAt
+    deleted_at    DateTime?    @db.DateTime()
 
     @@index([division_id])
     @@index([user_id])
 }
 
 model over_times_history {
-    id               Int              @id @default(autoincrement())
+    id               Int             @id @default(autoincrement())
     user_id          Int
-    user             users            @relation("user", fields: [user_id], references: [id])
-    work_date        DateTime         @db.Date // Ngày làm tăng ca
-    title            String           @db.VarChar(255) // Tiêu đề đơn xin tăng ca
-    start_time       DateTime         @db.Time() // Thời gian bắt đầu (chỉ giờ:phút)
-    end_time         DateTime         @db.Time() // Thời gian kết thúc (chỉ giờ:phút)
+    user             users           @relation("user", fields: [user_id], references: [id])
+    work_date        DateTime        @db.Date // Ngày làm tăng ca
+    title            String          @db.VarChar(255) // Tiêu đề đơn xin tăng ca
+    start_time       DateTime        @db.Time() // Thời gian bắt đầu (chỉ giờ:phút)
+    end_time         DateTime        @db.Time() // Thời gian kết thúc (chỉ giờ:phút)
     total_hours      Float? // Tổng số giờ tăng ca
     hourly_rate      Float? // Mức lương theo giờ
     total_amount     Float? // Tổng tiền tăng ca
     project_id       Int?
-    project          projects?        @relation(fields: [project_id], references: [id])
-    reason           String?          @db.Text // Lý do tăng ca
-    status           TimesheetStatus? @default(PENDING)
+    project          projects?       @relation(fields: [project_id], references: [id])
+    reason           String?         @db.Text // Lý do tăng ca
+    status           ApprovalStatus? @default(PENDING)
     approved_by      Int? // ID người duyệt
-    approved_by_user users?           @relation("approved_by_user", fields: [approved_by], references: [id])
-    approved_at      DateTime?        @db.DateTime()
-    rejected_reason  String?          @db.Text
-    created_at       DateTime         @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime         @updatedAt
-    deleted_at       DateTime?        @db.DateTime()
+    approved_by_user users?          @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at      DateTime?       @db.DateTime()
+    rejected_reason  String?         @db.Text
+    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime        @updatedAt
+    deleted_at       DateTime?       @db.DateTime()
 
     @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_overtime")
     @@index([user_id])
@@ -679,14 +669,14 @@ model user_role_assignment {
     user_id     Int
     role_id     Int
     scope_type  ScopeType
-    scope_id    Int? 
+    scope_id    Int?
     assigned_by Int
     created_at  DateTime  @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at  DateTime  @updatedAt
     deleted_at  DateTime? @db.DateTime()
-    user     users @relation(fields: [user_id], references: [id])
-    role     roles @relation(fields: [role_id], references: [id])
-    assigner users @relation("UserRoleAssigner", fields: [assigned_by], references: [id])
+    user        users     @relation(fields: [user_id], references: [id])
+    role        roles     @relation(fields: [role_id], references: [id])
+    assigner    users     @relation("UserRoleAssigner", fields: [assigned_by], references: [id])
 
     @@unique([user_id, role_id, scope_type, scope_id], name: "unique_user_role_scope")
     @@index([user_id])
@@ -725,7 +715,7 @@ model assets {
     model             String?       @db.VarChar(100)
     serial_number     String?       @unique @db.VarChar(100)
     purchase_date     DateTime?     @db.Date
-    purchase_price    Decimal?      @db.Decimal(15, 2)
+    purchase_price    Float?        @db.Float()
     warranty_end_date DateTime?     @db.Date
     location          String?       @db.VarChar(255)
     status            AssetStatus   @default(AVAILABLE)
@@ -755,18 +745,16 @@ model asset_requests {
     asset_id         Int?
     asset            assets?            @relation(fields: [asset_id], references: [id])
     request_type     AssetRequestType
-    category         AssetCategory // Loại tài sản cần request
+    category         AssetCategory
     description      String             @db.Text
     justification    String             @db.Text // Lý do cần tài sản
-    priority         AssetPriority      @default(NORMAL)
-    expected_date    DateTime?          @db.Date // Ngày mong muốn nhận
+    expected_date    DateTime?          @db.Date 
     status           AssetRequestStatus @default(PENDING)
     approved_by      Int?
     approver         users?             @relation("AssetRequestApprover", fields: [approved_by], references: [id])
     approved_at      DateTime?          @db.DateTime()
     rejection_reason String?            @db.Text
     fulfilled_at     DateTime?          @db.DateTime()
-    returned_at      DateTime?          @db.DateTime()
     notes            String?            @db.Text
     created_at       DateTime           @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
     updated_at       DateTime           @updatedAt
@@ -781,24 +769,24 @@ model asset_requests {
 }
 
 model remote_work_requests {
-    id               Int             @id @default(autoincrement())
+    id               Int            @id @default(autoincrement())
     user_id          Int
-    user             users           @relation(fields: [user_id], references: [id])
-    work_date        DateTime        @db.Date
-    remote_type      RemoteType      @default(REMOTE)
-    duration         DayOffDuration  @default(FULL_DAY) // Thời gian làm từ xa: cả ngày, sáng, chiều
-    title            String          @db.VarChar(255) // Tiêu đề đơn xin làm từ xa
-    reason           String?         @db.Text // Lý do làm từ xa
-    status           TimesheetStatus @default(PENDING)
+    user             users          @relation(fields: [user_id], references: [id])
+    work_date        DateTime       @db.Date
+    remote_type      RemoteType     @default(REMOTE)
+    duration         DayOffDuration @default(FULL_DAY) // Thời gian làm từ xa: cả ngày, sáng, chiều
+    title            String         @db.VarChar(255) // Tiêu đề đơn xin làm từ xa
+    reason           String?        @db.Text // Lý do làm từ xa
+    status           ApprovalStatus @default(PENDING)
     approved_by      Int? // ID người duyệt
-    approved_by_user users?          @relation("RemoteWorkApprover", fields: [approved_by], references: [id])
-    approved_at      DateTime?       @db.DateTime()
-    rejected_reason  String?         @db.Text
+    approved_by_user users?         @relation("RemoteWorkApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?      @db.DateTime()
+    rejected_reason  String?        @db.Text
     timesheet_id     Int? // Link tới timesheet
-    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
-    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime        @updatedAt
-    deleted_at       DateTime?       @db.DateTime()
+    timesheet        time_sheets?   @relation(fields: [timesheet_id], references: [id])
+    created_at       DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime       @updatedAt
+    deleted_at       DateTime?      @db.DateTime()
 
     @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_active")
     @@index([user_id])
@@ -838,8 +826,6 @@ model leave_transactions {
     leave_type       DayOffType // PAID, UNPAID, etc.
     amount           Float // Số ngày (+ là cộng, - là trừ)
     balance_after    Float // Số dư sau giao dịch
-    reference_id     Int? // Link tới day_offs.id hoặc system job
-    reference_type   String? // 'day_off', 'monthly_accrual', 'manual_adjustment'
     day_off_id       Int? // Direct reference to day_offs
     day_off          day_offs?            @relation("DayOffTransactions", fields: [day_off_id], references: [id])
     description      String?              @db.Text // Mô tả giao dịch
@@ -851,32 +837,31 @@ model leave_transactions {
     @@index([transaction_type])
     @@index([leave_type])
     @@index([created_at])
-    @@index([reference_id, reference_type])
     @@index([user_id, created_at])
     @@index([deleted_at])
     @@index([day_off_id]) // Index cho day_off relation
 }
 
 model late_early_requests {
-    id               Int             @id @default(autoincrement())
+    id               Int            @id @default(autoincrement())
     user_id          Int
-    user             users           @relation(fields: [user_id], references: [id])
-    work_date        DateTime        @db.Date // Ngày làm việc
+    user             users          @relation(fields: [user_id], references: [id])
+    work_date        DateTime       @db.Date // Ngày làm việc
     request_type     LateEarlyType // LATE, EARLY, BOTH
-    title            String          @db.VarChar(255) // Tiêu đề đơn xin đi muộn/về sớm
+    title            String         @db.VarChar(255) // Tiêu đề đơn xin đi muộn/về sớm
     late_minutes     Int? // Số phút đi muộn (nếu có)
     early_minutes    Int? // Số phút về sớm (nếu có)
-    reason           String          @db.Text // Lý do
-    status           TimesheetStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+    reason           String         @db.Text // Lý do
+    status           ApprovalStatus @default(PENDING) // PENDING, APPROVED, REJECTED
     approved_by      Int? // ID người duyệt
-    approved_by_user users?          @relation("LateEarlyApprover", fields: [approved_by], references: [id])
-    approved_at      DateTime?       @db.DateTime() // Thời gian duyệt
-    rejected_reason  String?         @db.Text // Lý do từ chối
+    approved_by_user users?         @relation("LateEarlyApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?      @db.DateTime() // Thời gian duyệt
+    rejected_reason  String?        @db.Text // Lý do từ chối
     timesheet_id     Int? // Link tới timesheet
-    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
-    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime        @updatedAt
-    deleted_at       DateTime?       @db.DateTime()
+    timesheet        time_sheets?   @relation(fields: [timesheet_id], references: [id])
+    created_at       DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime       @updatedAt
+    deleted_at       DateTime?      @db.DateTime()
 
     @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_late_early")
     @@index([user_id])
@@ -890,24 +875,24 @@ model late_early_requests {
 }
 
 model forgot_checkin_requests {
-    id               Int             @id @default(autoincrement())
+    id               Int            @id @default(autoincrement())
     user_id          Int
-    user             users           @relation(fields: [user_id], references: [id])
-    work_date        DateTime        @db.Date // Ngày quên chấm công
-    checkin_time     DateTime?       @db.DateTime() // Thời gian checkin thực tế
-    checkout_time    DateTime?       @db.DateTime() // Thời gian checkout thực tế
-    title            String          @db.VarChar(255) // Tiêu đề đơn xin bổ sung chấm công
-    reason           String          @db.Text // Lý do quên chấm công
-    status           TimesheetStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+    user             users          @relation(fields: [user_id], references: [id])
+    work_date        DateTime       @db.Date // Ngày quên chấm công
+    checkin_time     DateTime?      @db.DateTime() // Thời gian checkin thực tế
+    checkout_time    DateTime?      @db.DateTime() // Thời gian checkout thực tế
+    title            String         @db.VarChar(255) // Tiêu đề đơn xin bổ sung chấm công
+    reason           String         @db.Text // Lý do quên chấm công
+    status           ApprovalStatus @default(PENDING) // PENDING, APPROVED, REJECTED
     approved_by      Int? // ID người duyệt
-    approved_by_user users?          @relation("ForgotCheckinApprover", fields: [approved_by], references: [id])
-    approved_at      DateTime?       @db.DateTime() // Thời gian duyệt
-    rejected_reason  String?         @db.Text // Lý do từ chối
+    approved_by_user users?         @relation("ForgotCheckinApprover", fields: [approved_by], references: [id])
+    approved_at      DateTime?      @db.DateTime() // Thời gian duyệt
+    rejected_reason  String?        @db.Text // Lý do từ chối
     timesheet_id     Int? // Link tới timesheet
-    timesheet        time_sheets?    @relation(fields: [timesheet_id], references: [id])
-    created_at       DateTime        @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
-    updated_at       DateTime        @updatedAt
-    deleted_at       DateTime?       @db.DateTime()
+    timesheet        time_sheets?   @relation(fields: [timesheet_id], references: [id])
+    created_at       DateTime       @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp(0)
+    updated_at       DateTime       @updatedAt
+    deleted_at       DateTime?      @db.DateTime()
 
     @@unique([user_id, work_date, deleted_at], name: "unique_user_work_date_forgot_checkin")
     @@index([user_id])
@@ -958,12 +943,7 @@ model user_notifications {
     @@index([deleted_at])
 }
 
-enum CerticicateType {
-    ACHIEVEMENT
-    CERTIFICATE
-}
-
-enum TimesheetStatus {
+enum ApprovalStatus {
     PENDING
     APPROVED
     REJECTED
@@ -987,18 +967,6 @@ enum TimesheetRequestType {
     HOLIDAY
 }
 
-enum DailyReportStatus {
-    PENDING
-    APPROVED
-    REJECTED
-}
-
-enum CurrencyType {
-    VND
-    USD
-    JPY
-    EUR
-}
 
 enum ProjectStatus {
     OPEN
@@ -1016,29 +984,9 @@ enum ProjectType {
     INTERNAL
 }
 
-enum StageType {
-    SPRINT
-    LABO
-    SOLUTION
-    CONSTRUCTION
-    TRANSITION
-    GUARANTEE
-}
-
 enum UserInformationStatus {
     ACTIVE
     INACTIVE
-}
-
-enum StageStatus {
-    OPEN
-    IN_PROGRESS
-    CLOSED
-}
-
-enum ReplanBy {
-    BY_TEAM
-    BY_CUSTOMER
 }
 
 enum DayOffStatus {
@@ -1060,23 +1008,6 @@ enum DayOffDuration {
     FULL_DAY
     MORNING
     AFTERNOON
-}
-
-enum ProcessType {
-    ANALYSIS
-    DESIGN
-    DEVELOPMENT
-    TESTING
-    DEPLOYMENT
-    MAINTENANCE
-}
-
-enum ToolType {
-    JIRA
-    REDMINE
-    GITHUB
-    GITLAB
-    OTHER
 }
 
 enum LocationType {
@@ -1129,7 +1060,6 @@ enum ScopeType {
     PROJECT
 }
 
-
 enum AssetCategory {
     LAPTOP
     DESKTOP
@@ -1168,13 +1098,6 @@ enum AssetRequestStatus {
     CANCELLED // Đã hủy
 }
 
-enum AssetPriority {
-    LOW
-    NORMAL
-    HIGH
-    URGENT
-}
-
 enum IndustryType {
     IT
     FINANCE
@@ -1195,7 +1118,6 @@ enum LateEarlyType {
     EARLY // Chỉ về sớm
     BOTH // Cả đi muộn và về sớm
 }
-
 
 enum DivisionType {
     TECHNICAL
@@ -1238,5 +1160,3 @@ model news {
     @@index([created_at])
     @@index([deleted_at])
 }
-
-

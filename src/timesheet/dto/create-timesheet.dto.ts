@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   RemoteType,
   TimesheetRequestType,
-  TimesheetStatus,
+  ApprovalStatus,
   TimesheetType,
 } from '@prisma/client';
 import {
@@ -165,11 +165,11 @@ export class CreateTimesheetDto {
 
   @ApiPropertyOptional({
     description: 'Trạng thái',
-    example: TimesheetStatus.PENDING,
+    example: ApprovalStatus.PENDING,
   })
   @IsOptional()
   @IsString()
-  status?: TimesheetStatus;
+  status?: ApprovalStatus;
 
   @ApiPropertyOptional({
     description: 'Loại yêu cầu',

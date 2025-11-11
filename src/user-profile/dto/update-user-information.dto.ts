@@ -23,11 +23,6 @@ export class UpdateUserInformationDto {
   @IsString()
   name?: string;
 
-  @ApiProperty({ description: 'Mã nhân viên', example: 'EMP001' })
-  @IsOptional()
-  @IsString()
-  code?: string;
-
   @ApiProperty({ description: 'Giới tính', example: 'Nam' })
   @IsOptional()
   @IsString()
@@ -77,29 +72,15 @@ export class UpdateUserInformationDto {
   @IsString()
   tax_code?: string;
 
-
   @ApiProperty({ description: 'Trạng thái', example: 'Đang làm việc' })
   @IsOptional()
   @IsString()
   status?: string;
 
-  @ApiProperty({
-    description: 'Mô tả',
-    example: 'Nhân viên phát triển phần mềm',
-  })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
   @ApiProperty({ description: 'ID cấp độ', example: 1 })
   @IsOptional()
   @IsInt()
   level_id?: number;
-
-  @ApiProperty({ description: 'Ghi chú', example: 'Ghi chú về nhân viên' })
-  @IsOptional()
-  @IsString()
-  note?: string;
 
   @ApiProperty({ description: 'Tổng quan', example: 'Tổng quan về nhân viên' })
   @IsOptional()
@@ -110,19 +91,6 @@ export class UpdateUserInformationDto {
   @IsOptional()
   @IsString()
   expertise?: string;
-
-  @ApiProperty({ description: 'Kỹ thuật', example: 'React, Node.js' })
-  @IsOptional()
-  @IsString()
-  technique?: string;
-
-  @ApiProperty({
-    description: 'Nhiệm vụ chính',
-    example: 'Phát triển frontend',
-  })
-  @IsOptional()
-  @IsString()
-  main_task?: string;
 
   @ApiProperty({ description: 'ID ngôn ngữ', example: 1 })
   @IsOptional()

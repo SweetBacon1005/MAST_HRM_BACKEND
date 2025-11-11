@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RemoteType, TimesheetStatus, DayOffDuration } from '@prisma/client';
+import { RemoteType, ApprovalStatus, DayOffDuration } from '@prisma/client';
 
 export class RemoteWorkRequestResponseDto {
   @ApiProperty({
@@ -48,10 +48,10 @@ export class RemoteWorkRequestResponseDto {
 
   @ApiProperty({
     description: 'Trạng thái của request',
-    enum: TimesheetStatus,
-    example: TimesheetStatus.PENDING,
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
-  status: TimesheetStatus;
+  status: ApprovalStatus;
 
   @ApiPropertyOptional({
     description: 'ID người duyệt',

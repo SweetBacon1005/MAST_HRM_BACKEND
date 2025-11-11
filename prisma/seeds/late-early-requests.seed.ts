@@ -1,4 +1,4 @@
-import { PrismaClient, LateEarlyType, TimesheetStatus } from '@prisma/client';
+import { PrismaClient, LateEarlyType, ApprovalStatus } from '@prisma/client';
 
 export async function seedLateEarlyRequests(prisma: PrismaClient) {
   console.log('🌱 Seeding late/early requests...');
@@ -27,7 +27,7 @@ export async function seedLateEarlyRequests(prisma: PrismaClient) {
       late_minutes: 30,
       early_minutes: null,
       reason: 'Tắc đường do mưa lớn',
-      status: TimesheetStatus.PENDING,
+      status: ApprovalStatus.PENDING,
     },
     {
       user_id: user.id,
@@ -37,7 +37,7 @@ export async function seedLateEarlyRequests(prisma: PrismaClient) {
       late_minutes: null,
       early_minutes: 45,
       reason: 'Có việc gia đình cần xử lý gấp',
-      status: TimesheetStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: admin?.id,
       approved_at: new Date('2024-01-16T10:30:00Z'),
     },
@@ -49,7 +49,7 @@ export async function seedLateEarlyRequests(prisma: PrismaClient) {
       late_minutes: 15,
       early_minutes: 30,
       reason: 'Đi khám bệnh định kỳ',
-      status: TimesheetStatus.REJECTED,
+      status: ApprovalStatus.REJECTED,
       approved_by: admin?.id,
       approved_at: new Date('2024-01-17T14:20:00Z'),
       rejected_reason: 'Cần báo trước ít nhất 1 ngày',
@@ -62,7 +62,7 @@ export async function seedLateEarlyRequests(prisma: PrismaClient) {
       late_minutes: 60,
       early_minutes: null,
       reason: 'Xe hỏng trên đường đi làm',
-      status: TimesheetStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: admin?.id,
       approved_at: new Date('2024-01-18T09:45:00Z'),
     },
@@ -74,7 +74,7 @@ export async function seedLateEarlyRequests(prisma: PrismaClient) {
       late_minutes: null,
       early_minutes: 20,
       reason: 'Đón con ở trường',
-      status: TimesheetStatus.PENDING,
+      status: ApprovalStatus.PENDING,
     },
   ];
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LateEarlyType, TimesheetStatus } from '@prisma/client';
+import { LateEarlyType, ApprovalStatus } from '@prisma/client';
 
 export class LateEarlyRequestResponseDto {
   @ApiProperty({
@@ -55,10 +55,10 @@ export class LateEarlyRequestResponseDto {
 
   @ApiProperty({
     description: 'Trạng thái',
-    enum: TimesheetStatus,
-    example: TimesheetStatus.PENDING,
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
-  status: TimesheetStatus;
+  status: ApprovalStatus;
 
   @ApiProperty({
     description: 'ID người duyệt',

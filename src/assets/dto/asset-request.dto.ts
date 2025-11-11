@@ -33,16 +33,6 @@ export class CreateAssetRequestDto {
   justification: string;
 
   @ApiPropertyOptional({
-    description: 'Mức độ ưu tiên',
-    enum: ['LOW', 'NORMAL', 'HIGH', 'URGENT'],
-    example: 'NORMAL',
-    default: 'NORMAL',
-  })
-  @IsOptional()
-  @IsEnum(['LOW', 'NORMAL', 'HIGH', 'URGENT'])
-  priority?: string;
-
-  @ApiPropertyOptional({
     description: 'Ngày mong muốn nhận tài sản (YYYY-MM-DD)',
     example: '2024-02-01',
   })

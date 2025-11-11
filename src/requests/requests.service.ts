@@ -8,7 +8,7 @@ import {
   DayOffStatus,
   DayOffType,
   RemoteType,
-  TimesheetStatus,
+  ApprovalStatus,
   ScopeType,
 } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
@@ -133,7 +133,7 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: TimesheetStatus.PENDING,
+          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });
@@ -153,7 +153,7 @@ export class RequestsService {
         duration: dto.duration,
         title: dto.title,
         reason: dto.reason,
-        status: TimesheetStatus.PENDING,
+        status: ApprovalStatus.PENDING,
         timesheet_id: timesheet.id,
       },
     });
@@ -442,7 +442,7 @@ export class RequestsService {
         user_id: dto.user_id,
         work_date: workDate,
         deleted_at: null,
-        status: { in: [TimesheetStatus.PENDING, TimesheetStatus.APPROVED] },
+        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
       },
     });
 
@@ -487,7 +487,7 @@ export class RequestsService {
         total_amount: totalAmount, // Tính từ total_hours * hourly_rate
         project_id: dto.project_id,
         reason: dto.reason,
-        status: TimesheetStatus.PENDING,
+        status: ApprovalStatus.PENDING,
       },
     });
 
@@ -1411,7 +1411,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy remote work request');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException(
         `Không thể duyệt request ở trạng thái: ${request.status}`,
       );
@@ -1420,7 +1420,7 @@ export class RequestsService {
     const updatedRequest = await this.prisma.remote_work_requests.update({
       where: { id },
       data: {
-        status: TimesheetStatus.APPROVED,
+        status: ApprovalStatus.APPROVED,
         approved_by: approverId,
         approved_at: new Date(),
       },
@@ -1449,7 +1449,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy remote work request');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
@@ -1458,7 +1458,7 @@ export class RequestsService {
     const updatedRequest = await this.prisma.remote_work_requests.update({
       where: { id },
       data: {
-        status: TimesheetStatus.REJECTED,
+        status: ApprovalStatus.REJECTED,
         rejected_reason: reason,
         updated_at: new Date(),
       },
@@ -1593,7 +1593,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy overtime request');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException(
         `Không thể duyệt request ở trạng thái: ${request.status}`,
       );
@@ -1602,7 +1602,7 @@ export class RequestsService {
     const updatedRequest = await this.prisma.over_times_history.update({
       where: { id },
       data: {
-        status: TimesheetStatus.APPROVED,
+        status: ApprovalStatus.APPROVED,
         approved_by: approverId,
         approved_at: new Date(),
       },
@@ -1630,7 +1630,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy overtime request');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
@@ -1639,7 +1639,7 @@ export class RequestsService {
     const updatedRequest = await this.prisma.over_times_history.update({
       where: { id },
       data: {
-        status: TimesheetStatus.REJECTED,
+        status: ApprovalStatus.REJECTED,
         rejected_reason: reason,
         updated_at: new Date(),
       },
@@ -1688,7 +1688,7 @@ export class RequestsService {
             user_id: request.user_id,
             work_date: request.work_date,
             remote: request.remote_type,
-            status: TimesheetStatus.PENDING,
+            status: ApprovalStatus.PENDING,
             type: 'NORMAL',
             has_remote_work_request: true,
             remote_work_approved: true,
@@ -2226,7 +2226,7 @@ export class RequestsService {
         checkout_time: checkoutDateTime,
         title: dto.title,
         reason: dto.reason,
-        status: TimesheetStatus.PENDING,
+        status: ApprovalStatus.PENDING,
         timesheet_id: timesheet?.id,
       },
       include: {
@@ -2397,7 +2397,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException('Đơn này đã được xử lý');
     }
 
@@ -2406,7 +2406,7 @@ export class RequestsService {
       await prisma.forgot_checkin_requests.update({
         where: { id },
         data: {
-          status: TimesheetStatus.APPROVED,
+          status: ApprovalStatus.APPROVED,
           approved_by: approverId,
           approved_at: new Date(),
         },
@@ -2455,14 +2455,14 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
     }
 
-    if (request.status !== TimesheetStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException('Đơn này đã được xử lý');
     }
 
     await this.prisma.forgot_checkin_requests.update({
       where: { id },
       data: {
-        status: TimesheetStatus.REJECTED,
+        status: ApprovalStatus.REJECTED,
         approved_by: approverId,
         approved_at: new Date(),
         rejected_reason: rejectedReason,
@@ -2821,7 +2821,7 @@ export class RequestsService {
     // 1. Requests từ leadership roles
     if (
       this.getLeadershipRoles().includes(
-        request.user?.user_information?.role?.name,
+        request.user?.role_assignments.map(role => role.name?.toLowerCase())
       )
     ) {
       return true;

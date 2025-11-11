@@ -40,12 +40,7 @@ export class UsersService {
             temp_address: '',
             phone: '',
             tax_code: '',
-            description: '',
-            note: '',
-            overview: '',
             expertise: '',
-            technique: '',
-            main_task: '',
           }
         },
       },

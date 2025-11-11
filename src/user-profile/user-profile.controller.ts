@@ -19,15 +19,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { CreateEducationDto } from './dto/create-education.dto';
 import { CreateExperienceDto } from './dto/create-experience.dto';
-import { CreateUserCertificateDto } from './dto/create-user-certificate.dto';
 import { CreateUserSkillDto } from './dto/create-user-skill.dto';
 import {
-  CertificatePaginationDto,
   EducationPaginationDto,
   ExperiencePaginationDto,
   ReferencePaginationDto,
@@ -35,35 +33,31 @@ import {
 } from './dto/pagination-queries.dto';
 import { UpdateEducationDto } from './dto/update-education.dto';
 import { UpdateExperienceDto } from './dto/update-experience.dto';
-import { UpdateUserCertificateDto } from './dto/update-user-certificate.dto';
 import { UpdateUserInformationDto } from './dto/update-user-information.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 import { UpdateAvatarDto } from './dto/upload-avatar.dto';
 import { UserProfileService } from './user-profile.service';
 
 // CRUD DTOs
-import { CreateLevelDto } from './levels/dto/create-level.dto';
-import { UpdateLevelDto } from './levels/dto/update-level.dto';
-import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
-import { CreatePositionDto } from './positions/dto/create-position.dto';
-import { UpdatePositionDto } from './positions/dto/update-position.dto';
-import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
 import { CreateLanguageDto } from './languages/dto/create-language.dto';
-import { UpdateLanguageDto } from './languages/dto/update-language.dto';
 import { LanguagePaginationDto } from './languages/dto/language-pagination.dto';
+import { UpdateLanguageDto } from './languages/dto/update-language.dto';
+import { CreateLevelDto } from './levels/dto/create-level.dto';
+import { LevelPaginationDto } from './levels/dto/level-pagination.dto';
+import { UpdateLevelDto } from './levels/dto/update-level.dto';
+import { CreatePositionDto } from './positions/dto/create-position.dto';
+import { PositionPaginationDto } from './positions/dto/position-pagination.dto';
+import { UpdatePositionDto } from './positions/dto/update-position.dto';
 import { CreateSkillDto } from './skills/dto/create-skill.dto';
-import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 import { SkillPaginationDto } from './skills/dto/skill-pagination.dto';
-
+import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 
 @ApiTags('user-profile')
 @Controller('user-profile')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class UserProfileController {
-  constructor(
-    private readonly userProfileService: UserProfileService,
-  ) {}
+  constructor(private readonly userProfileService: UserProfileService) {}
 
   // ===== THÔNG TIN CÁ NHÂN =====
   @Get()
@@ -315,75 +309,7 @@ export class UserProfileController {
     return await this.userProfileService.deleteExperience(experienceId, userId);
   }
 
-  // ===== QUẢN LÝ CHỨNG CHỈ =====
-  @Post('certificates')
-  @ApiOperation({ summary: 'Thêm chứng chỉ' })
-  @ApiResponse({
-    status: 201,
-    description: 'Thêm chứng chỉ thành công',
-  })
-  async createUserCertificate(
-    @GetCurrentUser('id') userId: number,
-    @Body() createDto: CreateUserCertificateDto,
-  ) {
-    createDto.user_id = userId;
-    return await this.userProfileService.createUserCertificate(createDto);
-  }
-
-  @Get('certificates')
-  @ApiOperation({ summary: 'Lấy danh sách chứng chỉ có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Danh sách chứng chỉ có phân trang',
-  })
-  async getUserCertificates(
-    @GetCurrentUser('id') userId: number,
-    @Query() paginationDto: CertificatePaginationDto,
-  ) {
-    return await this.userProfileService.getUserCertificatesPaginated(
-      userId,
-      paginationDto,
-    );
-  }
-
-  @Patch('certificates/:id')
-  @ApiOperation({ summary: 'Cập nhật chứng chỉ' })
-  @ApiParam({ name: 'id', description: 'ID của chứng chỉ' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật thành công',
-  })
-  async updateUserCertificate(
-    @Param('id', ParseIntPipe) certificateId: number,
-    @Body() updateDto: UpdateUserCertificateDto,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    updateDto.user_id = userId;
-    return await this.userProfileService.updateUserCertificate(
-      certificateId,
-      updateDto,
-    );
-  }
-
-  @Delete('certificates/:id')
-  @ApiOperation({ summary: 'Xóa chứng chỉ' })
-  @ApiParam({ name: 'id', description: 'ID của chứng chỉ' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xóa thành công',
-  })
-  async deleteUserCertificate(
-    @Param('id', ParseIntPipe) certificateId: number,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    return await this.userProfileService.deleteUserCertificate(
-      certificateId,
-      userId,
-    );
-  }
-
   // ===== QUẢN LÝ KỸ NĂNG CỦA USER =====
-  
 
   @Post('user-skills')
   @ApiOperation({ summary: 'Thêm kỹ năng' })
@@ -649,7 +575,10 @@ export class UserProfileController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
   @ApiResponse({ status: 400, description: 'Tên level hoặc cấp độ đã tồn tại' })
-  updateLevel(@Param('id', ParseIntPipe) id: number, @Body() updateLevelDto: UpdateLevelDto) {
+  updateLevel(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateLevelDto: UpdateLevelDto,
+  ) {
     return this.userProfileService.updateLevel(id, updateLevelDto);
   }
 
@@ -668,7 +597,10 @@ export class UserProfileController {
     },
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
-  @ApiResponse({ status: 400, description: 'Không thể xóa level đang được sử dụng' })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa level đang được sử dụng',
+  })
   removeLevel(@Param('id', ParseIntPipe) id: number) {
     return this.userProfileService.removeLevel(id);
   }
@@ -707,7 +639,10 @@ export class UserProfileController {
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Level không tồn tại hoặc tên vị trí đã tồn tại' })
+  @ApiResponse({
+    status: 400,
+    description: 'Level không tồn tại hoặc tên vị trí đã tồn tại',
+  })
   createPosition(@Body() createPositionDto: CreatePositionDto) {
     return this.userProfileService.createPosition(createPositionDto);
   }
@@ -800,7 +735,10 @@ export class UserProfileController {
                 properties: {
                   id: { type: 'number', example: 1 },
                   name: { type: 'string', example: 'JavaScript' },
-                  description: { type: 'string', example: 'Ngôn ngữ lập trình' },
+                  description: {
+                    type: 'string',
+                    example: 'Ngôn ngữ lập trình',
+                  },
                 },
               },
             },
@@ -855,8 +793,14 @@ export class UserProfileController {
     },
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy vị trí' })
-  @ApiResponse({ status: 400, description: 'Level không tồn tại hoặc tên vị trí đã tồn tại' })
-  updatePosition(@Param('id', ParseIntPipe) id: number, @Body() updatePositionDto: UpdatePositionDto) {
+  @ApiResponse({
+    status: 400,
+    description: 'Level không tồn tại hoặc tên vị trí đã tồn tại',
+  })
+  updatePosition(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePositionDto: UpdatePositionDto,
+  ) {
     return this.userProfileService.updatePosition(id, updatePositionDto);
   }
 
@@ -875,7 +819,10 @@ export class UserProfileController {
     },
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy vị trí' })
-  @ApiResponse({ status: 400, description: 'Không thể xóa vị trí đang được sử dụng' })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa vị trí đang được sử dụng',
+  })
   removePosition(@Param('id', ParseIntPipe) id: number) {
     return this.userProfileService.removePosition(id);
   }
@@ -1019,7 +966,10 @@ export class UserProfileController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy ngôn ngữ' })
   @ApiResponse({ status: 400, description: 'Tên hoặc mã ngôn ngữ đã tồn tại' })
-  updateLanguage(@Param('id', ParseIntPipe) id: number, @Body() updateLanguageDto: UpdateLanguageDto) {
+  updateLanguage(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateLanguageDto: UpdateLanguageDto,
+  ) {
     return this.userProfileService.updateLanguage(id, updateLanguageDto);
   }
 
@@ -1038,7 +988,10 @@ export class UserProfileController {
     },
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy ngôn ngữ' })
-  @ApiResponse({ status: 400, description: 'Không thể xóa ngôn ngữ đang được sử dụng' })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa ngôn ngữ đang được sử dụng',
+  })
   removeLanguage(@Param('id', ParseIntPipe) id: number) {
     return this.userProfileService.removeLanguage(id);
   }
@@ -1097,13 +1050,13 @@ export class UserProfileController {
               id: { type: 'number', example: 1 },
               name: { type: 'string', example: 'JavaScript' },
               position_id: { type: 'number', example: 1 },
-            position: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 1 },
-                name: { type: 'string', example: 'Software Engineer' },
+              position: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  name: { type: 'string', example: 'Software Engineer' },
+                },
               },
-            },
               created_at: { type: 'string', format: 'date-time' },
               updated_at: { type: 'string', format: 'date-time' },
               _count: {
@@ -1207,7 +1160,10 @@ export class UserProfileController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy kỹ năng' })
   @ApiResponse({ status: 400, description: 'Tên kỹ năng đã tồn tại' })
-  updateSkill(@Param('id', ParseIntPipe) id: number, @Body() updateSkillDto: UpdateSkillDto) {
+  updateSkill(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateSkillDto: UpdateSkillDto,
+  ) {
     return this.userProfileService.updateSkill(id, updateSkillDto);
   }
 
@@ -1226,7 +1182,10 @@ export class UserProfileController {
     },
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy kỹ năng' })
-  @ApiResponse({ status: 400, description: 'Không thể xóa kỹ năng đang được sử dụng' })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa kỹ năng đang được sử dụng',
+  })
   removeSkill(@Param('id', ParseIntPipe) id: number) {
     return this.userProfileService.removeSkill(id);
   }

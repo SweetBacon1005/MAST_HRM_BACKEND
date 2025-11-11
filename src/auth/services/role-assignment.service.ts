@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 import { getRoleLevel } from '../constants/role.constants';
 
 export interface RoleAssignmentData {
@@ -29,41 +34,42 @@ export class RoleAssignmentService {
     await this.validateScope(data.scope_type, data.scope_id);
 
     const role = await this.prisma.roles.findFirst({
-      where: { id: data.role_id, deleted_at: null }
+      where: { id: data.role_id, deleted_at: null },
     });
     if (!role) {
       throw new NotFoundException('Role không tồn tại');
     }
 
     const user = await this.prisma.users.findFirst({
-      where: { id: data.user_id, deleted_at: null }
+      where: { id: data.user_id, deleted_at: null },
     });
     if (!user) {
       throw new NotFoundException('User không tồn tại');
     }
 
-    const existingAssignment = await this.prisma.user_role_assignment.findFirst({
-      where: {
-        user_id: data.user_id,
-        role_id: data.role_id,
-        scope_type: data.scope_type,
-        scope_id: data.scope_id,
-        deleted_at: null
-      }
-    });
+    const existingAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: data.user_id,
+          role_id: data.role_id,
+          scope_type: data.scope_type,
+          scope_id: data.scope_id,
+          deleted_at: null,
+        },
+      },
+    );
 
     if (existingAssignment) {
       throw new ConflictException('User đã có role này trong context này');
     }
 
-
-    return await this.prisma.user_role_assignment.create({
+    const newAssignment = await this.prisma.user_role_assignment.create({
       data: {
         user_id: data.user_id,
         role_id: data.role_id,
         scope_type: data.scope_type,
         scope_id: data.scope_id,
-        assigned_by: data.assigned_by
+        assigned_by: data.assigned_by,
       },
       include: {
         role: true,
@@ -72,26 +78,53 @@ export class RoleAssignmentService {
             id: true,
             email: true,
             user_information: {
-              select: { name: true }
-            }
-          }
-        }
-      }
+              select: { name: true },
+            },
+          },
+        },
+      },
     });
+
+    await this.prisma.user_role_assignment.updateMany({
+      where: {
+        user_id: data.user_id,
+        scope_id: newAssignment.scope_id,
+        scope_type: newAssignment.scope_type,
+        deleted_at: { not: null },
+      },
+      data: { deleted_at: null },
+    });
+
+    await this.logRoleChange(
+      this.prisma,
+      data.user_id,
+      'role.assigned',
+      `Gán role ${role.name} cho user trong scope ${data.scope_type} ${data.scope_id ? `với ID ${data.scope_id}` : ''}`,
+      data.assigned_by,
+      {
+        role_name: role.name,
+        scope_type: data.scope_type,
+        scope_id: data.scope_id || null,
+      },
+    );
+
+    return newAssignment;
   }
 
-  /**
-   * Xóa role assignment
-   */
-  async revokeRole(userId: number, roleId: number, scopeType: ScopeType, scopeId?: number) {
+  async revokeRole(
+    userId: number,
+    roleId: number,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ) {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: userId,
         role_id: roleId,
         scope_type: scopeType,
         scope_id: scopeId,
-        deleted_at: null
-      }
+        deleted_at: null,
+      },
     });
 
     if (!assignment) {
@@ -101,7 +134,7 @@ export class RoleAssignmentService {
     // Soft delete
     return await this.prisma.user_role_assignment.update({
       where: { id: assignment.id },
-      data: { deleted_at: new Date() }
+      data: { deleted_at: new Date() },
     });
   }
 
@@ -109,55 +142,58 @@ export class RoleAssignmentService {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
-        role: true
+        role: true,
       },
-      orderBy: [
-        { scope_type: 'asc' },
-        { created_at: 'desc' }
-      ]
+      orderBy: [{ scope_type: 'asc' }, { created_at: 'desc' }],
     });
 
     return {
       user_id: userId,
-      roles: assignments.map(assignment => ({
+      roles: assignments.map((assignment) => ({
         id: assignment.role.id,
         name: assignment.role.name,
         scope_type: assignment.scope_type,
         scope_id: assignment.scope_id ?? undefined,
-      }))
+      })),
     };
   }
 
-  async getUserRolesByScope(userId: number, scopeType: ScopeType, scopeId?: number) {
+  async getUserRolesByScope(
+    userId: number,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
         scope_type: scopeType,
         scope_id: scopeId,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
-        role: true
+        role: true,
       },
-      orderBy: [
-        { created_at: 'desc' }
-      ]
+      orderBy: [{ created_at: 'desc' }],
     });
 
-    return assignments.map(assignment => ({
+    return assignments.map((assignment) => ({
       id: assignment.role.id,
       name: assignment.role.name,
-      assigned_at: assignment.created_at
+      assigned_at: assignment.created_at,
     }));
   }
 
   /**
    * Lấy primary role của user trong scope cụ thể
    */
-  async getUserPrimaryRole(userId: number, scopeType: ScopeType, scopeId?: number) {
+  async getUserPrimaryRole(
+    userId: number,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
@@ -187,8 +223,13 @@ export class RoleAssignmentService {
       scope_id: highest.scope_id,
     };
   }
-  
-  async hasRole(userId: number, roleName: string, scopeType: ScopeType, scopeId?: number): Promise<boolean> {
+
+  async hasRole(
+    userId: number,
+    roleName: string,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: userId,
@@ -197,18 +238,20 @@ export class RoleAssignmentService {
         deleted_at: null,
         role: {
           name: roleName,
-          deleted_at: null
-        }
-      }
+          deleted_at: null,
+        },
+      },
     });
 
     return !!assignment;
   }
 
-  /**
-   * Kiểm tra user có bất kỳ role nào trong danh sách roles
-   */
-  async hasAnyRole(userId: number, roleNames: string[], scopeType: ScopeType, scopeId?: number): Promise<boolean> {
+  async hasAnyRole(
+    userId: number,
+    roleNames: string[],
+    scopeType: ScopeType,
+    scopeId?: number,
+  ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: userId,
@@ -217,18 +260,19 @@ export class RoleAssignmentService {
         deleted_at: null,
         role: {
           name: { in: roleNames },
-          deleted_at: null
-        }
-      }
+          deleted_at: null,
+        },
+      },
     });
 
     return !!assignment;
   }
 
-  /**
-   * Lấy tất cả users có role cụ thể trong scope
-   */
-  async getUsersByRole(roleName: string, scopeType: ScopeType, scopeId?: number) {
+  async getUsersByRole(
+    roleName: string,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: scopeType,
@@ -236,8 +280,8 @@ export class RoleAssignmentService {
         deleted_at: null,
         role: {
           name: roleName,
-          deleted_at: null
-        }
+          deleted_at: null,
+        },
       },
       include: {
         user: {
@@ -245,30 +289,25 @@ export class RoleAssignmentService {
             id: true,
             email: true,
             user_information: {
-              select: { name: true, avatar: true }
-            }
-          }
+              select: { name: true, avatar: true },
+            },
+          },
         },
-        role: true
+        role: true,
       },
-      orderBy: [
-        { created_at: 'desc' }
-      ]
+      orderBy: [{ created_at: 'desc' }],
     });
 
-    return assignments.map(assignment => ({
+    return assignments.map((assignment) => ({
       user_id: assignment.user.id,
       email: assignment.user.email,
       name: assignment.user.user_information?.name,
       avatar: assignment.user.user_information?.avatar,
       role_name: assignment.role.name,
-      assigned_at: assignment.created_at
+      assigned_at: assignment.created_at,
     }));
   }
 
-  /**
-   * Bulk assign roles cho multiple users
-   */
   async bulkAssignRoles(assignments: RoleAssignmentData[]) {
     const results: Array<{
       success: boolean;
@@ -276,16 +315,16 @@ export class RoleAssignmentService {
       error?: string;
       assignment?: RoleAssignmentData;
     }> = [];
-    
+
     for (const assignment of assignments) {
       try {
         const result = await this.assignRole(assignment);
         results.push({ success: true, data: result });
       } catch (error) {
-        results.push({ 
-          success: false, 
+        results.push({
+          success: false,
           error: error.message,
-          assignment: assignment 
+          assignment: assignment,
         });
       }
     }
@@ -293,91 +332,108 @@ export class RoleAssignmentService {
     return results;
   }
 
-  /**
-   * Validate scope type và scope id
-   */
   private async validateScope(scopeType: ScopeType, scopeId?: number) {
     switch (scopeType) {
       case ScopeType.COMPANY:
         break;
-      
+
       case ScopeType.DIVISION: {
         if (!scopeId) {
           throw new BadRequestException('Division scope cần scope_id');
         }
         const division = await this.prisma.divisions.findFirst({
-          where: { id: scopeId, deleted_at: null }
+          where: { id: scopeId, deleted_at: null },
         });
         if (!division) {
           throw new NotFoundException('Division không tồn tại');
         }
         break;
       }
-      
+
       case ScopeType.TEAM: {
         if (!scopeId) {
           throw new BadRequestException('Team scope cần scope_id');
         }
         const team = await this.prisma.teams.findFirst({
-          where: { id: scopeId, deleted_at: null }
+          where: { id: scopeId, deleted_at: null },
         });
         if (!team) {
           throw new NotFoundException('Team không tồn tại');
         }
         break;
       }
-      
+
       case ScopeType.PROJECT: {
         if (!scopeId) {
           throw new BadRequestException('Project scope cần scope_id');
         }
         const project = await this.prisma.projects.findFirst({
-          where: { id: scopeId, deleted_at: null }
+          where: { id: scopeId, deleted_at: null },
         });
-    if (!project) {
+        if (!project) {
           throw new NotFoundException('Project không tồn tại');
         }
         break;
       }
-      
+
       default:
         throw new BadRequestException('Scope type không hợp lệ');
     }
   }
 
-  async getRoleHierarchy(userId: number, scopeType: ScopeType, scopeId?: number) {
-    const userRoles = await this.getUserRolesByScope(userId, scopeType, scopeId);
-    
+  async getRoleHierarchy(
+    userId: number,
+    scopeType: ScopeType,
+    scopeId?: number,
+  ) {
+    const userRoles = await this.getUserRolesByScope(
+      userId,
+      scopeType,
+      scopeId,
+    );
+
     const roleHierarchy = {
-      'Admin': 100,
-      'Manager': 80,
+      Admin: 100,
+      Manager: 80,
       'Team Lead': 60,
       'Senior Developer': 50,
-      'Developer': 40,
-      'Intern': 20
+      Developer: 40,
+      Intern: 20,
     };
 
-    const userRoleNames = userRoles.map(role => role.name);
-    const maxLevel = Math.max(...userRoleNames.map(name => roleHierarchy[name] || 0));
+    const userRoleNames = userRoles.map((role) => role.name);
+    const maxLevel = Math.max(
+      ...userRoleNames.map((name) => roleHierarchy[name] || 0),
+    );
 
     return {
       user_id: userId,
       max_role_level: maxLevel,
       roles: userRoles,
-      inherited_permissions: this.getInheritedPermissions(maxLevel, roleHierarchy)
+      inherited_permissions: this.getInheritedPermissions(
+        maxLevel,
+        roleHierarchy,
+      ),
     };
   }
 
-  private getInheritedPermissions(userLevel: number, roleHierarchy: Record<string, number>) {
+  private getInheritedPermissions(
+    userLevel: number,
+    roleHierarchy: Record<string, number>,
+  ) {
     return Object.keys(roleHierarchy)
-      .filter(roleName => roleHierarchy[roleName] <= userLevel)
+      .filter((roleName) => roleHierarchy[roleName] <= userLevel)
       .sort((a, b) => roleHierarchy[b] - roleHierarchy[a]);
   }
 
   /**
    * Gán PM mới cho project - thay thế PM cũ nếu có
    */
-  async assignProjectManager(projectId: number, newUserId: number, assignedBy: number) {
+  async assignProjectManager(
+    projectId: number,
+    newUserId: number,
+    assignedBy: number,
+  ) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Tìm PM hiện tại trong project
       const currentPM = await tx.user_role_assignment.findFirst({
@@ -386,9 +442,9 @@ export class RoleAssignmentService {
           scope_id: projectId,
           role: {
             name: 'project_manager',
-            deleted_at: null
+            deleted_at: null,
           },
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
           user: {
@@ -396,12 +452,12 @@ export class RoleAssignmentService {
               id: true,
               email: true,
               user_information: {
-                select: { name: true }
-              }
-            }
+                select: { name: true },
+              },
+            },
           },
-          role: true
-        }
+          role: true,
+        },
       });
 
       let replacedUser: any = null;
@@ -410,14 +466,14 @@ export class RoleAssignmentService {
       if (currentPM) {
         await tx.user_role_assignment.update({
           where: { id: currentPM.id },
-          data: { deleted_at: new Date() }
+          data: { deleted_at: new Date() },
         });
         replacedUser = currentPM.user;
       }
 
       // 3. Lấy role PM
       const pmRole = await tx.roles.findFirst({
-        where: { name: 'project_manager', deleted_at: null }
+        where: { name: 'project_manager', deleted_at: null },
       });
 
       if (!pmRole) {
@@ -431,7 +487,7 @@ export class RoleAssignmentService {
           role_id: pmRole.id,
           scope_type: ScopeType.PROJECT,
           scope_id: projectId,
-          assigned_by: assignedBy
+          assigned_by: assignedBy,
         },
         include: {
           user: {
@@ -439,12 +495,12 @@ export class RoleAssignmentService {
               id: true,
               email: true,
               user_information: {
-                select: { name: true }
-              }
-            }
+                select: { name: true },
+              },
+            },
           },
-          role: true
-        }
+          role: true,
+        },
       });
 
       // 5. Ghi log
@@ -457,17 +513,19 @@ export class RoleAssignmentService {
         {
           project_id: projectId,
           new_role: 'project_manager',
-          replaced_user: replacedUser ? {
-            id: replacedUser.id,
-            name: replacedUser.user_information?.[0]?.name || null,
-            email: replacedUser.email
-          } : null
-        }
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
       );
 
       return {
         newAssignment,
-        replacedUser
+        replacedUser,
       };
     });
   }
@@ -475,7 +533,11 @@ export class RoleAssignmentService {
   /**
    * Giáng chức PM khỏi project
    */
-  async demoteProjectManager(projectId: number, userId: number, demotedBy: number) {
+  async demoteProjectManager(
+    projectId: number,
+    userId: number,
+    demotedBy: number,
+  ) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Tìm và xóa role PM trong project
       const pmAssignment = await tx.user_role_assignment.findFirst({
@@ -485,10 +547,10 @@ export class RoleAssignmentService {
           scope_id: projectId,
           role: {
             name: 'project_manager',
-            deleted_at: null
+            deleted_at: null,
           },
-          deleted_at: null
-        }
+          deleted_at: null,
+        },
       });
 
       if (!pmAssignment) {
@@ -498,18 +560,18 @@ export class RoleAssignmentService {
       // Xóa mềm assignment
       await tx.user_role_assignment.update({
         where: { id: pmAssignment.id },
-        data: { deleted_at: new Date() }
+        data: { deleted_at: new Date() },
       });
 
       // 2. Kiểm tra user còn role nào khác không
       const remainingRoles = await tx.user_role_assignment.findMany({
         where: {
           user_id: userId,
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
-          role: true
-        }
+          role: true,
+        },
       });
 
       let autoAssignedEmployee: any = null;
@@ -517,7 +579,7 @@ export class RoleAssignmentService {
       // 3. Nếu không còn role nào, tự động gán role employee
       if (remainingRoles.length === 0) {
         const employeeRole = await tx.roles.findFirst({
-          where: { name: 'employee', deleted_at: null }
+          where: { name: 'employee', deleted_at: null },
         });
 
         if (employeeRole) {
@@ -526,8 +588,8 @@ export class RoleAssignmentService {
               user_id: userId,
               role_id: employeeRole.id,
               scope_type: ScopeType.COMPANY,
-              assigned_by: demotedBy
-            }
+              assigned_by: demotedBy,
+            },
           });
         }
       }
@@ -542,14 +604,14 @@ export class RoleAssignmentService {
         {
           project_id: projectId,
           revoked_role: 'project_manager',
-          auto_assigned_employee: !!autoAssignedEmployee
-        }
+          auto_assigned_employee: !!autoAssignedEmployee,
+        },
       );
 
       return {
         revokedAssignment: pmAssignment,
-        remainingRoles: remainingRoles.map(r => r.role.name),
-        autoAssignedEmployee
+        remainingRoles: remainingRoles.map((r) => r.role.name),
+        autoAssignedEmployee,
       };
     });
   }
@@ -562,23 +624,28 @@ export class RoleAssignmentService {
       projectId?: number;
       teamId?: number;
       divisionId?: number;
-    }
+    },
   ) {
     const results: any[] = [];
 
     for (const userId of targetUserIds) {
       try {
-        const result = await this.assignRoleToUser(userId, roleId, assignedBy, context);
+        const result = await this.assignRoleToUser(
+          userId,
+          roleId,
+          assignedBy,
+          context,
+        );
         results.push({
           userId,
           success: true,
-          ...result
+          ...result,
         });
       } catch (error: any) {
         results.push({
           userId,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -587,9 +654,9 @@ export class RoleAssignmentService {
       results,
       summary: {
         total: targetUserIds.length,
-        successful: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length
-      }
+        successful: results.filter((r) => r.success).length,
+        failed: results.filter((r) => !r.success).length,
+      },
     };
   }
 
@@ -601,10 +668,10 @@ export class RoleAssignmentService {
       projectId?: number;
       teamId?: number;
       divisionId?: number;
-    }
+    },
   ) {
     const role = await this.prisma.roles.findFirst({
-      where: { id: roleId, deleted_at: null }
+      where: { id: roleId, deleted_at: null },
     });
 
     if (!role) {
@@ -614,9 +681,15 @@ export class RoleAssignmentService {
     switch (role.name) {
       case 'project_manager':
         if (!context?.projectId) {
-          throw new BadRequestException('Role project_manager yêu cầu projectId');
+          throw new BadRequestException(
+            'Role project_manager yêu cầu projectId',
+          );
         }
-        return await this.assignProjectManager(context.projectId, userId, assignedBy);
+        return await this.assignProjectManager(
+          context.projectId,
+          userId,
+          assignedBy,
+        );
 
       case 'team_leader':
         if (!context?.teamId) {
@@ -626,20 +699,35 @@ export class RoleAssignmentService {
 
       case 'division_head':
         if (!context?.divisionId) {
-          throw new BadRequestException('Role division_head yêu cầu divisionId');
+          throw new BadRequestException(
+            'Role division_head yêu cầu divisionId',
+          );
         }
-        return await this.assignDivisionHead(context.divisionId, userId, assignedBy);
+        return await this.assignDivisionHead(
+          context.divisionId,
+          userId,
+          assignedBy,
+        );
 
       default:
         // Gán role thông thường
-        return await this.assignGeneralRole(userId, roleId, assignedBy, context);
+        return await this.assignGeneralRole(
+          userId,
+          roleId,
+          assignedBy,
+          context,
+        );
     }
   }
 
   /**
    * Gán Team Leader
    */
-  private async assignTeamLeader(teamId: number, newUserId: number, assignedBy: number) {
+  private async assignTeamLeader(
+    teamId: number,
+    newUserId: number,
+    assignedBy: number,
+  ) {
     return await this.prisma.$transaction(async (tx) => {
       // Tìm team leader hiện tại
       const currentLeader = await tx.user_role_assignment.findFirst({
@@ -648,19 +736,19 @@ export class RoleAssignmentService {
           scope_id: teamId,
           role: {
             name: 'team_leader',
-            deleted_at: null
+            deleted_at: null,
           },
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              user_information: { select: { name: true } }
-            }
-          }
-        }
+              user_information: { select: { name: true } },
+            },
+          },
+        },
       });
 
       let replacedUser: any = null;
@@ -669,14 +757,14 @@ export class RoleAssignmentService {
       if (currentLeader) {
         await tx.user_role_assignment.update({
           where: { id: currentLeader.id },
-          data: { deleted_at: new Date() }
+          data: { deleted_at: new Date() },
         });
         replacedUser = currentLeader.user;
       }
 
       // Gán leader mới
       const teamLeaderRole = await tx.roles.findFirst({
-        where: { name: 'team_leader', deleted_at: null }
+        where: { name: 'team_leader', deleted_at: null },
       });
 
       if (!teamLeaderRole) {
@@ -689,18 +777,18 @@ export class RoleAssignmentService {
           role_id: teamLeaderRole.id,
           scope_type: ScopeType.TEAM,
           scope_id: teamId,
-          assigned_by: assignedBy
+          assigned_by: assignedBy,
         },
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              user_information: { select: { name: true } }
-            }
+              user_information: { select: { name: true } },
+            },
           },
-          role: true
-        }
+          role: true,
+        },
       });
 
       // Ghi log
@@ -713,12 +801,14 @@ export class RoleAssignmentService {
         {
           team_id: teamId,
           new_role: 'team_leader',
-          replaced_user: replacedUser ? {
-            id: replacedUser.id,
-            name: replacedUser.user_information?.[0]?.name || null,
-            email: replacedUser.email
-          } : null
-        }
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
       );
 
       return { newAssignment, replacedUser };
@@ -728,7 +818,11 @@ export class RoleAssignmentService {
   /**
    * Gán Division Head
    */
-  private async assignDivisionHead(divisionId: number, newUserId: number, assignedBy: number) {
+  private async assignDivisionHead(
+    divisionId: number,
+    newUserId: number,
+    assignedBy: number,
+  ) {
     return await this.prisma.$transaction(async (tx) => {
       // Tìm division head hiện tại
       const currentHead = await tx.user_role_assignment.findFirst({
@@ -737,19 +831,19 @@ export class RoleAssignmentService {
           scope_id: divisionId,
           role: {
             name: 'division_head',
-            deleted_at: null
+            deleted_at: null,
           },
-          deleted_at: null
+          deleted_at: null,
         },
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              user_information: { select: { name: true } }
-            }
-          }
-        }
+              user_information: { select: { name: true } },
+            },
+          },
+        },
       });
 
       let replacedUser: any = null;
@@ -758,14 +852,14 @@ export class RoleAssignmentService {
       if (currentHead) {
         await tx.user_role_assignment.update({
           where: { id: currentHead.id },
-          data: { deleted_at: new Date() }
+          data: { deleted_at: new Date() },
         });
         replacedUser = currentHead.user;
       }
 
       // Gán head mới
       const divisionHeadRole = await tx.roles.findFirst({
-        where: { name: 'division_head', deleted_at: null }
+        where: { name: 'division_head', deleted_at: null },
       });
 
       if (!divisionHeadRole) {
@@ -778,18 +872,18 @@ export class RoleAssignmentService {
           role_id: divisionHeadRole.id,
           scope_type: ScopeType.DIVISION,
           scope_id: divisionId,
-          assigned_by: assignedBy
+          assigned_by: assignedBy,
         },
         include: {
           user: {
             select: {
               id: true,
               email: true,
-              user_information: { select: { name: true } }
-            }
+              user_information: { select: { name: true } },
+            },
           },
-          role: true
-        }
+          role: true,
+        },
       });
 
       // Ghi log
@@ -802,12 +896,14 @@ export class RoleAssignmentService {
         {
           division_id: divisionId,
           new_role: 'division_head',
-          replaced_user: replacedUser ? {
-            id: replacedUser.id,
-            name: replacedUser.user_information?.[0]?.name || null,
-            email: replacedUser.email
-          } : null
-        }
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
       );
 
       return { newAssignment, replacedUser };
@@ -825,7 +921,7 @@ export class RoleAssignmentService {
       projectId?: number;
       teamId?: number;
       divisionId?: number;
-    }
+    },
   ) {
     // Xác định scope
     let scopeType: ScopeType = ScopeType.COMPANY;
@@ -847,20 +943,17 @@ export class RoleAssignmentService {
       role_id: roleId,
       scope_type: scopeType,
       scope_id: scopeId,
-      assigned_by: assignedBy
+      assigned_by: assignedBy,
     });
   }
 
-  /**
-   * Ghi log thay đổi role
-   */
   private async logRoleChange(
     tx: any,
     userId: number,
     event: string,
     description: string,
     causerId: number,
-    properties: any
+    properties: any,
   ) {
     await tx.activity_log.create({
       data: {
@@ -870,8 +963,8 @@ export class RoleAssignmentService {
         causer_id: causerId,
         event,
         description,
-        properties: JSON.stringify(properties)
-      }
+        properties: JSON.stringify(properties),
+      },
     });
   }
 }
