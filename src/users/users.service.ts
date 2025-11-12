@@ -1,5 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { USER_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
+import { Prisma, ScopeType } from '@prisma/client';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
+import {
+  SUCCESS_MESSAGES,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -8,8 +13,6 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { Prisma, ScopeType } from '@prisma/client';
-import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 
 @Injectable()
 export class UsersService {
@@ -148,7 +151,22 @@ export class UsersService {
               },
             },
           },
+          user_role_assignments: {
+            select: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              scope_id: true,
+              scope_type: true,
+            },
+          },
           user_division: {
+            where: {
+              deleted_at: null,
+            },
             select: {
               division: {
                 select: {
@@ -162,7 +180,14 @@ export class UsersService {
                   type: true,
                 },
               },
+              team: {
+                select: {
+                  id: true,
+                  name: true,
+                }
+              }
             },
+            take: 1,
           },
         },
       }),
@@ -171,12 +196,7 @@ export class UsersService {
 
     const transformedData = data.map((user) => ({
       ...user,
-      avatar: user.user_information?.avatar,
-      phone: user.user_information?.phone,
-      address: user.user_information?.address,
-      name: user.user_information?.name,
-      position: user.user_information?.position,
-      user_information: undefined,
+      user_division: user?.user_division,
     }));
 
     return buildPaginationResponse(
@@ -195,7 +215,7 @@ export class UsersService {
       include: {
         user_information: {
           include: {
-            position: true, 
+            position: true,
             level: true,
           },
         },
@@ -206,7 +226,7 @@ export class UsersService {
           include: {
             division: true,
           },
-          take: 1, // Only take the first element
+          take: 1,
         },
       },
     });
@@ -215,10 +235,8 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Lấy role assignments của user
     const roleAssignments = await this.roleAssignmentService.getUserRoles(id);
 
-    // Convert user_division from array to object
     return {
       ...user,
       user_division: user.user_division[0] || null,
@@ -240,7 +258,7 @@ export class UsersService {
           include: {
             role: true,
           },
-        }
+        },
       },
     });
   }
