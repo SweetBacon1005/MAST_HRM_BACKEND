@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   NEWS_ERRORS,
@@ -10,18 +6,18 @@ import {
 } from '../common/constants/error-messages.constants';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
+import { AdminNotificationDetailResponseDto } from './dto/admin-notification-response.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
-import { NotificationPaginationDto } from './dto/pagination-queries.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
 import {
   CreateNotificationResponseDto,
-  UpdateNotificationResponseDto,
-  MarkReadResponseDto,
-  DeleteNotificationResponseDto,
   CreateWithRawSQLResponseDto,
+  DeleteNotificationResponseDto,
+  MarkReadResponseDto,
+  UpdateNotificationResponseDto,
 } from './dto/notification-action-response.dto';
 import { NotificationListResponseDto } from './dto/notification-list-response.dto';
-import { AdminNotificationDetailResponseDto } from './dto/admin-notification-response.dto';
+import { NotificationPaginationDto } from './dto/pagination-queries.dto';
+import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { UserNotificationDetailResponseDto } from './dto/user-notification-response.dto';
 
 @Injectable()
@@ -46,32 +42,25 @@ export class NotificationsService {
     }
     return await this.prisma.$transaction(
       async (tx) => {
-        const notification = await tx.notifications.create({
-          data: {
-            title: createNotificationDto.title,
-            content: createNotificationDto.content,
-            news_id: createNotificationDto.news_id,
-            created_by: creatorId,
-          },
-        });
-
         const targetUsers = await tx.users.findMany({
           where: { deleted_at: null },
           select: { id: true },
         });
 
+        let createNotification: any;
         if (targetUsers.length > 0) {
-          await this.createWithRawSQL({
-            title: createNotificationDto.title,
-            content: createNotificationDto.content,
-            news_id: createNotificationDto.news_id,
-          });
+          createNotification = await this.createWithRawSQL(
+            {
+              title: createNotificationDto.title,
+              content: createNotificationDto.content,
+              news_id: createNotificationDto.news_id,
+            },
+            creatorId,
+          );
         }
 
         return {
-          notification,
-          message: `Đã tạo thông báo cho ${targetUsers.length} người dùng`,
-          count: targetUsers.length,
+          ...createNotification,
           newsTitle: news?.title,
         };
       },
@@ -151,7 +140,7 @@ export class NotificationsService {
         return {
           ...notificationWithoutUserNotifications,
           creatorName:
-            (n.creator?.user_information?.name ?? n.creator?.email ?? 'System'),
+            n.creator?.user_information?.name ?? n.creator?.email ?? 'System',
           newsTitle: n.news?.title || null,
           totalRecipients: user_notifications.length,
           readCount: user_notifications.filter((un) => un.is_read).length,
@@ -240,9 +229,9 @@ export class NotificationsService {
         created_at: un.created_at,
         updated_at: un.updated_at,
         creatorName:
-          (un.notification.creator?.user_information?.name ?? 
-           un.notification.creator?.email ?? 
-           'System'),
+          un.notification.creator?.user_information?.name ??
+          un.notification.creator?.email ??
+          'System',
         newsTitle: un.notification.news?.title || null,
         news_id: un.notification.news_id,
       }));
@@ -312,13 +301,13 @@ export class NotificationsService {
       return {
         ...notification,
         creatorName:
-          (notification.creator?.user_information?.name ?? 
-           notification.creator?.email ?? 
-           'System'),
+          notification.creator?.user_information?.name ??
+          notification.creator?.email ??
+          'System',
         newsTitle: notification.news?.title || null,
         recipients: notification.user_notifications.map((un) => ({
           user_id: un.user_id,
-          userName: (un.user.user_information?.name ?? un.user.email),
+          userName: un.user.user_information?.name ?? un.user.email,
           is_read: un.is_read,
           read_at: un.read_at,
         })),
@@ -376,9 +365,9 @@ export class NotificationsService {
         created_at: userNotification.created_at,
         updated_at: userNotification.updated_at,
         creatorName:
-          (userNotification.notification.creator?.user_information?.name ?? 
-           userNotification.notification.creator?.email ?? 
-           'System'),
+          userNotification.notification.creator?.user_information?.name ??
+          userNotification.notification.creator?.email ??
+          'System',
         newsTitle: userNotification.notification.news?.title || null,
         news_id: userNotification.notification.news_id,
       };
