@@ -670,7 +670,6 @@ export class RequestsController {
     }
 
     const rolePriority = [
-      ROLE_NAMES.SUPER_ADMIN,
       ROLE_NAMES.ADMIN,
       ROLE_NAMES.DIVISION_HEAD,
       ROLE_NAMES.TEAM_LEADER,

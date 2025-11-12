@@ -18,41 +18,28 @@ export class UsersService {
     private roleAssignmentService: RoleAssignmentService,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, assignedBy: number) {
     const { password, ...userData } = createUserDto;
 
     const user = await this.prisma.users.create({
       data: {
-        ...userData,
+        email: userData.email.toLowerCase(),
         password: password,
         email_verified_at: new Date(),
         user_information: {
           create: {
-            personal_email: userData.email,
-            nationality: '',
             name: userData.name,
-            code: '',
-            avatar: '',
-            gender: '',
-            marital: '',
-            birthday: '',
-            address: '',
-            temp_address: '',
-            phone: '',
-            tax_code: '',
-            expertise: '',
-          }
+          },
         },
       },
     });
 
-    // Tạo role assignment cho user mới (company scope)
-    if (userData.role) {
+    if (userData.roleId) {
       await this.roleAssignmentService.assignRole({
         user_id: user.id,
-        role_id: Number(userData.role),
+        role_id: Number(userData.roleId),
         scope_type: ScopeType.COMPANY,
-        assigned_by: 1,
+        assigned_by: assignedBy,
       });
     }
 

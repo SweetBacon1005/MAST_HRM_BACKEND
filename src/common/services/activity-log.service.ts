@@ -208,10 +208,7 @@ export class ActivityLogService {
     }
   }
 
-  /**
-   * Log user login
-   */
-  async logUserLogin(userId: number, ipAddress?: string, userAgent?: string): Promise<void> {
+  async logUserLogin(userId: number): Promise<void> {
     await this.log({
       logName: 'Authentication',
       description: 'Đăng nhập hệ thống',
@@ -220,16 +217,11 @@ export class ActivityLogService {
       subjectId: userId,
       causerId: userId,
       properties: {
-        ip_address: ipAddress,
-        user_agent: userAgent,
         login_time: new Date().toISOString(),
       },
     });
   }
 
-  /**
-   * Log user logout
-   */
   async logUserLogout(userId: number): Promise<void> {
     await this.log({
       logName: 'Authentication',
@@ -244,9 +236,6 @@ export class ActivityLogService {
     });
   }
 
-  /**
-   * Log role assignment
-   */
   async logRoleAssignment(
     userId: number,
     roleId: number,
@@ -273,9 +262,6 @@ export class ActivityLogService {
     });
   }
 
-  /**
-   * Log timesheet check-in/out
-   */
   async logTimesheetAction(
     userId: number,
     action: 'checkin' | 'checkout',
@@ -301,9 +287,6 @@ export class ActivityLogService {
     });
   }
 
-  /**
-   * Log CRUD operations
-   */
   async logCrudOperation(
     entityType: string,
     entityId: number,
@@ -325,9 +308,6 @@ export class ActivityLogService {
     });
   }
 
-  /**
-   * Log news operations
-   */
   async logNewsOperation(
     operation: 'created' | 'updated' | 'deleted' | 'submitted' | 'approved' | 'rejected' | 'viewed',
     newsId: number,

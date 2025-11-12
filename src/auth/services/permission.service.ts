@@ -264,7 +264,7 @@ export class PermissionService {
    */
   async isAdmin(userId: number): Promise<boolean> {
     const role = await this.getUserRole(userId);
-    return role?.name === 'admin' || role?.name === 'super_admin';
+    return role?.name === 'admin';
   }
 
   /**
@@ -274,6 +274,6 @@ export class PermissionService {
    */
   async isSuperAdmin(userId: number): Promise<boolean> {
     const role = await this.getUserRole(userId);
-    return role?.name === 'super_admin';
+    return role?.name === 'admin';
   }
 }

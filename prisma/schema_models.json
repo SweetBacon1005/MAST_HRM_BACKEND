@@ -1,0 +1,2813 @@
+[
+    {
+        "Name":  "rooms",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "rooms"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "is_active",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "bookings",
+                           "type":  "room_bookings[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "room_bookings",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "room_bookings"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "room_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "room",
+                           "type":  "rooms"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "start_time",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_time",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "organizer_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "organizer",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "education",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "education"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "major",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "start_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "experience",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "experience"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "job_title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "company",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "start_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "divisions",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "divisions"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "DivisionType?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "DivisionStatus?"
+                       },
+                       {
+                           "name":  "address",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "parent_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "parent",
+                           "type":  "divisions?"
+                       },
+                       {
+                           "name":  "children",
+                           "type":  "divisions[]"
+                       },
+                       {
+                           "name":  "founding_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_division",
+                           "type":  "user_division[]"
+                       },
+                       {
+                           "name":  "rotation_member",
+                           "type":  "rotation_members[]"
+                       },
+                       {
+                           "name":  "projects",
+                           "type":  "projects[]"
+                       },
+                       {
+                           "name":  "teams",
+                           "type":  "teams[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "levels",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "levels"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "coefficient",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_information",
+                           "type":  "user_information[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "migrations",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "migrations"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "migration",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "batch",
+                           "type":  "Int"
+                       }
+                   ]
+    },
+    {
+        "Name":  "permissions",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "permissions"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "permission_role",
+                           "type":  "permission_role[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "positions",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "positions"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_information",
+                           "type":  "user_information[]"
+                       },
+                       {
+                           "name":  "skills",
+                           "type":  "skills[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "roles",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "roles"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "permission_role",
+                           "type":  "permission_role[]"
+                       },
+                       {
+                           "name":  "user_role_assignment",
+                           "type":  "user_role_assignment[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "skills",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "skills"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "position_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "position",
+                           "type":  "positions"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_skills",
+                           "type":  "user_skills[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_information",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_information"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "personal_email",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "nationality",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "code",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "avatar",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "gender",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "marital",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "birthday",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "position_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "position",
+                           "type":  "positions?"
+                       },
+                       {
+                           "name":  "address",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "temp_address",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "phone",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "tax_code",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "UserInformationStatus"
+                       },
+                       {
+                           "name":  "level_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "level",
+                           "type":  "levels?"
+                       },
+                       {
+                           "name":  "expertise",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "language_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "language",
+                           "type":  "languages?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "languages",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "languages"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_information",
+                           "type":  "user_information[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_skills",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_skills"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "skill_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "skill",
+                           "type":  "skills"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "experience",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "months_experience",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "is_main",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "activity_log",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "activity_log"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "log_name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "subject_type",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "event",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "subject_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "subject",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "causer_type",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "causer_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "causer",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "properties",
+                           "type":  "Json"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       }
+                   ]
+    },
+    {
+        "Name":  "files",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "files"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "path",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "mime_type",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "fileable_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "fileable_type",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       }
+                   ]
+    },
+    {
+        "Name":  "permission_role",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "permission_role"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "permission_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "permission",
+                           "type":  "permissions"
+                       },
+                       {
+                           "name":  "role_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "role",
+                           "type":  "roles"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       }
+                   ]
+    },
+    {
+        "Name":  "daily_reports",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "daily_reports"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "project_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "project",
+                           "type":  "projects"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "actual_time",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus?"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "reviewed_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "reject_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       }
+                   ]
+    },
+    {
+        "Name":  "otp_codes",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "otp_codes"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "email",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "code",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "OtpType"
+                       },
+                       {
+                           "name":  "expires_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "is_used",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       }
+                   ]
+    },
+    {
+        "Name":  "projects",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "projects"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "code",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ProjectStatus"
+                       },
+                       {
+                           "name":  "division_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "division",
+                           "type":  "divisions?"
+                       },
+                       {
+                           "name":  "team_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "team",
+                           "type":  "teams?"
+                       },
+                       {
+                           "name":  "project_type",
+                           "type":  "ProjectType?"
+                       },
+                       {
+                           "name":  "industry",
+                           "type":  "IndustryType?"
+                       },
+                       {
+                           "name":  "progress",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "scope",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "start_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "daily_reports",
+                           "type":  "daily_reports[]"
+                       },
+                       {
+                           "name":  "over_times_history",
+                           "type":  "over_times_history[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "users",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "email",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "email_verified_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "password",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "education",
+                           "type":  "education[]"
+                       },
+                       {
+                           "name":  "experience",
+                           "type":  "experience[]"
+                       },
+                       {
+                           "name":  "user_information",
+                           "type":  "user_information?"
+                       },
+                       {
+                           "name":  "user_skills",
+                           "type":  "user_skills[]"
+                       },
+                       {
+                           "name":  "rotation_members",
+                           "type":  "rotation_members[]"
+                       },
+                       {
+                           "name":  "user_division",
+                           "type":  "user_division[]"
+                       },
+                       {
+                           "name":  "attendance_logs",
+                           "type":  "attendance_logs[]"
+                       },
+                       {
+                           "name":  "attendance_sessions",
+                           "type":  "attendance_sessions[]"
+                       },
+                       {
+                           "name":  "day_offs",
+                           "type":  "day_offs[]"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "day_offs[]"
+                       },
+                       {
+                           "name":  "time_sheets",
+                           "type":  "time_sheets[]"
+                       },
+                       {
+                           "name":  "daily_reports",
+                           "type":  "daily_reports[]"
+                       },
+                       {
+                           "name":  "activity_log_subject",
+                           "type":  "activity_log[]"
+                       },
+                       {
+                           "name":  "activity_log_causer",
+                           "type":  "activity_log[]"
+                       },
+                       {
+                           "name":  "remote_work_requests",
+                           "type":  "remote_work_requests[]"
+                       },
+                       {
+                           "name":  "approved_remote_work_requests",
+                           "type":  "remote_work_requests[]"
+                       },
+                       {
+                           "name":  "over_times_history_approved",
+                           "type":  "over_times_history[]"
+                       },
+                       {
+                           "name":  "over_times_history_subject",
+                           "type":  "over_times_history[]"
+                       },
+                       {
+                           "name":  "user_leave_balance",
+                           "type":  "user_leave_balances?"
+                       },
+                       {
+                           "name":  "leave_transactions",
+                           "type":  "leave_transactions[]"
+                       },
+                       {
+                           "name":  "late_early_requests",
+                           "type":  "late_early_requests[]"
+                       },
+                       {
+                           "name":  "approved_late_early_requests",
+                           "type":  "late_early_requests[]"
+                       },
+                       {
+                           "name":  "forgot_checkin_requests",
+                           "type":  "forgot_checkin_requests[]"
+                       },
+                       {
+                           "name":  "approved_forgot_checkin_requests",
+                           "type":  "forgot_checkin_requests[]"
+                       },
+                       {
+                           "name":  "assigned_assets",
+                           "type":  "assets[]"
+                       },
+                       {
+                           "name":  "created_assets",
+                           "type":  "assets[]"
+                       },
+                       {
+                           "name":  "asset_requests",
+                           "type":  "asset_requests[]"
+                       },
+                       {
+                           "name":  "approved_asset_requests",
+                           "type":  "asset_requests[]"
+                       },
+                       {
+                           "name":  "authored_news",
+                           "type":  "news[]"
+                       },
+                       {
+                           "name":  "reviewed_news",
+                           "type":  "news[]"
+                       },
+                       {
+                           "name":  "created_notifications",
+                           "type":  "notifications[]"
+                       },
+                       {
+                           "name":  "user_notifications",
+                           "type":  "user_notifications[]"
+                       },
+                       {
+                           "name":  "room_bookings_organized",
+                           "type":  "room_bookings[]"
+                       },
+                       {
+                           "name":  "user_role_assignments",
+                           "type":  "user_role_assignment[]"
+                       },
+                       {
+                           "name":  "assigned_role_assignments",
+                           "type":  "user_role_assignment[]"
+                       },
+                       {
+                           "name":  "daily_report_approver",
+                           "type":  "daily_reports[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "day_offs",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "day_offs"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "duration",
+                           "type":  "DayOffDuration"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "DayOffStatus"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "DayOffType"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejected_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "is_past",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "balance_deducted",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "deduction_transaction_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "time_sheets",
+                           "type":  "time_sheets[]"
+                       },
+                       {
+                           "name":  "leave_transactions",
+                           "type":  "leave_transactions[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "holidays",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "holidays"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "HolidayType"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "HolidayStatus"
+                       },
+                       {
+                           "name":  "start_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "time_sheets",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "time_sheets"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "TimesheetType?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus?"
+                       },
+                       {
+                           "name":  "checkin",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "checkout",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "checkin_checkout",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "work_time_morning",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "work_time_afternoon",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "total_work_time",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "break_time",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "late_time",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "late_time_approved",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "early_time",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "early_time_approved",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "remote",
+                           "type":  "RemoteType?"
+                       },
+                       {
+                           "name":  "day_off_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "day_off",
+                           "type":  "day_offs?"
+                       },
+                       {
+                           "name":  "has_forgot_checkin_request",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "has_late_early_request",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "has_remote_work_request",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "forgot_checkin_approved",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "late_early_approved",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "remote_work_approved",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "is_complete",
+                           "type":  "Boolean?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "attendance_logs",
+                           "type":  "attendance_logs[]"
+                       },
+                       {
+                           "name":  "attendance_sessions",
+                           "type":  "attendance_sessions[]"
+                       },
+                       {
+                           "name":  "late_early_requests",
+                           "type":  "late_early_requests[]"
+                       },
+                       {
+                           "name":  "forgot_checkin_requests",
+                           "type":  "forgot_checkin_requests[]"
+                       },
+                       {
+                           "name":  "remote_work_requests",
+                           "type":  "remote_work_requests[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "attendance_sessions",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "attendance_sessions"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "timesheet_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "timesheet",
+                           "type":  "time_sheets?"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "session_type",
+                           "type":  "SessionType"
+                       },
+                       {
+                           "name":  "checkin_time",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "checkout_time",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "duration",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "is_open",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "location_type",
+                           "type":  "LocationType?"
+                       },
+                       {
+                           "name":  "checkin_photo",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "checkout_photo",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "note",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "attendance_logs",
+                           "type":  "attendance_logs[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "attendance_logs",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "attendance_logs"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "timesheet_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "timesheet",
+                           "type":  "time_sheets?"
+                       },
+                       {
+                           "name":  "session_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "session",
+                           "type":  "attendance_sessions?"
+                       },
+                       {
+                           "name":  "action_type",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "timestamp",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "location_type",
+                           "type":  "LocationType?"
+                       },
+                       {
+                           "name":  "photo_url",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "note",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "itempodency_key",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "is_manual",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "schedule_works",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "schedule_works"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "start_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "hour_start_morning",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "hour_end_morning",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "hour_start_afternoon",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "hour_end_afternoon",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "WorkShiftType?"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "rotation_members",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "rotation_members"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "division_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "division",
+                           "type":  "divisions"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "RotationType"
+                       },
+                       {
+                           "name":  "date_rotation",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "over_times_history",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "over_times_history"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "start_time",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_time",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "total_hours",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "hourly_rate",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "total_amount",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "project_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "project",
+                           "type":  "projects?"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus?"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejected_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "over_times",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "over_times"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "type",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "start_first_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_first_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "first_coefficient",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "start_second_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_second_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "second_coefficient",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "start_third_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "end_third_shift",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "third_coefficient",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_division",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_division"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "userId",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "divisionId",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "division",
+                           "type":  "divisions?"
+                       },
+                       {
+                           "name":  "teamId",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "team",
+                           "type":  "teams?"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_role_assignment",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_role_assignment"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "role_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "scope_type",
+                           "type":  "ScopeType"
+                       },
+                       {
+                           "name":  "scope_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "assigned_by",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "role",
+                           "type":  "roles"
+                       },
+                       {
+                           "name":  "assigner",
+                           "type":  "users"
+                       }
+                   ]
+    },
+    {
+        "Name":  "teams",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "teams"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "division_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "division",
+                           "type":  "divisions?"
+                       },
+                       {
+                           "name":  "founding_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_division",
+                           "type":  "user_division[]"
+                       },
+                       {
+                           "name":  "projects",
+                           "type":  "projects[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "assets",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "assets"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "name",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "asset_code",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "category",
+                           "type":  "AssetCategory"
+                       },
+                       {
+                           "name":  "brand",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "model",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "serial_number",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "purchase_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "purchase_price",
+                           "type":  "Float?"
+                       },
+                       {
+                           "name":  "warranty_end_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "location",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "AssetStatus"
+                       },
+                       {
+                           "name":  "assigned_to",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "assigned_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "assigned_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "notes",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_by",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "creator",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "asset_requests",
+                           "type":  "asset_requests[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "asset_requests",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "asset_requests"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "asset_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "asset",
+                           "type":  "assets?"
+                       },
+                       {
+                           "name":  "request_type",
+                           "type":  "AssetRequestType"
+                       },
+                       {
+                           "name":  "category",
+                           "type":  "AssetCategory"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "justification",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "expected_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "AssetRequestStatus"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approver",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejection_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "fulfilled_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "notes",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "remote_work_requests",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "remote_work_requests"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "remote_type",
+                           "type":  "RemoteType"
+                       },
+                       {
+                           "name":  "duration",
+                           "type":  "DayOffDuration"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejected_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "timesheet_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "timesheet",
+                           "type":  "time_sheets?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_leave_balances",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_leave_balances"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "paid_leave_balance",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "unpaid_leave_balance",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "annual_paid_leave_quota",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "carry_over_days",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "last_reset_date",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "leave_transactions",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "leave_transactions"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "transaction_type",
+                           "type":  "LeaveTransactionType"
+                       },
+                       {
+                           "name":  "leave_type",
+                           "type":  "DayOffType"
+                       },
+                       {
+                           "name":  "amount",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "balance_after",
+                           "type":  "Float"
+                       },
+                       {
+                           "name":  "day_off_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "day_off",
+                           "type":  "day_offs?"
+                       },
+                       {
+                           "name":  "description",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "late_early_requests",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "late_early_requests"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "request_type",
+                           "type":  "LateEarlyType"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "late_minutes",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "early_minutes",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejected_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "timesheet_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "timesheet",
+                           "type":  "time_sheets?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "forgot_checkin_requests",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "forgot_checkin_requests"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "work_date",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "checkin_time",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "checkout_time",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "ApprovalStatus"
+                       },
+                       {
+                           "name":  "approved_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "approved_by_user",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "approved_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "rejected_reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "timesheet_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "timesheet",
+                           "type":  "time_sheets?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "notifications",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "notifications"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "content",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "news_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "news",
+                           "type":  "news?"
+                       },
+                       {
+                           "name":  "created_by",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "creator",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "user_notifications",
+                           "type":  "user_notifications[]"
+                       }
+                   ]
+    },
+    {
+        "Name":  "user_notifications",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "user_notifications"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "notification_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "notification",
+                           "type":  "notifications"
+                       },
+                       {
+                           "name":  "user_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "user",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "is_read",
+                           "type":  "Boolean"
+                       },
+                       {
+                           "name":  "read_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       }
+                   ]
+    },
+    {
+        "Name":  "news",
+        "Fields":  [
+                       {
+                           "name":  "model",
+                           "type":  "news"
+                       },
+                       {
+                           "name":  "id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "title",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "content",
+                           "type":  "String"
+                       },
+                       {
+                           "name":  "status",
+                           "type":  "NewsStatus"
+                       },
+                       {
+                           "name":  "author_id",
+                           "type":  "Int"
+                       },
+                       {
+                           "name":  "author",
+                           "type":  "users"
+                       },
+                       {
+                           "name":  "reason",
+                           "type":  "String?"
+                       },
+                       {
+                           "name":  "reviewer_id",
+                           "type":  "Int?"
+                       },
+                       {
+                           "name":  "reviewer",
+                           "type":  "users?"
+                       },
+                       {
+                           "name":  "reviewed_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "created_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "updated_at",
+                           "type":  "DateTime"
+                       },
+                       {
+                           "name":  "deleted_at",
+                           "type":  "DateTime?"
+                       },
+                       {
+                           "name":  "notifications",
+                           "type":  "notifications[]"
+                       }
+                   ]
+    }
+]

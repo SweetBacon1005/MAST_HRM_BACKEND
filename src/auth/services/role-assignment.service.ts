@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ScopeType } from '@prisma/client';
+import { Prisma, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { getRoleLevel } from '../constants/role.constants';
 
@@ -955,16 +955,22 @@ export class RoleAssignmentService {
     causerId: number,
     properties: any,
   ) {
-    await tx.activity_log.create({
-      data: {
-        subject_type: 'users',
-        subject_id: userId,
-        causer_type: 'users',
-        causer_id: causerId,
-        event,
-        description,
-        properties: JSON.stringify(properties),
+    const activityLogData: Prisma.activity_logCreateInput = {
+      log_name: 'role_change',
+      subject: {
+        connect: { id: userId },
       },
+      causer: {
+        connect: { id: causerId },
+      },
+      subject_type: 'users',
+      causer_type: 'users',
+      event,
+      description,
+      properties: JSON.stringify(properties),
+    };
+    await tx.activity_log.create({
+      data: activityLogData,
     });
   }
 }

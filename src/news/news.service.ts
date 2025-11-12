@@ -373,9 +373,7 @@ export class NewsService {
 
     if (
       existingNews.author_id !== userId ||
-      (role !== ROLE_NAMES.ADMIN &&
-        role !== ROLE_NAMES.SUPER_ADMIN &&
-        role !== ROLE_NAMES.COMPANY_OWNER)
+      (role !== ROLE_NAMES.ADMIN)
     ) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_DELETE);
     }

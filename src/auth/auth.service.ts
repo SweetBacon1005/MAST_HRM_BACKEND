@@ -63,11 +63,7 @@ export class AuthService {
     return null;
   }
 
-  async login(
-    loginDto: LoginDto,
-    ipAddress?: string,
-    userAgent?: string,
-  ): Promise<TokensDto> {
+  async login(loginDto: LoginDto): Promise<TokensDto> {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_CREDENTIALS);
@@ -79,11 +75,7 @@ export class AuthService {
       user.user_role_assignments.map((assignment) => assignment.role.name),
     );
 
-    await this.activityLogService.logUserLogin(
-      Number(user.id),
-      ipAddress,
-      userAgent,
-    );
+    await this.activityLogService.logUserLogin(Number(user.id));
 
     return tokens;
   }
@@ -107,7 +99,7 @@ export class AuthService {
     }
   }
 
-  async register(registerDto: RegisterDto): Promise<TokensDto> {
+  async register(registerDto: RegisterDto, userId: number): Promise<TokensDto> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new BadRequestException(AUTH_ERRORS.EMAIL_ALREADY_EXISTS);
@@ -122,10 +114,13 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
 
-    const user = await this.usersService.create({
-      ...registerDto,
-      password: hashedPassword,
-    });
+    const user = await this.usersService.create(
+      {
+        ...registerDto,
+        password: hashedPassword,
+      },
+      userId,
+    );
 
     const role = await this.prisma.roles.findFirst({
       where: { name: { equals: ROLE_NAMES.EMPLOYEE }, deleted_at: null },
@@ -263,7 +258,7 @@ export class AuthService {
     const [
       userInfo,
       todayTimesheet,
-      usedLeaveDays,
+      userLeaveBalance,
       assignedDevices,
       userDivision,
       unreadNotifications,
@@ -304,19 +299,10 @@ export class AuthService {
         },
       }),
 
-      this.prisma.day_offs.aggregate({
+      this.prisma.user_leave_balances.findFirst({
         where: {
           user_id: userId,
-          work_date: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
-          status: 'APPROVED',
-          type: 'PAID',
           deleted_at: null,
-        },
-        _count: {
-          id: true,
         },
       }),
 
@@ -362,11 +348,6 @@ export class AuthService {
       }),
     ]);
 
-    const annualLeaveQuota = 12;
-    const monthlyLeaveQuota = annualLeaveQuota / 12;
-    const usedLeave = usedLeaveDays._count.id || 0;
-    const remainingLeave = Math.max(0, monthlyLeaveQuota - usedLeave);
-
     const formattedDevices = assignedDevices.map((asset) => ({
       id: asset.id,
       name: asset.name || 'Unknown Asset',
@@ -394,9 +375,9 @@ export class AuthService {
         is_complete: todayTimesheet?.is_complete || false,
         has_attendance: !!todayTimesheet,
       },
-      remaining_leave_days: Math.round(remainingLeave * 10) / 10,
-      annual_leave_quota: annualLeaveQuota,
-      used_leave_days: usedLeave,
+      remaining_leave_days: (userLeaveBalance?.paid_leave_balance || 0) * 8,
+      annual_leave_quota: (userLeaveBalance?.annual_paid_leave_quota || 0) * 8,
+      used_leave_days: 1,
       assigned_devices: formattedDevices,
       organization: {
         position_id: userInfo?.position_id || null,

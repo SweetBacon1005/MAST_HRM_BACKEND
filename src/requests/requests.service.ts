@@ -5,10 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  ApprovalStatus,
   DayOffStatus,
   DayOffType,
   RemoteType,
-  ApprovalStatus,
   ScopeType,
 } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
@@ -2497,13 +2497,14 @@ export class RequestsService {
         user_id: userId,
         deleted_at: null,
       },
-      include: {
-      },
+      include: {},
     });
 
     const userRoles = await this.roleAssignmentService.getUserRoles(userId);
     const isDivisionHead = userRoles.roles.some(
-      role => role.name === ROLE_NAMES.DIVISION_HEAD && role.scope_type === ScopeType.DIVISION
+      (role) =>
+        role.name === ROLE_NAMES.DIVISION_HEAD &&
+        role.scope_type === ScopeType.DIVISION,
     );
 
     if (!isDivisionHead) {
@@ -2664,7 +2665,6 @@ export class RequestsService {
         };
       }
 
-      case ROLE_NAMES.SUPER_ADMIN:
       case ROLE_NAMES.ADMIN:
       case ROLE_NAMES.HR_MANAGER:
         return {
@@ -2807,11 +2807,7 @@ export class RequestsService {
    * Check if role is admin-level
    */
   private isAdminRole(role: string): boolean {
-    return [
-      ROLE_NAMES.SUPER_ADMIN,
-      ROLE_NAMES.ADMIN,
-      ROLE_NAMES.HR_MANAGER,
-    ].includes(role as any);
+    return role === ROLE_NAMES.ADMIN;
   }
 
   /**
@@ -2821,7 +2817,7 @@ export class RequestsService {
     // 1. Requests từ leadership roles
     if (
       this.getLeadershipRoles().includes(
-        request.user?.role_assignments.map(role => role.name?.toLowerCase())
+        request.user?.role_assignments.map((role) => role.name?.toLowerCase())
       )
     ) {
       return true;

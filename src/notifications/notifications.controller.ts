@@ -61,10 +61,7 @@ export class NotificationsController {
     @GetCurrentUser() user: any,
   ) {
     const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
-    const userIsAdmin =
-      roles.includes(ROLE_NAMES.ADMIN) ||
-      roles.includes(ROLE_NAMES.SUPER_ADMIN) ||
-      roles.includes(ROLE_NAMES.COMPANY_OWNER);
+    const userIsAdmin = roles.includes(ROLE_NAMES.ADMIN);
     return this.notificationsService.findAll(
       paginationDto,
       userId,
@@ -87,10 +84,7 @@ export class NotificationsController {
     @GetCurrentUser() user: any,
   ) {
     const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
-    const userIsAdmin =
-      roles.includes(ROLE_NAMES.ADMIN) ||
-      roles.includes(ROLE_NAMES.SUPER_ADMIN) ||
-      roles.includes(ROLE_NAMES.COMPANY_OWNER);
+    const userIsAdmin = roles.includes(ROLE_NAMES.ADMIN);
     return this.notificationsService.findOne(id, userId, userIsAdmin);
   }
 
@@ -128,10 +122,7 @@ export class NotificationsController {
     @GetCurrentUser('id') userId: number,
     @GetCurrentUser('role') userRole: string,
   ) {
-    const isAdmin =
-      userRole === ROLE_NAMES.ADMIN ||
-      userRole === ROLE_NAMES.SUPER_ADMIN ||
-      userRole === ROLE_NAMES.COMPANY_OWNER;
+    const isAdmin = userRole === ROLE_NAMES.ADMIN;
     return this.notificationsService.markAsRead(
       notificationId,
       userId,
@@ -152,10 +143,7 @@ export class NotificationsController {
     @GetCurrentUser('id') userId: number,
     @GetCurrentUser('role') userRole: string,
   ) {
-    const isAdmin =
-      userRole === ROLE_NAMES.ADMIN ||
-      userRole === ROLE_NAMES.SUPER_ADMIN ||
-      userRole === ROLE_NAMES.COMPANY_OWNER;
+    const isAdmin = userRole === ROLE_NAMES.ADMIN;
     return this.notificationsService.remove(notificationId, userId, isAdmin);
   }
 }

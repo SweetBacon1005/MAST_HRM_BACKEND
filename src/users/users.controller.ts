@@ -23,6 +23,7 @@ import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
 
 @ApiTags('users')
 @Controller('users')
@@ -42,8 +43,8 @@ export class UsersController {
     status: 400,
     description: 'Dữ liệu không hợp lệ',
   })
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @GetCurrentUser('id') assignedBy: number) {
+    return this.usersService.create(createUserDto, assignedBy);
   }
 
   @Get()

@@ -284,9 +284,7 @@ export class RoleManagementController {
             ROLE_NAMES.EMPLOYEE,
           ],
         };
-      case ROLE_NAMES.SUPER_ADMIN:
       case ROLE_NAMES.ADMIN:
-      case ROLE_NAMES.COMPANY_OWNER:
         return {
           scope: 'company_wide',
           message: 'Có thể gán role cho tất cả nhân viên trong công ty',
@@ -611,11 +609,7 @@ export class RoleManagementController {
    * Kiểm tra role cấp cao
    */
   private isHighLevelRole(roleName: string): boolean {
-    return [
-      ROLE_NAMES.SUPER_ADMIN,
-      ROLE_NAMES.ADMIN,
-      ROLE_NAMES.COMPANY_OWNER,
-    ].includes(roleName as any);
+    return [ROLE_NAMES.ADMIN].includes(roleName as any);
   }
 
   /**

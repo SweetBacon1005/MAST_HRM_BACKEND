@@ -34,5 +34,5 @@ export class CreateUserDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'ID vai trò phải là số nguyên' })
-  role?: number;
+  roleId?: number;
 }

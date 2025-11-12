@@ -55,9 +55,7 @@ export class AuthController {
     description: 'Email hoặc mật khẩu không đúng',
   })
   async login(@Body() loginDto: LoginDto, @Req() req: any) {
-    const ipAddress = req.ip || req.connection.remoteAddress;
-    const userAgent = req.get('User-Agent');
-    return this.authService.login(loginDto, ipAddress, userAgent);
+    return this.authService.login(loginDto);
   }
 
   @Public()
@@ -73,8 +71,8 @@ export class AuthController {
     status: 400,
     description: 'Dữ liệu không hợp lệ',
   })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @GetCurrentUser('id') userId: number) {
+    return this.authService.register(registerDto, userId);
   }
 
   @Public()

@@ -129,7 +129,6 @@ export enum RoleContextRequirement {
 
 // Mapping role names to context requirements
 export const ROLE_CONTEXT_REQUIREMENTS: Record<string, RoleContextRequirement> = {
-  'super_admin': RoleContextRequirement.NONE,
   'admin': RoleContextRequirement.NONE,
   'hr_manager': RoleContextRequirement.NONE,
   'division_head': RoleContextRequirement.DIVISION,

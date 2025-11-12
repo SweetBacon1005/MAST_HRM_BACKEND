@@ -22,7 +22,7 @@ export class PermissionCheckerService {
     _requestType?: string,
   ): Promise<boolean> {
     // Admin có thể xem tất cả
-    if (this.hasAnyRole(context.roles, [ROLE_NAMES.SUPER_ADMIN, ROLE_NAMES.ADMIN])) {
+    if (this.hasAnyRole(context.roles, [ROLE_NAMES.ADMIN])) {
       return true;
     }
 
@@ -49,7 +49,7 @@ export class PermissionCheckerService {
    */
   async getAccessibleUserIds(context: UserPermissionContext): Promise<number[]> {
     // Admin có thể truy cập tất cả users
-    if (this.hasAnyRole(context.roles, [ROLE_NAMES.SUPER_ADMIN, ROLE_NAMES.ADMIN])) {
+    if (this.hasAnyRole(context.roles, [ROLE_NAMES.ADMIN])) {
       const users = await this.prisma.users.findMany({
         where: { deleted_at: null },
         select: { id: true },

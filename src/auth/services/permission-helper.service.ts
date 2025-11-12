@@ -126,7 +126,6 @@ export class PermissionHelperService {
     const role = await this.permissionService.getUserRole(userId);
 
     const managerRoles = [
-      'super_admin',
       'admin',
       'hr_manager',
       'project_manager',

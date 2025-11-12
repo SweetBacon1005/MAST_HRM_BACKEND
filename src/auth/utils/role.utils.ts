@@ -95,11 +95,7 @@ export const getRolesInScope = (
  * Kiểm tra user có phải admin không (admin, super_admin, company_owner)
  */
 export const isAdmin = (user: UserRoleInfo): boolean => {
-  return hasAnyRole(user, [
-    ROLE_NAMES.ADMIN,
-    ROLE_NAMES.SUPER_ADMIN,
-    ROLE_NAMES.COMPANY_OWNER
-  ]);
+  return hasAnyRole(user, [ROLE_NAMES.ADMIN]);
 };
 
 /**
@@ -163,6 +159,7 @@ export const extractUserRoleInfo = (user: any): UserRoleInfo => {
     roleAssignments: user.roleAssignments || []
   };
 };
+
 
 
 

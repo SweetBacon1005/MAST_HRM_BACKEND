@@ -66,7 +66,7 @@ export class RoleHierarchyService {
       ],
     },
     {
-      level: 6,
+      level: 7,
       name: ROLE_NAMES.ADMIN,
       canManage: [
         ROLE_NAMES.EMPLOYEE,
@@ -74,18 +74,6 @@ export class RoleHierarchyService {
         ROLE_NAMES.DIVISION_HEAD,
         ROLE_NAMES.PROJECT_MANAGER,
         ROLE_NAMES.HR_MANAGER,
-      ],
-    },
-    {
-      level: 7,
-      name: ROLE_NAMES.SUPER_ADMIN,
-      canManage: [
-        ROLE_NAMES.EMPLOYEE,
-        ROLE_NAMES.TEAM_LEADER,
-        ROLE_NAMES.DIVISION_HEAD,
-        ROLE_NAMES.PROJECT_MANAGER,
-        ROLE_NAMES.HR_MANAGER,
-        ROLE_NAMES.ADMIN,
       ],
     },
   ];

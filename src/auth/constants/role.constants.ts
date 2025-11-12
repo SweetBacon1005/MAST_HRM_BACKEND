@@ -6,9 +6,7 @@ export const ROLE_NAMES = {
   DIVISION_HEAD: 'division_head',
   PROJECT_MANAGER: 'project_manager',
   HR_MANAGER: 'hr_manager',
-  COMPANY_OWNER: 'company_owner',
   ADMIN: 'admin',
-  SUPER_ADMIN: 'super_admin',
 } as const;
 
 export const PROJECT_POSITIONS = {
@@ -55,9 +53,7 @@ export const ACTIVE_PROJECT_STATUSES: ProjectStatus[] = [
 
 // Role hierarchy - số càng cao thì quyền càng lớn
 export const ROLE_HIERARCHY = {
-  [ROLE_NAMES.SUPER_ADMIN]: 100,
-  [ROLE_NAMES.ADMIN]: 90,
-  [ROLE_NAMES.COMPANY_OWNER]: 80,
+  [ROLE_NAMES.ADMIN]: 100,
   [ROLE_NAMES.HR_MANAGER]: 70,
   [ROLE_NAMES.DIVISION_HEAD]: 60,
   [ROLE_NAMES.PROJECT_MANAGER]: 50,
