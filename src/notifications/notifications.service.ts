@@ -431,20 +431,13 @@ export class NotificationsService {
   }
 
   async markAsRead(
-    notificationId: number,
+    userNotificationId: number,
     userId: number,
     isRead: boolean,
-    isAdmin: boolean = false,
   ): Promise<MarkReadResponseDto> {
-    if (isAdmin) {
-      throw new BadRequestException(
-        'Admin không thể đánh dấu đã đọc cho user khác',
-      );
-    }
-
     const userNotification = await this.prisma.user_notifications.findFirst({
       where: {
-        notification_id: notificationId,
+        id: userNotificationId,
         user_id: userId,
         deleted_at: null,
       },
@@ -471,7 +464,7 @@ export class NotificationsService {
 
     await this.activityLogService.logNotificationOperation(
       isRead ? 'read' : 'unread',
-      notificationId,
+      userNotificationId,
       userId,
       updatedUserNotification.notification.title,
       {
@@ -500,15 +493,15 @@ export class NotificationsService {
       const now = new Date();
 
       await this.prisma.$transaction([
-        this.prisma.notifications.update({
-          where: { id: notificationId },
-          data: { deleted_at: now },
-        }),
         this.prisma.user_notifications.updateMany({
           where: {
             notification_id: notificationId,
             deleted_at: null,
           },
+          data: { deleted_at: now },
+        }),
+        this.prisma.notifications.update({
+          where: { id: notificationId },
           data: { deleted_at: now },
         }),
       ]);

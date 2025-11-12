@@ -355,7 +355,7 @@ export class ActivityLogService {
    */
   async logNotificationOperation(
     operation: 'created' | 'updated' | 'deleted' | 'read' | 'unread' | 'viewed',
-    notificationId: number,
+    userNotificationId: number,
     userId: number,
     notificationTitle?: string,
     details?: Record<string, any>
@@ -383,7 +383,7 @@ export class ActivityLogService {
       description: notificationTitle ? `${descriptionMap[operation]}: "${notificationTitle}"` : descriptionMap[operation],
       subjectType: SubjectType.NOTIFICATION,
       event: eventMap[operation],
-      subjectId: notificationId,
+      subjectId: userNotificationId,
       causerId: userId,
       properties: {
         operation,

@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   UseGuards,
-  Req,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -54,7 +53,7 @@ export class AuthController {
     status: 401,
     description: 'Email hoặc mật khẩu không đúng',
   })
-  async login(@Body() loginDto: LoginDto, @Req() req: any) {
+  async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
@@ -71,7 +70,10 @@ export class AuthController {
     status: 400,
     description: 'Dữ liệu không hợp lệ',
   })
-  async register(@Body() registerDto: RegisterDto, @GetCurrentUser('id') userId: number) {
+  async register(
+    @Body() registerDto: RegisterDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
     return this.authService.register(registerDto, userId);
   }
 
@@ -120,7 +122,9 @@ export class AuthController {
     status: 401,
     description: 'Token không hợp lệ',
   })
-  async getProfile(@GetCurrentUser('id') userId: number): Promise<ProfileResponseDto> {
+  async getProfile(
+    @GetCurrentUser('id') userId: number,
+  ): Promise<ProfileResponseDto> {
     return this.authService.getProfile(userId);
   }
 

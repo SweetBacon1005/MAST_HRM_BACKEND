@@ -56,7 +56,7 @@ export class ProjectsController {
   })
   findAll(@Query() paginationDto: ProjectPaginationDto) {
     return this.projectsService.findAll(paginationDto);
-  }
+  }  
 
   @Get(':id/members')
   @RequirePermission('project.read')

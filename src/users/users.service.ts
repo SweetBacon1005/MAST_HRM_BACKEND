@@ -115,8 +115,6 @@ export class UsersService {
         id: paginationDto.position_id,
       };
     }
-    // Note: role_id filtering is now handled by role assignments
-    // TODO: Implement role filtering via role assignments if needed
 
     if (Object.keys(userInfoFilters).length > 0) {
       where.user_information = {
@@ -177,7 +175,6 @@ export class UsersService {
       phone: user.user_information?.phone,
       address: user.user_information?.address,
       name: user.user_information?.name,
-      // role: handled by role assignments
       position: user.user_information?.position,
       user_information: undefined,
     }));

@@ -241,20 +241,6 @@ export class AuthService {
     const todayEnd = new Date(
       today.toISOString().split('T')[0] + 'T23:59:59.999Z',
     );
-
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const monthStart = new Date(currentYear, currentMonth, 1);
-    const monthEnd = new Date(
-      currentYear,
-      currentMonth + 1,
-      0,
-      23,
-      59,
-      59,
-      999,
-    );
-
     const [
       userInfo,
       todayTimesheet,

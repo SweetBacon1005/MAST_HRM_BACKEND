@@ -43,7 +43,6 @@ import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 export class UserProfileService {
   constructor(private prisma: PrismaService) {}
 
-  // Xem thông tin cá nhân
   async getUserProfile(userId: number) {
     const userProfile = await this.prisma.users.findFirst({
       where: { id: userId, deleted_at: null },
@@ -208,21 +207,18 @@ export class UserProfileService {
       deleted_at: null,
     };
 
-    // Thêm filter theo tên trường
     if (paginationDto.name) {
       where.name = {
         contains: paginationDto.name,
       };
     }
 
-    // Thêm filter theo bằng cấp
     if (paginationDto.major) {
       where.major = {
         contains: paginationDto.major,
       };
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.education.findMany({
         where,
@@ -292,7 +288,6 @@ export class UserProfileService {
     return { message: 'Xóa thông tin học vấn thành công' };
   }
 
-  // Quản lý kinh nghiệm
   async createExperience(createDto: CreateExperienceDto) {
     return await this.prisma.experience.create({
       data: {
@@ -357,7 +352,6 @@ export class UserProfileService {
     return { message: 'Xóa thông tin kinh nghiệm thành công' };
   }
 
-  // Quản lý kỹ năng
   async createUserSkill(createDto: CreateUserSkillDto) {
     const skill = await this.prisma.skills.findFirst({
       where: { id: createDto.skill_id, deleted_at: null },
@@ -469,7 +463,6 @@ export class UserProfileService {
     return { message: 'Xóa thông tin kỹ năng thành công' };
   }
 
-  // Lấy danh sách kỹ năng theo vị trí
   async getSkillsByPosition(positionId: number) {
     return await this.prisma.skills.findMany({
       where: {
@@ -482,7 +475,6 @@ export class UserProfileService {
     });
   }
 
-  // Lấy danh sách các tham chiếu (positions, offices, levels, languages)
   async getPositions() {
     return await this.prisma.positions.findMany({
       where: { deleted_at: null },
@@ -501,9 +493,7 @@ export class UserProfileService {
     });
   }
 
-  // Cập nhật avatar URL
   async updateAvatar(userId: number, avatarUrl: string) {
-    // Kiểm tra user có tồn tại không
     const user = await this.prisma.users.findFirst({
       where: { id: userId, ...{ deleted_at: null } },
     });
@@ -512,7 +502,6 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
-    // Lưu thông tin avatar vào database
     const userInfo = await this.prisma.user_information.findFirst({
       where: { user_id: userId, ...{ deleted_at: null } },
     });
@@ -533,27 +522,10 @@ export class UserProfileService {
         user_information: updatedInfo,
       };
     } else {
-      // Tạo mới user_information nếu chưa có
       const newInfo = await this.prisma.user_information.create({
         data: {
           user_id: userId,
           avatar: avatarUrl,
-          personal_email: '',
-          nationality: '',
-          name: '',
-          code: '',
-          gender: '',
-          marital: '',
-          birthday: new Date(),
-          position_id: 1, // Default position
-          address: '',
-          temp_address: '',
-          phone: '',
-          tax_code: '',
-          status: 'ACTIVE',
-          level_id: 1, // Default level
-          expertise: '',
-          language_id: 1, // Default language
         },
         include: {
           position: true,

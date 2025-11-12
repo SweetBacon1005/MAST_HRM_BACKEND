@@ -69,7 +69,7 @@ export class NotificationsController {
     );
   }
 
-  @Get(':id')
+  @Get(':notificationId')
   @RequirePermission('notification.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết thông báo' })
   @ApiParam({ name: 'id', description: 'ID của thông báo' })
@@ -88,7 +88,7 @@ export class NotificationsController {
     return this.notificationsService.findOne(id, userId, userIsAdmin);
   }
 
-  @Patch(':id')
+  @Patch(':notificationId')
   @RequirePermission('notification.update')
   @ApiOperation({ summary: 'Cập nhật thông báo (Admin only)' })
   @ApiParam({ name: 'id', description: 'ID của thông báo' })
@@ -100,11 +100,10 @@ export class NotificationsController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
   async update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('notificationId', ParseIntPipe) notificationId: number,
     @Body() updateNotificationDto: UpdateNotificationDto,
-    @GetCurrentUser('id') userId: number,
   ) {
-    return this.notificationsService.update(id, updateNotificationDto);
+    return this.notificationsService.update(notificationId, updateNotificationDto);
   }
 
   @Patch(':id/read')
@@ -117,21 +116,18 @@ export class NotificationsController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
   async markAsRead(
-    @Param('id', ParseIntPipe) notificationId: number,
+    @Param('id', ParseIntPipe) userNotificationId: number,
     @Body() markReadDto: MarkReadDto,
     @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('role') userRole: string,
   ) {
-    const isAdmin = userRole === ROLE_NAMES.ADMIN;
     return this.notificationsService.markAsRead(
-      notificationId,
+      userNotificationId,
       userId,
       markReadDto.is_read,
-      isAdmin,
     );
   }
 
-  @Delete(':id')
+  @Delete(':notificationId')
   @RequirePermission('notification.delete')
   @ApiOperation({ summary: 'Xóa thông báo (soft delete)' })
   @ApiParam({ name: 'id', description: 'ID của thông báo (notification_id)' })
@@ -139,11 +135,11 @@ export class NotificationsController {
   @ApiResponse({ status: 403, description: 'Không có quyền xóa thông báo này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
   async remove(
-    @Param('id', ParseIntPipe) notificationId: number,
+    @Param('notificationId', ParseIntPipe) notificationId: number,
     @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('role') userRole: string,
+    @GetCurrentUser('roles') userRole: string[],
   ) {
-    const isAdmin = userRole === ROLE_NAMES.ADMIN;
+    const isAdmin = userRole.includes(ROLE_NAMES.ADMIN);
     return this.notificationsService.remove(notificationId, userId, isAdmin);
   }
 }
