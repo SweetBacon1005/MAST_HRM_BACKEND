@@ -2817,7 +2817,7 @@ export class RequestsService {
     // 1. Requests từ leadership roles
     if (
       this.getLeadershipRoles().includes(
-        request.user?.role_assignments.map((role) => role.name?.toLowerCase())
+        request.user?.role_assignments.map((role) => role.name?.toLowerCase()),
       )
     ) {
       return true;
@@ -2896,5 +2896,253 @@ export class RequestsService {
         totalPages: totalPages,
       },
     };
+  }
+  async updateRemoteWorkRequest(
+    id: number,
+    dto: CreateRemoteWorkRequestDto,
+    userId: number,
+  ) {
+    const existing = await this.prisma.remote_work_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.REJECTED)
+      throw new BadRequestException(
+        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
+      );
+    const workDate = new Date(dto.work_date);
+    const data: any = {
+      work_date: workDate,
+      remote_type: dto.remote_type,
+      duration: dto.duration,
+      title: dto.title,
+      reason: dto.reason,
+      status: ApprovalStatus.PENDING,
+      approved_by: null,
+      approved_at: null,
+      rejected_reason: null,
+    };
+    return await this.prisma.remote_work_requests.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteRemoteWorkRequest(id: number, userId: number) {
+    const existing = await this.prisma.remote_work_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.PENDING)
+      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+    return await this.prisma.remote_work_requests.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
+
+  async updateDayOffRequest(
+    id: number,
+    dto: CreateDayOffRequestDto,
+    userId: number,
+  ) {
+    const existing = await this.prisma.day_offs.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== 'REJECTED')
+      throw new BadRequestException(
+        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
+      );
+    const workDate = new Date(dto.work_date);
+    return await this.prisma.day_offs.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        duration: dto.duration,
+        type: dto.type,
+        title: dto.title,
+        reason: dto.reason,
+        is_past: dto.is_past ?? false,
+        status: 'PENDING',
+        approved_by: null,
+        approved_at: null,
+        rejected_reason: null,
+      },
+    });
+  }
+
+  async deleteDayOffRequest(id: number, userId: number) {
+    const existing = await this.prisma.day_offs.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== 'PENDING')
+      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+    return await this.prisma.day_offs.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
+
+  async updateOvertimeRequest(
+    id: number,
+    dto: CreateOvertimeRequestDto,
+    userId: number,
+  ) {
+    const existing = await this.prisma.over_times_history.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.REJECTED)
+      throw new BadRequestException(
+        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
+      );
+    const workDate = new Date(dto.work_date);
+    const [sh, sm] = dto.start_time.split(':').map(Number);
+    const [eh, em] = dto.end_time.split(':').map(Number);
+    const totalHours = (eh * 60 + em - (sh * 60 + sm)) / 60;
+    return await this.prisma.over_times_history.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        project_id: dto.project_id,
+        work_date: workDate,
+        start_time: new Date(`${dto.work_date}T${dto.start_time}:00.000Z`),
+        end_time: new Date(`${dto.work_date}T${dto.end_time}:00.000Z`),
+        total_hours: totalHours,
+        reason: dto.reason,
+        status: ApprovalStatus.PENDING,
+        approved_by: null,
+        approved_at: null,
+        rejected_reason: null,
+      },
+    });
+  }
+
+  async deleteOvertimeRequest(id: number, userId: number) {
+    const existing = await this.prisma.over_times_history.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.PENDING)
+      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+    return await this.prisma.over_times_history.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
+
+  async updateLateEarlyRequest(
+    id: number,
+    dto: CreateLateEarlyRequestDto,
+    userId: number,
+  ) {
+    const existing = await this.prisma.late_early_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.REJECTED)
+      throw new BadRequestException(
+        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
+      );
+    const workDate = new Date(dto.work_date);
+    return await this.prisma.late_early_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        request_type: dto.request_type,
+        title: dto.title,
+        late_minutes: dto.late_minutes,
+        early_minutes: dto.early_minutes,
+        reason: dto.reason,
+        status: ApprovalStatus.PENDING,
+        approved_by: null,
+        approved_at: null,
+        rejected_reason: null,
+      },
+    });
+  }
+
+  async deleteLateEarlyRequest(id: number, userId: number) {
+    const existing = await this.prisma.late_early_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.PENDING)
+      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+    return await this.prisma.late_early_requests.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
+  }
+
+  async updateForgotCheckinRequest(
+    id: number,
+    dto: CreateForgotCheckinRequestDto,
+    userId: number,
+  ) {
+    const existing = await this.prisma.forgot_checkin_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.REJECTED)
+      throw new BadRequestException(
+        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
+      );
+    const workDate = new Date(dto.work_date);
+    const checkin = dto.checkin_time
+      ? new Date(`${dto.work_date}T${dto.checkin_time}:00.000Z`)
+      : null;
+    const checkout = dto.checkout_time
+      ? new Date(`${dto.work_date}T${dto.checkout_time}:00.000Z`)
+      : null;
+    return await this.prisma.forgot_checkin_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        checkin_time: checkin,
+        checkout_time: checkout,
+        title: dto.title,
+        reason: dto.reason,
+        status: ApprovalStatus.PENDING,
+        approved_by: null,
+        approved_at: null,
+        rejected_reason: null,
+      },
+    });
+  }
+
+  async deleteForgotCheckinRequest(id: number, userId: number) {
+    const existing = await this.prisma.forgot_checkin_requests.findFirst({
+      where: { id, deleted_at: null },
+    });
+    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (existing.user_id !== userId)
+      throw new ForbiddenException('Kh�ng c� quy?n');
+    if (existing.status !== ApprovalStatus.PENDING)
+      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+    return await this.prisma.forgot_checkin_requests.update({
+      where: { id },
+      data: { deleted_at: new Date() },
+    });
   }
 }

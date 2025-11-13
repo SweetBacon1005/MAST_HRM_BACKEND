@@ -1,12 +1,14 @@
 import {
-  Body,
   Controller,
   Get,
-  Param,
-  ParseIntPipe,
   Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
   Query,
   UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -194,7 +196,6 @@ export class RequestsController {
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    // Xác định role chính của user
     const primaryRole = this.getPrimaryRole(userRoles);
     
     return await this.requestsService.getAllRequests(
@@ -658,13 +659,8 @@ export class RequestsController {
     return await this.requestsService.getRequestById(id, type, userId, userRoles);
   }
 
-  // === HELPER METHODS ===
 
-  /**
-   * Xác định role chính của user theo thứ tự ưu tiên
-   */
   private getPrimaryRole(userRoles: string[] | undefined): string {
-    // Handle undefined or empty roles
     if (!userRoles || userRoles.length === 0) {
       return ROLE_NAMES.EMPLOYEE;
     }
@@ -683,7 +679,92 @@ export class RequestsController {
       }
     }
 
-    // Default fallback
     return ROLE_NAMES.EMPLOYEE;
   }
-}
+
+  @Patch('remote-work/:id')
+  async updateRemoteWork(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateRemoteWorkRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.updateRemoteWorkRequest(id, dto, userId);
+  }
+
+  @Delete('remote-work/:id')
+  async deleteRemoteWork(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.deleteRemoteWorkRequest(id, userId);
+  }
+
+  @Patch('day-off/:id')
+  async updateDayOff(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateDayOffRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.updateDayOffRequest(id, dto, userId);
+  }
+
+  @Delete('day-off/:id')
+  async deleteDayOff(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.deleteDayOffRequest(id, userId);
+  }
+
+  @Patch('overtime/:id')
+  async updateOvertime(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateOvertimeRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.updateOvertimeRequest(id, dto, userId);
+  }
+
+  @Delete('overtime/:id')
+  async deleteOvertime(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.deleteOvertimeRequest(id, userId);
+  }
+
+  @Patch('late-early/:id')
+  async updateLateEarly(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateLateEarlyRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.updateLateEarlyRequest(id, dto, userId);
+  }
+
+  @Delete('late-early/:id')
+  async deleteLateEarly(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.deleteLateEarlyRequest(id, userId);
+  }
+
+  @Patch('forgot-checkin/:id')
+  async updateForgotCheckin(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CreateForgotCheckinRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.updateForgotCheckinRequest(id, dto, userId);
+  }
+
+  @Delete('forgot-checkin/:id')
+  async deleteForgotCheckin(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return await this.requestsService.deleteForgotCheckinRequest(id, userId);
+  }}
+
+

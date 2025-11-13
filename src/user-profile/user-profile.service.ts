@@ -125,7 +125,6 @@ export class UserProfileService {
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
           gender: updateDto.gender || '',
-          status: 'ACTIVE',
           birthday: updateDto.birthday
             ? new Date(updateDto.birthday).toISOString()
             : new Date().toISOString(),
@@ -148,7 +147,6 @@ export class UserProfileService {
       // Tạo mới thông tin
       return await this.prisma.user_information.create({
         data: {
-          status: 'ACTIVE',
           user_id: userId,
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',

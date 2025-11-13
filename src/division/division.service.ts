@@ -2493,7 +2493,6 @@ export class DivisionService {
       deleted_at: null,
       user_information: {
         deleted_at: null,
-        status: 'ACTIVE',
       },
       user_division: {
         none: {},

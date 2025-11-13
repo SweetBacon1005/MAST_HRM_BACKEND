@@ -193,7 +193,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager', 'role.manage.admin', 'role.manage.all',
-        'system.admin'
+        'system.admin',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
     },
 
@@ -217,6 +218,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],
     },
 
@@ -237,7 +239,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'personnel.transfer.read', 'personnel.transfer.create',
         'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
-        'news.read'
+        'news.read',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
     },
 
@@ -261,7 +264,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject',
         'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee', 'role.manage.team_leader',
-        'news.read'
+        'news.read',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
     },
 
@@ -283,7 +287,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'personnel.transfer.read', 'personnel.transfer.create',
         'notification.read', 'notification.delete',
         'role.read', 'role.manage.employee',
-        'news.read'
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],
     },
 
@@ -304,7 +308,8 @@ export async function seedRBAC(prisma: PrismaClient) {
         'personnel.transfer.read',
         'notification.read', 'notification.delete',
         'role.read',
-        'news.read'
+        'news.read',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],
     },
   ];

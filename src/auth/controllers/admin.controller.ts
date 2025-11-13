@@ -43,7 +43,6 @@ export class UpdateUserDto {
   division_id?: number;
   position_id?: number;
   level_id?: number;
-  status?: string;
 }
 
 export class SystemStatsDto {
@@ -92,9 +91,6 @@ export class AdminController {
       this.prisma.users.count({
         where: {
           deleted_at: null,
-          user_information: {
-              status: 'ACTIVE',
-          },
         },
       }),
       // Tổng số phòng ban
@@ -450,15 +446,13 @@ export class AdminController {
     if (
       updateUserDto.role_id ||
       updateUserDto.position_id ||
-      updateUserDto.level_id ||
-      updateUserDto.status
+      updateUserDto.level_id
     ) {
       await this.prisma.user_information.updateMany({
         where: { user_id: id },
         data: {
           position_id: updateUserDto.position_id,
           level_id: updateUserDto.level_id,
-          status: updateUserDto.status as any,
         },
       });
     }

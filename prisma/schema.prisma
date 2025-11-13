@@ -174,7 +174,6 @@ model user_information {
     temp_address   String?               @db.VarChar(255)
     phone          String?               @db.VarChar(255)
     tax_code       String?               @db.VarChar(255)
-    status         UserInformationStatus @default(ACTIVE)
     level_id       Int?
     level          levels?               @relation(fields: [level_id], references: [id])
     expertise      String?               @db.VarChar(255)
@@ -303,26 +302,27 @@ model otp_codes {
 }
 
 model projects {
-    id                 Int                  @id @default(autoincrement())
-    name               String
-    code               String
-    status             ProjectStatus        @default(OPEN)
-    division_id        Int?
-    division           divisions?           @relation(fields: [division_id], references: [id])
-    team_id            Int?
-    team               teams?               @relation(fields: [team_id], references: [id])
-    project_type       ProjectType?
-    industry           IndustryType?
-    progress           Float?
-    scope              String?
-    description        String?
-    start_date         DateTime
-    end_date           DateTime
-    created_at         DateTime             @default(now())
-    updated_at         DateTime             @updatedAt
-    deleted_at         DateTime?            @db.DateTime()
-    daily_reports      daily_reports[]
-    over_times_history over_times_history[]
+    id                  Int                  @id @default(autoincrement())
+    name                String
+    code                String
+    status              ProjectStatus        @default(OPEN)
+    division_id         Int?
+    division            divisions?           @relation(fields: [division_id], references: [id])
+    team_id             Int?
+    team                teams?               @relation(fields: [team_id], references: [id])
+    project_type        ProjectType?
+    project_access_type ProjectAccessType    @default(RESTRICTED)
+    industry            IndustryType?
+    progress            Float?
+    scope               String?
+    description         String?
+    start_date          DateTime
+    end_date            DateTime
+    created_at          DateTime             @default(now())
+    updated_at          DateTime             @updatedAt
+    deleted_at          DateTime?            @db.DateTime()
+    daily_reports       daily_reports[]
+    over_times_history  over_times_history[]
 
     @@index([deleted_at])
     @@index([division_id])
@@ -337,6 +337,7 @@ model users {
     created_at                       DateTime                  @default(now())
     updated_at                       DateTime                  @updatedAt
     deleted_at                       DateTime?                 @db.DateTime()
+    status                           UserInformationStatus     @default(ACTIVE)
     education                        education[]
     experience                       experience[]
     user_information                 user_information?
@@ -748,7 +749,7 @@ model asset_requests {
     category         AssetCategory
     description      String             @db.Text
     justification    String             @db.Text // Lý do cần tài sản
-    expected_date    DateTime?          @db.Date 
+    expected_date    DateTime?          @db.Date
     status           AssetRequestStatus @default(PENDING)
     approved_by      Int?
     approver         users?             @relation("AssetRequestApprover", fields: [approved_by], references: [id])
@@ -943,6 +944,29 @@ model user_notifications {
     @@index([deleted_at])
 }
 
+model news {
+    id            Int             @id @default(autoincrement())
+    title         String          @db.VarChar(255)
+    content       String          @db.Text
+    status        NewsStatus      @default(DRAFT)
+    author_id     Int
+    author        users           @relation("NewsAuthor", fields: [author_id], references: [id])
+    reason        String?         @db.Text
+    reviewer_id   Int?
+    reviewer      users?          @relation("NewsReviewer", fields: [reviewer_id], references: [id])
+    reviewed_at   DateTime?       @db.DateTime()
+    created_at    DateTime        @default(now())
+    updated_at    DateTime        @updatedAt
+    deleted_at    DateTime?       @db.DateTime()
+    notifications notifications[]
+
+    @@index([author_id])
+    @@index([reviewer_id])
+    @@index([status])
+    @@index([created_at])
+    @@index([deleted_at])
+}
+
 enum ApprovalStatus {
     PENDING
     APPROVED
@@ -966,7 +990,6 @@ enum TimesheetRequestType {
     OVERTIME
     HOLIDAY
 }
-
 
 enum ProjectStatus {
     OPEN
@@ -1138,25 +1161,7 @@ enum NewsStatus {
     REJECTED
 }
 
-model news {
-    id            Int             @id @default(autoincrement())
-    title         String          @db.VarChar(255)
-    content       String          @db.Text
-    status        NewsStatus      @default(DRAFT)
-    author_id     Int
-    author        users           @relation("NewsAuthor", fields: [author_id], references: [id])
-    reason        String?         @db.Text
-    reviewer_id   Int?
-    reviewer      users?          @relation("NewsReviewer", fields: [reviewer_id], references: [id])
-    reviewed_at   DateTime?       @db.DateTime()
-    created_at    DateTime        @default(now())
-    updated_at    DateTime        @updatedAt
-    deleted_at    DateTime?       @db.DateTime()
-    notifications notifications[]
-
-    @@index([author_id])
-    @@index([reviewer_id])
-    @@index([status])
-    @@index([created_at])
-    @@index([deleted_at])
+enum ProjectAccessType {
+    COMPANY
+    RESTRICTED
 }

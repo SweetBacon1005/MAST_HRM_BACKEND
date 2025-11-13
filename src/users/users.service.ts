@@ -135,22 +135,10 @@ export class UsersService {
           id: true,
           email: true,
           email_verified_at: true,
+          status: true,
           created_at: true,
           updated_at: true,
-          user_information: {
-            select: {
-              name: true,
-              avatar: true,
-              phone: true,
-              address: true,
-              position: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-          },
+          user_information: true,
           user_role_assignments: {
             select: {
               role: {

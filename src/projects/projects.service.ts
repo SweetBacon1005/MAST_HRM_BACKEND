@@ -328,5 +328,89 @@ export class ProjectsService {
 
     return members;
   }
-}
+  async findMyProjects(paginationDto: ProjectPaginationDto, userId: number) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
+    const projectIds = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: userId,
+        scope_type: 'PROJECT',
+        deleted_at: null,
+      },
+      select: { scope_id: true },
+    });
+
+    const ids = projectIds.map((p) => p.scope_id).filter((id): id is number => typeof id === 'number');
+
+    if (!ids.length) {
+      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    }
+
+    const where: Prisma.projectsWhereInput = {
+      id: { in: ids },
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      where.OR = [
+        { name: { contains: paginationDto.search } },
+        { code: { contains: paginationDto.search } },
+      ];
+    }
+
+    if (paginationDto.status) {
+      where.status = paginationDto.status as any;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.projects.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          division: { select: { id: true, name: true } },
+          team: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.projects.count({ where }),
+    ]);
+
+    const transformedData = await Promise.all(
+      data.map(async (project) => ({
+        ...project,
+        start_date: project.start_date.toISOString().split('T')[0],
+        end_date: project.end_date.toISOString().split('T')[0],
+        member_count: await this.getProjectMemberCount(project.id),
+      }))
+    );
+
+    return buildPaginationResponse(
+      transformedData,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async updateProgress(id: number, progress: number) {
+    const project = await this.prisma.projects.findFirst({
+      where: { id, deleted_at: null },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Không tìm th?y d? án');
+    }
+
+    // Prisma model has Float? progress; store 0-1 or 0-100? Seeds/readme mention Float?
+    // We accept 0..100 from API and normalize to 0..100 in DB as-is.
+    return await this.prisma.projects.update({
+      where: { id },
+      data: { progress },
+      include: {
+        division: { select: { id: true, name: true } },
+        team: { select: { id: true, name: true } },
+      },
+    });
+  }
+}

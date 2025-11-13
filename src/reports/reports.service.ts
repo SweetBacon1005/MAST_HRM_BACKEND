@@ -1,28 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DayOffStatus, DayOffType, RemoteType, RotationType } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
-import { UserQueryService } from '../common/services/user-query.service';
+import { DayOffStatus, DayOffType, RemoteType } from '@prisma/client';
 import { QueryBuilderService } from '../common/services/query-builder.service';
-import {
-  TimesheetWhereInput,
-  AttendanceLogWhereInput,
-  DayOffWhereInput,
-  ViolationWhereInput,
-  RotationMemberWhereInput,
-} from '../common/types/prisma-where.types';
-import {
-  UserStatsMap,
-  PeriodStats,
-  ViolationStats,
-  LeaveBalance,
-} from '../common/types/response.types';
+import { UserQueryService } from '../common/services/user-query.service';
 import { PenaltyByUser } from '../common/types/penalty.types';
 import {
-  AttendanceStatisticsDto,
-  WorkingTimeReportQueryDto,
-  TimesheetReportQueryDto,
-  AttendanceReportQueryDto,
+  AttendanceLogWhereInput,
+  DayOffWhereInput,
+  TimesheetWhereInput,
+} from '../common/types/prisma-where.types';
+import {
+  LeaveBalance,
+  PeriodStats,
+  UserStatsMap,
+  ViolationStats,
+} from '../common/types/response.types';
+import { PrismaService } from '../database/prisma.service';
+import {
   AttendanceDashboardQueryDto,
+  AttendanceStatisticsDto,
+  TimesheetReportQueryDto,
+  WorkingTimeReportQueryDto,
 } from './dto/attendance-statistics.dto';
 
 @Injectable()
@@ -285,14 +282,6 @@ export class ReportsService {
       },
     });
 
-    // Lấy leave balance hiện tại nếu có userId
-    let currentLeaveBalance: LeaveBalance | null = null;
-    if (user_id) {
-      currentLeaveBalance = await this.prisma.user_leave_balances.findUnique({
-        where: { user_id: Number(user_id) },
-      });
-    }
-
     // Tính toán thống kê attendance
     const totalDays = timesheets.length;
     const completeDays = timesheets.filter((t) => t.is_complete).length;
@@ -445,7 +434,9 @@ export class ReportsService {
     }
 
     // Thống kê tổng quan
-    const timesheets = await this.prisma.time_sheets.findMany({ where: whereTimesheet });
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where: whereTimesheet,
+    });
 
     const totalRecords = timesheets.length;
     const onTimeRecords = timesheets.filter(
@@ -509,7 +500,6 @@ export class ReportsService {
       period: { start_date: startDate, end_date: endDate },
     };
   }
-
 
   // === API TỪ AUTH/CONTROLLERS/REPORTS.CONTROLLER.TS ===
 
@@ -613,7 +603,11 @@ export class ReportsService {
       },
       include: {
         user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
       },
     });
@@ -923,7 +917,11 @@ export class ReportsService {
       where,
       include: {
         user: {
-          select: { id: true, email: true, user_information: { select: { name: true } } },
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
         },
         division: {
           select: { id: true, name: true },
@@ -1025,9 +1023,6 @@ export class ReportsService {
       this.prisma.users.count({
         where: {
           deleted_at: null,
-          user_information: {
-            status: 'ACTIVE',
-          },
         },
       }),
       this.prisma.remote_work_requests.count({
@@ -1119,9 +1114,12 @@ export class ReportsService {
 
       const g = grouped[key];
       g.total_records = (g.total_records as number) + 1;
-      g.total_work_hours = (g.total_work_hours as number) + 
-        (((timesheet.work_time_morning || 0) + (timesheet.work_time_afternoon || 0)) / 60);
-      
+      g.total_work_hours =
+        (g.total_work_hours as number) +
+        ((timesheet.work_time_morning || 0) +
+          (timesheet.work_time_afternoon || 0)) /
+          60;
+
       if (timesheet.late_time && timesheet.late_time > 0) {
         g.total_late_count = (g.total_late_count as number) + 1;
       }
@@ -1180,14 +1178,16 @@ export class ReportsService {
 
       const uv = userViolations[userId];
       uv.total_violations = (uv.total_violations || 0) + 1;
-      
+
       if (violation.late_time && violation.late_time > 0) {
         uv.late_count = (uv.late_count || 0) + 1;
-        uv.total_late_minutes = (uv.total_late_minutes || 0) + violation.late_time;
+        uv.total_late_minutes =
+          (uv.total_late_minutes || 0) + violation.late_time;
       }
       if (violation.early_time && violation.early_time > 0) {
         uv.early_leave_count = (uv.early_leave_count || 0) + 1;
-        uv.total_early_minutes = (uv.total_early_minutes || 0) + violation.early_time;
+        uv.total_early_minutes =
+          (uv.total_early_minutes || 0) + violation.early_time;
       }
       uv.total_penalties = (uv.total_penalties || 0) + 0;
     });
@@ -1286,7 +1286,7 @@ export class ReportsService {
 
       const us = userStats[userId];
       us.total_days += 1;
-      
+
       if (!timesheet.late_time || timesheet.late_time === 0) {
         us.on_time_days! += 1;
       }
@@ -1351,7 +1351,7 @@ export class ReportsService {
     const penaltyRecords: any[] = [];
 
     const totalPenalties = 0;
-    
+
     const penaltyByUser: Record<number, PenaltyByUser> = {};
 
     penaltyRecords.forEach((record) => {
@@ -1391,4 +1391,3 @@ export class ReportsService {
     };
   }
 }
-
