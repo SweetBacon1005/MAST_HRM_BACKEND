@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -9,15 +10,15 @@ import {
   Post,
   Query,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
-  ApiQuery,
 } from '@nestjs/swagger';
+import { ROLE_NAMES } from 'src/auth/constants/role.constants';
+import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
 import { ASSET_PERMISSIONS } from '../auth/constants/permission.constants';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,15 +29,13 @@ import {
   FulfillAssetRequestDto,
   ReviewAssetRequestDto,
 } from './dto/asset-request.dto';
+import { AssignAssetDto, UnassignAssetDto } from './dto/assign-asset.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import {
   AssetPaginationDto,
   AssetRequestPaginationDto,
 } from './dto/pagination-queries.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { AssignAssetDto, UnassignAssetDto } from './dto/assign-asset.dto';
-import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
-import { ROLE_NAMES } from 'src/auth/constants/role.constants';
 
 @ApiTags('Assets Management')
 @ApiBearerAuth('JWT-auth')
@@ -46,178 +45,98 @@ export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
   // ===== ASSET CRUD FOR HR =====
-
-  @Post()
-  @RequirePermission(ASSET_PERMISSIONS.CREATE)
-  @ApiOperation({ summary: 'Tạo tài sản mới' })
+  @Post('requests')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_CREATE)
+  @ApiOperation({ summary: 'Tạo request tài sản' })
   @ApiResponse({
     status: 201,
-    description: 'Tạo tài sản thành công',
+    description: 'Tạo request tài sản thành công',
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Tạo tài sản thành công' },
+        message: { type: 'string', example: 'Tạo request tài sản thành công' },
         data: {
           type: 'object',
           properties: {
             id: { type: 'number', example: 1 },
-            name: { type: 'string', example: 'Laptop Dell XPS 13' },
-            asset_code: { type: 'string', example: 'LAPTOP-001' },
+            request_type: { type: 'string', example: 'REQUEST' },
             category: { type: 'string', example: 'Laptop' },
-            status: { type: 'string', example: 'AVAILABLE' },
+            status: { type: 'string', example: 'PENDING' },
+            priority: { type: 'string', example: 'NORMAL' },
             created_at: { type: 'string', format: 'date-time' },
           },
         },
       },
     },
   })
-  createAsset(@Body() createAssetDto: CreateAssetDto, @GetCurrentUser('id') createdBy: number) {
-    return this.assetsService.createAsset(createAssetDto, createdBy);
+  createAssetRequest(
+    @Body() createAssetRequestDto: CreateAssetRequestDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    createAssetRequestDto.user_id = userId;
+    return this.assetsService.createAssetRequest(createAssetRequestDto);
   }
 
-  @Get()
-  @RequirePermission(ASSET_PERMISSIONS.READ)
-  @ApiOperation({ summary: 'Lấy danh sách tài sản' })
+  @Post('requests/:id/fulfill')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
+  @ApiOperation({ summary: 'Giao tài sản theo request' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách tài sản',
+    description: 'Giao tài sản thành công',
     schema: {
       type: 'object',
       properties: {
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number', example: 1 },
-              name: { type: 'string', example: 'Laptop Dell XPS 13' },
-              asset_code: { type: 'string', example: 'LAPTOP-001' },
-              category: { type: 'string', example: 'Laptop' },
-              status: { type: 'string', example: 'AVAILABLE' },
-              assigned_user: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number', example: 123 },
-                  email: { type: 'string', example: 'user@example.com' },
-                  user_information: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string', example: 'Nguyễn Văn A' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        pagination: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 100 },
-            page: { type: 'number', example: 1 },
-            limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 10 },
-          },
-        },
-      },
-    },
-  })
-  findAllAssets(@Query() paginationDto: AssetPaginationDto) {
-    return this.assetsService.findAllAssets(paginationDto);
-  }
-
-  @Get('statistics')
-  @RequirePermission(ASSET_PERMISSIONS.STATISTICS)
-  @ApiOperation({ summary: 'Thống kê tài sản' })
-  @ApiResponse({
-    status: 200,
-    description: 'Thống kê tài sản',
-    schema: {
-      type: 'object',
-      properties: {
-        assets: {
-          type: 'object',
-          properties: {
-            total: { type: 'number', example: 100 },
-            available: { type: 'number', example: 60 },
-            assigned: { type: 'number', example: 35 },
-            maintenance: { type: 'number', example: 5 },
-            utilization_rate: { type: 'number', example: 35 },
-          },
-        },
-        requests: {
-          type: 'object',
-          properties: {
-            pending: { type: 'number', example: 10 },
-            approved: { type: 'number', example: 5 },
-          },
-        },
-        categories: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              category: { type: 'string', example: 'Laptop' },
-              count: { type: 'number', example: 50 },
-            },
-          },
-        },
-      },
-    },
-  })
-  getAssetStatistics() {
-    return this.assetsService.getAssetStatistics();
-  }
-
-  @Patch(':id')
-  @RequirePermission(ASSET_PERMISSIONS.UPDATE)
-  @ApiOperation({ summary: 'Cập nhật tài sản' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật tài sản thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Cập nhật tài sản thành công' },
+        message: { type: 'string', example: 'Giao tài sản thành công' },
         data: {
           type: 'object',
           properties: {
             id: { type: 'number', example: 1 },
-            name: { type: 'string', example: 'Laptop Dell XPS 13' },
-            asset_code: { type: 'string', example: 'LAPTOP-001' },
-            status: { type: 'string', example: 'ASSIGNED' },
-            updated_at: { type: 'string', format: 'date-time' },
+            status: { type: 'string', example: 'FULFILLED' },
+            asset_id: { type: 'number', example: 123 },
+            fulfilled_at: { type: 'string', format: 'date-time' },
           },
         },
       },
     },
   })
-  updateAsset(
+  fulfillAssetRequest(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateAssetDto: UpdateAssetDto,
-    @GetCurrentUser('id') updatedBy: number,
+    @Body() fulfillDto: FulfillAssetRequestDto,
+    @GetCurrentUser('id') fulfillerId: number,
   ) {
-    return this.assetsService.updateAsset(id, updateAssetDto, updatedBy);
+    return this.assetsService.fulfillAssetRequest(id, fulfillDto, fulfillerId);
   }
 
-  @Delete(':id')
-  @RequirePermission(ASSET_PERMISSIONS.DELETE)
-  @ApiOperation({ summary: 'Xóa tài sản' })
+  @Post('requests/:id/review')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
+  @ApiOperation({ summary: 'Duyệt/từ chối request tài sản' })
   @ApiResponse({
     status: 200,
-    description: 'Xóa tài sản thành công',
+    description: 'Xử lý request thành công',
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Xóa tài sản thành công' },
+        message: { type: 'string', example: 'Phê duyệt request thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            status: { type: 'string', example: 'APPROVED' },
+            approved_by: { type: 'number', example: 456 },
+            approved_at: { type: 'string', format: 'date-time' },
+            asset_id: { type: 'number', example: 123 },
+          },
+        },
       },
     },
   })
-  removeAsset(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') deletedBy: number) {
-    return this.assetsService.removeAsset(id, deletedBy);
+  reviewAssetRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() reviewDto: ReviewAssetRequestDto,
+    @GetCurrentUser('id') reviewerId: number,
+  ) {
+    return this.assetsService.reviewAssetRequest(id, reviewDto, reviewerId);
   }
-
-  // ===== ASSET ASSIGNMENT =====
 
   @Post(':id/assign')
   @RequirePermission(ASSET_PERMISSIONS.ASSIGN)
@@ -284,7 +203,79 @@ export class AssetsController {
     return this.assetsService.unassignAsset(assetId, unassignedBy, body.notes);
   }
 
-  // ===== USER DEVICES FROM ASSETS =====
+  @Post()
+  @RequirePermission(ASSET_PERMISSIONS.CREATE)
+  @ApiOperation({ summary: 'Tạo tài sản mới' })
+  @ApiResponse({
+    status: 201,
+    description: 'Tạo tài sản thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Tạo tài sản thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Laptop Dell XPS 13' },
+            asset_code: { type: 'string', example: 'LAPTOP-001' },
+            category: { type: 'string', example: 'Laptop' },
+            status: { type: 'string', example: 'AVAILABLE' },
+            created_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  createAsset(
+    @Body() createAssetDto: CreateAssetDto,
+    @GetCurrentUser('id') createdBy: number,
+  ) {
+    return this.assetsService.createAsset(createAssetDto, createdBy);
+  }
+
+  @Get('statistics')
+  @RequirePermission(ASSET_PERMISSIONS.STATISTICS)
+  @ApiOperation({ summary: 'Thống kê tài sản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Thống kê tài sản',
+    schema: {
+      type: 'object',
+      properties: {
+        assets: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            available: { type: 'number', example: 60 },
+            assigned: { type: 'number', example: 35 },
+            maintenance: { type: 'number', example: 5 },
+            utilization_rate: { type: 'number', example: 35 },
+          },
+        },
+        requests: {
+          type: 'object',
+          properties: {
+            pending: { type: 'number', example: 10 },
+            approved: { type: 'number', example: 5 },
+          },
+        },
+        categories: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              category: { type: 'string', example: 'Laptop' },
+              count: { type: 'number', example: 50 },
+            },
+          },
+        },
+      },
+    },
+  })
+  getAssetStatistics() {
+    return this.assetsService.getAssetStatistics();
+  }
 
   @Get('my-devices')
   @RequirePermission(ASSET_PERMISSIONS.READ)
@@ -322,38 +313,6 @@ export class AssetsController {
   }
 
   // ===== ASSET REQUESTS FOR USERS =====
-
-  @Post('requests')
-  @RequirePermission(ASSET_PERMISSIONS.REQUEST_CREATE)
-  @ApiOperation({ summary: 'Tạo request tài sản' })
-  @ApiResponse({
-    status: 201,
-    description: 'Tạo request tài sản thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Tạo request tài sản thành công' },
-        data: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            request_type: { type: 'string', example: 'REQUEST' },
-            category: { type: 'string', example: 'Laptop' },
-            status: { type: 'string', example: 'PENDING' },
-            priority: { type: 'string', example: 'NORMAL' },
-            created_at: { type: 'string', format: 'date-time' },
-          },
-        },
-      },
-    },
-  })
-  createAssetRequest(
-    @Body() createAssetRequestDto: CreateAssetRequestDto,
-    @GetCurrentUser('id') userId: number,
-  ) {
-    createAssetRequestDto.user_id = userId;
-    return this.assetsService.createAssetRequest(createAssetRequestDto);
-  }
 
   @Get('requests')
   @RequirePermission(ASSET_PERMISSIONS.REQUEST_READ)
@@ -403,9 +362,14 @@ export class AssetsController {
       },
     },
   })
-  findAllAssetRequests(@Query() paginationDto: AssetRequestPaginationDto, @GetCurrentUser('roles') roles: string[]) {
+  findAllAssetRequests(
+    @Query() paginationDto: AssetRequestPaginationDto,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
     if (!roles.includes(ROLE_NAMES.HR_MANAGER)) {
-      throw new ForbiddenException('Bạn không có quyền xem danh sách request tài sản');
+      throw new ForbiddenException(
+        'Bạn không có quyền xem danh sách request tài sản',
+      );
     }
     return this.assetsService.findAllAssetRequests(paginationDto);
   }
@@ -509,67 +473,6 @@ export class AssetsController {
     return this.assetsService.findOneAssetRequest(id);
   }
 
-  @Post('requests/:id/review')
-  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
-  @ApiOperation({ summary: 'Duyệt/từ chối request tài sản' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xử lý request thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Phê duyệt request thành công' },
-        data: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            status: { type: 'string', example: 'APPROVED' },
-            approved_by: { type: 'number', example: 456 },
-            approved_at: { type: 'string', format: 'date-time' },
-            asset_id: { type: 'number', example: 123 },
-          },
-        },
-      },
-    },
-  })
-  reviewAssetRequest(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() reviewDto: ReviewAssetRequestDto,
-    @GetCurrentUser('id') reviewerId: number,
-  ) {
-    return this.assetsService.reviewAssetRequest(id, reviewDto, reviewerId);
-  }
-
-  @Post('requests/:id/fulfill')
-  @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
-  @ApiOperation({ summary: 'Giao tài sản theo request' })
-  @ApiResponse({
-    status: 200,
-    description: 'Giao tài sản thành công',
-    schema: {
-      type: 'object',
-      properties: {
-        message: { type: 'string', example: 'Giao tài sản thành công' },
-        data: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            status: { type: 'string', example: 'FULFILLED' },
-            asset_id: { type: 'number', example: 123 },
-            fulfilled_at: { type: 'string', format: 'date-time' },
-          },
-        },
-      },
-    },
-  })
-  fulfillAssetRequest(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() fulfillDto: FulfillAssetRequestDto,
-    @GetCurrentUser('id') fulfillerId: number,
-  ) {
-    return this.assetsService.fulfillAssetRequest(id, fulfillDto, fulfillerId);
-  }
-
   @Get(':id')
   @RequirePermission(ASSET_PERMISSIONS.READ)
   @ApiOperation({ summary: 'Lấy chi tiết tài sản' })
@@ -621,5 +524,106 @@ export class AssetsController {
   })
   findOneAsset(@Param('id', ParseIntPipe) id: number) {
     return this.assetsService.findOneAsset(id);
+  }
+
+  @Patch(':id')
+  @RequirePermission(ASSET_PERMISSIONS.UPDATE)
+  @ApiOperation({ summary: 'Cập nhật tài sản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật tài sản thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật tài sản thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            name: { type: 'string', example: 'Laptop Dell XPS 13' },
+            asset_code: { type: 'string', example: 'LAPTOP-001' },
+            status: { type: 'string', example: 'ASSIGNED' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  updateAsset(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateAssetDto: UpdateAssetDto,
+    @GetCurrentUser('id') updatedBy: number,
+  ) {
+    return this.assetsService.updateAsset(id, updateAssetDto, updatedBy);
+  }
+
+  @Delete(':id')
+  @RequirePermission(ASSET_PERMISSIONS.DELETE)
+  @ApiOperation({ summary: 'Xóa tài sản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa tài sản thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa tài sản thành công' },
+      },
+    },
+  })
+  removeAsset(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') deletedBy: number,
+  ) {
+    return this.assetsService.removeAsset(id, deletedBy);
+  }
+  @Get()
+  @RequirePermission(ASSET_PERMISSIONS.READ)
+  @ApiOperation({ summary: 'Lấy danh sách tài sản' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách tài sản',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'Laptop Dell XPS 13' },
+              asset_code: { type: 'string', example: 'LAPTOP-001' },
+              category: { type: 'string', example: 'Laptop' },
+              status: { type: 'string', example: 'AVAILABLE' },
+              assigned_user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 123 },
+                  email: { type: 'string', example: 'user@example.com' },
+                  user_information: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', example: 'Nguyễn Văn A' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 100 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
+  })
+  findAllAssets(@Query() paginationDto: AssetPaginationDto) {
+    return this.assetsService.findAllAssets(paginationDto);
   }
 }

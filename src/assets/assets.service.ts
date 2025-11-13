@@ -655,7 +655,6 @@ export class AssetsService {
       },
     };
 
-    // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
         { description: { contains: paginationDto.search } },
@@ -674,12 +673,12 @@ export class AssetsService {
     if (paginationDto.approved_by)
       whereConditions.approved_by = paginationDto.approved_by;
 
+
     const [requests, total] = await Promise.all([
       this.prisma.asset_requests.findMany({
         where: whereConditions,
         skip,
         take,
-        orderBy: orderBy || { created_at: 'desc' },
         include: {
           user: {
             select: {
@@ -711,6 +710,7 @@ export class AssetsService {
       }),
       this.prisma.asset_requests.count({ where: whereConditions }),
     ]);
+    console.log("requests???",requests);
 
     return buildPaginationResponse(
       requests,

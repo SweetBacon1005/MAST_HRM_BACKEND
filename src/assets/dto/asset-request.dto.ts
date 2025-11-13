@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ApprovalStatus, AssetCategory, AssetRequestType } from '@prisma/client';
 import { IsString, IsOptional, IsDateString, IsEnum, IsInt } from 'class-validator';
 
@@ -57,7 +57,9 @@ export class CreateAssetRequestDto {
   @IsString()
   notes?: string;
 
-  user_id?: number;
+  @ApiHideProperty()
+  @IsOptional()
+  user_id: number;
 }
 
 export class ReviewAssetRequestDto {
