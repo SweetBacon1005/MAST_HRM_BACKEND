@@ -15,7 +15,7 @@ import { LeaveManagementModule } from './leave-management/leave-management.modul
 import { DivisionModule } from './division/division.module';
 import { ProjectsModule } from './projects/projects.module';
 
-import { DailyReportsModule } from './daily-reports/daily-reports.module';
+// import { DailyReportsModule } from './daily-reports/daily-reports.module';
 import { ReportsModule } from './reports/reports.module';
 import { UploadModule } from './upload/upload.module';
 import { AssetsModule } from './assets/assets.module';
@@ -50,7 +50,7 @@ import { MeetingRoomsModule } from './meeting-rooms/meeting-rooms.module';
     DivisionModule,
     ProjectsModule,
     ReportsModule,
-    DailyReportsModule,
+    // DailyReportsModule,
     UploadModule,
     AssetsModule,
     NewsModule,
