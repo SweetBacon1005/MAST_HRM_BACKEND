@@ -123,7 +123,7 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'personnel.transfer.delete', description: 'Xóa đơn điều chuyển nhân sự' },
     
     // Role Management with Hierarchy
-    { name: 'role.read', description: 'Xem thông tin vai trò' },
+    { name: 'role.view', description: 'Xem thông tin vai trò' },
     { name: 'role.manage.employee', description: 'Quản lý vai trò nhân viên' },
     { name: 'role.manage.team_leader', description: 'Quản lý vai trò trưởng nhóm' },
     { name: 'role.manage.division_head', description: 'Quản lý vai trò trưởng phòng ban' },
@@ -192,7 +192,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
-        'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager', 'role.manage.hr_manager', 'role.manage.admin', 'role.manage.all',
+        'role.view', 'role.assign',
         'system.admin',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
@@ -217,7 +217,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
         'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
-        'role.read', 'role.manage.employee', 'role.manage.team_leader', 'role.manage.division_head', 'role.manage.project_manager',
+        'role.view',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],
     },
@@ -238,7 +238,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
         'notification.read', 'notification.delete',
-        'role.read', 'role.manage.employee', 'role.manage.team_leader',
+        'role.view', 'role.assign',
         'news.read',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
@@ -263,7 +263,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'contract.read', 'device.read',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject',
         'notification.read', 'notification.delete',
-        'role.read', 'role.manage.employee', 'role.manage.team_leader',
+        'role.view', 'role.assign',
         'news.read',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
       ],
@@ -286,7 +286,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
         'notification.read', 'notification.delete',
-        'role.read', 'role.manage.employee',
+        'role.view',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],
     },
@@ -307,7 +307,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.read', 'asset.request.create',
         'personnel.transfer.read',
         'notification.read', 'notification.delete',
-        'role.read',
+        'role.view',
         'news.read',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
       ],

@@ -2934,11 +2934,12 @@ export class RequestsService {
     const existing = await this.prisma.remote_work_requests.findFirst({
       where: { id, deleted_at: null },
     });
-    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (!existing)
+      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     if (existing.user_id !== userId)
-      throw new ForbiddenException('Kh�ng c� quy?n');
+      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
     if (existing.status !== ApprovalStatus.PENDING)
-      throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
+      throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_PROCESSED);
     return await this.prisma.remote_work_requests.update({
       where: { id },
       data: { deleted_at: new Date() },
@@ -2953,13 +2954,12 @@ export class RequestsService {
     const existing = await this.prisma.day_offs.findFirst({
       where: { id, deleted_at: null },
     });
-    if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
+    if (!existing)
+      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     if (existing.user_id !== userId)
-      throw new ForbiddenException('Kh�ng c� quy?n');
+      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
     if (existing.status !== 'REJECTED')
-      throw new BadRequestException(
-        'Y�u c?u ch? du?c s?a khi ? tr?ng th�i REJECTED',
-      );
+      throw new BadRequestException(REQUEST_ERRORS.REQUEST_NOT_REJECTED);
     const workDate = new Date(dto.work_date);
     return await this.prisma.day_offs.update({
       where: { id },

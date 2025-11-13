@@ -96,6 +96,8 @@ export const REQUEST_ERRORS = {
   UNAUTHORIZED_ACCESS: 'Không có quyền truy cập yêu cầu này',
   INVALID_REQUEST_TYPE: 'Loại yêu cầu không hợp lệ',
   DUPLICATE_REQUEST: 'Yêu cầu trùng lặp',
+  NOT_HAVE_PERMISSION: 'Không có quyền thực hiện hành động này',
+  REQUEST_NOT_REJECTED: 'Yêu cầu chỉ có thể sửa khi ở trạng thái BỊ TỪ CHỐI',
 } as const;
 
 // === TIMESHEET ERRORS ===

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -18,6 +19,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { AUTH_ERRORS } from 'src/common/constants/error-messages.constants';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -44,54 +47,67 @@ export class NotificationsController {
   async create(
     @Body() createNotificationDto: CreateNotificationDto,
     @GetCurrentUser('id') creatorId: number,
+    @GetCurrentUser('roles') roles: string[],
   ) {
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    }
     return this.notificationsService.create(createNotificationDto, creatorId);
   }
 
   @Get()
   @RequirePermission('notification.read')
-  @ApiOperation({ summary: 'Lấy danh sách thông báo có phân trang và lọc' })
+  @ApiOperation({ summary: 'Lấy danh sách thông báo cho user' })
   @ApiResponse({
     status: 200,
     description: 'Lấy danh sách thông báo thành công',
   })
-  async findAll(
-    @Query() paginationDto: NotificationPaginationDto,
-    @GetCurrentUser('id') userId: number,
-    @GetCurrentUser() user: any,
-  ) {
-    const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
-    const userIsAdmin = roles.includes(ROLE_NAMES.ADMIN);
-    return this.notificationsService.findAll(
-      paginationDto,
-      userId,
-      userIsAdmin,
-    );
+  async findAll(@GetCurrentUser('id') userId: number) {
+    return this.notificationsService.findAll(userId);
   }
 
-  @Get(':notificationId')
+  @Get('/admin')
   @RequirePermission('notification.read')
-  @ApiOperation({ summary: 'Lấy thông tin chi tiết thông báo' })
-  @ApiParam({ name: 'id', description: 'ID của thông báo' })
+  @ApiOperation({
+    summary: 'Lấy danh sách thông báo cho admin có phân trang và lọc',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách thông báo thành công',
+  })
+  async findAllForAdmin(
+    @Query() paginationDto: NotificationPaginationDto,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    }
+    return this.notificationsService.findAllForAdmin(paginationDto);
+  }
+
+  @Get('/admin/:notificationId')
+  @Roles(ROLE_NAMES.ADMIN)
+  @RequirePermission('notification.read')
+  @ApiOperation({ summary: 'Lấy thông tin chi tiết thông báo cho admin' })
   @ApiResponse({
     status: 200,
     description: 'Lấy thông tin thông báo thành công',
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
   async findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
-    @GetCurrentUser() user: any,
+    @Param('notificationId', ParseIntPipe) id: number,
+    @GetCurrentUser('roles') roles: string[],
   ) {
-    const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
-    const userIsAdmin = roles.includes(ROLE_NAMES.ADMIN);
-    return this.notificationsService.findOne(id, userId, userIsAdmin);
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    }
+    return this.notificationsService.findOne(id);
   }
 
-  @Patch(':notificationId')
+  @Patch('admin/:notificationId')
   @RequirePermission('notification.update')
   @ApiOperation({ summary: 'Cập nhật thông báo (Admin only)' })
-  @ApiParam({ name: 'id', description: 'ID của thông báo' })
+  @ApiParam({ name: 'notificationId', description: 'ID của thông báo' })
   @ApiResponse({ status: 200, description: 'Cập nhật thông báo thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   @ApiResponse({
@@ -102,8 +118,15 @@ export class NotificationsController {
   async update(
     @Param('notificationId', ParseIntPipe) notificationId: number,
     @Body() updateNotificationDto: UpdateNotificationDto,
+    @GetCurrentUser('roles') roles: string[],
   ) {
-    return this.notificationsService.update(notificationId, updateNotificationDto);
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    }
+    return this.notificationsService.update(
+      notificationId,
+      updateNotificationDto,
+    );
   }
 
   @Patch(':id/read')
@@ -127,19 +150,25 @@ export class NotificationsController {
     );
   }
 
-  @Delete(':notificationId')
+  @Delete('admin/:notificationId')
   @RequirePermission('notification.delete')
   @ApiOperation({ summary: 'Xóa thông báo (soft delete)' })
-  @ApiParam({ name: 'id', description: 'ID của thông báo (notification_id)' })
+  @ApiParam({
+    name: 'notificationId',
+    description: 'ID của thông báo (notification_id)',
+  })
   @ApiResponse({ status: 200, description: 'Xóa thông báo thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền xóa thông báo này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
+  @Roles(ROLE_NAMES.ADMIN)
   async remove(
     @Param('notificationId', ParseIntPipe) notificationId: number,
     @GetCurrentUser('id') userId: number,
-    @GetCurrentUser('roles') userRole: string[],
+    @GetCurrentUser('roles') roles: string[],
   ) {
-    const isAdmin = userRole.includes(ROLE_NAMES.ADMIN);
-    return this.notificationsService.remove(notificationId, userId, isAdmin);
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    }
+    return this.notificationsService.remove(notificationId, userId);
   }
 }

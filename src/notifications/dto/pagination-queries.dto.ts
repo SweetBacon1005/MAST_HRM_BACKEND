@@ -27,19 +27,6 @@ export class NotificationPaginationDto {
   limit?: number = 10;
 
   @ApiPropertyOptional({ 
-    description: 'Lọc theo trạng thái đã đọc', 
-    example: false 
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
-  @IsBoolean()
-  is_read?: boolean;
-
-  @ApiPropertyOptional({ 
     description: 'Tìm kiếm theo tiêu đề hoặc nội dung', 
     example: 'thông báo' 
   })

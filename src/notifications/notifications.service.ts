@@ -18,7 +18,10 @@ import {
 import { NotificationListResponseDto } from './dto/notification-list-response.dto';
 import { NotificationPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
-import { UserNotificationDetailResponseDto } from './dto/user-notification-response.dto';
+import {
+  UserNotificationDetailResponseDto,
+  UserNotificationResponseDto,
+} from './dto/user-notification-response.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -68,49 +71,17 @@ export class NotificationsService {
     );
   }
 
-  async findAll(
-    paginationDto: NotificationPaginationDto,
-    userId: number,
-    isAdmin: boolean = false,
-  ): Promise<NotificationListResponseDto> {
-    const {
-      page = 1,
-      limit = 10,
-      is_read,
-      search,
-      sortBy = 'created_at',
-      sortOrder = 'desc',
-    } = paginationDto;
-
-    const skip = (page - 1) * limit;
-
-    if (isAdmin) {
-      const whereConditions: Prisma.notificationsWhereInput = {
+  async findAll(userId: number): Promise<UserNotificationResponseDto[]> {
+    const notifications = await this.prisma.user_notifications.findMany({
+      where: {
+        user_id: userId,
         deleted_at: null,
-      };
-
-      if (search) {
-        whereConditions.OR = [
-          { title: { contains: search } },
-          { content: { contains: search } },
-        ];
-      }
-
-      const orderBy: Prisma.notificationsOrderByWithRelationInput = {};
-      if (sortBy === 'title') {
-        orderBy.title = sortOrder;
-      } else if (sortBy === 'updated_at') {
-        orderBy.updated_at = sortOrder;
-      } else {
-        orderBy.created_at = sortOrder;
-      }
-
-      const [notifications, total] = await Promise.all([
-        this.prisma.notifications.findMany({
-          where: whereConditions,
-          skip,
-          take: limit,
-          orderBy,
+        notification: {
+          deleted_at: null,
+        },
+      },
+      include: {
+        notification: {
           include: {
             creator: {
               select: {
@@ -122,142 +93,71 @@ export class NotificationsService {
             news: {
               select: { id: true, title: true },
             },
-            user_notifications: {
-              select: {
-                user_id: true,
-                is_read: true,
-                read_at: true,
-              },
-            },
           },
-        }),
-        this.prisma.notifications.count({ where: whereConditions }),
-      ]);
-
-      const transformedNotifications = notifications.map((n) => {
-        const { user_notifications, ...notificationWithoutUserNotifications } =
-          n;
-        return {
-          ...notificationWithoutUserNotifications,
-          creatorName:
-            n.creator?.user_information?.name ?? n.creator?.email ?? 'System',
-          newsTitle: n.news?.title || null,
-          totalRecipients: user_notifications.length,
-          readCount: user_notifications.filter((un) => un.is_read).length,
-        };
-      });
-
-      return {
-        data: transformedNotifications,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
         },
-      };
-    } else {
-      const whereConditions: Prisma.user_notificationsWhereInput = {
-        user_id: userId,
-        deleted_at: null,
-        notification: {
-          deleted_at: null,
-        },
-      };
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
 
-      if (is_read !== undefined) {
-        whereConditions.is_read = is_read;
-      }
-
-      if (search) {
-        whereConditions.OR = [
-          {
-            notification: {
-              title: { contains: search },
-            },
-          },
-          {
-            notification: {
-              content: { contains: search },
-            },
-          },
-        ];
-      }
-
-      const orderBy: Prisma.user_notificationsOrderByWithRelationInput = {};
-      if (sortBy === 'title') {
-        orderBy.notification = { title: sortOrder };
-      } else if (sortBy === 'updated_at') {
-        orderBy.updated_at = sortOrder;
-      } else {
-        orderBy.created_at = sortOrder;
-      }
-
-      const [userNotifications, total] = await Promise.all([
-        this.prisma.user_notifications.findMany({
-          where: whereConditions,
-          skip,
-          take: limit,
-          orderBy,
-          include: {
-            notification: {
-              include: {
-                creator: {
-                  select: {
-                    id: true,
-                    email: true,
-                    user_information: { select: { name: true } },
-                  },
-                },
-                news: {
-                  select: { id: true, title: true },
-                },
-              },
-            },
-          },
-        }),
-        this.prisma.user_notifications.count({ where: whereConditions }),
-      ]);
-
-      const transformedNotifications = userNotifications.map((un) => ({
-        id: un.id,
-        notification_id: un.notification_id,
-        title: un.notification.title,
-        content: un.notification.content,
-        is_read: un.is_read,
-        read_at: un.read_at,
-        created_at: un.created_at,
-        updated_at: un.updated_at,
-        creatorName:
-          un.notification.creator?.user_information?.name ??
-          un.notification.creator?.email ??
-          'System',
-        newsTitle: un.notification.news?.title || null,
-        news_id: un.notification.news_id,
-      }));
-
-      return {
-        data: transformedNotifications,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    }
+    return notifications.map((un) => ({
+      id: un.id,
+      notification_id: un.notification_id,
+      title: un.notification.title,
+      content: un.notification.content,
+      is_read: un.is_read,
+      read_at: un.read_at,
+      created_at: un.created_at,
+      updated_at: un.updated_at,
+      creatorName:
+        un.notification.creator?.user_information?.name ??
+        un.notification.creator?.email ??
+        'System',
+      newsTitle: un.notification.news?.title || null,
+      news_id: un.notification.news_id,
+    }));
   }
 
-  async findOne(
-    id: number,
-    userId: number,
-    isAdmin: boolean = false,
-  ): Promise<
-    AdminNotificationDetailResponseDto | UserNotificationDetailResponseDto
-  > {
-    if (isAdmin) {
-      const notification = await this.prisma.notifications.findFirst({
-        where: { id, deleted_at: null },
+  async findAllForAdmin(
+    paginationDto: NotificationPaginationDto,
+  ): Promise<NotificationListResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'created_at',
+      sortOrder = 'desc',
+    } = paginationDto;
+
+    const skip = (page - 1) * limit;
+
+    const whereConditions: Prisma.notificationsWhereInput = {
+      deleted_at: null,
+    };
+
+    if (search) {
+      whereConditions.OR = [
+        { title: { contains: search } },
+        { content: { contains: search } },
+      ];
+    }
+
+    const orderBy: Prisma.notificationsOrderByWithRelationInput = {};
+    if (sortBy === 'title') {
+      orderBy.title = sortOrder;
+    } else if (sortBy === 'updated_at') {
+      orderBy.updated_at = sortOrder;
+    } else {
+      orderBy.created_at = sortOrder;
+    }
+
+    const [notifications, total] = await Promise.all([
+      this.prisma.notifications.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy,
         include: {
           creator: {
             select: {
@@ -270,108 +170,90 @@ export class NotificationsService {
             select: { id: true, title: true },
           },
           user_notifications: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  email: true,
-                  user_information: { select: { name: true } },
-                },
+            select: {
+              user_id: true,
+              is_read: true,
+              read_at: true,
+            },
+          },
+        },
+      }),
+      this.prisma.notifications.count({ where: whereConditions }),
+    ]);
+
+    const transformedNotifications = notifications.map((n) => {
+      const { user_notifications, ...notificationWithoutUserNotifications } = n;
+      return {
+        ...notificationWithoutUserNotifications,
+        creatorName:
+          n.creator?.user_information?.name ?? n.creator?.email ?? 'System',
+        newsTitle: n.news?.title || null,
+        totalRecipients: user_notifications.length,
+        readCount: user_notifications.filter((un) => un.is_read).length,
+      };
+    });
+
+    return {
+      data: transformedNotifications,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(
+    id: number,
+  ): Promise<
+    AdminNotificationDetailResponseDto | UserNotificationDetailResponseDto
+  > {
+    const notification = await this.prisma.notifications.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
+        },
+        news: {
+          select: { id: true, title: true },
+        },
+        user_notifications: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: { select: { name: true } },
               },
             },
           },
         },
-      });
+      },
+    });
 
-      if (!notification) {
-        throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
-      }
-
-      await this.activityLogService.logNotificationOperation(
-        'viewed',
-        notification.id,
-        userId,
-        notification.title,
-        {
-          is_admin_view: true,
-          recipient_count: notification.user_notifications.length,
-        },
-      );
-
-      return {
-        ...notification,
-        creatorName:
-          notification.creator?.user_information?.name ??
-          notification.creator?.email ??
-          'System',
-        newsTitle: notification.news?.title || null,
-        recipients: notification.user_notifications.map((un) => ({
-          user_id: un.user_id,
-          userName: un.user.user_information?.name ?? un.user.email,
-          is_read: un.is_read,
-          read_at: un.read_at,
-        })),
-      };
-    } else {
-      const userNotification = await this.prisma.user_notifications.findFirst({
-        where: {
-          notification_id: id,
-          user_id: userId,
-          deleted_at: null,
-          notification: {
-            deleted_at: null,
-          },
-        },
-        include: {
-          notification: {
-            include: {
-              creator: {
-                select: {
-                  id: true,
-                  email: true,
-                  user_information: { select: { name: true } },
-                },
-              },
-              news: {
-                select: { id: true, title: true },
-              },
-            },
-          },
-        },
-      });
-
-      if (!userNotification) {
-        throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
-      }
-
-      await this.activityLogService.logNotificationOperation(
-        'viewed',
-        userNotification.notification_id,
-        userId,
-        userNotification.notification.title,
-        {
-          is_admin_view: false,
-          is_read: userNotification.is_read,
-        },
-      );
-
-      return {
-        id: userNotification.id,
-        notification_id: userNotification.notification_id,
-        title: userNotification.notification.title,
-        content: userNotification.notification.content,
-        is_read: userNotification.is_read,
-        read_at: userNotification.read_at,
-        created_at: userNotification.created_at,
-        updated_at: userNotification.updated_at,
-        creatorName:
-          userNotification.notification.creator?.user_information?.name ??
-          userNotification.notification.creator?.email ??
-          'System',
-        newsTitle: userNotification.notification.news?.title || null,
-        news_id: userNotification.notification.news_id,
-      };
+    if (!notification) {
+      throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
     }
+
+    return {
+      ...notification,
+      creatorName:
+        notification.creator?.user_information?.name ??
+        notification.creator?.email ??
+        'System',
+      newsTitle: notification.news?.title || null,
+      recipients: notification.user_notifications.map((un) => ({
+        user_id: un.user_id,
+        userName: un.user.user_information?.name ?? un.user.email,
+        is_read: un.is_read,
+        read_at: un.read_at,
+      })),
+    };
   }
 
   async update(
@@ -468,83 +350,44 @@ export class NotificationsService {
   async remove(
     notificationId: number,
     userId: number,
-    isAdmin: boolean = false,
   ): Promise<DeleteNotificationResponseDto> {
-    if (isAdmin) {
-      const existingNotification = await this.prisma.notifications.findFirst({
-        where: { id: notificationId, deleted_at: null },
-      });
+    const existingNotification = await this.prisma.notifications.findFirst({
+      where: { id: notificationId, deleted_at: null },
+    });
 
-      if (!existingNotification) {
-        throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
-      }
+    if (!existingNotification) {
+      throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
+    }
 
-      const now = new Date();
+    const now = new Date();
 
-      await this.prisma.$transaction([
-        this.prisma.user_notifications.updateMany({
-          where: {
-            notification_id: notificationId,
-            deleted_at: null,
-          },
-          data: { deleted_at: now },
-        }),
-        this.prisma.notifications.update({
-          where: { id: notificationId },
-          data: { deleted_at: now },
-        }),
-      ]);
-
-      await this.activityLogService.logNotificationOperation(
-        'deleted',
-        notificationId,
-        userId,
-        existingNotification.title,
-        {
-          is_admin_delete: true,
-          cascade_deleted: true,
-          created_by: existingNotification.created_by,
-        },
-      );
-
-      return { message: NOTIFICATION_ERRORS.NOTIFICATION_DELETED_SUCCESS };
-    } else {
-      const userNotification = await this.prisma.user_notifications.findFirst({
+    await this.prisma.$transaction([
+      this.prisma.user_notifications.updateMany({
         where: {
           notification_id: notificationId,
-          user_id: userId,
           deleted_at: null,
         },
-        include: {
-          notification: {
-            select: { title: true },
-          },
-        },
-      });
+        data: { deleted_at: now },
+      }),
+      this.prisma.notifications.update({
+        where: { id: notificationId },
+        data: { deleted_at: now },
+      }),
+    ]);
 
-      if (!userNotification) {
-        throw new NotFoundException(NOTIFICATION_ERRORS.NOTIFICATION_NOT_FOUND);
-      }
+    await this.activityLogService.logNotificationOperation(
+      'deleted',
+      notificationId,
+      userId,
+      existingNotification.title,
+      {
+        is_admin_delete: true,
+        cascade_deleted: true,
+        created_by: existingNotification.created_by,
+      },
+    );
 
-      await this.prisma.user_notifications.update({
-        where: { id: userNotification.id },
-        data: { deleted_at: new Date() },
-      });
-
-      await this.activityLogService.logNotificationOperation(
-        'deleted',
-        notificationId,
-        userId,
-        userNotification.notification.title,
-        {
-          is_admin_delete: false,
-          cascade_deleted: false,
-          is_read: userNotification.is_read,
-        },
-      );
-
-      return { message: NOTIFICATION_ERRORS.NOTIFICATION_DELETED_SUCCESS };
-    }
+    return { message: NOTIFICATION_ERRORS.NOTIFICATION_DELETED_SUCCESS };
   }
 
   async createWithRawSQL(
