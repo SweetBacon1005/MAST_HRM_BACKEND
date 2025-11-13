@@ -30,6 +30,10 @@ export interface UserRoleContext {
 export class RoleAssignmentService {
   constructor(private prisma: PrismaService) {}
 
+  async getRoles() {
+    return await this.prisma.roles.findMany();
+  }
+
   async assignRole(data: RoleAssignmentData) {
     await this.validateScope(data.scope_type, data.scope_id);
 
@@ -115,6 +119,7 @@ export class RoleAssignmentService {
     userId: number,
     roleId: number,
     scopeType: ScopeType,
+    revokedBy: number,
     scopeId?: number,
   ) {
     const assignment = await this.prisma.user_role_assignment.findFirst({
@@ -123,7 +128,7 @@ export class RoleAssignmentService {
         role_id: roleId,
         scope_type: scopeType,
         scope_id: scopeId,
-        deleted_at: null,
+        deleted_at: { not: null },
       },
     });
 
@@ -131,11 +136,15 @@ export class RoleAssignmentService {
       throw new NotFoundException('Role assignment không tồn tại');
     }
 
-    // Soft delete
-    return await this.prisma.user_role_assignment.update({
+    const newAssignment = await this.prisma.user_role_assignment.update({
       where: { id: assignment.id },
-      data: { deleted_at: new Date() },
+      data: {
+        assigned_by: revokedBy,
+        role_id: 7
+      },
     });
+
+    return newAssignment;
   }
 
   async getUserRoles(userId: number): Promise<UserRoleContext> {
@@ -186,9 +195,6 @@ export class RoleAssignmentService {
     }));
   }
 
-  /**
-   * Lấy primary role của user trong scope cụ thể
-   */
   async getUserPrimaryRole(
     userId: number,
     scopeType: ScopeType,

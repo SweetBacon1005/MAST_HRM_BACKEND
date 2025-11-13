@@ -8,7 +8,6 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -16,23 +15,20 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { ScopeType } from '@prisma/client';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
+import { ROLE_PERMISSIONS } from '../constants/permission.constants';
 import {
   AssignRoleDto,
   BulkAssignResultDto,
   BulkAssignRoleDto,
   RevokeRoleDto,
   RoleAssignmentResponseDto,
-  RoleHierarchyResponseDto,
-  UserRoleByScopeResponseDto,
   UserRoleContextResponseDto,
-  UsersByRoleResponseDto,
 } from '../dto/role-assignment.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RoleAssignmentService } from '../services/role-assignment.service';
@@ -78,6 +74,13 @@ export class RoleAssignmentController {
     });
   }
 
+  @Get('roles')
+  @RequirePermission(ROLE_PERMISSIONS.READ)
+  @ApiOperation({ summary: 'Lấy danh sách roles hệ thống' })
+  async getRoles() {
+    return this.roleAssignmentService.getRoles();
+  }
+
   @Post('bulk-assign')
   @RequirePermission('role.assign')
   @ApiOperation({ summary: 'Gán roles cho nhiều users cùng lúc' })
@@ -116,11 +119,12 @@ export class RoleAssignmentController {
     status: 404,
     description: 'Role assignment không tồn tại',
   })
-  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto): Promise<void> {
+  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto, @GetCurrentUser('id') assignedBy: number): Promise<void> {
     await this.roleAssignmentService.revokeRole(
       revokeRoleDto.user_id,
       revokeRoleDto.role_id,
       revokeRoleDto.scope_type as ScopeType,
+      assignedBy,
       revokeRoleDto.scope_id,
     );
   }
