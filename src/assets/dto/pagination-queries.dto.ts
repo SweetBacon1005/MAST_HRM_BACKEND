@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { AssetCategory, AssetRequestStatus} from '@prisma/client';
 
 export class AssetPaginationDto extends PaginationDto {
   @ApiPropertyOptional({
@@ -59,39 +60,21 @@ export class AssetRequestPaginationDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Lọc theo trạng thái',
-    enum: ['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED', 'RETURNED', 'CANCELLED'],
-    example: 'PENDING',
+    enum: AssetRequestStatus,
+    example: AssetRequestStatus.PENDING,
   })
   @IsOptional()
-  @IsEnum(['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED', 'RETURNED', 'CANCELLED'])
-  status?: string;
-
-  @ApiPropertyOptional({
-    description: 'Lọc theo loại request',
-    enum: ['REQUEST', 'RETURN', 'MAINTENANCE'],
-    example: 'REQUEST',
-  })
-  @IsOptional()
-  @IsEnum(['REQUEST', 'RETURN', 'MAINTENANCE'])
-  request_type?: string;
+  @IsEnum(AssetRequestStatus)
+  status?: AssetRequestStatus;
 
   @ApiPropertyOptional({
     description: 'Lọc theo danh mục',
     example: 'LAPTOP',
-    enum: ['LAPTOP', 'DESKTOP', 'MONITOR', 'KEYBOARD', 'MOUSE', 'HEADPHONE', 'PHONE', 'TABLET', 'FURNITURE', 'EQUIPMENT', 'OTHER'],
+    enum: AssetCategory,
   })
   @IsOptional()
-  @IsEnum(['LAPTOP', 'DESKTOP', 'MONITOR', 'KEYBOARD', 'MOUSE', 'HEADPHONE', 'PHONE', 'TABLET', 'FURNITURE', 'EQUIPMENT', 'OTHER'])
-  category?: string;
-
-  @ApiPropertyOptional({
-    description: 'Lọc theo mức độ ưu tiên',
-    enum: ['LOW', 'NORMAL', 'HIGH', 'URGENT'],
-    example: 'HIGH',
-  })
-  @IsOptional()
-  @IsEnum(['LOW', 'NORMAL', 'HIGH', 'URGENT'])
-  priority?: string;
+  @IsEnum(AssetCategory)
+  category?: AssetCategory;
 
   @ApiPropertyOptional({
     description: 'Lọc theo user tạo request',

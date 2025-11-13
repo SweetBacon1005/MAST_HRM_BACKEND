@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -69,8 +70,8 @@ export class UsersController {
     status: 404,
     description: 'User không tồn tại',
   })
-  findOne(@Param('id') id: string) {
-    return this.usersService.findById(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.findById(id);
   }
 
   @Patch(':id')

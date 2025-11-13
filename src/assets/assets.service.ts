@@ -22,6 +22,7 @@ import {
   AssetPaginationDto,
   AssetRequestPaginationDto,
 } from './dto/pagination-queries.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AssetsService {
@@ -611,8 +612,10 @@ export class AssetsService {
   async findAllAssetRequests(paginationDto: AssetRequestPaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
-      deleted_at: null,
+    const whereConditions: Prisma.asset_requestsWhereInput = {
+      deleted_at: {
+        not: null,
+      },
     };
 
     // Build search conditions
@@ -620,13 +623,16 @@ export class AssetsService {
       whereConditions.OR = [
         { description: { contains: paginationDto.search} },
         { justification: { contains: paginationDto.search} },
-        { category: { contains: paginationDto.search} },
+        { category: paginationDto.category },
+        { asset: { name: { contains: paginationDto.search} } },
+        { asset: { asset_code: { contains: paginationDto.search} } },
+        { asset: { brand: { contains: paginationDto.search} } },
+        { asset: { model: { contains: paginationDto.search} } },
+        { asset: { serial_number: { contains: paginationDto.search} } },
       ];
     }
 
     if (paginationDto.status) whereConditions.status = paginationDto.status;
-    if (paginationDto.request_type) whereConditions.request_type = paginationDto.request_type;
-    if (paginationDto.category) whereConditions.category = paginationDto.category;
     if (paginationDto.user_id) whereConditions.user_id = paginationDto.user_id;
     if (paginationDto.approved_by) whereConditions.approved_by = paginationDto.approved_by;
 
@@ -674,6 +680,17 @@ export class AssetsService {
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
+  }
+
+  async findMyAssetRequests(
+    userId: number,
+    paginationDto: AssetRequestPaginationDto = {},
+  ) {
+    const effectiveDto: AssetRequestPaginationDto = {
+      ...paginationDto,
+      user_id: userId,
+    };
+    return this.findAllAssetRequests(effectiveDto);
   }
 
   async findOneAssetRequest(id: number) {

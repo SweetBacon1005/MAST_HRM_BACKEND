@@ -10,12 +10,14 @@ import {
   Query,
   Request,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { ASSET_PERMISSIONS } from '../auth/constants/permission.constants';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
@@ -34,6 +36,8 @@ import {
 } from './dto/pagination-queries.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { AssignAssetDto, UnassignAssetDto } from './dto/assign-asset.dto';
+import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { ROLE_NAMES } from 'src/auth/constants/role.constants';
 
 @ApiTags('Assets Management')
 @ApiBearerAuth('JWT-auth')
@@ -400,8 +404,53 @@ export class AssetsController {
       },
     },
   })
-  findAllAssetRequests(@Query() paginationDto: AssetRequestPaginationDto) {
+  findAllAssetRequests(@Query() paginationDto: AssetRequestPaginationDto, @GetCurrentUser('roles') roles: string[]) {
+    if (!roles.includes(ROLE_NAMES.HR_MANAGER)) {
+      throw new ForbiddenException('Bạn không có quyền xem danh sách request tài sản');
+    }
     return this.assetsService.findAllAssetRequests(paginationDto);
+  }
+
+  @Get('requests/my')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_READ)
+  @ApiOperation({ summary: 'Lấy danh sách request tài sản của tôi' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách request tài sản của tôi',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              request_type: { type: 'string', example: 'REQUEST' },
+              category: { type: 'string', example: 'Laptop' },
+              status: { type: 'string', example: 'PENDING' },
+              priority: { type: 'string', example: 'NORMAL' },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 10 },
+            page: { type: 'number', example: 1 },
+            limit: { type: 'number', example: 10 },
+            totalPages: { type: 'number', example: 1 },
+          },
+        },
+      },
+    },
+  })
+  findMyAssetRequests(
+    @Query() paginationDto: AssetRequestPaginationDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return this.assetsService.findMyAssetRequests(userId, paginationDto);
   }
 
   @Get('requests/:id')
