@@ -8,7 +8,6 @@ import {
   Patch,
   Post,
   Query,
-  Request,
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
@@ -25,9 +24,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { AssetsService } from './assets.service';
 import {
-  ApproveAssetRequestDto,
   CreateAssetRequestDto,
   FulfillAssetRequestDto,
+  ReviewAssetRequestDto,
 } from './dto/asset-request.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import {
@@ -72,8 +71,8 @@ export class AssetsController {
       },
     },
   })
-  createAsset(@Body() createAssetDto: CreateAssetDto, @Request() req: any) {
-    return this.assetsService.createAsset(createAssetDto, req.user.id);
+  createAsset(@Body() createAssetDto: CreateAssetDto, @GetCurrentUser('id') createdBy: number) {
+    return this.assetsService.createAsset(createAssetDto, createdBy);
   }
 
   @Get()
@@ -196,9 +195,9 @@ export class AssetsController {
   updateAsset(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateAssetDto: UpdateAssetDto,
-    @Request() req: any,
+    @GetCurrentUser('id') updatedBy: number,
   ) {
-    return this.assetsService.updateAsset(id, updateAssetDto, req.user.id);
+    return this.assetsService.updateAsset(id, updateAssetDto, updatedBy);
   }
 
   @Delete(':id')
@@ -214,8 +213,8 @@ export class AssetsController {
       },
     },
   })
-  removeAsset(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
-    return this.assetsService.removeAsset(id, req.user.id);
+  removeAsset(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') deletedBy: number) {
+    return this.assetsService.removeAsset(id, deletedBy);
   }
 
   // ===== ASSET ASSIGNMENT =====
@@ -245,12 +244,12 @@ export class AssetsController {
   assignAsset(
     @Param('id', ParseIntPipe) assetId: number,
     @Body() body: AssignAssetDto,
-    @Request() req: any,
+    @GetCurrentUser('id') assignedBy: number,
   ) {
     return this.assetsService.assignAsset(
       assetId,
       body.user_id,
-      req.user.id,
+      assignedBy,
       body.notes,
     );
   }
@@ -280,9 +279,9 @@ export class AssetsController {
   unassignAsset(
     @Param('id', ParseIntPipe) assetId: number,
     @Body() body: UnassignAssetDto,
-    @Request() req: any,
+    @GetCurrentUser('id') unassignedBy: number,
   ) {
-    return this.assetsService.unassignAsset(assetId, req.user.id, body.notes);
+    return this.assetsService.unassignAsset(assetId, unassignedBy, body.notes);
   }
 
   // ===== USER DEVICES FROM ASSETS =====
@@ -318,8 +317,8 @@ export class AssetsController {
       },
     },
   })
-  getMyDevices(@Request() req: any) {
-    return this.assetsService.getUserDevices(req.user.id);
+  getMyDevices(@GetCurrentUser('id') userId: number) {
+    return this.assetsService.getUserDevices(userId);
   }
 
   // ===== ASSET REQUESTS FOR USERS =====
@@ -350,9 +349,9 @@ export class AssetsController {
   })
   createAssetRequest(
     @Body() createAssetRequestDto: CreateAssetRequestDto,
-    @Request() req: any,
+    @GetCurrentUser('id') userId: number,
   ) {
-    createAssetRequestDto.user_id = req.user.id;
+    createAssetRequestDto.user_id = userId;
     return this.assetsService.createAssetRequest(createAssetRequestDto);
   }
 
@@ -510,9 +509,7 @@ export class AssetsController {
     return this.assetsService.findOneAssetRequest(id);
   }
 
-  // ===== ASSET REQUEST APPROVAL FOR HR =====
-
-  @Post('requests/:id/approve')
+  @Post('requests/:id/review')
   @RequirePermission(ASSET_PERMISSIONS.REQUEST_APPROVE)
   @ApiOperation({ summary: 'Duyệt/từ chối request tài sản' })
   @ApiResponse({
@@ -535,12 +532,12 @@ export class AssetsController {
       },
     },
   })
-  approveAssetRequest(
+  reviewAssetRequest(
     @Param('id', ParseIntPipe) id: number,
-    @Body() approveDto: ApproveAssetRequestDto,
-    @Request() req: any,
+    @Body() reviewDto: ReviewAssetRequestDto,
+    @GetCurrentUser('id') reviewerId: number,
   ) {
-    return this.assetsService.approveAssetRequest(id, approveDto, req.user.id);
+    return this.assetsService.reviewAssetRequest(id, reviewDto, reviewerId);
   }
 
   @Post('requests/:id/fulfill')
@@ -568,9 +565,9 @@ export class AssetsController {
   fulfillAssetRequest(
     @Param('id', ParseIntPipe) id: number,
     @Body() fulfillDto: FulfillAssetRequestDto,
-    @Request() req: any,
+    @GetCurrentUser('id') fulfillerId: number,
   ) {
-    return this.assetsService.fulfillAssetRequest(id, fulfillDto, req.user.id);
+    return this.assetsService.fulfillAssetRequest(id, fulfillDto, fulfillerId);
   }
 
   @Get(':id')

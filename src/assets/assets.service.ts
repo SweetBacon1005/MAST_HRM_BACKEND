@@ -1,28 +1,31 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { ApprovalStatus, Prisma } from '@prisma/client';
+import {
+  ASSET_ERRORS,
+  SUCCESS_MESSAGES,
+} from '../common/constants/error-messages.constants';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
-import { DEVICE_CATEGORIES, ASSET_STATUSES } from './constants/asset.constants';
-import { ASSET_ERRORS, SUCCESS_MESSAGES } from '../common/constants/error-messages.constants';
-import { CreateAssetDto } from './dto/create-asset.dto';
-import { UpdateAssetDto } from './dto/update-asset.dto';
+import { PrismaService } from '../database/prisma.service';
+import { ASSET_STATUSES, DEVICE_CATEGORIES } from './constants/asset.constants';
 import {
   CreateAssetRequestDto,
-  ApproveAssetRequestDto,
   FulfillAssetRequestDto,
+  ReviewAssetRequestDto,
 } from './dto/asset-request.dto';
+import { CreateAssetDto } from './dto/create-asset.dto';
 import {
   AssetPaginationDto,
   AssetRequestPaginationDto,
 } from './dto/pagination-queries.dto';
-import { Prisma } from '@prisma/client';
+import { UpdateAssetDto } from './dto/update-asset.dto';
 
 @Injectable()
 export class AssetsService {
@@ -50,9 +53,15 @@ export class AssetsService {
       data: {
         ...createAssetDto,
         category: createAssetDto.category as any,
-        purchase_date: createAssetDto.purchase_date ? new Date(createAssetDto.purchase_date) : null,
-        purchase_price: createAssetDto.purchase_price ? parseFloat(createAssetDto.purchase_price) : null,
-        warranty_end_date: createAssetDto.warranty_end_date ? new Date(createAssetDto.warranty_end_date) : null,
+        purchase_date: createAssetDto.purchase_date
+          ? new Date(createAssetDto.purchase_date)
+          : null,
+        purchase_price: createAssetDto.purchase_price
+          ? parseFloat(createAssetDto.purchase_price)
+          : null,
+        warranty_end_date: createAssetDto.warranty_end_date
+          ? new Date(createAssetDto.warranty_end_date)
+          : null,
         created_by: createdBy,
       },
       include: {
@@ -87,7 +96,7 @@ export class AssetsService {
         asset_code: asset.asset_code,
         name: asset.name,
         category: asset.category,
-      }
+      },
     );
 
     return {
@@ -106,18 +115,21 @@ export class AssetsService {
     // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
-        { name: { contains: paginationDto.search} },
-        { asset_code: { contains: paginationDto.search} },
-        { description: { contains: paginationDto.search} },
-        { brand: { contains: paginationDto.search} },
-        { model: { contains: paginationDto.search} },
+        { name: { contains: paginationDto.search } },
+        { asset_code: { contains: paginationDto.search } },
+        { description: { contains: paginationDto.search } },
+        { brand: { contains: paginationDto.search } },
+        { model: { contains: paginationDto.search } },
       ];
     }
 
-    if (paginationDto.category) whereConditions.category = paginationDto.category;
+    if (paginationDto.category)
+      whereConditions.category = paginationDto.category;
     if (paginationDto.status) whereConditions.status = paginationDto.status;
-    if (paginationDto.assigned_to) whereConditions.assigned_to = paginationDto.assigned_to;
-    if (paginationDto.brand) whereConditions.brand = { contains: paginationDto.brand};
+    if (paginationDto.assigned_to)
+      whereConditions.assigned_to = paginationDto.assigned_to;
+    if (paginationDto.brand)
+      whereConditions.brand = { contains: paginationDto.brand };
 
     const [assets, total] = await Promise.all([
       this.prisma.assets.findMany({
@@ -207,7 +219,11 @@ export class AssetsService {
     };
   }
 
-  async updateAsset(id: number, updateAssetDto: UpdateAssetDto, updatedBy: number) {
+  async updateAsset(
+    id: number,
+    updateAssetDto: UpdateAssetDto,
+    updatedBy: number,
+  ) {
     const existingAsset = await this.prisma.assets.findFirst({
       where: { id, deleted_at: null },
     });
@@ -217,7 +233,10 @@ export class AssetsService {
     }
 
     // Check asset_code uniqueness if changed
-    if (updateAssetDto.asset_code && updateAssetDto.asset_code !== existingAsset.asset_code) {
+    if (
+      updateAssetDto.asset_code &&
+      updateAssetDto.asset_code !== existingAsset.asset_code
+    ) {
       const duplicateCode = await this.prisma.assets.findFirst({
         where: {
           asset_code: updateAssetDto.asset_code,
@@ -232,7 +251,10 @@ export class AssetsService {
     }
 
     // Check serial_number uniqueness if changed
-    if (updateAssetDto.serial_number && updateAssetDto.serial_number !== existingAsset.serial_number) {
+    if (
+      updateAssetDto.serial_number &&
+      updateAssetDto.serial_number !== existingAsset.serial_number
+    ) {
       const duplicateSerial = await this.prisma.assets.findFirst({
         where: {
           serial_number: updateAssetDto.serial_number,
@@ -276,7 +298,9 @@ export class AssetsService {
       updateData.purchase_date = new Date(updateAssetDto.purchase_date);
     }
     if (updateAssetDto.purchase_price !== undefined) {
-      updateData.purchase_price = updateAssetDto.purchase_price ? parseFloat(updateAssetDto.purchase_price) : null;
+      updateData.purchase_price = updateAssetDto.purchase_price
+        ? parseFloat(updateAssetDto.purchase_price)
+        : null;
     }
     if (updateAssetDto.warranty_end_date) {
       updateData.warranty_end_date = new Date(updateAssetDto.warranty_end_date);
@@ -319,7 +343,7 @@ export class AssetsService {
       {
         changes: updateAssetDto,
         asset_code: updatedAsset.asset_code,
-      }
+      },
     );
 
     return {
@@ -369,7 +393,7 @@ export class AssetsService {
       {
         asset_code: asset.asset_code,
         name: asset.name,
-      }
+      },
     );
 
     return {
@@ -379,7 +403,12 @@ export class AssetsService {
 
   // ===== ASSET ASSIGNMENT =====
 
-  async assignAsset(assetId: number, userId: number, assignedBy: number, notes?: string) {
+  async assignAsset(
+    assetId: number,
+    userId: number,
+    assignedBy: number,
+    notes?: string,
+  ) {
     const asset = await this.prisma.assets.findFirst({
       where: { id: assetId, deleted_at: null },
     });
@@ -434,7 +463,8 @@ export class AssetsService {
         asset_code: asset.asset_code,
         asset_name: asset.name,
         assigned_to_user_id: userId,
-        assigned_to_user_name: updatedAsset.assigned_user?.user_information?.name,
+        assigned_to_user_name:
+          updatedAsset.assigned_user?.user_information?.name,
         notes,
       },
     });
@@ -491,7 +521,8 @@ export class AssetsService {
         asset_code: asset.asset_code,
         asset_name: asset.name,
         previous_assigned_user_id: asset.assigned_to,
-        previous_assigned_user_name: asset.assigned_user?.user_information?.name,
+        previous_assigned_user_name:
+          asset.assigned_user?.user_information?.name,
         notes,
       },
     });
@@ -510,7 +541,7 @@ export class AssetsService {
         assigned_to: userId,
         status: ASSET_STATUSES.ASSIGNED,
         deleted_at: null,
-          category: { in: DEVICE_CATEGORIES as any },
+        category: { in: DEVICE_CATEGORIES as any },
       },
       select: {
         id: true,
@@ -536,10 +567,7 @@ export class AssetsService {
     };
   }
 
-  // ===== ASSET REQUESTS FOR USERS =====
-
   async createAssetRequest(createAssetRequestDto: CreateAssetRequestDto) {
-    // Validate asset if specified
     if (createAssetRequestDto.asset_id) {
       const asset = await this.prisma.assets.findFirst({
         where: { id: createAssetRequestDto.asset_id, deleted_at: null },
@@ -550,17 +578,27 @@ export class AssetsService {
       }
     }
 
-    const createData: any = {
-      user_id: createAssetRequestDto.user_id!,
+    const createData: Prisma.asset_requestsCreateInput = {
+      user: {
+        connect: {
+          id: createAssetRequestDto.user_id!,
+        },
+      },
       request_type: createAssetRequestDto.request_type,
       category: createAssetRequestDto.category,
       description: createAssetRequestDto.description,
       justification: createAssetRequestDto.justification,
-      expected_date: createAssetRequestDto.expected_date ? new Date(createAssetRequestDto.expected_date) : null,
+      expected_date: createAssetRequestDto.expected_date
+        ? new Date(createAssetRequestDto.expected_date)
+        : null,
     };
 
     if (createAssetRequestDto.asset_id) {
-      createData.asset_id = createAssetRequestDto.asset_id;
+      createData.asset = {
+        connect: {
+          id: createAssetRequestDto.asset_id,
+        },
+      };
     }
     if (createAssetRequestDto.notes) {
       createData.notes = createAssetRequestDto.notes;
@@ -588,7 +626,6 @@ export class AssetsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.log({
       logName: 'Asset Request',
       description: `Tạo request ${createAssetRequestDto.request_type} tài sản`,
@@ -621,20 +658,21 @@ export class AssetsService {
     // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
-        { description: { contains: paginationDto.search} },
-        { justification: { contains: paginationDto.search} },
+        { description: { contains: paginationDto.search } },
+        { justification: { contains: paginationDto.search } },
         { category: paginationDto.category },
-        { asset: { name: { contains: paginationDto.search} } },
-        { asset: { asset_code: { contains: paginationDto.search} } },
-        { asset: { brand: { contains: paginationDto.search} } },
-        { asset: { model: { contains: paginationDto.search} } },
-        { asset: { serial_number: { contains: paginationDto.search} } },
+        { asset: { name: { contains: paginationDto.search } } },
+        { asset: { asset_code: { contains: paginationDto.search } } },
+        { asset: { brand: { contains: paginationDto.search } } },
+        { asset: { model: { contains: paginationDto.search } } },
+        { asset: { serial_number: { contains: paginationDto.search } } },
       ];
     }
 
     if (paginationDto.status) whereConditions.status = paginationDto.status;
     if (paginationDto.user_id) whereConditions.user_id = paginationDto.user_id;
-    if (paginationDto.approved_by) whereConditions.approved_by = paginationDto.approved_by;
+    if (paginationDto.approved_by)
+      whereConditions.approved_by = paginationDto.approved_by;
 
     const [requests, total] = await Promise.all([
       this.prisma.asset_requests.findMany({
@@ -738,12 +776,10 @@ export class AssetsService {
     };
   }
 
-  // ===== ASSET REQUEST APPROVAL FOR HR =====
-
-  async approveAssetRequest(
+  async reviewAssetRequest(
     requestId: number,
-    approveDto: ApproveAssetRequestDto,
-    approverId: number,
+    reviewDto: ReviewAssetRequestDto,
+    reviewBy: number,
   ) {
     const request = await this.prisma.asset_requests.findFirst({
       where: { id: requestId, deleted_at: null },
@@ -767,11 +803,10 @@ export class AssetsService {
       throw new BadRequestException('Request đã được xử lý');
     }
 
-    if (approveDto.action === 'APPROVE') {
-      // Validate asset if provided
-      if (approveDto.asset_id) {
+    if (reviewDto.status === ApprovalStatus.APPROVED) {
+      if (reviewDto.asset_id) {
         const asset = await this.prisma.assets.findFirst({
-          where: { id: approveDto.asset_id, deleted_at: null },
+          where: { id: reviewDto.asset_id, deleted_at: null },
         });
 
         if (!asset) {
@@ -786,11 +821,11 @@ export class AssetsService {
       const updatedRequest = await this.prisma.asset_requests.update({
         where: { id: requestId },
         data: {
-          status: 'APPROVED',
-          approved_by: approverId,
+          status: ApprovalStatus.APPROVED,
+          approved_by: reviewBy,
           approved_at: new Date(),
-          asset_id: approveDto.asset_id,
-          notes: approveDto.notes,
+          asset_id: reviewDto.asset_id,
+          notes: reviewDto.notes,
           updated_at: new Date(),
         },
       });
@@ -802,14 +837,14 @@ export class AssetsService {
         subjectType: 'Request',
         event: 'asset_request.approved',
         subjectId: requestId,
-        causerId: approverId,
+        causerId: reviewBy,
         properties: {
           request_type: request.request_type,
           category: request.category,
           user_id: request.user_id,
           user_name: request.user?.user_information?.name,
-          asset_id: approveDto.asset_id,
-          notes: approveDto.notes,
+          asset_id: reviewDto.asset_id,
+          notes: reviewDto.notes,
         },
       });
 
@@ -822,30 +857,29 @@ export class AssetsService {
       const updatedRequest = await this.prisma.asset_requests.update({
         where: { id: requestId },
         data: {
-          status: 'REJECTED',
-          approved_by: approverId,
+          status: ApprovalStatus.REJECTED,
+          approved_by: reviewBy,
           approved_at: new Date(),
-          rejection_reason: approveDto.rejection_reason,
-          notes: approveDto.notes,
+          notes: reviewDto.notes,
+          rejection_reason: reviewDto.rejection_reason,
           updated_at: new Date(),
         },
       });
 
-      // Log activity
       await this.activityLogService.log({
         logName: 'Asset Request',
         description: `Từ chối request tài sản`,
         subjectType: 'Request',
         event: 'asset_request.rejected',
         subjectId: requestId,
-        causerId: approverId,
+        causerId: reviewBy,
         properties: {
           request_type: request.request_type,
           category: request.category,
           user_id: request.user_id,
           user_name: request.user?.user_information?.name,
-          rejection_reason: approveDto.rejection_reason,
-          notes: approveDto.notes,
+          notes: reviewDto.notes,
+          rejection_reason: reviewDto.rejection_reason,
         },
       });
 
@@ -962,11 +996,21 @@ export class AssetsService {
       categoryStats,
     ] = await Promise.all([
       this.prisma.assets.count({ where: { deleted_at: null } }),
-      this.prisma.assets.count({ where: { status: 'AVAILABLE', deleted_at: null } }),
-      this.prisma.assets.count({ where: { status: 'ASSIGNED', deleted_at: null } }),
-      this.prisma.assets.count({ where: { status: 'MAINTENANCE', deleted_at: null } }),
-      this.prisma.asset_requests.count({ where: { status: 'PENDING', deleted_at: null } }),
-      this.prisma.asset_requests.count({ where: { status: 'APPROVED', deleted_at: null } }),
+      this.prisma.assets.count({
+        where: { status: 'AVAILABLE', deleted_at: null },
+      }),
+      this.prisma.assets.count({
+        where: { status: 'ASSIGNED', deleted_at: null },
+      }),
+      this.prisma.assets.count({
+        where: { status: 'MAINTENANCE', deleted_at: null },
+      }),
+      this.prisma.asset_requests.count({
+        where: { status: 'PENDING', deleted_at: null },
+      }),
+      this.prisma.asset_requests.count({
+        where: { status: 'APPROVED', deleted_at: null },
+      }),
       this.prisma.assets.groupBy({
         by: ['category'],
         where: { deleted_at: null },
@@ -980,13 +1024,16 @@ export class AssetsService {
         available: availableAssets,
         assigned: assignedAssets,
         maintenance: maintenanceAssets,
-        utilization_rate: totalAssets > 0 ? Math.round((assignedAssets / totalAssets) * 100) : 0,
+        utilization_rate:
+          totalAssets > 0
+            ? Math.round((assignedAssets / totalAssets) * 100)
+            : 0,
       },
       requests: {
         pending: pendingRequests,
         approved: approvedRequests,
       },
-      categories: categoryStats.map(stat => ({
+      categories: categoryStats.map((stat) => ({
         category: stat.category,
         count: stat._count.category,
       })),

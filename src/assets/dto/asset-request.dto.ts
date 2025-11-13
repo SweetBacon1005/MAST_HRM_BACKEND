@@ -1,22 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApprovalStatus, AssetCategory, AssetRequestType } from '@prisma/client';
 import { IsString, IsOptional, IsDateString, IsEnum, IsInt } from 'class-validator';
 
 export class CreateAssetRequestDto {
   @ApiProperty({
     description: 'Loại request',
-    enum: ['REQUEST', 'RETURN', 'MAINTENANCE'],
-    example: 'REQUEST',
+    enum: AssetRequestType,
+    example: AssetRequestType.REQUEST,
   })
-  @IsEnum(['REQUEST', 'RETURN', 'MAINTENANCE'])
-  request_type: string;
+  @IsEnum(AssetRequestType)
+  request_type: AssetRequestType;
 
   @ApiProperty({
     description: 'Danh mục tài sản cần request',
-    example: 'LAPTOP',
-    enum: ['LAPTOP', 'DESKTOP', 'MONITOR', 'KEYBOARD', 'MOUSE', 'HEADPHONE', 'PHONE', 'TABLET', 'FURNITURE', 'EQUIPMENT', 'OTHER'],
+    example: AssetCategory.LAPTOP,
+    enum: AssetCategory,
   })
-  @IsEnum(['LAPTOP', 'DESKTOP', 'MONITOR', 'KEYBOARD', 'MOUSE', 'HEADPHONE', 'PHONE', 'TABLET', 'FURNITURE', 'EQUIPMENT', 'OTHER'])
-  category: string;
+  @IsEnum(AssetCategory)
+  category: AssetCategory;
 
   @ApiProperty({
     description: 'Mô tả chi tiết tài sản cần thiết',
@@ -56,34 +57,25 @@ export class CreateAssetRequestDto {
   @IsString()
   notes?: string;
 
-  // Will be set automatically from JWT token
   user_id?: number;
 }
 
-export class ApproveAssetRequestDto {
+export class ReviewAssetRequestDto {
   @ApiProperty({
-    description: 'Hành động',
-    enum: ['APPROVE', 'REJECT'],
-    example: 'APPROVE',
+    description: 'Trạng thái',
+    enum: ApprovalStatus,
+    example: ApprovalStatus.APPROVED,
   })
-  @IsEnum(['APPROVE', 'REJECT'])
-  action: string;
+  @IsEnum(ApprovalStatus)
+  status: ApprovalStatus;
 
   @ApiPropertyOptional({
-    description: 'ID tài sản được gán (khi approve)',
+    description: 'ID tài sản được gán (khi approve hoặc reject)',
     example: 123,
   })
   @IsOptional()
   @IsInt()
   asset_id?: number;
-
-  @ApiPropertyOptional({
-    description: 'Lý do từ chối (khi reject)',
-    example: 'Không có tài sản phù hợp trong kho',
-  })
-  @IsOptional()
-  @IsString()
-  rejection_reason?: string;
 
   @ApiPropertyOptional({
     description: 'Ghi chú của người duyệt',
@@ -92,6 +84,14 @@ export class ApproveAssetRequestDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lý do từ chối',
+    example: "Không có tài sản phù hợp trong kho",
+  })
+  @IsOptional()
+  @IsString()
+  rejection_reason?: string;
 }
 
 export class FulfillAssetRequestDto {
