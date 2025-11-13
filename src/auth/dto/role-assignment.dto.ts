@@ -13,7 +13,7 @@ export class AssignRoleDto {
 
   @ApiProperty({ 
     description: 'Loại scope',
-
+    example: ScopeType.COMPANY,
     enum: ScopeType 
   })
   @IsString()
