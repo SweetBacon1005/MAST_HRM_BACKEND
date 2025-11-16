@@ -24,15 +24,6 @@ export class CreateUserDivisionDto {
   divisionId?: number;
 
   @ApiPropertyOptional({
-    description: 'ID của team trong division',
-    example: 1,
-  })
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  @IsInt()
-  teamId?: number;
-
-  @ApiPropertyOptional({
     description: 'Mô tả về vai trò của user trong division',
     example: 'Developer chính của team',
   })

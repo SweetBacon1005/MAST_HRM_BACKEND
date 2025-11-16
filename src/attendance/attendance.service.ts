@@ -13,6 +13,7 @@ import {
   ApprovalStatus,
   TimesheetType,
   WorkShiftType,
+  ScopeType,
 } from '@prisma/client';
 import {
   buildPaginationQuery,
@@ -766,17 +767,27 @@ export class AttendanceService {
     // Lấy danh sách user theo phòng ban/team
     let userIds: number[] = [];
     if (team_id) {
-      const teamMembers = await this.prisma.user_division.findMany({
-        where: { teamId: team_id },
-        select: { userId: true },
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: team_id,
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = teamMembers.map((member) => member.userId);
+      userIds = teamAssignments.map((assignment) => assignment.user_id);
     } else if (division_id) {
-      const divisionMembers = await this.prisma.user_division.findMany({
-        where: { divisionId: division_id },
-        select: { userId: true },
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: division_id,
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = divisionMembers.map((member) => member.userId);
+      userIds = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const where: any = {

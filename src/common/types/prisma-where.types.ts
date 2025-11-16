@@ -46,8 +46,8 @@ export type RotationMemberOrderByInput =
 export type UserWhereInput = Prisma.usersWhereInput;
 export type UserOrderByInput = Prisma.usersOrderByWithRelationInput;
 
-// User division
-export type UserDivisionWhereInput = Prisma.user_divisionWhereInput;
+// User role assignment (thay thế user_division)
+export type UserRoleAssignmentWhereInput = Prisma.user_role_assignmentWhereInput;
 
 // Projects
 export type ProjectWhereInput = Prisma.projectsWhereInput;

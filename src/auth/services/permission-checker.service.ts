@@ -114,30 +114,34 @@ export class PermissionCheckerService {
    * Lấy danh sách division IDs của user
    */
   private async getUserDivisions(userId: number): Promise<number[]> {
-    const userDivisions = await this.prisma.user_division.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: { 
-        userId: userId,
-        division: { deleted_at: null }
+        user_id: userId,
+        scope_type: 'DIVISION',
+        deleted_at: null,
+        scope_id: { not: null },
       },
-      select: { divisionId: true },
+      select: { scope_id: true },
     });
     
-    return userDivisions.map(ud => ud.divisionId).filter(id => id !== null) as number[];
+    return assignments.map(a => a.scope_id).filter((id): id is number => id !== null);
   }
 
   /**
    * Lấy danh sách team IDs của user
    */
   private async getUserTeams(userId: number): Promise<number[]> {
-    const userTeams = await this.prisma.user_division.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: { 
-        userId: userId,
-        team: { deleted_at: null }
+        user_id: userId,
+        scope_type: 'TEAM',
+        deleted_at: null,
+        scope_id: { not: null },
       },
-      select: { teamId: true },
+      select: { scope_id: true },
     });
     
-    return userTeams.map(ut => ut.teamId).filter(id => id !== null) as number[];
+    return assignments.map(a => a.scope_id).filter((id): id is number => id !== null);
   }
 
   /**
@@ -148,16 +152,17 @@ export class PermissionCheckerService {
     
     if (divisions.length === 0) return [];
 
-    const users = await this.prisma.user_division.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        divisionId: { in: divisions },
-        division: { deleted_at: null },
-        user: { deleted_at: null },
+        scope_type: 'DIVISION',
+        scope_id: { in: divisions },
+        deleted_at: null,
       },
-      select: { userId: true },
+      select: { user_id: true },
+      distinct: ['user_id'],
     });
 
-    return users.map(u => u.userId);
+    return assignments.map(a => a.user_id);
   }
 
   /**
@@ -168,16 +173,17 @@ export class PermissionCheckerService {
     
     if (teams.length === 0) return [];
 
-    const users = await this.prisma.user_division.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        teamId: { in: teams },
-        team: { deleted_at: null },
-        user: { deleted_at: null },
+        scope_type: 'TEAM',
+        scope_id: { in: teams },
+        deleted_at: null,
       },
-      select: { userId: true },
+      select: { user_id: true },
+      distinct: ['user_id'],
     });
 
-    return users.map(u => u.userId);
+    return assignments.map(a => a.user_id);
   }
 
   /**

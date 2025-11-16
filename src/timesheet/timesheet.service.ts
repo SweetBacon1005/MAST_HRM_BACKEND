@@ -13,6 +13,7 @@ import {
   HolidayStatus,
   Prisma,
   ApprovalStatus,
+  ScopeType,
 } from '@prisma/client';
 import FormData from 'form-data';
 import {
@@ -970,20 +971,18 @@ export class TimesheetService {
         .toISOString()
         .split('T')[0];
 
-    // Lấy danh sách thành viên team
-    const teamMembers = await this.prisma.user_division.findMany({
-      where: { teamId: teamId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-          },
-        },
+    // Lấy danh sách thành viên team từ user_role_assignment
+    const teamAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: teamId,
+        deleted_at: null,
       },
+      select: { user_id: true },
+      distinct: ['user_id'],
     });
 
-    const userIds = teamMembers.map((member) => member.userId);
+    const userIds = teamAssignments.map((assignment) => assignment.user_id);
 
     // Lấy timesheet của tất cả thành viên - sử dụng work_date
     const timesheets = await this.prisma.time_sheets.findMany({
@@ -1007,8 +1006,23 @@ export class TimesheetService {
       },
     });
 
+    // Lấy user info cho team members
+    const teamUsers = await this.prisma.users.findMany({
+      where: { id: { in: userIds }, deleted_at: null },
+      select: {
+        id: true,
+        email: true,
+        user_information: {
+          select: {
+            name: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
     return {
-      teamMembers: teamMembers.map((member) => member.user),
+      teamMembers: teamUsers,
       timesheets,
       dayOffs,
     };
@@ -1091,17 +1105,27 @@ export class TimesheetService {
     let userIds: number[] = [];
 
     if (Number(team_id)) {
-      const teamMembers = await this.prisma.user_division.findMany({
-        where: { teamId: Number(team_id) },
-        select: { userId: true },
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: Number(team_id),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = teamMembers.map((member) => member.userId);
+      userIds = teamAssignments.map((assignment) => assignment.user_id);
     } else if (Number(division_id)) {
-      const divisionMembers = await this.prisma.user_division.findMany({
-        where: { divisionId: Number(division_id) },
-        select: { userId: true },
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: Number(division_id),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = divisionMembers.map((member) => member.userId);
+      userIds = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const where: any = {
@@ -1252,7 +1276,6 @@ export class TimesheetService {
     startDate?: string,
     endDate?: string,
   ) {
-    // Mặc định lấy thống kê tháng hiện tại
     const now = new Date();
     const defaultStartDate =
       startDate ||
@@ -1277,7 +1300,6 @@ export class TimesheetService {
       where.user_id = Number(userId);
     }
 
-    // Lấy timesheets trong khoảng thời gian
     const timesheets = await this.prisma.time_sheets.findMany({
       where,
       include: {
@@ -1292,7 +1314,6 @@ export class TimesheetService {
       orderBy: { work_date: 'desc' },
     });
 
-    // Lấy overtime requests đã được approve
     const overtimeRequests = await this.prisma.over_times_history.findMany({
       where: {
         ...(userId && { user_id: Number(userId) }),
@@ -1305,7 +1326,6 @@ export class TimesheetService {
       },
     });
 
-    // Lấy day-off requests trong khoảng thời gian (sửa logic query)
     const dayOffRequests = await this.prisma.day_offs.findMany({
       where: {
         ...(userId && { user_id: Number(userId) }),
@@ -1318,7 +1338,6 @@ export class TimesheetService {
       },
     });
 
-    // Lấy leave balance hiện tại nếu có userId
     let currentLeaveBalance: any = null;
     if (userId) {
       currentLeaveBalance = await this.prisma.user_leave_balances.findUnique({
@@ -1326,7 +1345,6 @@ export class TimesheetService {
       });
     }
 
-    // Tính toán thống kê attendance
     const totalDays = timesheets.length;
     const completeDays = timesheets.filter((t) => t.is_complete).length;
     const lateDays = timesheets.filter(
@@ -1344,14 +1362,12 @@ export class TimesheetService {
       0,
     );
 
-    // Tính toán thống kê overtime
     const totalOvertimeHours = overtimeRequests.reduce(
       (sum, ot) => sum + (ot.total_hours || 0),
       0,
     );
     const overtimeCount = overtimeRequests.length;
 
-    // Tính toán thống kê leave - chỉ tính những ngày thực sự trong khoảng thời gian
     let paidLeaveDays = 0;
     let unpaidLeaveDays = 0;
 
@@ -1359,7 +1375,6 @@ export class TimesheetService {
     const endDateObj = new Date(defaultEndDate);
 
     dayOffRequests.forEach((dayOff) => {
-      // Tính số ngày leave thực sự trong khoảng thời gian query
       const leaveStart = new Date(
         Math.max(dayOff.work_date.getTime(), startDateObj.getTime()),
       );
@@ -1382,13 +1397,11 @@ export class TimesheetService {
       }
     });
 
-    // Tính tổng số ngày làm việc trong tháng (trừ cuối tuần và ngày lễ)
     const workingDaysInMonth = this.calculateWorkingDaysInMonth(
       defaultStartDate,
       defaultEndDate,
     );
 
-    // Tính số ngày có timesheet vs số ngày cần làm việc (trừ đi ngày nghỉ phép toàn thời gian)
     const fullDayOffCount = timesheets.filter(
       (t) => t.day_off && t.day_off.duration === 'FULL_DAY',
     ).length;
@@ -1403,8 +1416,8 @@ export class TimesheetService {
       overtime_hours: totalOvertimeHours,
       late_minutes: totalLateMinutes,
       violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
-      paid_leave_hours: paidLeaveDays * 8, // Trả về giờ để tương thích
-      unpaid_leave_hours: unpaidLeaveDays * 8, // Trả về giờ để tương thích
+      paid_leave_hours: paidLeaveDays * 8, 
+      unpaid_leave_hours: unpaidLeaveDays * 8, 
 
       attendance: {
         total_days: `${completeDays}/${expectedWorkDays}`,

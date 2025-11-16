@@ -151,41 +151,98 @@ export class UsersService {
               scope_type: true,
             },
           },
-          user_division: {
-            where: {
-              deleted_at: null,
-            },
-            select: {
-              division: {
-                select: {
-                  id: true,
-                  name: true,
-                  description: true,
-                  created_at: true,
-                  updated_at: true,
-                  deleted_at: true,
-                  status: true,
-                  type: true,
-                },
-              },
-              team: {
-                select: {
-                  id: true,
-                  name: true,
-                }
-              }
-            },
-            take: 1,
-          },
+          // user_division đã bị xóa, sử dụng user_role_assignment thay thế
         },
       }),
       this.prisma.users.count({ where }),
     ]);
 
-    const transformedData = data.map((user) => ({
-      ...user,
-      user_division: user?.user_division,
-    }));
+
+    // Lấy division và team info từ user_role_assignment
+    const userIds = data.map((u) => u.id);
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: userIds },
+        scope_type: 'DIVISION',
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      select: { user_id: true, scope_id: true },
+      distinct: ['user_id'],
+    });
+
+    const teamAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: userIds },
+        scope_type: 'TEAM',
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      select: { user_id: true, scope_id: true },
+      distinct: ['user_id'],
+    });
+
+    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const teamIds = [...new Set(teamAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+
+    const [divisions, teams] = await Promise.all([
+      this.prisma.divisions.findMany({
+        where: { id: { in: divisionIds } },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          created_at: true,
+          updated_at: true,
+          deleted_at: true,
+          status: true,
+          type: true,
+        },
+      }),
+      this.prisma.teams.findMany({
+        where: { id: { in: teamIds } },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+    ]);
+
+    const divisionMap = new Map(divisions.map((d) => [d.id, d]));
+    const teamMap = new Map(teams.map((t) => [t.id, t]));
+    const userDivisionMap = new Map<number, number>();
+    const userTeamMap = new Map<number, number>();
+
+    divisionAssignments.forEach((a) => {
+      if (a.scope_id && !userDivisionMap.has(a.user_id)) {
+        userDivisionMap.set(a.user_id, a.scope_id);
+      }
+    });
+
+    teamAssignments.forEach((a) => {
+      if (a.scope_id && !userTeamMap.has(a.user_id)) {
+        userTeamMap.set(a.user_id, a.scope_id);
+      }
+    });
+
+    const transformedData = data.map((user) => {
+      const divisionId = userDivisionMap.get(user.id);
+      const teamId = userTeamMap.get(user.id);
+      const division = divisionId ? divisionMap.get(divisionId) : null;
+      const team = teamId ? teamMap.get(teamId) : null;
+
+      return {
+        ...user,
+        user_division: division
+          ? [
+              {
+                division,
+                team: team || null,
+              },
+            ]
+          : [],
+      };
+    });
 
     return buildPaginationResponse(
       transformedData,
@@ -207,15 +264,6 @@ export class UsersService {
             level: true,
           },
         },
-        user_division: {
-          where: {
-            deleted_at: null,
-          },
-          include: {
-            division: true,
-          },
-          take: 1,
-        },
       },
     });
 
@@ -223,11 +271,54 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
+    const [divisionAssignment, teamAssignment] = await Promise.all([
+      this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: id,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: id,
+          scope_type: ScopeType.TEAM,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+
+    let division: { id: number; name: string; status: any; description: string | null; created_at: Date; updated_at: Date; deleted_at: Date | null; address: string | null; type: any; parent_id: number | null; founding_at: Date } | null = null;
+    if (divisionAssignment?.scope_id) {
+      division = await this.prisma.divisions.findUnique({
+        where: { id: divisionAssignment.scope_id },
+      });
+    }
+
+    let team: { id: number; name: string; division_id: number | null; created_at: Date; updated_at: Date; deleted_at: Date | null; founding_date: Date | null } | null = null;
+    if (teamAssignment?.scope_id) {
+      team = await this.prisma.teams.findUnique({
+        where: { id: teamAssignment.scope_id },
+      });
+    }
+
     const roleAssignments = await this.roleAssignmentService.getUserRoles(id);
 
+    // Format response giống như user_division cũ
     return {
       ...user,
-      user_division: user.user_division[0] || null,
+      user_division: division
+        ? [
+            {
+              division,
+              team: team || null,
+            },
+          ]
+        : [],
       role_assignments: roleAssignments.roles,
     };
   }

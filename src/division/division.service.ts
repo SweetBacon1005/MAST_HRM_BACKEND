@@ -1,14 +1,15 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, RotationType, ScopeType } from '@prisma/client';
+import { Prisma, ScopeType } from '@prisma/client';
+import { ROLE_IDS, ROLE_NAMES } from 'src/auth/constants/role.constants';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import {
   DIVISION_ERRORS,
+  SUCCESS_MESSAGES,
   TEAM_ERRORS,
   USER_ERRORS,
 } from '../common/constants/error-messages.constants';
@@ -28,7 +29,6 @@ import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
   CreateRotationMemberDto,
   RotationMemberPaginationDto,
-  UpdateRotationMemberDto,
 } from './dto/rotation-member.dto';
 import {
   CreateTeamDto,
@@ -41,7 +41,6 @@ import {
   UpdateUserDivisionDto,
   UserDivisionPaginationDto,
 } from './dto/user-division.dto';
-import { ROLE_NAMES } from 'src/auth/constants/role.constants';
 
 @Injectable()
 export class DivisionService {
@@ -51,9 +50,55 @@ export class DivisionService {
     private readonly roleAssignmentService: RoleAssignmentService,
   ) {}
 
-  async create(createDivisionDto: CreateDivisionDto) {
-    const { ...rest } = createDivisionDto;
+  private async getDivisionUser(divisionId: number) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.DIVISION,
+        scope_id: divisionId,
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
+        },
+      },
+    });
+    return assignments.map((a) => ({
+      id: a.user.id,
+      email: a.user.email,
+      name: a.user.user_information?.name || '',
+    }));
+  }
 
+  private async getTeamUser(teamId: number) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: teamId,
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
+          },
+        },
+      },
+    });
+    return assignments.map((a) => ({
+      id: a.user.id,
+      email: a.user.email,
+      name: a.user.user_information?.name || '',
+    }));
+  }
+
+  async create(createDivisionDto: CreateDivisionDto) {
     if (createDivisionDto.parent_id) {
       const parentDivision = await this.prisma.divisions.findUnique({
         where: { id: createDivisionDto.parent_id, deleted_at: null },
@@ -71,31 +116,64 @@ export class DivisionService {
         deleted_at: null,
       },
     });
+
     if (existingDivision) {
       throw new BadRequestException(DIVISION_ERRORS.DIVISION_NAME_EXISTS);
     }
 
-    return await this.prisma.divisions.create({
+    const user = await this.prisma.users.findUnique({
+      where: { id: createDivisionDto.leader_id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    }
+
+    const division = await this.prisma.divisions.create({
       data: {
-        ...rest,
+        name: createDivisionDto.name,
+        parent_id: createDivisionDto.parent_id,
+        type: createDivisionDto.type,
+        status: createDivisionDto.status,
+        address: createDivisionDto.address,
+        description: createDivisionDto.description,
         founding_at: founding_at,
       },
       include: {
         parent: {
           select: { id: true, name: true },
         },
-        children: {
-          select: { id: true, name: true },
-          where: { deleted_at: null },
-        },
-        _count: {
+      },
+    });
+
+    const leader = await this.prisma.user_role_assignment.create({
+      data: {
+        user_id: createDivisionDto.creator_id,
+        scope_type: ScopeType.DIVISION,
+        scope_id: division.id,
+        role_id: ROLE_IDS.DIVISION_HEAD,
+        assigned_by: createDivisionDto.creator_id,
+        created_at: new Date(),
+      },
+      include: {
+        user: {
           select: {
-            user_division: true,
-            projects: true,
+            id: true,
+            email: true,
+            user_information: { select: { name: true } },
           },
         },
       },
     });
+
+    return {
+      ...division,
+      division_head: {
+        id: leader.user.id,
+        email: leader.user.email,
+        name: leader.user.user_information?.name || '',
+      },
+    };
   }
 
   async findAll(paginationDto: DivisionPaginationDto) {
@@ -134,22 +212,26 @@ export class DivisionService {
             select: { id: true, name: true },
             where: { deleted_at: null },
           },
-          _count: {
-            select: {
-              user_division: true,
-              projects: true,
-            },
+          projects: {
+            select: { id: true },
+            where: { deleted_at: null },
           },
         },
       }),
       this.prisma.divisions.count({ where }),
     ]);
 
-    const transformedData = data.map((division) => ({
-      ...division,
-      member_count: division._count.user_division,
-      project_count: division._count.projects,
-    }));
+    const transformedData = await Promise.all(
+      data.map(async (division) => {
+        const users = await this.getDivisionUser(division.id);
+        const projectCount = division.projects?.length || 0;
+        return {
+          ...division,
+          member_count: users.length,
+          project_count: projectCount,
+        };
+      }),
+    );
 
     return buildPaginationResponse(
       transformedData,
@@ -170,26 +252,9 @@ export class DivisionService {
           select: { id: true, name: true },
           where: { deleted_at: null },
         },
-        user_division: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: { select: { name: true } },
-              },
-            },
-          },
-        },
         projects: {
           select: { id: true, name: true, code: true, status: true },
           where: { deleted_at: null },
-        },
-        _count: {
-          select: {
-            user_division: true,
-            projects: true,
-          },
         },
       },
     });
@@ -198,10 +263,14 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
+    const users = await this.getDivisionUser(id);
+
+    const projectCount = division.projects?.length || 0;
+
     return {
       ...division,
-      member_count: division._count.user_division,
-      project_count: division._count.projects,
+      member_count: users.length,
+      project_count: projectCount,
     };
   }
 
@@ -243,7 +312,7 @@ export class DivisionService {
     const { ...rest } = updateDivisionDto;
     const updateData: Prisma.divisionsUpdateInput = { ...rest };
 
-    return await this.prisma.divisions.update({
+    const updatedDivision = await this.prisma.divisions.update({
       where: { id },
       data: updateData,
       include: {
@@ -254,14 +323,14 @@ export class DivisionService {
           select: { id: true, name: true },
           where: { deleted_at: null },
         },
-        _count: {
-          select: {
-            user_division: true,
-            projects: true,
-          },
+        projects: {
+          select: { id: true },
+          where: { deleted_at: null },
         },
       },
     });
+
+    return updatedDivision;
   }
 
   async remove(id: number) {
@@ -271,7 +340,6 @@ export class DivisionService {
         children: {
           where: { deleted_at: null },
         },
-        user_division: true,
         projects: {
           where: { deleted_at: null },
         },
@@ -282,15 +350,12 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    if (division.children.length > 0) {
+    if (division.children && division.children.length > 0) {
       throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
     }
 
-    if (division.user_division.length > 0) {
-      throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
-    }
-
-    if (division.projects.length > 0) {
+    const users = await this.getDivisionUser(id);
+    if (users.length > 0) {
       throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
     }
 
@@ -320,20 +385,22 @@ export class DivisionService {
             },
           },
         },
-        _count: {
-          select: {
-            user_division: true,
-            projects: true,
-          },
+        projects: {
+          select: { id: true },
+          where: { deleted_at: null },
         },
       },
     });
 
-    return divisions.map((division) => ({
-      ...division,
-      member_count: division._count.user_division,
-      project_count: division._count.projects,
-    }));
+    return await Promise.all(
+      divisions.map(async (division) => {
+        const users = await this.getDivisionUser(division.id);
+        return {
+          ...division,
+          member_count: users.length,
+        };
+      }),
+    );
   }
 
   async getDivisionMembers(
@@ -344,62 +411,74 @@ export class DivisionService {
     const limit = queryDto.limit || 10;
     const skip = (page - 1) * limit;
 
-    const userInfoWhere: Prisma.user_informationWhereInput = {
-      deleted_at: null,
-    };
-
     if (queryDto.roles?.includes(ROLE_NAMES.DIVISION_HEAD)) {
-      const user = await this.prisma.users.findUnique({
-        where: { id: queryDto.currentUserId, deleted_at: null },
-        include: {
-          user_division: {
-            where: { divisionId: divisionId },
-          },
+      const userAssignment = await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: queryDto.currentUserId,
+          scope_type: ScopeType.DIVISION,
+          scope_id: divisionId,
+          deleted_at: null,
         },
       });
 
-      if (!user) {
+      if (!userAssignment) {
         throw new NotFoundException(DIVISION_ERRORS.NOT_MANAGED_IN_DIVISION);
       }
     }
 
-    if (queryDto.positionId) {
-      userInfoWhere.position_id = queryDto.positionId;
+    let team: any;
+    if (queryDto.teamId) {
+      team = await this.prisma.teams.findFirst({
+        where: {
+          id: queryDto.teamId,
+          division_id: divisionId,
+          deleted_at: null,
+        },
+      });
+      if (!team) {
+        throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_IN_DIVISION);
+      }
     }
 
-    if (queryDto.levelId) {
-      userInfoWhere.level_id = queryDto.levelId;
-    }
-
-    const whereConditions: Prisma.user_divisionWhereInput = {
-      divisionId: divisionId,
-      user: {
-        user_information: userInfoWhere,
+    const userWhere: Prisma.usersWhereInput = {
+      deleted_at: null,
+      user_information: {
+        deleted_at: null,
       },
     };
 
-    if (queryDto.teamId) {
-      whereConditions.teamId = queryDto.teamId;
+    if (queryDto.positionId) {
+      userWhere.user_information = {
+        deleted_at: null,
+        position_id: queryDto.positionId,
+      };
+    }
+
+    if (queryDto.levelId) {
+      userWhere.user_information = {
+        ...(userWhere.user_information as any),
+        deleted_at: null,
+        level_id: queryDto.levelId,
+      };
     }
 
     if (queryDto.skillId) {
-      whereConditions.user = {
-        user_skills: {
-          some: {
-            skill_id: queryDto.skillId,
-          },
+      userWhere.user_skills = {
+        some: {
+          skill_id: queryDto.skillId,
+          deleted_at: null,
         },
       };
     }
 
-    let orderBy: Prisma.user_divisionOrderByWithRelationInput = {
+    let orderBy: Prisma.usersOrderByWithRelationInput = {
       created_at: 'desc',
     };
     if (queryDto.sortBy) {
       const sortOrder = queryDto.sortOrder || 'asc';
       switch (queryDto.sortBy) {
         case DivisionMembersSortByEnum.NAME:
-          orderBy = { user: { user_information: { name: sortOrder } } };
+          orderBy = { user_information: { name: sortOrder } };
           break;
         case DivisionMembersSortByEnum.JOIN_DATE:
           orderBy = { created_at: sortOrder };
@@ -409,71 +488,75 @@ export class DivisionService {
       }
     }
 
-    const [userDivisions, total] = await Promise.all([
-      this.prisma.user_division.findMany({
-        where: whereConditions,
+    const [users, total, teams] = await Promise.all([
+      this.prisma.users.findMany({
+        where: userWhere,
         skip,
         take: limit,
         orderBy,
         include: {
-          user: {
+          user_information: {
+            where: { deleted_at: null },
             include: {
-              user_information: {
-                where: { deleted_at: null },
-                include: {
-                  position: {
-                    select: { id: true, name: true },
-                  },
-                  level: {
-                    select: { id: true, name: true, coefficient: true },
-                  },
-                },
+              position: {
+                select: { id: true, name: true },
               },
-              user_skills: {
-                where: { deleted_at: null },
-                include: {
-                  skill: {
-                    select: { id: true, name: true },
-                  },
-                },
+              level: {
+                select: { id: true, name: true, coefficient: true },
               },
             },
           },
-          team: {
-            select: { id: true, name: true },
+          user_skills: {
+            where: { deleted_at: null },
+            include: {
+              skill: {
+                select: { id: true, name: true },
+              },
+            },
           },
+          user_role_assignments: {
+            where: { deleted_at: null },
+            include: {
+              role: {
+                select: { id: true, name: true },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.users.count({
+        where: userWhere,
+      }),
+      this.prisma.teams.findMany({
+        where: { deleted_at: null },
+        include: {
           division: {
             select: { id: true, name: true },
           },
         },
       }),
-      this.prisma.user_division.count({
-        where: whereConditions,
-      }),
     ]);
 
-    const transformedData = userDivisions.map((ud) => {
-      const userInfo = ud.user.user_information;
+    const transformedData = users.map((user) => {
+      const userInfo = user.user_information;
+      const userTeam = user.user_role_assignments?.find(
+        (ura) => ura.scope_type === ScopeType.TEAM && ura.scope_id !== null,
+      );
 
-      const now = new Date();
-      const join = new Date(ud.user.created_at);
-      const monthsOfService =
-        (now.getFullYear() - join.getFullYear()) * 12 +
-        (now.getMonth() - join.getMonth());
-
-      const skills = ud.user.user_skills.map((us) => us.skill.name);
+      const skills = user.user_skills?.map((us) => us.skill.name) || [];
 
       return {
-        user_id: ud.user.id,
+        user_id: user.id,
         code: userInfo?.code || '',
-        name: ud.user.user_information?.[0]?.name || '',
-        email: ud.user.email,
+        name: userInfo?.name || '',
+        email: user.email,
         avatar: userInfo?.avatar || '',
         birthday: userInfo?.birthday || null,
-        team: ud.team?.name || ud.division?.name || '',
-        team_id: ud.teamId || ud.divisionId,
-        join_date: ud.user.created_at.toISOString().split('T')[0],
-        months_of_service: monthsOfService,
+        team: userTeam?.scope_id
+          ? teams.find((t) => t.id === userTeam.scope_id)?.name
+          : null,
+        team_id: userTeam?.scope_id ?? null,
+        join_date: user.created_at.toISOString().split('T')[0],
         position: userInfo?.position?.name || '',
         position_id: userInfo?.position?.id || null,
         skills: skills.join(', '),
@@ -489,116 +572,105 @@ export class DivisionService {
   async createRotationMember(
     createRotationDto: CreateRotationMemberDto,
     requesterId: number,
+    roles: string[],
   ) {
     const { date_rotation, type, ...rest } = createRotationDto;
 
-    const user = await this.prisma.users.findUnique({
+    const rotationUser = await this.prisma.users.findUnique({
       where: { id: createRotationDto.user_id, deleted_at: null },
       include: {
-        user_information: {
-          include: {},
+        user_information: true,
+        user_role_assignments: {
+          where: {
+            scope_type: ScopeType.DIVISION,
+            deleted_at: null,
+          },
         },
       },
     });
-    if (!user) {
-      throw new NotFoundException('Người dùng không tồn tại');
+
+    if (!rotationUser) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     const toDivision = await this.prisma.divisions.findUnique({
       where: { id: createRotationDto.division_id, deleted_at: null },
     });
     if (!toDivision) {
-      throw new NotFoundException('Phòng ban đích không tồn tại');
+      throw new NotFoundException(DIVISION_ERRORS.TARGET_DIVISION_NOT_FOUND);
     }
 
-    const currentAssignment = await this.prisma.user_division.findFirst({
-      where: {
-        userId: createRotationDto.user_id,
-      },
-      include: {
-        division: {
-          select: { id: true, name: true },
+    const currentDivisionAssignment = rotationUser?.user_role_assignments[0];
+
+    if (!currentDivisionAssignment?.scope_id) {
+      throw new BadRequestException(
+        DIVISION_ERRORS.USER_NOT_ASSIGNED_TO_DIVISION,
+      );
+    }
+
+    const currentDivision = await this.prisma.divisions.findUnique({
+      where: { id: currentDivisionAssignment.scope_id },
+      select: { id: true, name: true },
+    });
+
+    if (!currentDivision) {
+      throw new BadRequestException(
+        DIVISION_ERRORS.USER_NOT_ASSIGNED_TO_DIVISION,
+      );
+    }
+
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      const requester = await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: requesterId,
+          scope_id: currentDivision.id,
+          scope_type: ScopeType.DIVISION,
+          role_id: ROLE_IDS.DIVISION_HEAD,
+          deleted_at: null,
         },
-      },
-    });
-
-    if (!currentAssignment) {
-      throw new BadRequestException(
-        'Người dùng chưa được phân công vào phòng ban nào',
-      );
+      });
+      if (!requester) {
+        throw new BadRequestException(DIVISION_ERRORS.CANNOT_TRANSFER_EMPLOYEE);
+      }
     }
 
-    const existingRotation = await this.prisma.rotation_members.findFirst({
-      where: {
-        user_id: createRotationDto.user_id,
-        division_id: createRotationDto.division_id,
-        deleted_at: null,
-      },
-    });
-
-    if (existingRotation) {
-      throw new BadRequestException(
-        'Người dùng đã có lịch sử điều chuyển đến phòng ban này',
-      );
-    }
-
-    const canApprove =
-      await this.roleHierarchyService.canApprovePersonnelTransfer(
-        requesterId,
-        createRotationDto.user_id,
-      );
-
-    if (!canApprove) {
-      throw new ForbiddenException(
-        'Bạn không có quyền điều chuyển nhân viên này',
-      );
-    }
-
-    return await this.prisma.$transaction(async (prisma) => {
-      const rotation = await prisma.rotation_members.create({
+    return await this.prisma.$transaction(async (tx) => {
+      const rotation = await tx.rotation_members.create({
         data: {
-          ...rest,
-          division_id: toDivision.id,
-          type: type,
+          user_id: createRotationDto.user_id,
+          from_id: currentDivision.id,
+          to_id: toDivision.id,
+          type,
           date_rotation: new Date(date_rotation),
-          created_at: new Date(),
-          updated_at: new Date(),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          division: {
-            select: { id: true, name: true },
-          },
         },
       });
 
-      if (type === RotationType.PERMANENT) {
-        await prisma.user_division.deleteMany({
-          where: {
-            userId: createRotationDto.user_id,
-          },
-        });
+      await tx.user_role_assignment.updateMany({
+        where: {
+          user_id: createRotationDto.user_id,
+          scope_type: ScopeType.DIVISION,
+          scope_id: currentDivision.id,
+          deleted_at: null,
+        },
+        data: {
+          deleted_at: new Date(),
+        },
+      });
 
-        await prisma.user_division.create({
-          data: {
-            userId: createRotationDto.user_id,
-            divisionId: createRotationDto.division_id,
-            created_at: new Date(),
-            updated_at: new Date(),
-          },
-        });
-      }
+      await tx.user_role_assignment.create({
+        data: {
+          user_id: createRotationDto.user_id,
+          role_id: ROLE_IDS.EMPLOYEE,
+          scope_type: ScopeType.DIVISION,
+          scope_id: createRotationDto.division_id,
+          assigned_by: requesterId,
+        },
+      });
 
       return {
         ...rotation,
         date_rotation: rotation.date_rotation.toISOString().split('T')[0],
-        from_division: currentAssignment.division,
+        from_division: currentDivision,
       };
     });
   }
@@ -608,7 +680,7 @@ export class DivisionService {
     const where: Prisma.rotation_membersWhereInput = { deleted_at: null };
 
     if (paginationDto.division_id) {
-      where.division_id = paginationDto.division_id;
+      where.to_id = paginationDto.division_id;
     }
 
     if (paginationDto.user_id) {
@@ -643,7 +715,10 @@ export class DivisionService {
               user_information: { select: { name: true } },
             },
           },
-          division: {
+          to_division: {
+            select: { id: true, name: true },
+          },
+          from_division: {
             select: { id: true, name: true },
           },
         },
@@ -651,7 +726,6 @@ export class DivisionService {
       this.prisma.rotation_members.count({ where }),
     ]);
 
-    // Transform dates
     const transformedData = data.map((rotation) => ({
       ...rotation,
       date_rotation: rotation.date_rotation.toISOString().split('T')[0],
@@ -676,14 +750,20 @@ export class DivisionService {
             user_information: { select: { name: true } },
           },
         },
-        division: {
+        to_division: {
           select: { id: true, name: true },
+        },
+        from_division: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
     });
 
     if (!rotation) {
-      throw new NotFoundException('Không tìm thấy bản ghi điều chuyển');
+      throw new NotFoundException(DIVISION_ERRORS.ROTATION_NOT_FOUND);
     }
 
     return {
@@ -692,67 +772,7 @@ export class DivisionService {
     };
   }
 
-  async updateRotationMember(
-    id: number,
-    updateRotationDto: UpdateRotationMemberDto,
-  ) {
-    const rotation = await this.prisma.rotation_members.findUnique({
-      where: { id, deleted_at: null },
-    });
-
-    if (!rotation) {
-      throw new NotFoundException('Không tìm thấy bản ghi điều chuyển');
-    }
-
-    const { date_rotation, ...rest } = updateRotationDto;
-    const updateData: Prisma.rotation_membersUpdateInput = { ...rest };
-
-    if (date_rotation) {
-      updateData.date_rotation = new Date(date_rotation);
-    }
-
-    updateData.updated_at = new Date();
-
-    return await this.prisma.rotation_members.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: { select: { name: true } },
-          },
-        },
-        division: {
-          select: { id: true, name: true },
-        },
-      },
-    });
-  }
-
-  async deleteRotationMember(id: number) {
-    const rotation = await this.prisma.rotation_members.findUnique({
-      where: { id, deleted_at: null },
-    });
-
-    if (!rotation) {
-      throw new NotFoundException('Không tìm thấy bản ghi điều chuyển');
-    }
-
-    return await this.prisma.rotation_members.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      },
-    });
-  }
-
-  // === DASHBOARD ===
-
   async getDashboard(divisionId: number, month?: number, year?: number) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -761,13 +781,11 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định tháng và năm hiện tại nếu không được cung cấp
     const now = new Date();
     const targetMonth = month || now.getMonth() + 1;
     const targetYear = year || now.getFullYear();
     const targetDate = new Date(targetYear, targetMonth - 1, 1);
 
-    // Lấy các dữ liệu song song
     const [
       workingInfo,
       leaveRequests,
@@ -798,12 +816,7 @@ export class DivisionService {
   }
 
   // === SEPARATE DASHBOARD APIS ===
-
-  /**
-   * API riêng cho thông tin sinh nhật nhân viên
-   */
   async getBirthdayEmployees(divisionId: number, month?: number) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -812,7 +825,6 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định tháng hiện tại nếu không được cung cấp
     const now = new Date();
     const targetMonth = month || now.getMonth() + 1;
 
@@ -835,25 +847,20 @@ export class DivisionService {
    * API riêng cho thông tin làm việc
    */
   async getWorkInfo(divisionId: number, workDate?: string) {
-    // 1️⃣ Kiểm tra phòng ban
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
-    if (!division) throw new NotFoundException('Không tìm thấy phòng ban');
+    if (!division)
+      throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
 
-    // 2️⃣ Xác định ngày làm việc
     const targetDate = workDate ? new Date(workDate) : new Date();
     const dateStr =
       DateFormatUtil.formatDate(targetDate) ||
       targetDate.toISOString().split('T')[0];
 
-    // 3️⃣ Lấy danh sách userId trong phòng ban
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: { divisionId },
-      select: { userId: true },
-    });
-    const userIds = divisionUsers.map((u) => u.userId);
-    const totalMembers = userIds.length;
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
+    const totalMembers = users.length;
 
     if (!totalMembers) {
       return {
@@ -874,7 +881,6 @@ export class DivisionService {
       };
     }
 
-    // 4️⃣ Định nghĩa include chung cho user
     const userSelect = {
       select: {
         id: true,
@@ -889,7 +895,6 @@ export class DivisionService {
       },
     };
 
-    // 5️⃣ Lấy dữ liệu song song để tối ưu hiệu suất
     const startOfMonth = new Date(
       targetDate.getFullYear(),
       targetDate.getMonth(),
@@ -909,7 +914,6 @@ export class DivisionService {
       workingEmployees,
       workingCount,
     ] = await Promise.all([
-      // Nhân viên nghỉ phép
       this.prisma.day_offs.findMany({
         where: {
           user_id: { in: userIds },
@@ -920,7 +924,6 @@ export class DivisionService {
         include: { user: userSelect },
       }),
 
-      // Đếm nghỉ có phép / không phép
       Promise.all([
         this.prisma.day_offs.count({
           where: {
@@ -973,7 +976,6 @@ export class DivisionService {
         }),
       ]),
 
-      // Nhân viên đi làm
       this.prisma.time_sheets.findMany({
         where: {
           user_id: { in: userIds },
@@ -1055,7 +1057,6 @@ export class DivisionService {
       }),
     };
 
-    // 7️⃣ Trả kết quả
     return {
       division: { id: division.id, name: division.name },
       work_date: dateStr,
@@ -1065,11 +1066,7 @@ export class DivisionService {
     };
   }
 
-  /**
-   * API riêng cho thống kê theo năm
-   */
   async getStatistics(divisionId: number, year?: number) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -1078,7 +1075,6 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định năm hiện tại nếu không được cung cấp
     const targetYear = year || new Date().getFullYear();
 
     const attendanceStats = await this.getAttendanceStatsByMonth(
@@ -1096,13 +1092,7 @@ export class DivisionService {
     };
   }
 
-  // === EMPLOYEE DETAIL APIS ===
-
-  /**
-   * API lấy chi tiết nhân viên nghỉ phép trong ngày
-   */
   async getLeaveEmployeeDetails(divisionId: number, date?: string) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -1111,21 +1101,15 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
     const dateStr =
       DateFormatUtil.formatDate(targetDate) ||
       targetDate.toISOString().split('T')[0];
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: { divisionId: divisionId },
-      select: { userId: true },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         division: { id: division.id, name: division.name },
         date: dateStr,
@@ -1133,7 +1117,6 @@ export class DivisionService {
       };
     }
 
-    // Lấy danh sách nhân viên nghỉ phép trong ngày
     const leaveEmployees = await this.prisma.day_offs.findMany({
       where: {
         user_id: { in: userIds },
@@ -1173,11 +1156,7 @@ export class DivisionService {
     };
   }
 
-  /**
-   * API lấy chi tiết nhân viên đi muộn trong ngày
-   */
   async getLateEmployeeDetails(divisionId: number, date?: string) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -1186,21 +1165,15 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
     const dateStr =
       DateFormatUtil.formatDate(targetDate) ||
       targetDate.toISOString().split('T')[0];
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: { divisionId: divisionId },
-      select: { userId: true },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         division: { id: division.id, name: division.name },
         date: dateStr,
@@ -1208,7 +1181,6 @@ export class DivisionService {
       };
     }
 
-    // Lấy danh sách nhân viên đi muộn trong ngày
     const lateEmployees = await this.prisma.time_sheets.findMany({
       where: {
         user_id: { in: userIds },
@@ -1250,11 +1222,7 @@ export class DivisionService {
     };
   }
 
-  /**
-   * API lấy chi tiết nhân viên đi làm trong ngày
-   */
   async getWorkingEmployeeDetails(divisionId: number, date?: string) {
-    // Kiểm tra division có tồn tại không
     const division = await this.prisma.divisions.findUnique({
       where: { id: divisionId, deleted_at: null },
     });
@@ -1263,21 +1231,15 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Xác định ngày
     const targetDate = date ? new Date(date) : new Date();
     const dateStr =
       DateFormatUtil.formatDate(targetDate) ||
       targetDate.toISOString().split('T')[0];
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: { divisionId: divisionId },
-      select: { userId: true },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         division: { id: division.id, name: division.name },
         date: dateStr,
@@ -1285,7 +1247,6 @@ export class DivisionService {
       };
     }
 
-    // Lấy danh sách nhân viên đi làm trong ngày
     const workingEmployees = await this.prisma.time_sheets.findMany({
       where: {
         user_id: { in: userIds },
@@ -1341,28 +1302,15 @@ export class DivisionService {
     };
   }
 
-  /**
-   * Lấy thông tin làm việc của division
-   * Tính: Số lượng đi làm / Tổng số nhân viên trong division
-   */
   private async getWorkingInfo(divisionId: number, date: Date) {
     const dateStr =
       DateFormatUtil.formatDate(date) || date.toISOString().split('T')[0];
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: {
-        divisionId: divisionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
+    const totalMembers = users.length;
 
-    const userIds = divisionUsers.map((u) => u.userId);
-    const totalMembers = userIds.length;
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         total_members: 0,
         working_count: 0,
@@ -1370,7 +1318,6 @@ export class DivisionService {
       };
     }
 
-    // Đếm số người đã check-in trong ngày
     const workingCount = await this.prisma.time_sheets.count({
       where: {
         user_id: { in: userIds },
@@ -1386,34 +1333,20 @@ export class DivisionService {
       work_date: dateStr,
     };
   }
-
-  /**
-   * Lấy thông tin nghỉ phép trong tháng
-   */
   private async getLeaveRequestsInfo(divisionId: number, date: Date) {
     const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
     const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: {
-        divisionId: divisionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         paid_leave_count: 0,
         unpaid_leave_count: 0,
       };
     }
 
-    // Đếm số đơn nghỉ phép có lương (PAID) và không lương (UNPAID) đã approved
     const [paidCount, unpaidCount] = await Promise.all([
       this.prisma.day_offs.count({
         where: {
@@ -1447,33 +1380,20 @@ export class DivisionService {
     };
   }
 
-  /**
-   * Lấy thông tin đi muộn trong tháng
-   */
   private async getLateInfo(divisionId: number, date: Date) {
     const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
     const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    // Lấy danh sách user_id trong division
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: {
-        divisionId: divisionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
+    if (users.length === 0) {
       return {
         late_count: 0,
         early_count: 0,
       };
     }
 
-    // Đếm số lượt đi muộn và về sớm (có late_time > 0 hoặc early_time > 0)
     const [lateCount, earlyCount] = await Promise.all([
       this.prisma.time_sheets.count({
         where: {
@@ -1508,50 +1428,37 @@ export class DivisionService {
   private async getRecentBirthdayEmployees(divisionId: number, month: number) {
     const now = new Date();
 
-    const divisionUsers = await this.prisma.user_division.findMany({
+    const users = await this.prisma.user_role_assignment.findMany({
       where: {
-        divisionId: divisionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    const userIds = divisionUsers.map((u) => u.userId);
-
-    if (userIds.length === 0) {
-      return [];
-    }
-
-    const employees = await this.prisma.user_information.findMany({
-      where: {
-        user_id: { in: userIds },
+        scope_type: ScopeType.DIVISION,
         deleted_at: null,
-        birthday: {
-          not: {
-            equals: null,
+        scope_id: divisionId,
+      },
+      include: {
+        user: {
+          include: {
+            user_information: true,
           },
         },
       },
-      select: {
-        user_id: true,
-        name: true,
-        avatar: true,
-        birthday: true,
-      },
-      orderBy: {
-        birthday: 'desc',
-      },
     });
 
-    const birthdayEmployees = employees
+    if (users.length === 0) {
+      return [];
+    }
+
+    const birthdayEmployees = users
       .filter((emp) => {
         const birthdayMonth =
-          new Date(emp?.birthday ?? new Date()).getMonth() + 1;
+          new Date(
+            emp?.user?.user_information?.birthday ?? new Date(),
+          ).getMonth() + 1;
         return birthdayMonth === month;
       })
       .map((emp) => {
-        const birthday = new Date(emp?.birthday ?? new Date());
+        const birthday = new Date(
+          emp?.user?.user_information?.birthday ?? new Date(),
+        );
         const currentYear = now.getFullYear();
         const today = new Date(
           now.getFullYear(),
@@ -1581,11 +1488,11 @@ export class DivisionService {
 
         return {
           user_id: emp.user_id,
-          name: emp.name,
-          avatar: emp.avatar,
+          name: emp?.user?.user_information?.name,
+          avatar: emp?.user.user_information?.avatar,
           birthday:
-            DateFormatUtil.formatDate(emp.birthday) ||
-            emp?.birthday?.toISOString().split('T')[0],
+            DateFormatUtil.formatDate(emp?.user?.user_information?.birthday) ||
+            emp?.user?.user_information?.birthday?.toISOString().split('T')[0],
           birthday_date: birthday?.getDate(),
           birthday_month: birthday?.getMonth() + 1,
           days_until_birthday: diffDays,
@@ -1606,16 +1513,8 @@ export class DivisionService {
       overtime_hours: number;
     }> = [];
 
-    const divisionUsers = await this.prisma.user_division.findMany({
-      where: {
-        divisionId: divisionId,
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    const userIds = divisionUsers.map((u) => u.userId);
+    const users = await this.getDivisionUser(divisionId);
+    const userIds = users.map((u) => u.id);
 
     if (userIds.length === 0) {
       for (let month = 1; month <= 12; month++) {
@@ -1629,14 +1528,12 @@ export class DivisionService {
       return stats;
     }
 
-    // Lấy dữ liệu cho từng tháng
     for (let month = 1; month <= 12; month++) {
       const startOfMonth = new Date(year, month - 1, 1);
       const endOfMonth = new Date(year, month, 0);
 
       const [lateMinutes, actualLateMinutes, overtimeHours] = await Promise.all(
         [
-          // Tổng số phút đi muộn
           this.prisma.time_sheets.aggregate({
             where: {
               user_id: { in: userIds },
@@ -1651,7 +1548,6 @@ export class DivisionService {
               late_time: true,
             },
           }),
-          // Tổng số phút đi muộn được approve
           this.prisma.time_sheets.aggregate({
             where: {
               user_id: { in: userIds },
@@ -1666,7 +1562,6 @@ export class DivisionService {
               late_time_approved: true,
             },
           }),
-          // Tổng số giờ OT
           this.prisma.over_times_history.aggregate({
             where: {
               user_id: { in: userIds },
@@ -1697,10 +1592,7 @@ export class DivisionService {
     return stats;
   }
 
-  // === TEAM MANAGEMENT ===
-
-  async createTeam(createTeamDto: CreateTeamDto) {
-    // Kiểm tra division có tồn tại không
+  async createTeam(createTeamDto: CreateTeamDto, assignedBy: number) {
     const division = await this.prisma.divisions.findUnique({
       where: { id: createTeamDto.divisionId, deleted_at: null },
     });
@@ -1709,18 +1601,14 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    // Kiểm tra manager có tồn tại không (nếu có)
-    if (createTeamDto.leader_Id) {
-      const leader = await this.prisma.users.findUnique({
-        where: { id: createTeamDto.leader_Id, deleted_at: null },
-      });
+    const leader = await this.prisma.users.findUnique({
+      where: { id: createTeamDto.leader_Id, deleted_at: null },
+    });
 
-      if (!leader) {
-        throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
-      }
+    if (!leader || !createTeamDto.leader_Id) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Kiểm tra tên team đã tồn tại chưa
     const existingTeam = await this.prisma.teams.findFirst({
       where: {
         name: createTeamDto.name,
@@ -1740,6 +1628,16 @@ export class DivisionService {
         founding_date: createTeamDto.foundingDate
           ? new Date(createTeamDto.foundingDate)
           : new Date(),
+      },
+    });
+
+    await this.prisma.user_role_assignment.create({
+      data: {
+        assigned_by: assignedBy,
+        user_id: leader.id,
+        role_id: ROLE_IDS.TEAM_LEADER,
+        scope_type: ScopeType.TEAM,
+        scope_id: team.id,
       },
     });
 
@@ -1826,36 +1724,24 @@ export class DivisionService {
           };
         }
 
-        const memberCount = await this.prisma.user_division.count({
-          where: {
-            teamId: team.id,
-          },
-        });
+        const teamUsers = await this.getTeamUser(team.id);
+        const teamUserIds = teamUsers.map((u) => u.id);
+        const memberCount = teamUserIds.length;
 
-        const members = await this.prisma.user_division.findMany({
+        const members = await this.prisma.users.findMany({
           where: {
-            teamId: team.id,
+            id: { in: teamUserIds },
+            deleted_at: null,
           },
           include: {
-            user: {
+            user_information: {
               include: {
-                user_information: {
-                  include: {
-                    level: {
-                      select: { name: true },
-                    },
-                  },
+                level: {
+                  select: { name: true },
                 },
               },
             },
           },
-        });
-
-        const levelCounts: Record<string, number> = {};
-        members.forEach((member) => {
-          const levelName =
-            member?.user?.user_information?.level?.name || 'Unknown';
-          levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
         });
 
         const activeProjects = await this.prisma.projects.findMany({
@@ -1875,7 +1761,11 @@ export class DivisionService {
           division_id: team.division_id,
           manager: manager,
           member_count: memberCount,
-          resource_by_level: levelCounts,
+          resource_by_level: members.reduce((acc, user) => {
+            const levelName = user.user_information?.level?.name || 'Unknown';
+            acc[levelName] = (acc[levelName] || 0) + 1;
+            return acc;
+          }, {}),
           active_projects: activeProjects.map((p) => p.name).join(', '),
           founding_date: team.founding_date,
           created_at: team.created_at,
@@ -1893,7 +1783,7 @@ export class DivisionService {
   async findOneTeam(id: number) {
     const team = await this.prisma.teams.findUnique({
       where: { id, deleted_at: null },
-    });   
+    });
 
     if (!team) {
       throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_FOUND);
@@ -1948,36 +1838,24 @@ export class DivisionService {
       };
     }
 
-    const memberCount = await this.prisma.user_division.count({
-      where: {
-        teamId: team.id,
-      },
-    });
+    const teamUsers = await this.getTeamUser(team.id);
+    const teamUserIds = teamUsers.map((u) => u.id);
+    const memberCount = teamUserIds.length;
 
-    const members = await this.prisma.user_division.findMany({
+    const members = await this.prisma.users.findMany({
       where: {
-        teamId: team.id,
+        id: { in: teamUserIds },
+        deleted_at: null,
       },
       include: {
-        user: {
+        user_information: {
           include: {
-            user_information: {
-              include: {
-                level: {
-                  select: { name: true },
-                },
-              },
+            level: {
+              select: { name: true },
             },
           },
         },
       },
-    });
-
-    const levelCounts: Record<string, number> = {};
-    members.forEach((member) => {
-      const levelName =
-        member?.user?.user_information?.level?.name || 'Unknown';
-      levelCounts[levelName] = (levelCounts[levelName] || 0) + 1;
     });
 
     const activeProjects = await this.prisma.projects.findMany({
@@ -1997,7 +1875,11 @@ export class DivisionService {
       division_id: team.division_id,
       manager: manager,
       member_count: memberCount,
-      resource_by_level: levelCounts,
+      resource_by_level: members.reduce((acc, user) => {
+        const levelName = user.user_information?.level?.name || 'Unknown';
+        acc[levelName] = (acc[levelName] || 0) + 1;
+        return acc;
+      }, {}),
       active_projects: activeProjects,
       founding_date: team.founding_date,
       created_at: team.created_at,
@@ -2025,9 +1907,7 @@ export class DivisionService {
       });
 
       if (existingTeam) {
-        throw new BadRequestException(
-          'Tên team đã tồn tại trong phòng ban này',
-        );
+        throw new BadRequestException(TEAM_ERRORS.TEAM_NAME_EXISTS_IN_DIVISION);
       }
     }
 
@@ -2053,9 +1933,9 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    const memberCount = await this.prisma.user_division.count({
-      where: { teamId: id },
-    });
+    const teamUsers = await this.getTeamUser(team.id);
+    const teamUserIds = teamUsers.map((u) => u.id);
+    const memberCount = teamUserIds.length;
 
     if (memberCount > 0) {
       throw new BadRequestException(
@@ -2081,102 +1961,128 @@ export class DivisionService {
       data: { deleted_at: new Date() },
     });
 
-    return { message: 'Xóa team thành công' };
+    return { message: SUCCESS_MESSAGES.TEAM_DELETED };
   }
 
   async createUserDivision(createUserDivisionDto: CreateUserDivisionDto) {
-    const { userId, divisionId, teamId, description } = createUserDivisionDto;
+    const { userId, divisionId, description } = createUserDivisionDto;
 
     const user = await this.prisma.users.findFirst({
       where: { id: userId, deleted_at: null },
     });
     if (!user) {
-      throw new NotFoundException('User không tồn tại');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     if (!divisionId) {
-      throw new BadRequestException('Division ID là bắt buộc');
+      throw new BadRequestException(DIVISION_ERRORS.DIVISION_ID_REQUIRED);
     }
 
     const division = await this.prisma.divisions.findFirst({
       where: { id: divisionId, deleted_at: null },
     });
     if (!division) {
-      throw new NotFoundException('Division không tồn tại');
+      throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    if (teamId) {
-      const team = await this.prisma.teams.findFirst({
+    const existingAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
         where: {
-          id: teamId,
-          division_id: divisionId,
+          user_id: userId,
+          scope_type: ScopeType.DIVISION,
+          scope_id: {
+            not: null,
+          },
           deleted_at: null,
         },
-      });
-      if (!team) {
-        throw new NotFoundException(
-          'Team không tồn tại hoặc không thuộc division này',
-        );
-      }
+      },
+    );
+
+    if (existingAssignment) {
+      throw new BadRequestException(DIVISION_ERRORS.USER_ALREADY_IN_DIVISION);
     }
 
-    const existingAssignment = await this.prisma.user_division.findFirst({
+    const defaultRole = await this.prisma.roles.findFirst({
       where: {
-        userId,
-        divisionId,
+        name: 'employee',
+        deleted_at: null,
       },
     });
 
-    if (existingAssignment) {
-      throw new BadRequestException('User đã được gán vào division này');
+    if (!defaultRole) {
+      throw new NotFoundException('Không tìm thấy role mặc định');
     }
 
-    const userDivision = await this.prisma.user_division.create({
+    const divisionAssignment = await this.prisma.user_role_assignment.create({
       data: {
-        userId,
-        divisionId,
-        teamId,
-        description,
+        user_id: userId,
+        role_id: defaultRole.id,
+        scope_type: ScopeType.DIVISION,
+        scope_id: divisionId,
+        assigned_by: userId,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: {
-              select: {
-                name: true,
-                code: true,
-                avatar: true,
-              },
+    });
+
+    const [userData, divisionInfo] = await Promise.all([
+      this.prisma.users.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          user_information: {
+            select: {
+              name: true,
+              code: true,
+              avatar: true,
             },
           },
         },
-        division: {
-          select: {
-            id: true,
-            name: true,
-          },
+      }),
+      this.prisma.divisions.findUnique({
+        where: { id: divisionId },
+        select: {
+          id: true,
+          name: true,
         },
-        team: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
+
+    const userDivision = {
+      id: divisionAssignment.id,
+      userId,
+      divisionId,
+      description: description || null,
+      created_at: divisionAssignment.created_at,
+      updated_at: divisionAssignment.updated_at,
+      user: userData,
+      division: divisionInfo,
+    };
 
     return {
-      message: 'Thêm user vào division thành công',
+      message: SUCCESS_MESSAGES.USER_ADDED_TO_DIVISION,
       data: userDivision,
     };
   }
 
   async findAllUserDivisions(paginationDto: UserDivisionPaginationDto = {}) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const { skip, take } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: Prisma.user_divisionWhereInput = {};
+    const whereConditions: Prisma.user_role_assignmentWhereInput = {
+      scope_type: ScopeType.DIVISION,
+      deleted_at: null,
+      scope_id: { not: null },
+    };
+
+    if (paginationDto.divisionId) {
+      whereConditions.scope_id = paginationDto.divisionId;
+    }
+
+    if (paginationDto.userId) {
+      whereConditions.user_id = paginationDto.userId;
+    }
+
     if (paginationDto.search) {
       whereConditions.OR = [
         {
@@ -2186,67 +2092,14 @@ export class DivisionService {
             },
           },
         },
-        {
-          division: {
-            name: { contains: paginationDto.search },
-          },
-        },
       ];
     }
 
-    if (paginationDto.divisionId)
-      whereConditions.divisionId = paginationDto.divisionId;
-    if (paginationDto.userId) whereConditions.userId = paginationDto.userId;
-    if (paginationDto.teamId) whereConditions.teamId = paginationDto.teamId;
-
-    const [userDivisions, total] = await Promise.all([
-      this.prisma.user_division.findMany({
-        where: whereConditions,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  code: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          division: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          team: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      }),
-      this.prisma.user_division.count({ where: whereConditions }),
-    ]);
-
-    return buildPaginationResponse(
-      userDivisions,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findOneUserDivision(userId: number) {
-    const userDivision = await this.prisma.user_division.findFirst({
-      where: { deleted_at: null, userId },
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: whereConditions,
+      skip,
+      take,
+      orderBy: { created_at: 'desc' },
       include: {
         user: {
           select: {
@@ -2257,43 +2110,217 @@ export class DivisionService {
                 name: true,
                 code: true,
                 avatar: true,
-                position: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-                level: {
-                  select: {
-                    id: true,
-                    name: true,
-                    coefficient: true,
-                  },
-                },
               },
             },
-          },
-        },
-        division: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        team: {
-          select: {
-            id: true,
-            name: true,
-            founding_date: true,
           },
         },
       },
     });
 
-    if (!userDivision) {
-      throw new NotFoundException('Không tìm thấy user division assignment');
+    const divisionIds = assignments
+      .map((a) => a.scope_id)
+      .filter((id): id is number => id !== null);
+    const divisions = await this.prisma.divisions.findMany({
+      where: { id: { in: divisionIds } },
+      select: { id: true, name: true },
+    });
+
+    const divisionMap = new Map(divisions.map((d) => [d.id, d]));
+
+    const userIds = [...new Set(assignments.map((a) => a.user_id))];
+    const teamAssignments = paginationDto.teamId
+      ? await this.prisma.user_role_assignment.findMany({
+          where: {
+            user_id: { in: userIds },
+            scope_type: ScopeType.TEAM,
+            scope_id: paginationDto.teamId,
+            deleted_at: null,
+          },
+          select: { user_id: true, scope_id: true },
+        })
+      : await this.prisma.user_role_assignment.findMany({
+          where: {
+            user_id: { in: userIds },
+            scope_type: ScopeType.TEAM,
+            deleted_at: null,
+            scope_id: { not: null },
+          },
+          select: { user_id: true, scope_id: true },
+        });
+
+    const teamIds = [
+      ...new Set(
+        teamAssignments
+          .map((ta) => ta.scope_id)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
+    const teams = await this.prisma.teams.findMany({
+      where: { id: { in: teamIds } },
+      select: { id: true, name: true },
+    });
+
+    const teamMap = new Map(teams.map((t) => [t.id, t]));
+    const userTeamMap = new Map<number, number>();
+    teamAssignments.forEach((ta) => {
+      if (ta.scope_id && !userTeamMap.has(ta.user_id)) {
+        userTeamMap.set(ta.user_id, ta.scope_id);
+      }
+    });
+
+    const userDivisions = assignments.map((assignment) => {
+      const division = assignment.scope_id
+        ? divisionMap.get(assignment.scope_id)
+        : null;
+      const teamId = userTeamMap.get(assignment.user_id);
+      const team = teamId ? teamMap.get(teamId) : null;
+
+      return {
+        id: assignment.id,
+        userId: assignment.user_id,
+        divisionId: assignment.scope_id || null,
+        teamId: teamId || null,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at,
+        user: assignment.user,
+        division: division || null,
+        team: team || null,
+      };
+    });
+
+    let filteredDivisions = userDivisions;
+    if (paginationDto.search) {
+      const searchLower = paginationDto.search.toLowerCase();
+      filteredDivisions = userDivisions.filter(
+        (ud) =>
+          ud.user?.user_information?.[0]?.name
+            ?.toLowerCase()
+            .includes(searchLower) ||
+          ud.division?.name?.toLowerCase().includes(searchLower),
+      );
     }
+
+    if (paginationDto.teamId) {
+      filteredDivisions = filteredDivisions.filter(
+        (ud) => ud.teamId === paginationDto.teamId,
+      );
+    }
+
+    const allAssignments = await this.prisma.user_role_assignment.findMany({
+      where: whereConditions,
+      select: { user_id: true, scope_id: true },
+    });
+    const uniqueAssignments = new Set(
+      allAssignments.map((a) => `${a.user_id}-${a.scope_id}`),
+    );
+    const total = uniqueAssignments.size;
+
+    return buildPaginationResponse(
+      filteredDivisions,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
+  async findOneUserDivision(userId: number) {
+    const divisionAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      },
+    );
+
+    if (!divisionAssignment?.scope_id) {
+      throw new NotFoundException(
+        DIVISION_ERRORS.USER_DIVISION_ASSIGNMENT_NOT_FOUND,
+      );
+    }
+
+    const teamAssignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.TEAM,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const [userData, divisionInfo, teamInfo] = await Promise.all([
+      this.prisma.users.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          user_information: {
+            select: {
+              name: true,
+              code: true,
+              avatar: true,
+              position: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              level: {
+                select: {
+                  id: true,
+                  name: true,
+                  coefficient: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.divisions.findUnique({
+        where: { id: divisionAssignment.scope_id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+        },
+      }),
+      teamAssignment?.scope_id
+        ? this.prisma.teams.findFirst({
+            where: {
+              id: teamAssignment.scope_id,
+              division_id: divisionAssignment.scope_id,
+              deleted_at: null,
+            },
+            select: {
+              id: true,
+              name: true,
+              founding_date: true,
+            },
+          })
+        : null,
+    ]);
+
+    if (!userData || !divisionInfo) {
+      throw new NotFoundException(
+        DIVISION_ERRORS.USER_DIVISION_ASSIGNMENT_NOT_FOUND,
+      );
+    }
+
+    const userDivision = {
+      id: divisionAssignment.id,
+      userId: userId,
+      divisionId: divisionAssignment.scope_id,
+      teamId: teamInfo?.id || null,
+      created_at: divisionAssignment.created_at,
+      updated_at: divisionAssignment.updated_at,
+      user: userData,
+      division: divisionInfo,
+      team: teamInfo,
+    };
 
     return {
       data: userDivision,
@@ -2304,102 +2331,194 @@ export class DivisionService {
     userId: number,
     updateUserDivisionDto: UpdateUserDivisionDto,
   ) {
-    const existingUserDivision = await this.prisma.user_division.findMany({
-      where: { deleted_at: null, userId },
-    });
-    if (existingUserDivision.length === 0) {
-      throw new NotFoundException('Không tìm thấy user division');
-    }
-    if (existingUserDivision.length > 1) {
-      throw new BadRequestException(
-        'User có nhiều hơn 1 assignment trong division',
-      );
+    const divisionAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      },
+    );
+
+    if (!divisionAssignment?.scope_id) {
+      throw new NotFoundException(DIVISION_ERRORS.USER_DIVISION_NOT_FOUND);
     }
 
     if (updateUserDivisionDto.teamId) {
       const team = await this.prisma.teams.findFirst({
         where: {
           id: updateUserDivisionDto.teamId,
-          division_id: existingUserDivision[0].divisionId,
+          division_id: divisionAssignment.scope_id,
           deleted_at: null,
         },
       });
       if (!team) {
-        throw new NotFoundException(
-          'Team không tồn tại hoặc không thuộc division này',
-        );
+        throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_IN_DIVISION);
+      }
+
+      await this.prisma.user_role_assignment.updateMany({
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.TEAM,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        data: {
+          deleted_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+
+      const defaultRole = await this.prisma.roles.findFirst({
+        where: {
+          name: 'employee',
+          deleted_at: null,
+        },
+      });
+
+      if (defaultRole) {
+        await this.prisma.user_role_assignment.create({
+          data: {
+            user_id: userId,
+            role_id: defaultRole.id,
+            scope_type: ScopeType.TEAM,
+            scope_id: updateUserDivisionDto.teamId,
+            assigned_by: userId,
+          },
+        });
       }
     }
 
-    const updatedUserDivision = await this.prisma.user_division.update({
-      where: { id: existingUserDivision[0].id },
-      data: {
-        ...updateUserDivisionDto,
-        updated_at: new Date(),
+    const teamAssignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.TEAM,
+        deleted_at: null,
+        scope_id: { not: null },
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: {
-              select: {
-                name: true,
-                code: true,
-                avatar: true,
-              },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const [userData, divisionInfo, teamInfo] = await Promise.all([
+      this.prisma.users.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          user_information: {
+            select: {
+              name: true,
+              code: true,
+              avatar: true,
             },
           },
         },
-        division: {
-          select: {
-            id: true,
-            name: true,
-          },
+      }),
+      this.prisma.divisions.findUnique({
+        where: { id: divisionAssignment.scope_id },
+        select: {
+          id: true,
+          name: true,
         },
-        team: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
+      }),
+      teamAssignment?.scope_id
+        ? this.prisma.teams.findUnique({
+            where: { id: teamAssignment.scope_id },
+            select: {
+              id: true,
+              name: true,
+            },
+          })
+        : null,
+    ]);
+
+    const updatedUserDivision = {
+      id: divisionAssignment.id,
+      userId: userId,
+      divisionId: divisionAssignment.scope_id,
+      teamId: teamInfo?.id || updateUserDivisionDto.teamId || null,
+      created_at: divisionAssignment.created_at,
+      updated_at: new Date(),
+      user: userData,
+      division: divisionInfo,
+      team: teamInfo,
+    };
 
     return {
-      message: 'Cập nhật user division assignment thành công',
+      message: SUCCESS_MESSAGES.USER_DIVISION_UPDATED,
       data: updatedUserDivision,
     };
   }
 
-  async removeUserDivision(userId: number) {
-    const existingUserDivision = await this.prisma.user_division.findMany({
-      where: { deleted_at: null, userId },
+  async removeUserDivision(
+    userId: number,
+    currentUserId: number,
+    roles: string[],
+  ) {
+    let assignmentUser;
+    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+      assignmentUser = await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: currentUserId,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+      });
+    }
+
+    const divisionAssignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null},
+      },
     });
-    if (existingUserDivision.length === 0) {
-      throw new NotFoundException('Không tìm thấy user division');
+
+    if (!divisionAssignment) {
+      throw new NotFoundException(DIVISION_ERRORS.USER_DIVISION_NOT_FOUND);
     }
-    if (existingUserDivision.length > 1) {
-      throw new BadRequestException(
-        'User có nhiều hơn 1 assignment trong division',
-      );
+
+    if (assignmentUser?.scope_id !== divisionAssignment?.scope_id) {
+      throw new BadRequestException(DIVISION_ERRORS.NOT_MANAGED_IN_USER);
     }
-    await this.prisma.user_division.update({
-      where: { id: existingUserDivision[0].id },
+
+    await this.prisma.user_role_assignment.update({
+      where: { id: divisionAssignment.id },
       data: {
         deleted_at: new Date(),
       },
     });
 
-    if (existingUserDivision.length === 0) {
-      throw new BadRequestException(
-        'User không có assignment trong division này',
-      );
-    }
+    await this.prisma.user_role_assignment.updateMany({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.TEAM,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
+
+    const removedUserDivision = {
+      id: divisionAssignment.id,
+      userId: userId,
+      divisionId: divisionAssignment.scope_id,
+      teamId: null,
+      created_at: divisionAssignment.created_at,
+      updated_at: divisionAssignment.updated_at,
+      deleted_at: new Date(),
+    };
 
     return {
-      message: 'Xóa user khỏi division thành công',
-      data: existingUserDivision[0],
+      message: SUCCESS_MESSAGES.USER_REMOVED_FROM_DIVISION,
+      data: removedUserDivision,
     };
   }
 
@@ -2407,40 +2526,79 @@ export class DivisionService {
     divisionId: number,
     paginationDto: UserDivisionPaginationDto = {},
   ) {
-    // Kiểm tra division tồn tại
-    const division = await this.prisma.divisions.findFirst({
-      where: { id: divisionId, deleted_at: null },
-    });
+    const { skip, take } = buildPaginationQuery(paginationDto);
+
+    // Validate division và team (nếu có) trong 1 query
+    const [division, team] = await Promise.all([
+      this.prisma.divisions.findFirst({
+        where: { id: divisionId, deleted_at: null },
+        select: { id: true, name: true },
+      }),
+      paginationDto.teamId
+        ? this.prisma.teams.findFirst({
+            where: {
+              id: paginationDto.teamId,
+              division_id: divisionId,
+              deleted_at: null,
+            },
+            select: { id: true, name: true },
+          })
+        : null,
+    ]);
+
     if (!division) {
-      throw new NotFoundException('Division không tồn tại');
+      throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    if (paginationDto.teamId && !team) {
+      throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_IN_DIVISION);
+    }
 
-    const whereConditions: Prisma.user_divisionWhereInput = {
-      divisionId,
+    // Build where condition cho assignment query
+    const userWhere: Prisma.usersWhereInput = {
       deleted_at: null,
+      user_information: {
+        deleted_at: null,
+      },
     };
 
-    // Build search conditions
-    if (paginationDto.search) {
-      whereConditions.user = {
-        user_information: {
-          name: { contains: paginationDto.search },
+    // Filter theo teamId nếu có
+    if (paginationDto.teamId) {
+      userWhere.user_role_assignments = {
+        some: {
+          scope_type: ScopeType.TEAM,
+          scope_id: paginationDto.teamId,
+          deleted_at: null,
         },
       };
     }
 
-    if (paginationDto.teamId) whereConditions.teamId = paginationDto.teamId;
-    // Note: roleId filtering now handled by role assignments
+    // Filter theo search nếu có
+    if (paginationDto.search) {
+      userWhere.user_information = {
+        deleted_at: null,
+        name: { contains: paginationDto.search },
+      };
+    }
 
-    const [userDivisions, total] = await Promise.all([
-      this.prisma.user_division.findMany({
-        where: whereConditions,
+    const assignmentWhere: Prisma.user_role_assignmentWhereInput = {
+      scope_type: ScopeType.DIVISION,
+      scope_id: divisionId,
+      deleted_at: null,
+      user: userWhere,
+    };
+
+    // Query assignments với tất cả thông tin cần thiết trong 1 lần
+    const [assignments, total] = await Promise.all([
+      this.prisma.user_role_assignment.findMany({
+        where: assignmentWhere,
         skip,
         take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
+        orderBy: { created_at: 'desc' },
+        select: {
+          user_id: true,
+          created_at: true,
+          updated_at: true,
           user: {
             select: {
               id: true,
@@ -2467,16 +2625,85 @@ export class DivisionService {
               },
             },
           },
-          team: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
         },
       }),
-      this.prisma.user_division.count({ where: whereConditions }),
+      this.prisma.user_role_assignment.count({
+        where: assignmentWhere,
+      }),
     ]);
+
+    // Lấy team assignments cho các users này (chỉ cần query 1 lần)
+    const userIds = assignments.map((a) => a.user_id);
+    const teamAssignments =
+      userIds.length > 0
+        ? await this.prisma.user_role_assignment.findMany({
+            where: {
+              user_id: { in: userIds },
+              scope_type: ScopeType.TEAM,
+              deleted_at: null,
+              scope_id: { not: null },
+            },
+            select: { user_id: true, scope_id: true },
+          })
+        : [];
+
+    // Lấy team info nếu có team assignments
+    const teamIds = [
+      ...new Set(
+        teamAssignments
+          .map((ta) => ta.scope_id)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
+    const teams =
+      teamIds.length > 0
+        ? await this.prisma.teams.findMany({
+            where: {
+              id: { in: teamIds },
+              division_id: divisionId,
+              deleted_at: null,
+            },
+            select: { id: true, name: true },
+          })
+        : [];
+
+    const teamMap = new Map(teams.map((t) => [t.id, t]));
+    const userTeamMap = new Map<number, number>();
+    teamAssignments.forEach((ta) => {
+      if (ta.scope_id && !userTeamMap.has(ta.user_id)) {
+        userTeamMap.set(ta.user_id, ta.scope_id);
+      }
+    });
+
+    // Transform data
+    const userDivisions = assignments.map((assignment) => {
+      const teamId = userTeamMap.get(assignment.user_id);
+      const teamInfo = teamId ? teamMap.get(teamId) : null;
+
+      return {
+        id: assignment.user_id,
+        userId: assignment.user_id,
+        divisionId: divisionId,
+        teamId: teamId || null,
+        created_at: assignment.created_at,
+        updated_at: assignment.updated_at,
+        user: {
+          id: assignment.user.id,
+          email: assignment.user.email,
+          user_information: assignment.user.user_information,
+        },
+        division: {
+          id: division.id,
+          name: division.name,
+        },
+        team: teamInfo
+          ? {
+              id: teamInfo.id,
+              name: teamInfo.name,
+            }
+          : null,
+      };
+    });
 
     return buildPaginationResponse(
       userDivisions,
@@ -2489,16 +2716,23 @@ export class DivisionService {
   async getUnassignedUsers(paginationDto: any = {}) {
     const { skip, take } = buildPaginationQuery(paginationDto);
 
+    // Build where conditions - sử dụng NOT EXISTS thay vì NOT IN để tối ưu hơn
     const whereConditions: Prisma.usersWhereInput = {
       deleted_at: null,
       user_information: {
         deleted_at: null,
       },
-      user_division: {
-        none: {},
+      // Users không có assignment trong division nào
+      user_role_assignments: {
+        none: {
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
       },
     };
 
+    // Filter theo search
     if (paginationDto.search) {
       whereConditions.OR = [
         {
@@ -2517,20 +2751,20 @@ export class DivisionService {
       ];
     }
 
-    if (paginationDto.positionId) {
+    // Filter theo positionId và levelId
+    if (paginationDto.positionId || paginationDto.levelId) {
       whereConditions.user_information = {
-        ...whereConditions.user_information,
-        position_id: paginationDto.positionId,
+        deleted_at: null,
+        ...(paginationDto.positionId && {
+          position_id: paginationDto.positionId,
+        }),
+        ...(paginationDto.levelId && {
+          level_id: paginationDto.levelId,
+        }),
       };
     }
 
-    if (paginationDto.levelId) {
-      whereConditions.user_information = {
-        ...whereConditions.user_information,
-        level_id: paginationDto.levelId,
-      };
-    }
-
+    // Build orderBy
     let finalOrderBy: Prisma.usersOrderByWithRelationInput = {
       created_at: 'desc',
     };
@@ -2551,6 +2785,7 @@ export class DivisionService {
       }
     }
 
+    // Query users và count trong 1 lần
     const [users, total] = await Promise.all([
       this.prisma.users.findMany({
         where: whereConditions,
@@ -2589,6 +2824,7 @@ export class DivisionService {
       this.prisma.users.count({ where: whereConditions }),
     ]);
 
+    // Transform data
     const transformedUsers = users.map((user) => ({
       id: user.id,
       email: user.email,
@@ -2608,128 +2844,6 @@ export class DivisionService {
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
-    );
-  }
-
-  // === ROLE ASSIGNMENT MANAGEMENT ===
-
-  async assignUserRoleInDivision(
-    userId: number,
-    divisionId: number,
-    roleId: number,
-    assignedBy: number,
-  ) {
-    const division = await this.prisma.divisions.findFirst({
-      where: { id: divisionId, deleted_at: null },
-    });
-    if (!division) {
-      throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
-    }
-
-    const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
-    });
-    if (!user) {
-      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
-    }
-
-    return await this.roleAssignmentService.assignRole({
-      user_id: userId,
-      role_id: roleId,
-      scope_type: ScopeType.DIVISION,
-      scope_id: divisionId,
-      assigned_by: assignedBy,
-    });
-  }
-
-  async revokeUserRoleInDivision(
-    userId: number,
-    divisionId: number,
-    roleId: number,
-  ) {
-    return await this.roleAssignmentService.revokeRole(
-      userId,
-      roleId,
-      ScopeType.DIVISION,
-      divisionId,
-    );
-  }
-
-  async getUserRolesInDivision(userId: number, divisionId: number) {
-    return await this.roleAssignmentService.getUserRolesByScope(
-      userId,
-      ScopeType.DIVISION,
-      divisionId,
-    );
-  }
-
-  async getUsersByRoleInDivision(divisionId: number, roleName: string) {
-    return await this.roleAssignmentService.getUsersByRole(
-      roleName,
-      ScopeType.DIVISION,
-      divisionId,
-    );
-  }
-
-  async assignUserRoleInTeam(
-    userId: number,
-    teamId: number,
-    roleId: number,
-    assignedBy: number,
-  ) {
-    const team = await this.prisma.teams.findFirst({
-      where: { id: teamId, deleted_at: null },
-    });
-    if (!team) {
-      throw new NotFoundException('Team không tồn tại');
-    }
-
-    const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
-    });
-    if (!user) {
-      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
-    }
-
-    return await this.roleAssignmentService.assignRole({
-      user_id: userId,
-      role_id: roleId,
-      scope_type: ScopeType.TEAM,
-      scope_id: teamId,
-      assigned_by: assignedBy,
-    });
-  }
-
-  async revokeUserRoleInTeam(userId: number, teamId: number, roleId: number) {
-    return await this.roleAssignmentService.revokeRole(
-      userId,
-      roleId,
-      ScopeType.TEAM,
-      teamId,
-    );
-  }
-
-  async getUserRolesInTeam(userId: number, teamId: number) {
-    return await this.roleAssignmentService.getUserRolesByScope(
-      userId,
-      ScopeType.TEAM,
-      teamId,
-    );
-  }
-
-  async getUsersByRoleInTeam(teamId: number, roleName: string) {
-    return await this.roleAssignmentService.getUsersByRole(
-      roleName,
-      ScopeType.TEAM,
-      teamId,
-    );
-  }
-
-  async getUserRoleHierarchyInDivision(userId: number, divisionId: number) {
-    return await this.roleAssignmentService.getRoleHierarchy(
-      userId,
-      ScopeType.DIVISION,
-      divisionId,
     );
   }
 }

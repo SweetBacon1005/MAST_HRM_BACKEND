@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type, Transform } from 'class-transformer';
-import { IsInt, IsDateString, IsOptional, Min, IsEnum } from 'class-validator';
+import { IsInt, IsDateString, IsOptional, Min, IsEnum, IsNotEmpty } from 'class-validator';
 import { RotationType } from '@prisma/client';
 
 export class CreateRotationMemberDto {
@@ -19,9 +19,9 @@ export class CreateRotationMemberDto {
   })
   @Type(() => Number)
   @IsInt({ message: 'ID phòng ban đích phải là số nguyên' })
-  @IsOptional()
+  @IsNotEmpty()
   @Min(1, { message: 'ID phòng ban đích phải lớn hơn 0' })
-  division_id?: number;
+  division_id: number;
 
   @ApiProperty({
     description: 'Loại điều chuyển (1: Vĩnh viễn, 2: Tạm thời)',

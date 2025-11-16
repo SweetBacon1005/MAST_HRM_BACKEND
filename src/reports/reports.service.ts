@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DayOffStatus, DayOffType, RemoteType } from '@prisma/client';
+import { DayOffStatus, DayOffType, RemoteType, ScopeType } from '@prisma/client';
 import { QueryBuilderService } from '../common/services/query-builder.service';
 import { UserQueryService } from '../common/services/user-query.service';
 import { PenaltyByUser } from '../common/types/penalty.types';
@@ -408,17 +408,27 @@ export class ReportsService {
     // Lấy danh sách user theo phòng ban/team
     let userIds: number[] = [];
     if (team_id) {
-      const teamMembers = await this.prisma.user_division.findMany({
-        where: { teamId: team_id },
-        select: { userId: true },
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: team_id,
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = teamMembers.map((member) => member.userId);
+      userIds = teamAssignments.map((assignment) => assignment.user_id);
     } else if (division_id) {
-      const divisionMembers = await this.prisma.user_division.findMany({
-        where: { divisionId: division_id },
-        select: { userId: true },
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: division_id,
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = divisionMembers.map((member) => member.userId);
+      userIds = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const whereTimesheet: TimesheetWhereInput = {
@@ -521,13 +531,18 @@ export class ReportsService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
+      // Lấy user IDs từ user_role_assignment
+      const assignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: divisionId,
+          deleted_at: null,
         },
-      };
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+      const userIds = assignments.map((a) => a.user_id);
+      where.user_id = { in: userIds };
     }
 
     const attendanceStats = await this.prisma.attendance_logs.groupBy({
@@ -552,14 +567,36 @@ export class ReportsService {
         id: true,
         user_information: { select: { name: true } },
         email: true,
-        user_division: {
-          include: {
-            division: {
-              select: { id: true, name: true },
-            },
-          },
-        },
       },
+    });
+
+    // Lấy division names từ user_role_assignment
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: userIds },
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      select: { user_id: true, scope_id: true },
+      distinct: ['user_id'],
+    });
+
+    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const divisions = await this.prisma.divisions.findMany({
+      where: { id: { in: divisionIds } },
+      select: { id: true, name: true },
+    });
+
+    const divisionMap = new Map(divisions.map((d) => [d.id, d.name]));
+    const userDivisionMap = new Map<number, string>();
+    divisionAssignments.forEach((a) => {
+      if (a.scope_id && !userDivisionMap.has(a.user_id)) {
+        const divisionName = divisionMap.get(a.scope_id);
+        if (divisionName) {
+          userDivisionMap.set(a.user_id, divisionName);
+        }
+      }
     });
 
     const result = attendanceStats.map((stat) => {
@@ -568,7 +605,7 @@ export class ReportsService {
         user_id: stat.user_id,
         user_name: user?.user_information?.name || 'Unknown',
         user_email: user?.email || '',
-        division: user?.user_division?.[0]?.division?.name || '',
+        division: userDivisionMap.get(stat.user_id) || '',
         total_days: stat._count?.user_id || 0,
         earliest_timestamp: stat._min?.timestamp,
         latest_timestamp: stat._max?.timestamp,
@@ -664,13 +701,18 @@ export class ReportsService {
     };
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
+      // Lấy user IDs từ user_role_assignment
+      const assignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: divisionId,
+          deleted_at: null,
         },
-      };
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+      const userIds = assignments.map((a) => a.user_id);
+      where.user_id = { in: userIds };
     }
 
     const leaveRequests = await this.prisma.day_offs.findMany({
@@ -681,13 +723,6 @@ export class ReportsService {
             id: true,
             email: true,
             user_information: { select: { name: true } },
-            user_division: {
-              include: {
-                division: {
-                  select: { id: true, name: true },
-                },
-              },
-            },
           },
         },
       },
@@ -767,13 +802,18 @@ export class ReportsService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
+      // Lấy user IDs từ user_role_assignment
+      const assignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: divisionId,
+          deleted_at: null,
         },
-      };
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+      const userIds = assignments.map((a) => a.user_id);
+      where.user_id = { in: userIds };
     }
 
     const overtimeRecords = await this.prisma.over_times_history.findMany({
@@ -784,13 +824,6 @@ export class ReportsService {
             id: true,
             user_information: { select: { name: true } },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { id: true, name: true },
-                },
-              },
-            },
           },
         },
         project: {
@@ -882,9 +915,6 @@ export class ReportsService {
     };
   }
 
-  /**
-   * Báo cáo tổng hợp điều chuyển nhân sự
-   */
   async getPersonnelTransferSummary(year?: number, divisionId?: number) {
     const targetYear = year || new Date().getFullYear();
     const startDate = new Date(targetYear, 0, 1);
@@ -923,13 +953,15 @@ export class ReportsService {
             user_information: { select: { name: true } },
           },
         },
-        division: {
+        from_division: {
+          select: { id: true, name: true },
+        },
+        to_division: {
           select: { id: true, name: true },
         },
       },
     });
 
-    // Thống kê theo loại điều chuyển
     const typeStats = transfers.reduce((acc, transfer) => {
       const type = transfer.type;
       if (!acc[type]) {
@@ -939,7 +971,6 @@ export class ReportsService {
       return acc;
     }, {});
 
-    // Thống kê theo tháng
     const monthlyStats = transfers.reduce((acc, transfer) => {
       const month = transfer.date_rotation.getMonth() + 1;
       if (!acc[month]) {
@@ -951,8 +982,8 @@ export class ReportsService {
 
     // Thống kê theo phòng ban đích
     const divisionStats = transfers.reduce((acc, transfer) => {
-      const divisionId = transfer.division_id;
-      const divisionName = transfer.division?.name || '';
+      const divisionId = transfer.to_division.id;
+      const divisionName = transfer.to_division.name || '';
       if (!acc[divisionId]) {
         acc[divisionId] = {
           division_name: divisionName,
@@ -973,16 +1004,14 @@ export class ReportsService {
       transfers: transfers.map((t) => ({
         id: t.id,
         user: t.user.user_information?.name || '',
-        division: t.division,
+        from_division: t.from_division.name,
+        to_division: t.to_division.name,
         type: t.type,
         date_rotation: t.date_rotation.toISOString().split('T')[0],
       })),
     };
   }
 
-  /**
-   * Dashboard tổng hợp tất cả báo cáo
-   */
   async getComprehensiveDashboard(month?: number, year?: number) {
     const currentDate = new Date();
     const targetMonth = month || currentDate.getMonth() + 1;
@@ -1043,12 +1072,7 @@ export class ReportsService {
       generated_at: new Date().toISOString(),
     };
   }
-
-  // === HELPER METHODS ===
-
-  /**
-   * Tính số ngày làm việc trong khoảng thời gian (trừ cuối tuần)
-   */
+  
   private calculateWorkingDaysInMonth(
     startDate: string,
     endDate: string,

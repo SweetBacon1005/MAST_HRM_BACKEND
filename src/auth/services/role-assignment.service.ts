@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { getRoleLevel } from '../constants/role.constants';
+import { getRoleLevel, ROLE_IDS } from '../constants/role.constants';
 
 export interface RoleAssignmentData {
   user_id: number;
@@ -140,7 +140,7 @@ export class RoleAssignmentService {
       where: { id: assignment.id },
       data: {
         assigned_by: revokedBy,
-        role_id: 7
+        role_id: ROLE_IDS.EMPLOYEE,
       },
     });
 

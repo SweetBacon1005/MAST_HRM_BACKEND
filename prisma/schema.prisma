@@ -75,23 +75,23 @@ model experience {
 }
 
 model divisions {
-    id              Int                @id @default(autoincrement())
-    name            String
-    type            DivisionType?
-    status          DivisionStatus?
-    address         String?
-    parent_id       Int?
-    parent          divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
-    children        divisions[]        @relation("DivisionParent")
-    founding_at     DateTime
-    description     String?
-    created_at      DateTime           @default(now())
-    updated_at      DateTime           @updatedAt
-    deleted_at      DateTime?          @db.DateTime(6)
-    user_division   user_division[]
-    rotation_member rotation_members[]
-    projects        projects[]
-    teams           teams[]
+    id            Int                @id @default(autoincrement())
+    name          String
+    type          DivisionType?
+    status        DivisionStatus?
+    address       String?
+    parent_id     Int?
+    parent        divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
+    children      divisions[]        @relation("DivisionParent")
+    founding_at   DateTime
+    description   String?
+    created_at    DateTime           @default(now())
+    updated_at    DateTime           @updatedAt
+    deleted_at    DateTime?          @db.DateTime(6)
+    projects      projects[]
+    teams         teams[]
+    from_division rotation_members[] @relation("from_division")
+    to_division   rotation_members[] @relation("to_division")
 
     @@index([parent_id])
     @@index([type])
@@ -157,31 +157,31 @@ model skills {
 }
 
 model user_information {
-    id             Int                   @id @default(autoincrement())
-    user_id        Int                   @unique
-    user           users                 @relation(fields: [user_id], references: [id])
-    personal_email String?               @db.VarChar(255)
-    nationality    String?               @db.VarChar(255)
-    name           String?               @db.VarChar(255)
-    code           String?               @db.VarChar(255)
-    avatar         String?               @db.VarChar(255)
-    gender         String?               @db.VarChar(255)
-    marital        String?               @db.VarChar(255)
-    birthday       DateTime?             @db.Date()
+    id             Int        @id @default(autoincrement())
+    user_id        Int        @unique
+    user           users      @relation(fields: [user_id], references: [id])
+    personal_email String?    @db.VarChar(255)
+    nationality    String?    @db.VarChar(255)
+    name           String?    @db.VarChar(255)
+    code           String?    @db.VarChar(255)
+    avatar         String?    @db.VarChar(255)
+    gender         String?    @db.VarChar(255)
+    marital        String?    @db.VarChar(255)
+    birthday       DateTime?  @db.Date()
     position_id    Int?
-    position       positions?            @relation(fields: [position_id], references: [id])
-    address        String?               @db.VarChar(255)
-    temp_address   String?               @db.VarChar(255)
-    phone          String?               @db.VarChar(255)
-    tax_code       String?               @db.VarChar(255)
+    position       positions? @relation(fields: [position_id], references: [id])
+    address        String?    @db.VarChar(255)
+    temp_address   String?    @db.VarChar(255)
+    phone          String?    @db.VarChar(255)
+    tax_code       String?    @db.VarChar(255)
     level_id       Int?
-    level          levels?               @relation(fields: [level_id], references: [id])
-    expertise      String?               @db.VarChar(255)
+    level          levels?    @relation(fields: [level_id], references: [id])
+    expertise      String?    @db.VarChar(255)
     language_id    Int?
-    language       languages?            @relation(fields: [language_id], references: [id])
-    created_at     DateTime              @default(now())
-    updated_at     DateTime              @updatedAt
-    deleted_at     DateTime?             @db.DateTime(6)
+    language       languages? @relation(fields: [language_id], references: [id])
+    created_at     DateTime   @default(now())
+    updated_at     DateTime   @updatedAt
+    deleted_at     DateTime?  @db.DateTime(6)
 
     @@index([user_id])
     @@index([position_id])
@@ -343,7 +343,6 @@ model users {
     user_information                 user_information?
     user_skills                      user_skills[]
     rotation_members                 rotation_members[]
-    user_division                    user_division[]
     attendance_logs                  attendance_logs[]
     attendance_sessions              attendance_sessions[]
     day_offs                         day_offs[]                @relation("user")
@@ -581,8 +580,10 @@ enum RotationType {
 
 model rotation_members {
     id            Int          @id @default(autoincrement())
-    division_id   Int
-    division      divisions    @relation(fields: [division_id], references: [id])
+    from_id       Int
+    from_division divisions    @relation("from_division", fields: [from_id], references: [id])
+    to_id         Int
+    to_division   divisions    @relation("to_division", fields: [to_id], references: [id])
     user_id       Int
     user          users        @relation(fields: [user_id], references: [id])
     type          RotationType
@@ -591,7 +592,6 @@ model rotation_members {
     updated_at    DateTime     @updatedAt
     deleted_at    DateTime?    @db.DateTime()
 
-    @@index([division_id])
     @@index([user_id])
 }
 
@@ -645,26 +645,6 @@ model over_times {
     deleted_at         DateTime? @db.DateTime()
 }
 
-model user_division {
-    id          Int        @id @default(autoincrement())
-    userId      Int
-    user        users      @relation(fields: [userId], references: [id])
-    divisionId  Int?
-    division    divisions? @relation(fields: [divisionId], references: [id])
-    teamId      Int?
-    team        teams?     @relation(fields: [teamId], references: [id])
-    description String?
-
-    created_at DateTime  @default(now())
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
-
-    @@index([userId])
-    @@index([divisionId])
-    @@index([teamId])
-    @@index([deleted_at])
-}
-
 model user_role_assignment {
     id          Int       @id @default(autoincrement())
     user_id     Int
@@ -688,15 +668,14 @@ model user_role_assignment {
 }
 
 model teams {
-    id            Int             @id @default(autoincrement())
-    name          String          @db.VarChar(255)
+    id            Int        @id @default(autoincrement())
+    name          String     @db.VarChar(255)
     division_id   Int?
-    division      divisions?      @relation(fields: [division_id], references: [id])
-    founding_date DateTime?       @db.Date
-    created_at    DateTime        @default(now())
-    updated_at    DateTime        @updatedAt
-    deleted_at    DateTime?       @db.DateTime()
-    user_division user_division[]
+    division      divisions? @relation(fields: [division_id], references: [id])
+    founding_date DateTime?  @db.Date
+    created_at    DateTime   @default(now())
+    updated_at    DateTime   @updatedAt
+    deleted_at    DateTime?  @db.DateTime()
     projects      projects[]
 
     @@index([name])
@@ -707,30 +686,29 @@ model teams {
 }
 
 model assets {
-    id                Int           @id @default(autoincrement())
-    name              String        @db.VarChar(255)
-    description       String?       @db.Text
-    asset_code        String        @unique @db.VarChar(100)
+    id                Int              @id @default(autoincrement())
+    name              String           @db.VarChar(255)
+    description       String?          @db.Text
+    asset_code        String           @unique @db.VarChar(100)
     category          AssetCategory
-    brand             String?       @db.VarChar(100)
-    model             String?       @db.VarChar(100)
-    serial_number     String?       @unique @db.VarChar(100)
-    purchase_date     DateTime?     @db.Date
-    purchase_price    Float?        @db.Float()
-    warranty_end_date DateTime?     @db.Date
-    location          String?       @db.VarChar(255)
-    status            AssetStatus   @default(AVAILABLE)
+    brand             String?          @db.VarChar(100)
+    model             String?          @db.VarChar(100)
+    serial_number     String?          @unique @db.VarChar(100)
+    purchase_date     DateTime?        @db.Date
+    purchase_price    Float?           @db.Float()
+    warranty_end_date DateTime?        @db.Date
+    location          String?          @db.VarChar(255)
+    status            AssetStatus      @default(AVAILABLE)
     assigned_to       Int?
-    assigned_user     users?        @relation("AssetAssignedUser", fields: [assigned_to], references: [id])
-    assigned_date     DateTime?     @db.Date
-    notes             String?       @db.Text
+    assigned_user     users?           @relation("AssetAssignedUser", fields: [assigned_to], references: [id])
+    assigned_date     DateTime?        @db.Date
+    notes             String?          @db.Text
     created_by        Int
-    creator           users         @relation("AssetCreator", fields: [created_by], references: [id])
-    created_at        DateTime      @default(now())
-    updated_at        DateTime      @updatedAt
-    deleted_at        DateTime?     @db.DateTime()
-
-    asset_requests asset_requests[]
+    creator           users            @relation("AssetCreator", fields: [created_by], references: [id])
+    created_at        DateTime         @default(now())
+    updated_at        DateTime         @updatedAt
+    deleted_at        DateTime?        @db.DateTime()
+    asset_requests    asset_requests[]
 
     @@index([asset_code])
     @@index([category])
@@ -775,15 +753,15 @@ model remote_work_requests {
     user             users          @relation(fields: [user_id], references: [id])
     work_date        DateTime       @db.Date
     remote_type      RemoteType     @default(REMOTE)
-    duration         DayOffDuration @default(FULL_DAY) // Thời gian làm từ xa: cả ngày, sáng, chiều
-    title            String         @db.VarChar(255) // Tiêu đề đơn xin làm từ xa
-    reason           String?        @db.Text // Lý do làm từ xa
+    duration         DayOffDuration @default(FULL_DAY)
+    title            String         @db.VarChar(255)
+    reason           String?        @db.Text
     status           ApprovalStatus @default(PENDING)
-    approved_by      Int? // ID người duyệt
+    approved_by      Int?
     approved_by_user users?         @relation("RemoteWorkApprover", fields: [approved_by], references: [id])
     approved_at      DateTime?      @db.DateTime()
     rejected_reason  String?        @db.Text
-    timesheet_id     Int? // Link tới timesheet
+    timesheet_id     Int?
     timesheet        time_sheets?   @relation(fields: [timesheet_id], references: [id])
     created_at       DateTime       @default(now())
     updated_at       DateTime       @updatedAt
@@ -806,11 +784,11 @@ model user_leave_balances {
     id                      Int       @id @default(autoincrement())
     user_id                 Int       @unique
     user                    users     @relation(fields: [user_id], references: [id])
-    paid_leave_balance      Float     @default(0) // Số ngày phép có lương còn lại
-    unpaid_leave_balance    Float     @default(0) // Số ngày phép không lương còn lại
-    annual_paid_leave_quota Float     @default(36) // Hạn mức phép có lương/năm (3*12)
-    carry_over_days         Float     @default(0) // Số ngày phép chuyển từ năm trước
-    last_reset_date         DateTime? @db.Date // Lần cuối reset (đầu năm)
+    paid_leave_balance      Float     @default(0)
+    unpaid_leave_balance    Float     @default(0)
+    annual_paid_leave_quota Float     @default(36)
+    carry_over_days         Float     @default(0)
+    last_reset_date         DateTime? @db.Date
     created_at              DateTime  @default(now())
     updated_at              DateTime  @updatedAt
     deleted_at              DateTime? @db.DateTime()
@@ -823,7 +801,7 @@ model leave_transactions {
     id               Int                  @id @default(autoincrement())
     user_id          Int
     user             users                @relation(fields: [user_id], references: [id])
-    transaction_type LeaveTransactionType // EARNED, USED, ADJUSTED, CARRIED_OVER, EXPIRED
+    transaction_type LeaveTransactionType
     leave_type       DayOffType // PAID, UNPAID, etc.
     amount           Float // Số ngày (+ là cộng, - là trừ)
     balance_after    Float // Số dư sau giao dịch

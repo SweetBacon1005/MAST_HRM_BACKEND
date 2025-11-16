@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { DivisionStatus, DivisionType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
@@ -10,6 +10,7 @@ import {
   MaxLength,
   IsBoolean,
   IsEnum,
+  IsNotEmpty,
 } from 'class-validator';
 
 export class CreateDivisionDto {
@@ -20,6 +21,20 @@ export class CreateDivisionDto {
   @IsString({ message: 'Tên phòng ban phải là chuỗi' })
   @MaxLength(255, { message: 'Tên phòng ban không được quá 255 ký tự' })
   name: string;
+
+  @ApiProperty({
+    description: 'ID người lãnh đạo phòng ban',
+    example: 1,
+  })
+  @Transform(({ value }) => Number(value))
+  @IsInt({ message: 'ID người lãnh đạo phòng ban phải là số' })
+  @Min(1, { message: 'ID người lãnh đạo phòng ban phải lớn hơn 0' })
+  @IsNotEmpty({ message: 'ID người lãnh đạo phòng ban không được để trống' })
+  leader_id: number;
+
+  @ApiHideProperty()
+  @Transform(({ value }) => Number(value))
+  creator_id: number;
 
   @ApiProperty({
     description: 'Loại phòng ban',

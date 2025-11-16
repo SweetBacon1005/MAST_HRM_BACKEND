@@ -37,21 +37,16 @@ export class PermissionMiddleware implements NestMiddleware {
       const userPermissions = await this.permissionService.getUserPermissions(
         req.user.id,
       );
-      const userRole = await this.permissionService.getUserRole(req.user.id);
+      const userRole = await this.permissionService.getUserRoles(req.user.id);
 
-      // Attach permissions và role vào request để sử dụng sau này
       (req as any).userPermissions = userPermissions;
       (req as any).userRole = userRole;
 
-      this.logger.debug(
-        `User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`,
-      );
     } catch (error) {
       this.logger.error(
         `Error getting permissions for user ${req.user.id}:`,
         error,
       );
-      // Không throw error ở đây, để PermissionGuard xử lý
     }
 
     next();
@@ -104,19 +99,13 @@ export class SpecificPermissionMiddleware implements NestMiddleware {
         );
       }
 
-      // Lấy permissions của user để cache trong request
       const userPermissions = await this.permissionService.getUserPermissions(
         req.user.id,
       );
-      const userRole = await this.permissionService.getUserRole(req.user.id);
+      const userRole = await this.permissionService.getUserRoles(req.user.id);
 
-      // Attach permissions và role vào request để sử dụng sau này
       (req as any).userPermissions = userPermissions;
       (req as any).userRole = userRole;
-
-      this.logger.debug(
-        `User ${req.user.id} has ${userPermissions.length} permissions and role: ${userRole?.name}`,
-      );
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
@@ -125,7 +114,6 @@ export class SpecificPermissionMiddleware implements NestMiddleware {
         `Error checking permissions for user ${req.user.id}:`,
         error,
       );
-      // Không throw error ở đây, để PermissionGuard xử lý
     }
 
     next();

@@ -74,6 +74,9 @@ export const ASSET_ERRORS = {
 // === DIVISION ERRORS ===
 export const DIVISION_ERRORS = {
   NOT_MANAGED_IN_DIVISION: 'Người dùng không quản lí phòng ban này',
+  NOT_MANAGED_IN_TEAM: 'Người dùng không quản lí team này',
+  NOT_MANAGED_IN_PROJECT: 'Người dùng không quản lí dự án này',
+  NOT_MANAGED_IN_USER: 'Người dùng không quản lí người dùng này',
   DIVISION_NOT_FOUND: 'Không tìm thấy phòng ban',
   DIVISION_NAME_EXISTS: 'Tên phòng ban đã tồn tại',
   CANNOT_DELETE_WITH_MEMBERS: 'Không thể xóa phòng ban có thành viên',
@@ -82,6 +85,17 @@ export const DIVISION_ERRORS = {
   INVALID_DIVISION_TYPE: 'Loại phòng ban không hợp lệ',
   PARENT_DIVISION_NOT_FOUND: 'Không tìm thấy phòng ban cha',
   INSUFFICIENT_ROLE_PERMISSIONS: 'Không đủ quyền để cập nhật vai trò',
+  TARGET_DIVISION_NOT_FOUND: 'Phòng ban đích không tồn tại',
+  USER_NOT_ASSIGNED_TO_DIVISION: 'Người dùng chưa được phân công vào phòng ban nào',
+  ROTATION_ALREADY_EXISTS: 'Người dùng đã có lịch sử điều chuyển đến phòng ban này',
+  CANNOT_TRANSFER_EMPLOYEE: 'Bạn không có quyền điều chuyển nhân viên này',
+  ROTATION_NOT_FOUND: 'Không tìm thấy bản ghi điều chuyển',
+  DIVISION_ID_REQUIRED: 'Division ID là bắt buộc',
+  USER_ALREADY_IN_DIVISION: 'User đã được gán vào phòng ban',
+  USER_DIVISION_ASSIGNMENT_NOT_FOUND: 'Không tìm thấy user division assignment',
+  USER_DIVISION_NOT_FOUND: 'Không tìm thấy user division',
+  USER_NO_ASSIGNMENT_IN_DIVISION: 'User không có assignment trong division này',
+  USER_MULTIPLE_DIVISION_ASSIGNMENTS: 'User có nhiều hơn 1 assignment trong division',
 } as const;
 
 // === REQUEST ERRORS ===
@@ -218,6 +232,10 @@ export const SUCCESS_MESSAGES = {
   EMAIL_SENT: 'Gửi email thành công',
   DATA_EXPORTED: 'Xuất dữ liệu thành công',
   DATA_IMPORTED: 'Nhập dữ liệu thành công',
+  USER_ADDED_TO_DIVISION: 'Thêm user vào division thành công',
+  USER_DIVISION_UPDATED: 'Cập nhật user division assignment thành công',
+  USER_REMOVED_FROM_DIVISION: 'Xóa user khỏi division thành công',
+  TEAM_DELETED: 'Xóa team thành công',
 } as const;
 
 // Export all error types for type safety
@@ -243,6 +261,7 @@ export const TEAM_ERRORS = {
   TEAM_INVALID_DIVISION: 'Bạn không có quyền thao tác với team ngoài phòng ban của bạn',
   TEAM_DIVISION_REQUIRED: 'Cần cung cấp phòng ban cho team',
   USER_DIVISION_NOT_FOUND: 'Không xác định được phòng ban của bạn',
+  TEAM_NOT_IN_DIVISION: 'Team không tồn tại hoặc không thuộc division này',
 } as const;
 
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];

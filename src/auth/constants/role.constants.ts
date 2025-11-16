@@ -1,5 +1,14 @@
 import { ProjectStatus } from '@prisma/client';
 
+export const ROLE_IDS = {
+  EMPLOYEE: 7,
+  TEAM_LEADER: 6,
+  DIVISION_HEAD: 5,
+  PROJECT_MANAGER: 4,
+  HR_MANAGER: 3,
+  ADMIN: 2,
+} as const;
+
 export const ROLE_NAMES = {
   EMPLOYEE: 'employee',
   TEAM_LEADER: 'team_leader',

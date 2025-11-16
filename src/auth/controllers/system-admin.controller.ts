@@ -27,6 +27,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
@@ -489,12 +490,38 @@ export class SystemAdminController {
             level: true,
           },
         },
-        user_division: {
-          include: {
-            division: true,
-          },
-        },
+        // user_division đã bị xóa, sử dụng user_role_assignment thay thế
       },
+    });
+
+    // Lấy division names từ user_role_assignment
+    const userIds = users.map((u) => u.id);
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: userIds },
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      select: { user_id: true, scope_id: true },
+      distinct: ['user_id'],
+    });
+
+    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const divisions = await this.prisma.divisions.findMany({
+      where: { id: { in: divisionIds } },
+      select: { id: true, name: true },
+    });
+
+    const divisionMap = new Map(divisions.map((d) => [d.id, d.name]));
+    const userDivisionMap = new Map<number, string>();
+    divisionAssignments.forEach((a) => {
+      if (a.scope_id && !userDivisionMap.has(a.user_id)) {
+        const divisionName = divisionMap.get(a.scope_id);
+        if (divisionName) {
+          userDivisionMap.set(a.user_id, divisionName);
+        }
+      }
     });
 
     if (format === 'csv') {
@@ -502,7 +529,7 @@ export class SystemAdminController {
         id: user.id,
         name: user.user_information?.name || '',
         email: user.email,
-        division: user.user_division?.[0]?.division?.name || '',
+        division: userDivisionMap.get(user.id) || '',
         created_at: user.created_at,
       }));
 

@@ -224,8 +224,8 @@ export class AuthService {
         organization: {
           position_id: user.user_information?.position_id || null,
           level_id: user.user_information?.level_id || null,
-          division_id: user.user_division?.division?.id || null,
-          team_id: null,
+          division_id: (user.user_division as any)?.[0]?.division?.id || null,
+          team_id: (user.user_division as any)?.[0]?.team?.id || null,
         },
         unread_notifications: 0,
         role_assignments: [],
@@ -246,7 +246,8 @@ export class AuthService {
       todayTimesheet,
       userLeaveBalance,
       assignedDevices,
-      userDivision,
+      divisionAssignment,
+      teamAssignment,
       unreadNotifications,
     ] = await Promise.all([
       this.prisma.user_information.findFirst({
@@ -315,13 +316,28 @@ export class AuthService {
         },
       }),
 
-      this.prisma.user_division.findFirst({
+      this.prisma.user_role_assignment.findFirst({
         where: {
-          userId: userId,
+          user_id: userId,
+          scope_type: 'DIVISION',
+          deleted_at: null,
+          scope_id: { not: null },
         },
+        orderBy: { created_at: 'desc' },
         select: {
-          divisionId: true,
-          teamId: true,
+          scope_id: true,
+        },
+      }),
+      this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: userId,
+          scope_type: 'TEAM',
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+        select: {
+          scope_id: true,
         },
       }),
 
@@ -368,8 +384,8 @@ export class AuthService {
       organization: {
         position_id: userInfo?.position_id || null,
         level_id: userInfo?.level_id || null,
-        division_id: userDivision?.divisionId || null,
-        team_id: userDivision?.teamId || null,
+        division_id: divisionAssignment?.scope_id || null,
+        team_id: teamAssignment?.scope_id || null,
       },
       unread_notifications: unreadNotifications,
       role_assignments: userRoles.roles,

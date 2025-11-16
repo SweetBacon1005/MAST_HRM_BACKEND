@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from '@prisma/client';
 import {
@@ -25,17 +26,27 @@ export class TimesheetReportsService {
     let userIds: number[] = [];
 
     if (Number(team_id)) {
-      const teamMembers = await this.prisma.user_division.findMany({
-        where: { teamId: Number(team_id) },
-        select: { userId: true },
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: 'TEAM',
+          scope_id: Number(team_id),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = teamMembers.map((member) => member.userId);
+      userIds = teamAssignments.map((assignment) => assignment.user_id);
     } else if (Number(division_id)) {
-      const divisionMembers = await this.prisma.user_division.findMany({
-        where: { divisionId: Number(division_id) },
-        select: { userId: true },
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: 'DIVISION',
+          scope_id: Number(division_id),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      userIds = divisionMembers.map((member) => member.userId);
+      userIds = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const where: any = {

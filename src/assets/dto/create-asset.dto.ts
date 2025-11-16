@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsDecimal, IsEnum, MaxLength } from 'class-validator';
 import { AssetCategory, AssetStatus } from '@prisma/client';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateAssetDto {
   @ApiProperty({
@@ -30,7 +36,19 @@ export class CreateAssetDto {
   @ApiProperty({
     description: 'Danh mục tài sản',
     example: 'LAPTOP',
-    enum: ['LAPTOP', 'DESKTOP', 'MONITOR', 'KEYBOARD', 'MOUSE', 'HEADPHONE', 'PHONE', 'TABLET', 'FURNITURE', 'EQUIPMENT', 'OTHER'],
+    enum: [
+      'LAPTOP',
+      'DESKTOP',
+      'MONITOR',
+      'KEYBOARD',
+      'MOUSE',
+      'HEADPHONE',
+      'PHONE',
+      'TABLET',
+      'FURNITURE',
+      'EQUIPMENT',
+      'OTHER',
+    ],
   })
   @IsEnum(AssetCategory)
   category: AssetCategory;

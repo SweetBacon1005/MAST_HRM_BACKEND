@@ -25,7 +25,7 @@ import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
-import { RotationType } from '@prisma/client';
+import { RotationType, ScopeType } from '@prisma/client';
 export class CreateUserDto {
   name: string;
   email: string;
@@ -195,11 +195,10 @@ export class AdminController {
         name: true,
         _count: {
           select: {
-            user_division: true,
             projects: {
               where: { deleted_at: null },
             },
-            rotation_member: {
+            from_division: {
               where: { deleted_at: null },
             },
           },
@@ -208,12 +207,29 @@ export class AdminController {
       orderBy: { name: 'asc' },
     });
 
+    const memberCounts = await Promise.all(
+      divisionStats.map(async (division) => {
+        const assignments = await this.prisma.user_role_assignment.findMany({
+          where: {
+            scope_type: 'DIVISION',
+            scope_id: division.id,
+            deleted_at: null,
+          },
+          select: { user_id: true },
+          distinct: ['user_id'],
+        });
+        return { divisionId: division.id, count: assignments.length };
+      }),
+    );
+
+    const memberCountMap = new Map(memberCounts.map((mc) => [mc.divisionId, mc.count]));
+
     return divisionStats.map((division) => ({
       division_id: division.id,
       division_name: division.name,
-      member_count: division._count.user_division,
+      member_count: memberCountMap.get(division.id) || 0,
       project_count: division._count.projects,
-      rotation_count: division._count.rotation_member,
+      rotation_count: division._count.from_division,
     }));
   }
 
@@ -280,13 +296,32 @@ export class AdminController {
 
     // Lọc theo phòng ban
     if (division) {
-      where.user_division = {
-        some: {
-          division: {
-            name: { contains: division },
-          },
+      // Tìm division IDs theo tên
+      const divisions = await this.prisma.divisions.findMany({
+        where: {
+          name: { contains: division },
+          deleted_at: null,
         },
-      };
+        select: { id: true },
+      });
+      const divisionIds = divisions.map((d) => d.id);
+      if (divisionIds.length > 0) {
+        // Lấy user IDs từ user_role_assignment
+        const assignments = await this.prisma.user_role_assignment.findMany({
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: { in: divisionIds },
+            deleted_at: null,
+          },
+          select: { user_id: true },
+          distinct: ['user_id'],
+        });
+        const userIds = assignments.map((a) => a.user_id);
+        where.id = { in: userIds };
+      } else {
+        // Không tìm thấy division nào, trả về empty
+        where.id = { in: [] };
+      }
     }
 
     // Lọc theo trạng thái
@@ -317,13 +352,7 @@ export class AdminController {
               },
             },
           },
-          user_division: {
-            include: {
-              division: {
-                select: { id: true, name: true },
-              },
-            },
-          },
+          // user_division đã bị xóa, sử dụng user_role_assignment thay thế
         },
       }),
       this.prisma.users.count({ where }),
@@ -358,11 +387,6 @@ export class AdminController {
             level: true,
           },
         },
-        user_division: {
-          include: {
-            division: true,
-          },
-        },
         user_role_assignments: {
           where: { deleted_at: null },
           include: {
@@ -372,7 +396,7 @@ export class AdminController {
         rotation_members: {
           where: { deleted_at: null },
           include: {
-            division: {
+            to_division: {
               select: { id: true, name: true },
             },
           },
@@ -407,26 +431,6 @@ export class AdminController {
     @Body() updateUserDto: UpdateUserDto,
     @GetCurrentUser('id') adminId: number,
   ) {
-    // Kiểm tra quyền sửa role nếu có
-    if (updateUserDto.role_id) {
-      const targetRole = await this.prisma.roles.findUnique({
-        where: { id: updateUserDto.role_id },
-      });
-
-      if (targetRole) {
-        const canManage = await this.roleHierarchyService.canUserManageUserRole(
-          adminId,
-          id,
-          targetRole.name,
-        );
-
-        if (!canManage) {
-          throw new Error('Bạn không có quyền gán role này cho user');
-        }
-      }
-    }
-
-    // Cập nhật thông tin cơ bản
     const updatedUser = await this.prisma.users.update({
       where: { id },
       data: {
@@ -442,7 +446,6 @@ export class AdminController {
       },
     });
 
-    // Cập nhật user_information nếu có
     if (
       updateUserDto.role_id ||
       updateUserDto.position_id ||
@@ -457,14 +460,31 @@ export class AdminController {
       });
     }
 
-    // Cập nhật user_division nếu có
     if (updateUserDto.division_id) {
-      await this.prisma.user_division.updateMany({
-        where: { userId: id },
+      await this.prisma.user_role_assignment.updateMany({
+        where: {
+          user_id: id,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+        },
         data: {
-          divisionId: updateUserDto.division_id,
+          deleted_at: new Date(),
         },
       });
+      const employeeRole = await this.prisma.roles.findFirst({
+        where: { name: 'employee', deleted_at: null },
+      });
+      if (employeeRole) {
+        await this.prisma.user_role_assignment.create({
+          data: {
+            user_id: id,
+            role_id: employeeRole.id,
+            scope_type: ScopeType.DIVISION,
+            scope_id: updateUserDto.division_id,
+            assigned_by: id, // Tạm thời dùng chính user đó
+          },
+        });
+      }
     }
 
     return {
@@ -483,17 +503,7 @@ export class AdminController {
   })
   async deleteUser(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') adminId: number,
   ) {
-    // Kiểm tra quyền xóa user
-    const canManage = await this.roleHierarchyService.canUserManageUserRole(
-      adminId,
-      id,
-    );
-    if (!canManage) {
-      throw new Error('Bạn không có quyền xóa user này');
-    }
-
     await this.prisma.users.update({
       where: { id },
       data: { deleted_at: new Date() },
@@ -569,7 +579,6 @@ export class AdminController {
       ...role,
       permissions: role.permission_role.map(pr => pr.permission),
       user_count: role._count.user_role_assignment,
-      hierarchy_info: this.roleHierarchyService.getRoleHierarchy(role.name),
     }));
   }
 
@@ -663,47 +672,115 @@ export class AdminController {
   ) {
     const { user_ids, division_id, type = RotationType.TEMPORARY } = data;
 
-    const division = await this.prisma.divisions.findUnique({
-      where: { id: division_id, deleted_at: null },
-    });
+    const [division, users, employeeRole, currentAssignments] = await Promise.all([
+      this.prisma.divisions.findUnique({
+        where: { id: division_id, deleted_at: null },
+        select: { id: true, name: true },
+      }),
+      this.prisma.users.findMany({
+        where: {
+          id: { in: user_ids },
+          deleted_at: null,
+        },
+        select: { id: true },
+      }),
+      this.prisma.roles.findFirst({
+        where: { name: 'employee', deleted_at: null },
+        select: { id: true },
+      }),
+      this.prisma.user_role_assignment.findMany({
+        where: {
+          user_id: { in: user_ids },
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        select: { user_id: true, scope_id: true },
+      }),
+    ]);
 
     if (!division) {
       throw new Error('Phòng ban không tồn tại');
     }
 
-    const rotations: any[] = [];
-    for (const userId of user_ids) {
-      const canTransfer =
-        await this.roleHierarchyService.canApprovePersonnelTransfer(
-          adminId,
-          userId,
-        );
-
-      if (canTransfer) {
-        const rotation = await this.prisma.rotation_members.create({
-          data: {
-            user_id: userId,
-            division_id: division_id,
-            type: type,
-            date_rotation: new Date(),
-          },
-        });
-
-        if (type === RotationType.PERMANENT) {
-          await this.prisma.user_division.updateMany({
-            where: { userId: userId },
-            data: { divisionId: division_id },
-          });
-        }
-
-        rotations.push(rotation);
-      }
+    if (users.length === 0) {
+      throw new Error('Không có user nào hợp lệ để điều chuyển');
     }
 
+    if (!employeeRole) {
+      throw new Error('Không tìm thấy role employee');
+    }
+
+    const fromIdMap = new Map<number, number>();
+    currentAssignments.forEach((assignment) => {
+      if (assignment.scope_id && !fromIdMap.has(assignment.user_id)) {
+        fromIdMap.set(assignment.user_id, assignment.scope_id);
+      }
+    });
+
+    const validUserIds = users
+      .map((u) => u.id)
+      .filter((userId) => fromIdMap.has(userId));
+
+    if (validUserIds.length === 0) {
+      throw new Error('Không có user nào có division assignment để điều chuyển');
+    }
+
+    const now = new Date();
+
+    // Thực hiện tất cả operations trong transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Tạo rotation records
+      const rotations = await tx.rotation_members.createMany({
+        data: validUserIds.map((userId) => ({
+          user_id: userId,
+          from_id: fromIdMap.get(userId)!,
+          to_id: division_id,
+          type: type,
+          date_rotation: now,
+        })),
+      });
+
+      // Xóa assignments cũ
+      await tx.user_role_assignment.updateMany({
+        where: {
+          user_id: { in: validUserIds },
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+        },
+        data: {
+          deleted_at: now,
+        },
+      });
+
+      // Tạo assignments mới
+      await tx.user_role_assignment.createMany({
+        data: validUserIds.map((userId) => ({
+          user_id: userId,
+          role_id: employeeRole.id,
+          scope_type: ScopeType.DIVISION,
+          scope_id: division_id,
+          assigned_by: adminId,
+        })),
+      });
+
+      // Lấy rotation records đã tạo để trả về
+      const createdRotations = await tx.rotation_members.findMany({
+        where: {
+          user_id: { in: validUserIds },
+          to_id: division_id,
+          date_rotation: now,
+        },
+        orderBy: { id: 'asc' },
+      });
+
+      return createdRotations;
+    });
+
     return {
-      message: `Đã điều chuyển ${rotations.length} người dùng sang ${division.name}`,
-      transferred_count: rotations.length,
-      rotations,
+      message: `Đã điều chuyển ${result.length} người dùng sang ${division.name}`,
+      transferred_count: result.length,
+      rotations: result,
     };
   }
 }

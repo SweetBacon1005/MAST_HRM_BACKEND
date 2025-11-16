@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CsvExportService } from '../../common/services/csv-export.service';
 
@@ -8,6 +9,48 @@ export class AttendanceExportService {
     private readonly prisma: PrismaService,
     private readonly csvExport: CsvExportService,
   ) {}
+
+  /**
+   * Helper: Lấy user IDs theo division
+   */
+  private async getUserIdsByDivision(divisionId: number): Promise<number[]> {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.DIVISION,
+        scope_id: divisionId,
+        deleted_at: null,
+      },
+      select: { user_id: true },
+      distinct: ['user_id'],
+    });
+    return assignments.map((a) => a.user_id);
+  }
+
+  /**
+   * Helper: Lấy division name cho user
+   */
+  private async getDivisionNameForUser(userId: number): Promise<string> {
+    const assignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!assignment?.scope_id) {
+      return '';
+    }
+
+    const division = await this.prisma.divisions.findUnique({
+      where: { id: assignment.scope_id },
+      select: { name: true },
+    });
+
+    return division?.name || '';
+  }
 
   /**
    * Export attendance logs to CSV
@@ -27,13 +70,8 @@ export class AttendanceExportService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
-        },
-      };
+      const userIds = await this.getUserIdsByDivision(divisionId);
+      where.user_id = { in: userIds };
     }
 
     const logs = await this.prisma.attendance_logs.findMany({
@@ -49,24 +87,27 @@ export class AttendanceExportService {
               },
             },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { name: true },
-                },
-              },
-            },
           },
         },
       },
     });
 
+    // Lấy division names cho tất cả users
+    const userIds = [...new Set(logs.map((log) => log.user_id))];
+    const divisionNamesMap = new Map<number, string>();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const divisionName = await this.getDivisionNameForUser(userId);
+        divisionNamesMap.set(userId, divisionName);
+      }),
+    );
+
     // Transform data for CSV
     const csvData = logs.map((log) => ({
-      user_id: log.user_id,   
+      user_id: log.user_id,
       email: log.user.email,
       name: log.user.user_information?.name || '',
-      division: log.user.user_division?.[0]?.division?.name || '',
+      division: divisionNamesMap.get(log.user_id) || '',
       work_date: this.csvExport.formatDate(log.work_date),
       timestamp: this.csvExport.formatDateTime(log.timestamp),
       action_type: log.action_type,
@@ -116,13 +157,8 @@ export class AttendanceExportService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
-        },
-      };
+      const userIds = await this.getUserIdsByDivision(divisionId);
+      where.user_id = { in: userIds };
     }
 
     const leaveRequests = await this.prisma.day_offs.findMany({
@@ -138,23 +174,26 @@ export class AttendanceExportService {
               },
             },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { name: true },
-                },
-              },
-            },
           },
         },
       },
     });
 
+    // Lấy division names
+    const userIds = [...new Set(leaveRequests.map((leave) => leave.user_id))];
+    const divisionNamesMap = new Map<number, string>();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const divisionName = await this.getDivisionNameForUser(userId);
+        divisionNamesMap.set(userId, divisionName);
+      }),
+    );
+
     const csvData = leaveRequests.map((leave) => ({
       user_id: leave.user_id,
-      user_name: leave.user.user_information?.[0]?.name || '',
+      user_name: leave.user.user_information?.name || '',
       email: leave.user.email,
-      division: leave.user.user_division?.[0]?.division?.name || '',
+      division: divisionNamesMap.get(leave.user_id) || '',
       type: leave.type,
       work_date: this.csvExport.formatDate(leave.work_date),
       duration: leave.duration,
@@ -204,13 +243,8 @@ export class AttendanceExportService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
-        },
-      };
+      const userIds = await this.getUserIdsByDivision(divisionId);
+      where.user_id = { in: userIds };
     }
 
     const overtimeRecords = await this.prisma.over_times_history.findMany({
@@ -226,13 +260,6 @@ export class AttendanceExportService {
               },
             },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { name: true },
-                },
-              },
-            },
           },
         },
         project: {
@@ -241,11 +268,21 @@ export class AttendanceExportService {
       },
     });
 
+    // Lấy division names
+    const userIds = [...new Set(overtimeRecords.map((overtime) => overtime.user_id))];
+    const divisionNamesMap = new Map<number, string>();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const divisionName = await this.getDivisionNameForUser(userId);
+        divisionNamesMap.set(userId, divisionName);
+      }),
+    );
+
     const csvData = overtimeRecords.map((overtime) => ({
       user_id: overtime.user_id,
-      user_name: overtime.user.user_information?.[0]?.name || '',
+      user_name: overtime.user.user_information?.name || '',
       email: overtime.user.email,
-      division: overtime.user.user_division?.[0]?.division?.name || '',
+      division: divisionNamesMap.get(overtime.user_id) || '',
       project: overtime.project
         ? `${overtime.project.code} - ${overtime.project.name}`
         : '',
@@ -298,13 +335,8 @@ export class AttendanceExportService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
-        },
-      };
+      const userIds = await this.getUserIdsByDivision(divisionId);
+      where.user_id = { in: userIds };
     }
 
     const requests = await this.prisma.late_early_requests.findMany({
@@ -320,23 +352,26 @@ export class AttendanceExportService {
               },
             },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { name: true },
-                },
-              },
-            },
           },
         },
       },
     });
 
+    // Lấy division names
+    const userIds = [...new Set(requests.map((request) => request.user_id))];
+    const divisionNamesMap = new Map<number, string>();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const divisionName = await this.getDivisionNameForUser(userId);
+        divisionNamesMap.set(userId, divisionName);
+      }),
+    );
+
     const csvData = requests.map((request) => ({
       user_id: request.user_id,
-      user_name: request.user.user_information?.[0]?.name || '',
+      user_name: request.user.user_information?.name || '',
       email: request.user.email,
-      division: request.user.user_division?.[0]?.division?.name || '',
+      division: divisionNamesMap.get(request.user_id) || '',
       work_date: this.csvExport.formatDate(request.work_date),
       request_type: request.request_type,
       reason: request.reason || '',
@@ -382,13 +417,8 @@ export class AttendanceExportService {
     }
 
     if (divisionId) {
-      where.user = {
-        user_division: {
-          some: {
-            divisionId: divisionId,
-          },
-        },
-      };
+      const userIds = await this.getUserIdsByDivision(divisionId);
+      where.user_id = { in: userIds };
     }
 
     const requests = await this.prisma.remote_work_requests.findMany({
@@ -404,23 +434,26 @@ export class AttendanceExportService {
               },
             },
             email: true,
-            user_division: {
-              include: {
-                division: {
-                  select: { name: true },
-                },
-              },
-            },
           },
         },
       },
     });
 
+    // Lấy division names
+    const userIds = [...new Set(requests.map((request) => request.user_id))];
+    const divisionNamesMap = new Map<number, string>();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        const divisionName = await this.getDivisionNameForUser(userId);
+        divisionNamesMap.set(userId, divisionName);
+      }),
+    );
+
     const csvData = requests.map((request) => ({
       user_id: request.user_id,
-      user_name: request.user.user_information?.[0]?.name || '',
+      user_name: request.user.user_information?.name || '',
       email: request.user.email,
-      division: request.user.user_division?.[0]?.division?.name || '',
+      division: divisionNamesMap.get(request.user_id) || '',
       work_date: this.csvExport.formatDate(request.work_date),
       reason: request.reason || '',
       status: request.status,
@@ -441,4 +474,3 @@ export class AttendanceExportService {
     return this.csvExport.exportWithCustomHeaders(csvData, fieldMapping);
   }
 }
-

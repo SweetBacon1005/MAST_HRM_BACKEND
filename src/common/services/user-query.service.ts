@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 
 /**
@@ -24,19 +25,29 @@ export class UserQueryService {
     }
 
     if (teamId) {
-      const teamMembers = await this.prisma.user_division.findMany({
-        where: { teamId: Number(teamId) },
-        select: { userId: true },
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: Number(teamId),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      return teamMembers.map((member) => member.userId);
+      return teamAssignments.map((assignment) => assignment.user_id);
     }
 
     if (divisionId) {
-      const divisionMembers = await this.prisma.user_division.findMany({
-        where: { divisionId: Number(divisionId) },
-        select: { userId: true },
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: Number(divisionId),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
       });
-      return divisionMembers.map((member) => member.userId);
+      return divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     return [];
@@ -51,20 +62,58 @@ export class UserQueryService {
       return [];
     }
 
-    return this.prisma.users.findMany({
+    const users = await this.prisma.users.findMany({
       where: { id: { in: userIds }, deleted_at: null },
       select: {
         id: true,
         user_information: { select: { name: true, avatar: true } },
         email: true,
-        user_division: {
-          include: {
-            division: {
-              select: { id: true, name: true },
-            },
-          },
-        },
       },
+    });
+
+    // Lấy division info từ user_role_assignment
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: userIds },
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      include: {
+        // Lấy division info
+      },
+    });
+
+    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const divisions = await this.prisma.divisions.findMany({
+      where: { id: { in: divisionIds } },
+      select: { id: true, name: true },
+    });
+
+    const divisionMap = new Map(divisions.map((d) => [d.id, d]));
+    const userDivisionMap = new Map<number, { id: number; name: string }>();
+    divisionAssignments.forEach((assignment) => {
+      if (assignment.scope_id && !userDivisionMap.has(assignment.user_id)) {
+        const division = divisionMap.get(assignment.scope_id);
+        if (division) {
+          userDivisionMap.set(assignment.user_id, division);
+        }
+      }
+    });
+
+    // Format response giống như user_division cũ
+    return users.map((user) => {
+      const division = userDivisionMap.get(user.id);
+      return {
+        ...user,
+        user_division: division
+          ? [
+              {
+                division,
+              },
+            ]
+          : [],
+      };
     });
   }
 
@@ -99,18 +148,29 @@ export class UserQueryService {
       return false;
     }
 
-    const where: { userId: number; teamId?: number; divisionId?: number } = {
-      userId,
-    };
-
     if (teamId) {
-      where.teamId = teamId;
+      const assignment = await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.TEAM,
+          scope_id: teamId,
+          deleted_at: null,
+        },
+      });
+      return !!assignment;
     } else if (divisionId) {
-      where.divisionId = divisionId;
+      const assignment = await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.DIVISION,
+          scope_id: divisionId,
+          deleted_at: null,
+        },
+      });
+      return !!assignment;
     }
 
-    const count = await this.prisma.user_division.count({ where });
-    return count > 0;
+    return false;
   }
 }
 

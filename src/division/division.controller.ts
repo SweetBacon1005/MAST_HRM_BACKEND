@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -74,7 +75,8 @@ export class DivisionController {
     status: 404,
     description: 'Phòng ban cha không tồn tại',
   })
-  create(@Body() createDivisionDto: CreateDivisionDto) {
+  create(@Body() createDivisionDto: CreateDivisionDto, @GetCurrentUser('id') currentUserId: number) {
+    createDivisionDto.creator_id = currentUserId;
     return this.divisionService.create(createDivisionDto);
   }
 
@@ -517,8 +519,8 @@ export class DivisionController {
     status: 404,
     description: 'Không tìm thấy user division',
   })
-  removeUserDivision(@Param('userId', ParseIntPipe) userId: number) {
-    return this.divisionService.removeUserDivision(userId);
+  removeUserDivision(@Param('userId', ParseIntPipe) userId: number, @GetCurrentUser('id') currentUserId: number, @GetCurrentUser('roles') roles: string[]) {
+    return this.divisionService.removeUserDivision(userId, currentUserId, roles);
   }
 
   @Get('teams')
@@ -1172,78 +1174,11 @@ export class DivisionController {
     @GetCurrentUser('id') requesterId: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
-      return this.divisionService
-        .findOneUserDivision(requesterId)
-        .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
-          const effectiveDto = { ...createRotationDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.division_id = currentDivisionId;
-          }
-          return this.divisionService.createRotationMember(
-            effectiveDto,
-            requesterId,
-          );
-        });
-    }
     return this.divisionService.createRotationMember(
       createRotationDto,
       requesterId,
+      roles
     );
-  }
-
-  @Patch('rotation-members/:id')
-  @RequirePermission('personnel.transfer.update')
-  @ApiOperation({ summary: 'Cập nhật điều chuyển nhân sự' })
-  @ApiParam({ name: 'id', description: 'ID của điều chuyển' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật điều chuyển thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Dữ liệu không hợp lệ',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy điều chuyển',
-  })
-  updateRotationMember(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateRotationDto: UpdateRotationMemberDto,
-    @GetCurrentUser('id') requesterId: number,
-    @GetCurrentUser('roles') roles: string[],
-  ) {
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
-      return this.divisionService
-        .findOneUserDivision(requesterId)
-        .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
-          const effectiveDto = { ...updateRotationDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.division_id = currentDivisionId;
-          }
-          return this.divisionService.updateRotationMember(id, effectiveDto);
-        });
-    }
-    return this.divisionService.updateRotationMember(id, updateRotationDto);
-  }
-
-  @Delete('rotation-members/:id')
-  @RequirePermission('personnel.transfer.delete')
-  @ApiOperation({ summary: 'Xóa điều chuyển nhân sự' })
-  @ApiParam({ name: 'id', description: 'ID của điều chuyển' })
-  @ApiResponse({
-    status: 200,
-    description: 'Xóa điều chuyển thành công',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy điều chuyển',
-  })
-  deleteRotationMember(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.deleteRotationMember(id);
   }
 
   // === TEAM MANAGEMENT ===
@@ -1263,8 +1198,8 @@ export class DivisionController {
     status: 404,
     description: 'Không tìm thấy phòng ban hoặc người quản lý',
   })
-  createTeam(@Body() createTeamDto: CreateTeamDto) {
-    return this.divisionService.createTeam(createTeamDto);
+  createTeam(@Body() createTeamDto: CreateTeamDto, @GetCurrentUser('id') assignedBy: number) {
+    return this.divisionService.createTeam(createTeamDto, assignedBy);
   }
 
   @Patch('teams/:id')

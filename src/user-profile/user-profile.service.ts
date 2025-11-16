@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ScopeType } from '@prisma/client';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -48,13 +48,7 @@ export class UserProfileService {
       where: { id: userId, deleted_at: null },
       include: {
         user_information: true,
-        user_division: {
-          where: { division: { deleted_at: null } },
-          select: {
-            division: true,
-            team: true,
-          },
-        },
+        // user_division đã bị xóa, sử dụng user_role_assignment thay thế
         education: {
           where: { deleted_at: null },
         },
