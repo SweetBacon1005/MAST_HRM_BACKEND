@@ -4,7 +4,7 @@ import { PrismaService } from '../../database/prisma.service';
 import {
   WorkShiftType,
   RemoteType,
-  DayOffStatus,
+  ApprovalStatus,
   DayOffType,
   LeaveTransactionType,
 } from '@prisma/client';

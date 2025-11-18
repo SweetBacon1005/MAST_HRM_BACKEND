@@ -48,7 +48,6 @@ export class UserProfileService {
       where: { id: userId, deleted_at: null },
       include: {
         user_information: true,
-        // user_division đã bị xóa, sử dụng user_role_assignment thay thế
         education: {
           where: { deleted_at: null },
         },
@@ -68,7 +67,89 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin người dùng');
     }
 
-    return userProfile;
+    // Lấy division và division_head nếu user có division
+    const divisionAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: userId,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      },
+    );
+
+    let divisionWithHead: any = null;
+    if (divisionAssignment?.scope_id) {
+      const division = await this.prisma.divisions.findUnique({
+        where: { id: divisionAssignment.scope_id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          type: true,
+          address: true,
+          founding_at: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      let divisionHead: any = null;
+      if (division) {
+        const headAssignment = await this.prisma.user_role_assignment.findFirst(
+          {
+            where: {
+              scope_type: ScopeType.DIVISION,
+              scope_id: division.id,
+              deleted_at: null,
+              role: {
+                name: 'division_head',
+                deleted_at: null,
+              },
+            },
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  user_information: {
+                    select: {
+                      name: true,
+                      avatar: true,
+                      phone: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        );
+
+        if (headAssignment?.user) {
+          divisionHead = {
+            id: headAssignment.user.id,
+            email: headAssignment.user.email,
+            name: headAssignment.user.user_information?.name || null,
+            avatar: headAssignment.user.user_information?.avatar || null,
+            phone: headAssignment.user.user_information?.phone || null,
+          };
+        }
+
+        divisionWithHead = {
+          ...division,
+          division_head: divisionHead,
+        };
+      }
+    }
+
+    const { password, ...rest } = userProfile;
+    return {
+      ...rest,
+      division: divisionWithHead,
+    };
   }
 
   async updateUserInformation(

@@ -650,9 +650,7 @@ export class AssetsService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const whereConditions: Prisma.asset_requestsWhereInput = {
-      deleted_at: {
-        not: null,
-      },
+      deleted_at: null,
     };
 
     if (paginationDto.search) {
@@ -710,7 +708,6 @@ export class AssetsService {
       }),
       this.prisma.asset_requests.count({ where: whereConditions }),
     ]);
-    console.log("requests???",requests);
 
     return buildPaginationResponse(
       requests,

@@ -20,11 +20,11 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { REQUEST_PERMISSIONS } from '../auth/constants/permission.constants';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
@@ -49,7 +49,7 @@ export class RequestsController {
   constructor(private readonly requestsService: RequestsService) {}
 
   @Get()
-  @RequirePermission('request.read')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy requests theo phân quyền role với enhanced filtering',
     description: `
@@ -206,7 +206,7 @@ export class RequestsController {
   }
 
   @Get('my/all')
-  @RequirePermission('request.read')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllMyRequests(
@@ -240,16 +240,24 @@ export class RequestsController {
   }
 
   @Get('remote-work')
-  @Roles('ADMIN', 'MANAGER')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary:
-      'Lấy danh sách tất cả đơn remote work có phân trang (Admin/Manager)',
+      'Lấy danh sách tất cả đơn remote work (Admin/Division Head/Manager)',
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head. Manager xem tất cả.',
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllRemoteWorkRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
   ) {
-    return await this.requestsService.findAllRemoteWorkRequests(paginationDto);
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return await this.requestsService.findAllRemoteWorkRequests(
+      paginationDto,
+      userId,
+      primaryRole,
+    );
   }
 
   @Get('remote-work/my')
@@ -284,13 +292,19 @@ export class RequestsController {
   }
 
   @Get('day-off')
-  @Roles('ADMIN', 'MANAGER')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary: 'Lấy danh sách tất cả đơn nghỉ phép có phân trang (Admin/Manager)',
+    summary: 'Lấy danh sách tất cả đơn nghỉ phép (Admin/Division Head/Manager)',
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async findAllDayOffRequests(@Query() paginationDto: RequestPaginationDto) {
-    return await this.requestsService.findAllDayOffRequests(paginationDto);
+  async findAllDayOffRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return await this.requestsService.findAllDayOffRequests(paginationDto, userId, primaryRole);
   }
 
   @Get('day-off/my')
@@ -325,14 +339,19 @@ export class RequestsController {
   }
 
   @Get('overtime')
-  @Roles('ADMIN', 'MANAGER')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary:
-      'Lấy danh sách tất cả đơn làm thêm giờ có phân trang (Admin/Manager)',
+    summary: 'Lấy danh sách tất cả đơn làm thêm giờ (Admin/Division Head/Manager)',
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
-  async findAllOvertimeRequests(@Query() paginationDto: RequestPaginationDto) {
-    return await this.requestsService.findAllOvertimeRequests(paginationDto);
+  async findAllOvertimeRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return await this.requestsService.findAllOvertimeRequests(paginationDto, userId, primaryRole);
   }
 
   @Get('overtime/my')
@@ -423,14 +442,19 @@ export class RequestsController {
   }
 
   @Get('late-early')
-  @Roles('ADMIN', 'MANAGER')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary:
-      'Lấy danh sách tất cả late/early requests có phân trang (Admin/Manager)',
+    summary: 'Lấy danh sách tất cả late/early requests (Admin/Division Head/Manager)',
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
   })
   @ApiResponse({ status: 200, description: 'Thành công' })
-  async getAllLateEarlyRequests(@Query() paginationDto: RequestPaginationDto) {
-    return await this.requestsService.findAllLateEarlyRequests(paginationDto);
+  async getAllLateEarlyRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return await this.requestsService.findAllLateEarlyRequests(paginationDto, userId, primaryRole);
   }
 
   @Get('late-early/my')
@@ -451,8 +475,11 @@ export class RequestsController {
   // === UNIVERSAL APPROVE/REJECT ENDPOINTS ===
 
   @Post(':type/:id/approve')
-  @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Duyệt request (tất cả loại)' })
+  @RequirePermission(REQUEST_PERMISSIONS.APPROVE)
+  @ApiOperation({
+    summary: 'Duyệt request (tất cả loại)',
+    description: 'Division Head duyệt requests trong division. Admin duyệt requests của mình và division_head. Team Leader duyệt requests trong team.',
+  })
   @ApiParam({
     name: 'type',
     description: 'Loại request',
@@ -478,17 +505,23 @@ export class RequestsController {
       | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') approverId: number,
+    @GetCurrentUser('roles') approverRoles: string[],
   ) {
+    const primaryRole = this.getPrimaryRole(approverRoles);
     return await this.requestsService.approveRequest(
       type as RequestType,
       id,
       approverId,
+      primaryRole,
     );
   }
 
   @Post(':type/:id/reject')
-  @Roles('ADMIN', 'MANAGER')
-  @ApiOperation({ summary: 'Từ chối request (tất cả loại)' })
+  @RequirePermission(REQUEST_PERMISSIONS.REJECT)
+  @ApiOperation({
+    summary: 'Từ chối request (tất cả loại)',
+    description: 'Division Head từ chối requests trong division. Admin từ chối requests của mình và division_head. Team Leader từ chối requests trong team.',
+  })
   @ApiParam({
     name: 'type',
     description: 'Loại request',
@@ -525,13 +558,16 @@ export class RequestsController {
       | 'late-early'
       | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') approverId: number,
+    @GetCurrentUser('id') rejectorId: number,
+    @GetCurrentUser('roles') rejectorRoles: string[],
     @Body('rejected_reason') rejectedReason: string,
   ) {
+    const primaryRole = this.getPrimaryRole(rejectorRoles);
     return await this.requestsService.rejectRequest(
       type as RequestType,
       id,
-      approverId,
+      rejectorId,
+      primaryRole,
       rejectedReason,
     );
   }
@@ -556,9 +592,10 @@ export class RequestsController {
   }
 
   @Get('forgot-checkin')
-  @Roles('ADMIN', 'MANAGER')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Manager)',
+    summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Division Head/Manager)',
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -571,11 +608,12 @@ export class RequestsController {
   @ApiQuery({ name: 'end_date', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllForgotCheckinRequests(
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllForgotCheckinRequests(
-      paginationDto,
-    );
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, userId, primaryRole);
   }
 
   @Get('forgot-checkin/my')
@@ -601,7 +639,7 @@ export class RequestsController {
   }
 
   @Get(':type/:id')
-  @RequirePermission('request.read')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy chi tiết request theo ID và loại',
   })
@@ -644,7 +682,6 @@ export class RequestsController {
             },
           },
         },
-        // Các field khác tùy thuộc vào loại request
       },
     },
   })

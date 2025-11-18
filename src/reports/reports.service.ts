@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DayOffStatus, DayOffType, RemoteType, ScopeType } from '@prisma/client';
+import { ApprovalStatus, DayOffType, RemoteType, ScopeType } from '@prisma/client';
 import { QueryBuilderService } from '../common/services/query-builder.service';
 import { UserQueryService } from '../common/services/user-query.service';
 import { PenaltyByUser } from '../common/types/penalty.types';
@@ -1235,7 +1235,7 @@ export class ReportsService {
         lte: new Date(endDate),
       },
       deleted_at: null,
-      status: DayOffStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
     };
 
     if (userIds.length > 0) {

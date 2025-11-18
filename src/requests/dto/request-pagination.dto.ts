@@ -1,26 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString, IsEnum, IsInt, IsBoolean } from 'class-validator';
+import { ApprovalStatus, RemoteType } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { ApprovalStatus, RemoteType, DayOffStatus } from '@prisma/client';
+import { IsDateString, IsEnum, IsInt, IsOptional } from 'class-validator';
 import { ROLE_NAMES } from '../../auth/constants/role.constants';
-
-export enum RequestPriority {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  URGENT = 'URGENT',
-}
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class RequestPaginationDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Lọc theo trạng thái',
-    enum: [...Object.values(ApprovalStatus), ...Object.values(DayOffStatus)],
-    example: 'PENDING',
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(ApprovalStatus)
+  status?: ApprovalStatus;
 
   @ApiPropertyOptional({
     description: 'Ngày bắt đầu (YYYY-MM-DD)',
@@ -48,49 +41,23 @@ export class RequestPaginationDto extends PaginationDto {
   division_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Lọc theo mức độ ưu tiên request',
-    enum: RequestPriority,
-    example: RequestPriority.HIGH,
-  })
-  @IsOptional()
-  @IsEnum(RequestPriority)
-  priority?: RequestPriority;
-
-  @ApiPropertyOptional({
-    description: 'Chỉ lấy request từ các lead (team_leader, division_head, project_manager)',
-    example: true,
-  })
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  leads_only?: boolean;
-
-  @ApiPropertyOptional({
     description: 'Lọc theo role của người tạo request',
-    enum: Object.values(ROLE_NAMES),
+    enum: ROLE_NAMES,
     example: ROLE_NAMES.TEAM_LEADER,
   })
   @IsOptional()
-  @IsString()
+  @IsEnum(ROLE_NAMES)
   requester_role?: string;
 
   @ApiPropertyOptional({
-    description: 'Lọc theo team ID (Division Head có thể filter teams trong division)',
+    description:
+      'Lọc theo team ID (Division Head có thể filter teams trong division)',
     example: 5,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   team_id?: number;
-
-  @ApiPropertyOptional({
-    description: 'Chỉ lấy high priority requests (từ leadership roles hoặc urgent requests)',
-    example: true,
-  })
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  high_priority_only?: boolean;
 }
 
 export class RemoteWorkRequestPaginationDto extends RequestPaginationDto {

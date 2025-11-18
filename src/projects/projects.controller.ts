@@ -1,31 +1,32 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { RequirePermission } from '../auth/decorators/require-permission.decorator';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { ProjectsService } from './projects.service';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectDto } from './dto/update-project.dto';
-import { UpdateProjectProgressDto } from './dto/update-progress.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
+import { UpdateProjectProgressDto } from './dto/update-progress.dto';
+import { UpdateProjectDto } from './dto/update-project.dto';
+import { ProjectsService } from './projects.service';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -33,6 +34,28 @@ import { ProjectPaginationDto } from './dto/project-pagination.dto';
 @ApiBearerAuth('JWT-auth')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
+
+  private getPrimaryRole(userRoles: string[] | undefined): string {
+    if (!userRoles || userRoles.length === 0) {
+      return ROLE_NAMES.EMPLOYEE;
+    }
+
+    const rolePriority = [
+      ROLE_NAMES.ADMIN,
+      ROLE_NAMES.DIVISION_HEAD,
+      ROLE_NAMES.TEAM_LEADER,
+      ROLE_NAMES.PROJECT_MANAGER,
+      ROLE_NAMES.EMPLOYEE,
+    ];
+
+    for (const role of rolePriority) {
+      if (userRoles.includes(role)) {
+        return role;
+      }
+    }
+
+    return ROLE_NAMES.EMPLOYEE;
+  }
 
   @Post()
   @RequirePermission('project.create')
@@ -47,17 +70,6 @@ export class ProjectsController {
   })
   create(@Body() createProjectDto: CreateProjectDto) {
     return this.projectsService.create(createProjectDto);
-  }
-
-  @Get()
-  @RequirePermission('project.read')
-  @ApiOperation({ summary: 'Lấy danh sách dự án có phân trang' })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy danh sách dự án thành công',
-  })
-  findAll(@Query() paginationDto: ProjectPaginationDto) {
-    return this.projectsService.findAll(paginationDto);
   }
 
   @Get('my')
@@ -100,6 +112,25 @@ export class ProjectsController {
   })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.findOne(id);
+  }
+
+  @Get()
+  @RequirePermission('project.read')
+  @ApiOperation({
+    summary: 'Lấy danh sách dự án có phân trang',
+    description: 'Division Head chỉ xem projects trong division. Admin có thể lọc theo division_id.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách dự án thành công',
+  })
+  findAll(
+    @Query() paginationDto: ProjectPaginationDto,
+    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('roles') userRoles: string[],
+  ) {
+    const primaryRole = this.getPrimaryRole(userRoles);
+    return this.projectsService.findAll(paginationDto, userId, primaryRole);
   }
 
   @Patch(':id/progress')
@@ -164,4 +195,3 @@ export class ProjectsController {
     return this.projectsService.remove(id);
   }
 }
-

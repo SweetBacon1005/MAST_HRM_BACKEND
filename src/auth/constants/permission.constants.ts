@@ -65,7 +65,6 @@ export const REQUEST_PERMISSIONS = {
   DELETE: 'request.delete',
   APPROVE: 'request.approve',
   REJECT: 'request.reject',
-  READ_ALL: 'request.read.all',
   READ_DIVISION: 'request.read.division',
 } as const;
 

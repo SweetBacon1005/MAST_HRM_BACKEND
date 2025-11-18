@@ -195,7 +195,7 @@ export class AuthService {
     try {
       const additionalInfo = await this.getUserAdditionalInfo(userId);
 
-      const { password: _, ...result } = user;
+      const { password: _, user_division: _user_division, ...result } = user;
       return {
         ...result,
         ...additionalInfo,
@@ -203,7 +203,7 @@ export class AuthService {
     } catch (error) {
       console.error('Error getting additional user info:', error);
 
-      const { password: _, ...result } = user;
+      const { password: _, user_division: _user_division, ...result } = user;
       return {
         ...result,
         join_date: user.created_at,
@@ -222,10 +222,10 @@ export class AuthService {
         used_leave_days: 0,
         assigned_devices: [],
         organization: {
-          position_id: user.user_information?.position_id || null,
-          level_id: user.user_information?.level_id || null,
-          division_id: (user.user_division as any)?.[0]?.division?.id || null,
-          team_id: (user.user_division as any)?.[0]?.team?.id || null,
+          division_id: null,
+          team_id: null,
+          division: null,
+          team: null,
         },
         unread_notifications: 0,
         role_assignments: [],
@@ -365,6 +365,81 @@ export class AuthService {
     // Lấy role assignments của user
     const userRoles = await this.roleAssignmentService.getUserRoles(userId);
 
+    // Lấy division_head nếu user có division
+    let divisionWithHead: any = null;
+    if (divisionAssignment?.scope_id) {
+      const division = await this.prisma.divisions.findUnique({
+        where: { id: divisionAssignment.scope_id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          status: true,
+          type: true,
+        },
+      });
+
+      let divisionHead: any = null;
+      if (division) {
+        const headAssignment = await this.prisma.user_role_assignment.findFirst({
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: division.id,
+            deleted_at: null,
+            role: {
+              name: 'division_head',
+              deleted_at: null,
+            },
+          },
+          select: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: {
+                    name: true,
+                    avatar: true,
+                    phone: true,
+          
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (headAssignment?.user) {
+          divisionHead = {
+            id: headAssignment.user.id,
+            email: headAssignment.user.email,
+            name: headAssignment.user.user_information?.name || null,
+            avatar: headAssignment.user.user_information?.avatar || null,
+            phone: headAssignment.user.user_information?.phone || null,
+          };
+        }
+
+        divisionWithHead = {
+          ...division,
+          division_head: divisionHead,
+        };
+      }
+    }
+
+    // Lấy team info nếu user có team
+    let teamInfo: any = null;
+    if (teamAssignment?.scope_id) {
+      teamInfo = await this.prisma.teams.findUnique({
+        where: { id: teamAssignment.scope_id },
+        select: {
+          id: true,
+          name: true,
+          division_id: true,
+          founding_date: true,
+        },
+      });
+    }
+
     return {
       join_date: userInfo?.user?.created_at.toISOString().split('T')[0],
       today_attendance: {
@@ -382,10 +457,8 @@ export class AuthService {
       used_leave_days: 1,
       assigned_devices: formattedDevices,
       organization: {
-        position_id: userInfo?.position_id || null,
-        level_id: userInfo?.level_id || null,
-        division_id: divisionAssignment?.scope_id || null,
-        team_id: teamAssignment?.scope_id || null,
+        division: divisionWithHead,
+        team: teamInfo,
       },
       unread_notifications: unreadNotifications,
       role_assignments: userRoles.roles,

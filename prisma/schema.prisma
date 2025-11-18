@@ -381,7 +381,7 @@ model day_offs {
     user                     users                @relation("user", fields: [user_id], references: [id])
     work_date                DateTime             @db.Date
     duration                 DayOffDuration       @default(FULL_DAY)
-    status                   DayOffStatus         @default(PENDING)
+    status                   ApprovalStatus         @default(PENDING)
     type                     DayOffType           @default(PAID)
     title                    String               @db.VarChar(255)
     reason                   String?              @db.Text
@@ -986,12 +986,6 @@ enum ProjectType {
 enum UserInformationStatus {
     ACTIVE
     INACTIVE
-}
-
-enum DayOffStatus {
-    PENDING
-    APPROVED
-    REJECTED
 }
 
 enum DayOffType {

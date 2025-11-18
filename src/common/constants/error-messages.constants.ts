@@ -148,6 +148,10 @@ export const PROJECT_ERRORS = {
   USER_ALREADY_IN_PROJECT: 'Người dùng đã thuộc dự án này',
   INVALID_PROJECT_STATUS: 'Trạng thái dự án không hợp lệ',
   PROJECT_DEADLINE_PASSED: 'Thời hạn dự án đã qua',
+  DIVISION_NOT_FOUND: 'Phòng ban không tồn tại',
+  TEAM_NOT_FOUND: 'Team không tồn tại',
+  START_DATE_AFTER_END_DATE: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc',
+  INVALID_PROGRESS_VALUE: 'Progress phải trong khoảng 0-100',
 } as const;
 
 // === ROLE ERRORS ===

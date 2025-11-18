@@ -9,7 +9,6 @@ import { REQUEST } from '@nestjs/core';
 import type { Request } from 'express';
 import {
   DayOffDuration,
-  DayOffStatus,
   HolidayStatus,
   Prisma,
   ApprovalStatus,
@@ -80,7 +79,7 @@ export class TimesheetService {
       where: {
         user_id: userId,
         work_date: new Date(createTimesheetDto.work_date),
-        status: DayOffStatus.APPROVED,
+        status: ApprovalStatus.APPROVED,
         deleted_at: null,
       },
     });
@@ -1001,7 +1000,7 @@ export class TimesheetService {
     const dayOffs = await this.prisma.day_offs.findMany({
       where: {
         user_id: { in: userIds },
-        status: DayOffStatus.APPROVED, // Đã duyệt
+        status: ApprovalStatus.APPROVED, // Đã duyệt
         deleted_at: null,
       },
     });
@@ -1058,7 +1057,7 @@ export class TimesheetService {
     const pendingDayOffs = await this.prisma.day_offs.count({
       where: {
         user_id: userId,
-        status: DayOffStatus.PENDING, // Chờ duyệt
+        status: ApprovalStatus.PENDING, // Chờ duyệt
         deleted_at: null,
       },
     });

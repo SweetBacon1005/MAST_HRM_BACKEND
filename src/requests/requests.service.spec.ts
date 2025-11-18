@@ -1,27 +1,93 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { RequestsService } from './requests.service';
+import { PrismaService } from '../database/prisma.service';
+import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
+import { PermissionCheckerService } from '../auth/services/permission-checker.service';
+import { ActivityLogService } from '../common/services/activity-log.service';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 
 describe('RequestsService', () => {
   let service: RequestsService;
 
   beforeEach(async () => {
+    const mockPrismaService = {
+      users: { findFirst: jest.fn() },
+      remote_work_requests: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      day_offs: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      over_times_history: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      late_early_requests: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      forgot_checkin_requests: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      time_sheets: { 
+        findFirst: jest.fn(), 
+        create: jest.fn(), 
+        update: jest.fn() 
+      },
+      projects: { findFirst: jest.fn() },
+      user_information: { findFirst: jest.fn() },
+      user_role_assignment: { findMany: jest.fn() },
+      $transaction: jest.fn((callback) => callback(mockPrismaService)),
+    };
+
+    const mockLeaveBalanceService = {
+      getOrCreateLeaveBalance: jest.fn(),
+      getLeaveBalanceStats: jest.fn(),
+      getLeaveTransactionHistory: jest.fn(),
+      deductLeaveBalance: jest.fn(),
+      refundLeaveBalance: jest.fn(),
+    };
+
+    const mockPermissionChecker = {
+      createUserContext: jest.fn(),
+      canAccessRequest: jest.fn(),
+    };
+
+    const mockActivityLogService = {
+      logRequestCreated: jest.fn(),
+      logRequestView: jest.fn(),
+    };
+
+    const mockRoleAssignmentService = {
+      getUserRoles: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        {
-          provide: RequestsService,
-          useValue: {
-            // Mock only the methods we want to test
-            getAllRequests: jest.fn(),
-            createRemoteWorkRequest: jest.fn(),
-            createDayOffRequest: jest.fn(),
-            createOvertimeRequest: jest.fn(),
-            createLateEarlyRequest: jest.fn(),
-            createForgotCheckinRequest: jest.fn(),
-            approveRequest: jest.fn(),
-            rejectRequest: jest.fn(),
-            getMyRequests: jest.fn(),
-          },
-        },
+        RequestsService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: LeaveBalanceService, useValue: mockLeaveBalanceService },
+        { provide: PermissionCheckerService, useValue: mockPermissionChecker },
+        { provide: ActivityLogService, useValue: mockActivityLogService },
+        { provide: RoleAssignmentService, useValue: mockRoleAssignmentService },
       ],
     }).compile();
 
@@ -64,91 +130,28 @@ describe('RequestsService', () => {
     expect(service.rejectRequest).toBeDefined();
   });
 
-  it('should have getMyRequests method', () => {
-    expect(service.getMyRequests).toBeDefined();
+  it('should have getAllMyRequests method', () => {
+    expect(service.getAllMyRequests).toBeDefined();
   });
 
-  // Unhappy cases
-  describe('Error Handling', () => {
-    it('should handle creating request for past date', async () => {
-      const mockCreateRemoteWorkRequest = service.createRemoteWorkRequest as jest.Mock;
-      mockCreateRemoteWorkRequest.mockRejectedValue(new Error('Cannot create request for past date'));
-
-      await expect(mockCreateRemoteWorkRequest({
-        work_date: '2020-01-01',
-        remote_type: 'FULL_REMOTE',
-        reason: 'Test reason'
-      }, 1)).rejects.toThrow('Cannot create request for past date');
-    });
-
-    it('should handle duplicate request for same date', async () => {
-      const mockCreateDayOffRequest = service.createDayOffRequest as jest.Mock;
-      mockCreateDayOffRequest.mockRejectedValue(new Error('Request already exists for this date'));
-
-      await expect(mockCreateDayOffRequest({
-        work_date: '2024-12-01',
-        type: 'ANNUAL_LEAVE',
-        reason: 'Vacation'
-      }, 1)).rejects.toThrow('Request already exists for this date');
-    });
-
-    it('should handle insufficient leave balance', async () => {
-      const mockCreateDayOffRequest = service.createDayOffRequest as jest.Mock;
-      mockCreateDayOffRequest.mockRejectedValue(new Error('Insufficient leave balance'));
-
-      await expect(mockCreateDayOffRequest({
-        work_date: '2024-12-01',
-        type: 'ANNUAL_LEAVE',
-        reason: 'Vacation'
-      }, 1)).rejects.toThrow('Insufficient leave balance');
-    });
-
-    it('should handle approving already processed request', async () => {
-      const mockApproveRequest = service.approveRequest as jest.Mock;
-      mockApproveRequest.mockRejectedValue(new Error('Request is already processed'));
-
-      await expect(mockApproveRequest('remote_work', 1, 1))
-        .rejects.toThrow('Request is already processed');
-    });
-
-    it('should handle rejecting non-existent request', async () => {
-      const mockRejectRequest = service.rejectRequest as jest.Mock;
-      mockRejectRequest.mockRejectedValue(new Error('Request not found'));
-
-      await expect(mockRejectRequest('overtime', 999, 1, 'Not found'))
-        .rejects.toThrow('Request not found');
-    });
-
-    it('should handle overtime request exceeding limits', async () => {
-      const mockCreateOvertimeRequest = service.createOvertimeRequest as jest.Mock;
-      mockCreateOvertimeRequest.mockRejectedValue(new Error('Overtime hours exceed monthly limit'));
-
-      await expect(mockCreateOvertimeRequest({
-        work_date: '2024-12-01',
-        start_time: '18:00',
-        end_time: '23:00',
-        reason: 'Project deadline'
-      }, 1)).rejects.toThrow('Overtime hours exceed monthly limit');
-    });
-
-    it('should handle invalid time range in late/early request', async () => {
-      const mockCreateLateEarlyRequest = service.createLateEarlyRequest as jest.Mock;
-      mockCreateLateEarlyRequest.mockRejectedValue(new Error('Invalid time range'));
-
-      await expect(mockCreateLateEarlyRequest({
-        work_date: '2024-12-01',
-        request_type: 'LATE_ARRIVAL',
-        late_minutes: -10,
-        reason: 'Traffic'
-      }, 1)).rejects.toThrow('Invalid time range');
-    });
-
-    it('should handle unauthorized access to requests', async () => {
-      const mockGetAllRequests = service.getAllRequests as jest.Mock;
-      mockGetAllRequests.mockRejectedValue(new Error('Unauthorized access'));
-
-      await expect(mockGetAllRequests({ page: 1, limit: 10 }, 1))
-        .rejects.toThrow('Unauthorized access');
+  // Basic validation tests
+  describe('Service Methods', () => {
+    it('should have all required methods', () => {
+      expect(service.createRemoteWorkRequest).toBeDefined();
+      expect(service.createDayOffRequest).toBeDefined();
+      expect(service.createOvertimeRequest).toBeDefined();
+      expect(service.createLateEarlyRequest).toBeDefined();
+      expect(service.createForgotCheckinRequest).toBeDefined();
+      expect(service.approveRequest).toBeDefined();
+      expect(service.rejectRequest).toBeDefined();
+      expect(service.getAllRequests).toBeDefined();
+      expect(service.getAllMyRequests).toBeDefined();
+      expect(service.getMyLeaveBalance).toBeDefined();
+      expect(service.findAllRemoteWorkRequests).toBeDefined();
+      expect(service.findAllDayOffRequests).toBeDefined();
+      expect(service.findAllOvertimeRequests).toBeDefined();
+      expect(service.findAllLateEarlyRequests).toBeDefined();
+      expect(service.findAllForgotCheckinRequests).toBeDefined();
     });
   });
 });

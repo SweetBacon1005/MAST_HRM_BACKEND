@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import {
   ApprovalStatus,
-  DayOffStatus,
   DayOffType,
+  Prisma,
   RemoteType,
   ScopeType,
 } from '@prisma/client';
@@ -176,12 +176,47 @@ export class RequestsService {
 
   async findAllRemoteWorkRequests(
     paginationDto: RemoteWorkRequestPaginationDto = {},
+    userId: number,
+    userRole: string,
   ) {
+    const accessScope = await this.determineAccessScope(userId, userRole);
+
+    let userIdsFilter: number[] | undefined;
+
+    if (accessScope.type === 'DIVISION_ONLY') {
+      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
+        userIdsFilter = await this.getDivisionUserIds(accessScope.divisionIds);
+      } else {
+        userIdsFilter = [];
+      }
+    } else if (accessScope.type === 'ADMIN_ACCESS') {
+      // Admin - own requests + division_head requests
+      const divisionHeadUserIds = await this.getUserIdsByRole(
+        ROLE_NAMES.DIVISION_HEAD,
+      );
+      userIdsFilter = [userId, ...divisionHeadUserIds];
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { deleted_at: null };
+    const where: Prisma.remote_work_requestsWhereInput = { deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    // Apply user filter based on role
+    if (userIdsFilter !== undefined) {
+      if (userIdsFilter.length === 0) {
+        // No users in scope, return empty
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+      where.user_id = { in: userIdsFilter };
+    }
+
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.remote_type)
       where.remote_type = paginationDto.remote_type;
     if (paginationDto.start_date && paginationDto.end_date) {
@@ -231,7 +266,8 @@ export class RequestsService {
 
     const where: any = { user_id: userId, deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.remote_type)
       where.remote_type = paginationDto.remote_type;
     if (paginationDto.start_date && paginationDto.end_date) {
@@ -289,7 +325,7 @@ export class RequestsService {
         user_id: dto.user_id,
         work_date: workDate,
         deleted_at: null,
-        status: { in: [DayOffStatus.PENDING, DayOffStatus.APPROVED] },
+        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
       },
     });
 
@@ -326,12 +362,36 @@ export class RequestsService {
     });
   }
 
-  async findAllDayOffRequests(paginationDto: RequestPaginationDto = {}) {
+  async findAllDayOffRequests(
+    paginationDto: RequestPaginationDto = {},
+    userId?: number,
+    userRole?: string,
+  ) {
+    let userIdsFilter: number[] | undefined;
+
+    if (userId && userRole) {
+      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+
+      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { deleted_at: null };
+    const where: Prisma.day_offsWhereInput = { deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (userIdsFilter !== undefined) {
+      where.user_id = { in: userIdsFilter };
+    }
+
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -379,7 +439,8 @@ export class RequestsService {
 
     const where: any = { user_id: userId };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -499,12 +560,36 @@ export class RequestsService {
     } as OvertimeRequestResponseDto;
   }
 
-  async findAllOvertimeRequests(paginationDto: RequestPaginationDto = {}) {
+  async findAllOvertimeRequests(
+    paginationDto: RequestPaginationDto = {},
+    userId?: number,
+    userRole?: string,
+  ) {
+    let userIdsFilter: number[] | undefined;
+
+    if (userId && userRole) {
+      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+
+      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { deleted_at: null };
+    const where: Prisma.over_times_historyWhereInput = { deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (userIdsFilter !== undefined) {
+      where.user_id = { in: userIdsFilter };
+    }
+
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -553,7 +638,8 @@ export class RequestsService {
 
     const where: any = { user_id: userId, deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -1017,38 +1103,25 @@ export class RequestsService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    // Determine access scope based on role
     const accessScope = await this.determineAccessScope(
       requesterId!,
       requesterRole!,
     );
 
-    // Build role-based where conditions
     const roleBasedConditions = await this.buildRoleBasedWhereConditions(
       accessScope,
       paginationDto,
     );
 
-    // Apply role-based filtering logic
     let userIds: number[] | undefined;
 
     if (accessScope.type === 'DIVISION_ONLY') {
-      // Division Head chỉ xem requests trong divisions mình quản lý
       if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
         const divisionUserIds = await this.getDivisionUserIds(
           accessScope.divisionIds,
         );
         userIds = divisionUserIds;
-
-        // Division Head có thể filter theo team trong division
-        if (paginationDto.team_id) {
-          const teamUserIds = await this.getTeamUserIds([
-            paginationDto.team_id,
-          ]);
-          userIds = userIds.filter((id) => teamUserIds.includes(id));
-        }
       } else {
-        // Không có division nào để quản lý
         return buildPaginationResponse(
           [],
           0,
@@ -1056,37 +1129,32 @@ export class RequestsService {
           paginationDto.limit || 10,
         );
       }
+    } else if (accessScope.type === 'ADMIN_ACCESS') {
+      const divisionHeadUserIds = await this.getUserIdsByRole(
+        ROLE_NAMES.DIVISION_HEAD,
+      );
+
+      userIds = [accessScope.userId!, ...divisionHeadUserIds];
     } else if (accessScope.type === 'ALL_ACCESS') {
-      // Admin/HR có thể xem tất cả hoặc filter theo các tiêu chí
       if (paginationDto.division_id) {
         const divisionUserIds = await this.getDivisionUserIds([
           paginationDto.division_id,
         ]);
         userIds = divisionUserIds;
       }
-
-      // Filter theo leadership roles nếu leads_only=true
-      if (paginationDto.leads_only) {
-        const leadUserIds = await this.getLeadUserIds(
-          paginationDto.division_id,
-        );
-        userIds = userIds
-          ? userIds.filter((id) => leadUserIds.includes(id))
-          : leadUserIds;
-      }
-
-      // Filter theo team nếu có
-      if (paginationDto.team_id) {
-        const teamUserIds = await this.getTeamUserIds([paginationDto.team_id]);
-        userIds = userIds
-          ? userIds.filter((id) => teamUserIds.includes(id))
-          : teamUserIds;
-      }
     } else if (accessScope.type === 'TEAM_ONLY') {
-      // Team Leader/Project Manager chỉ xem requests từ team members
+      // Team Leader chỉ xem requests từ team members
       if (accessScope.teamIds && accessScope.teamIds.length > 0) {
         const teamUserIds = await this.getTeamUserIds(accessScope.teamIds);
         userIds = teamUserIds;
+      } else {
+        userIds = [requesterId!]; // Fallback to self-only
+      }
+    } else if (accessScope.type === 'PROJECT_ONLY') {
+      // Project Manager chỉ xem requests từ project members
+      if (accessScope.projectIds && accessScope.projectIds.length > 0) {
+        const projectUserIds = await this.getProjectUserIds(accessScope.projectIds);
+        userIds = projectUserIds;
       } else {
         userIds = [requesterId!]; // Fallback to self-only
       }
@@ -1105,29 +1173,21 @@ export class RequestsService {
         : roleUserIds;
     }
 
-    // Nếu có userIds filter, sử dụng method getRequestsByUserIds
     if (userIds && userIds.length > 0) {
-      let result = await this.getRequestsByUserIds(userIds, paginationDto);
+      const result = await this.getRequestsByUserIds(userIds, paginationDto);
 
-      // Apply high priority filter if requested
-      if (paginationDto.high_priority_only) {
-        result = await this.filterHighPriorityRequests(result, paginationDto);
-      }
-
-      // Add metadata về access scope và filters
       return {
         ...result,
         metadata: {
           access_scope: accessScope.type,
           managed_divisions: accessScope.divisionIds,
           managed_teams: accessScope.teamIds,
+          managed_projects: accessScope.projectIds,
           filters_applied: {
-            leads_only: paginationDto.leads_only || false,
             division_restriction: accessScope.type === 'DIVISION_ONLY',
             team_restriction: accessScope.type === 'TEAM_ONLY',
-            high_priority_only: paginationDto.high_priority_only || false,
+            project_restriction: accessScope.type === 'PROJECT_ONLY',
             division_id: paginationDto.division_id,
-            team_id: paginationDto.team_id,
             requester_role: paginationDto.requester_role,
           },
         },
@@ -1145,10 +1205,11 @@ export class RequestsService {
           access_scope: accessScope.type,
           managed_divisions: accessScope.divisionIds,
           managed_teams: accessScope.teamIds,
+          managed_projects: accessScope.projectIds,
           filters_applied: {
-            leads_only: paginationDto.leads_only || false,
             division_restriction: accessScope.type === 'DIVISION_ONLY',
             team_restriction: accessScope.type === 'TEAM_ONLY',
+            project_restriction: accessScope.type === 'PROJECT_ONLY',
           },
         },
       };
@@ -1166,10 +1227,11 @@ export class RequestsService {
         access_scope: accessScope.type,
         managed_divisions: accessScope.divisionIds,
         managed_teams: accessScope.teamIds,
+        managed_projects: accessScope.projectIds,
         filters_applied: {
-          leads_only: paginationDto.leads_only || false,
           division_restriction: accessScope.type === 'DIVISION_ONLY',
           team_restriction: accessScope.type === 'TEAM_ONLY',
+          project_restriction: accessScope.type === 'PROJECT_ONLY',
         },
       },
     };
@@ -1402,6 +1464,7 @@ export class RequestsService {
   private async approveRemoteWorkRequest(
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
       where: { id, deleted_at: null },
@@ -1417,6 +1480,16 @@ export class RequestsService {
       );
     }
 
+    const canApprove = await this.canApproveRequest(
+      approverId,
+      approverRole,
+      request.user_id,
+    );
+
+    if (!canApprove) {
+      throw new ForbiddenException('Bạn không có quyền duyệt request này');
+    }
+
     const updatedRequest = await this.prisma.remote_work_requests.update({
       where: { id },
       data: {
@@ -1426,7 +1499,6 @@ export class RequestsService {
       },
     });
 
-    // Auto update timesheet
     await this.updateTimesheetRemoteType(updatedRequest);
 
     return {
@@ -1439,6 +1511,7 @@ export class RequestsService {
   private async rejectRemoteWorkRequest(
     id: number,
     rejectorId: number,
+    rejectorRole: string,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
@@ -1453,6 +1526,16 @@ export class RequestsService {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
+    }
+
+    const canReject = await this.canApproveRequest(
+      rejectorId,
+      rejectorRole,
+      request.user_id,
+    );
+
+    if (!canReject) {
+      throw new ForbiddenException('Bạn không có quyền từ chối request này');
     }
 
     const updatedRequest = await this.prisma.remote_work_requests.update({
@@ -1474,6 +1557,7 @@ export class RequestsService {
   private async approveDayOffRequest(
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
       where: { id, deleted_at: null },
@@ -1483,10 +1567,20 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy day-off request');
     }
 
-    if (request.status !== DayOffStatus.PENDING) {
+    if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException(
         `Không thể duyệt request ở trạng thái: ${request.status}`,
       );
+    }
+
+    const canApprove = await this.canApproveRequest(
+      approverId,
+      approverRole,
+      request.user_id,
+    );
+
+    if (!canApprove) {
+      throw new ForbiddenException('Bạn không có quyền duyệt request này');
     }
 
     // Sử dụng transaction để đảm bảo data consistency
@@ -1495,7 +1589,7 @@ export class RequestsService {
       const updatedRequest = await tx.day_offs.update({
         where: { id },
         data: {
-          status: DayOffStatus.APPROVED,
+          status: ApprovalStatus.APPROVED,
           approved_by: approverId,
           approved_at: new Date(),
         },
@@ -1527,6 +1621,7 @@ export class RequestsService {
   private async rejectDayOffRequest(
     id: number,
     rejectorId: number,
+    rejectorRole: string,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
@@ -1538,12 +1633,22 @@ export class RequestsService {
     }
 
     if (
-      request.status !== DayOffStatus.PENDING &&
-      request.status !== DayOffStatus.APPROVED
+      request.status !== ApprovalStatus.PENDING &&
+      request.status !== ApprovalStatus.APPROVED
     ) {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
+    }
+
+    const canReject = await this.canApproveRequest(
+      rejectorId,
+      rejectorRole,
+      request.user_id,
+    );
+
+    if (!canReject) {
+      throw new ForbiddenException('Bạn không có quyền từ chối request này');
     }
 
     // Sử dụng transaction để đảm bảo data consistency
@@ -1552,7 +1657,7 @@ export class RequestsService {
       const updatedRequest = await tx.day_offs.update({
         where: { id },
         data: {
-          status: DayOffStatus.REJECTED,
+          status: ApprovalStatus.REJECTED,
           rejected_reason: reason,
           updated_at: new Date(),
         },
@@ -1560,7 +1665,7 @@ export class RequestsService {
 
       // Hoàn trả leave balance nếu đã được duyệt trước đó (và đã trừ balance)
       if (
-        request.status === DayOffStatus.APPROVED &&
+        request.status === ApprovalStatus.APPROVED &&
         request.type === DayOffType.PAID
       ) {
         const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
@@ -1584,6 +1689,7 @@ export class RequestsService {
   private async approveOvertimeRequest(
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
       where: { id, deleted_at: null },
@@ -1599,6 +1705,16 @@ export class RequestsService {
       );
     }
 
+    const canApprove = await this.canApproveRequest(
+      approverId,
+      approverRole,
+      request.user_id,
+    );
+
+    if (!canApprove) {
+      throw new ForbiddenException('Bạn không có quyền duyệt request này');
+    }
+
     const updatedRequest = await this.prisma.over_times_history.update({
       where: { id },
       data: {
@@ -1607,8 +1723,6 @@ export class RequestsService {
         approved_at: new Date(),
       },
     });
-
-    // Note: Timesheet update logic can be added here if needed
 
     return {
       success: true,
@@ -1620,6 +1734,7 @@ export class RequestsService {
   private async rejectOvertimeRequest(
     id: number,
     rejectorId: number,
+    rejectorRole: string,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
@@ -1634,6 +1749,16 @@ export class RequestsService {
       throw new BadRequestException(
         `Không thể từ chối request ở trạng thái: ${request.status}`,
       );
+    }
+
+    const canReject = await this.canApproveRequest(
+      rejectorId,
+      rejectorRole,
+      request.user_id,
+    );
+
+    if (!canReject) {
+      throw new ForbiddenException('Bạn không có quyền từ chối request này');
     }
 
     const updatedRequest = await this.prisma.over_times_history.update({
@@ -1904,12 +2029,34 @@ export class RequestsService {
 
   async findAllLateEarlyRequests(
     paginationDto: RequestPaginationDto = {},
-  ): Promise<any> {
+    userId?: number,
+    userRole?: string,
+  ) {
+    let userIdsFilter: number[] | undefined;
+
+    if (userId && userRole) {
+      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+
+      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { deleted_at: null };
+    const where: Prisma.late_early_requestsWhereInput = { deleted_at: null };
 
-    if (paginationDto.status) where.status = paginationDto.status;
+    if (userIdsFilter !== undefined) {
+      where.user_id = { in: userIdsFilter };
+    }
+
+    if (paginationDto.status)
+      where.status = paginationDto.status as ApprovalStatus;
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -1999,6 +2146,7 @@ export class RequestsService {
   async approveLateEarlyRequest(
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
       where: { id, deleted_at: null },
@@ -2006,6 +2154,16 @@ export class RequestsService {
 
     if (!request) {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
+    }
+
+    const canApprove = await this.canApproveRequest(
+      approverId,
+      approverRole,
+      request.user_id,
+    );
+
+    if (!canApprove) {
+      throw new ForbiddenException('Bạn không có quyền duyệt request này');
     }
 
     const updatedRequest = await this.prisma.late_early_requests.update({
@@ -2017,7 +2175,6 @@ export class RequestsService {
       },
     });
 
-    // TODO: Tích hợp với timesheet - cập nhật approved late/early time
     await this.updateTimesheetWithApprovedLateEarly(updatedRequest);
 
     return {
@@ -2029,7 +2186,8 @@ export class RequestsService {
 
   async rejectLateEarlyRequest(
     id: number,
-    approverId: number,
+    rejectorId: number,
+    rejectorRole: string,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
@@ -2040,11 +2198,21 @@ export class RequestsService {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
+    const canReject = await this.canApproveRequest(
+      rejectorId,
+      rejectorRole,
+      request.user_id,
+    );
+
+    if (!canReject) {
+      throw new ForbiddenException('Bạn không có quyền từ chối request này');
+    }
+
     const updatedRequest = await this.prisma.late_early_requests.update({
       where: { id },
       data: {
         status: 'REJECTED',
-        approved_by: approverId,
+        approved_by: rejectorId,
         approved_at: new Date(),
         rejected_reason: rejectedReason,
       },
@@ -2105,18 +2273,27 @@ export class RequestsService {
     type: RequestType,
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     switch (type) {
       case RequestType.DAY_OFF:
-        return await this.approveDayOffRequest(id, approverId);
+        return await this.approveDayOffRequest(id, approverId, approverRole);
       case RequestType.OVERTIME:
-        return await this.approveOvertimeRequest(id, approverId);
+        return await this.approveOvertimeRequest(id, approverId, approverRole);
       case RequestType.REMOTE_WORK:
-        return await this.approveRemoteWorkRequest(id, approverId);
+        return await this.approveRemoteWorkRequest(
+          id,
+          approverId,
+          approverRole,
+        );
       case RequestType.LATE_EARLY:
-        return await this.approveLateEarlyRequest(id, approverId);
+        return await this.approveLateEarlyRequest(id, approverId, approverRole);
       case RequestType.FORGOT_CHECKIN:
-        return await this.approveForgotCheckinRequest(id, approverId);
+        return await this.approveForgotCheckinRequest(
+          id,
+          approverId,
+          approverRole,
+        );
       default:
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
@@ -2125,30 +2302,44 @@ export class RequestsService {
   async rejectRequest(
     type: RequestType,
     id: number,
-    approverId: number,
+    rejectorId: number,
+    rejectorRole: string,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     switch (type) {
       case RequestType.DAY_OFF:
-        return await this.rejectDayOffRequest(id, approverId, rejectedReason);
+        return await this.rejectDayOffRequest(
+          id,
+          rejectorId,
+          rejectorRole,
+          rejectedReason,
+        );
       case RequestType.OVERTIME:
-        return await this.rejectOvertimeRequest(id, approverId, rejectedReason);
+        return await this.rejectOvertimeRequest(
+          id,
+          rejectorId,
+          rejectorRole,
+          rejectedReason,
+        );
       case RequestType.REMOTE_WORK:
         return await this.rejectRemoteWorkRequest(
           id,
-          approverId,
+          rejectorId,
+          rejectorRole,
           rejectedReason,
         );
       case RequestType.LATE_EARLY:
         return await this.rejectLateEarlyRequest(
           id,
-          approverId,
+          rejectorId,
+          rejectorRole,
           rejectedReason,
         );
       case RequestType.FORGOT_CHECKIN:
         return await this.rejectForgotCheckinRequest(
           id,
-          approverId,
+          rejectorId,
+          rejectorRole,
           rejectedReason,
         );
       default:
@@ -2268,13 +2459,38 @@ export class RequestsService {
     };
   }
 
-  async findAllForgotCheckinRequests(paginationDto: RequestPaginationDto = {}) {
+  async findAllForgotCheckinRequests(
+    paginationDto: RequestPaginationDto = {},
+    userId?: number,
+    userRole?: string,
+  ) {
+    let userIdsFilter: number[] | undefined;
+
+    if (userId && userRole) {
+      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+
+      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
+      }
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = { deleted_at: null };
+    const whereConditions: Prisma.forgot_checkin_requestsWhereInput = {
+      deleted_at: null,
+    };
+
+    if (userIdsFilter !== undefined) {
+      whereConditions.user_id = { in: userIdsFilter };
+    }
 
     if (paginationDto.status) {
-      whereConditions.status = paginationDto.status;
+      whereConditions.status = paginationDto.status as ApprovalStatus;
     }
 
     if (paginationDto.start_date && paginationDto.end_date) {
@@ -2385,6 +2601,7 @@ export class RequestsService {
   async approveForgotCheckinRequest(
     id: number,
     approverId: number,
+    approverRole: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.forgot_checkin_requests.findFirst({
       where: { id, deleted_at: null },
@@ -2399,6 +2616,16 @@ export class RequestsService {
 
     if (request.status !== ApprovalStatus.PENDING) {
       throw new BadRequestException('Đơn này đã được xử lý');
+    }
+
+    const canApprove = await this.canApproveRequest(
+      approverId,
+      approverRole,
+      request.user_id,
+    );
+
+    if (!canApprove) {
+      throw new ForbiddenException('Bạn không có quyền duyệt request này');
     }
 
     await this.prisma.$transaction(async (prisma) => {
@@ -2444,7 +2671,8 @@ export class RequestsService {
 
   async rejectForgotCheckinRequest(
     id: number,
-    approverId: number,
+    rejectorId: number,
+    rejectorRole: string,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.forgot_checkin_requests.findFirst({
@@ -2459,11 +2687,21 @@ export class RequestsService {
       throw new BadRequestException('Đơn này đã được xử lý');
     }
 
+    const canReject = await this.canApproveRequest(
+      rejectorId,
+      rejectorRole,
+      request.user_id,
+    );
+
+    if (!canReject) {
+      throw new ForbiddenException('Bạn không có quyền từ chối request này');
+    }
+
     await this.prisma.forgot_checkin_requests.update({
       where: { id },
       data: {
         status: ApprovalStatus.REJECTED,
-        approved_by: approverId,
+        approved_by: rejectorId,
         approved_at: new Date(),
         rejected_reason: rejectedReason,
       },
@@ -2590,24 +2828,21 @@ export class RequestsService {
     return [...new Set(leadUsers.map((lu) => lu.user_id))];
   }
 
-  /**
-   * Lấy danh sách user IDs theo role name
-   */
   private async getUserIdsByRole(roleName: string): Promise<number[]> {
-    const roleUsers = await this.prisma.user_information.findMany({
+    const roleUsers = await this.prisma.user_role_assignment.findMany({
       where: {
-        deleted_at: null,
-        // role: { name: roleName }, // TODO: Update to use role assignments
-        user: {
+        role: {
+          name: roleName,
           deleted_at: null,
         },
+        deleted_at: null,
       },
       select: {
         user_id: true,
       },
     });
 
-    return [...new Set(roleUsers.map((ru) => ru.user_id))];
+    return [...new Set(roleUsers.map((r) => r.user_id))];
   }
 
   /**
@@ -2625,11 +2860,7 @@ export class RequestsService {
 
   // ==================== ENHANCED HELPER METHODS ====================
 
-  /**
-   * Lấy danh sách divisions mà user quản lý (cho Division Head)
-   */
   private async getUserManagedDivisions(userId: number): Promise<number[]> {
-    // Lấy divisions mà user là Division Head từ user_role_assignment
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
@@ -2655,16 +2886,118 @@ export class RequestsService {
     ];
   }
 
-  /**
-   * Xác định scope truy cập theo role
-   */
+  private async getUserIdsFilterByRole(
+    userId: number,
+    userRole: string,
+  ): Promise<number[] | undefined> {
+    const accessScope = await this.determineAccessScope(userId, userRole);
+
+    if (accessScope.type === 'DIVISION_ONLY') {
+      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
+        return await this.getDivisionUserIds(accessScope.divisionIds);
+      }
+      return [];
+    }
+
+    if (accessScope.type === 'ADMIN_ACCESS') {
+      const divisionHeadUserIds = await this.getUserIdsByRole(
+        ROLE_NAMES.DIVISION_HEAD,
+      );
+      return [userId, ...divisionHeadUserIds];
+    }
+
+    if (accessScope.type === 'TEAM_ONLY') {
+      if (accessScope.teamIds && accessScope.teamIds.length > 0) {
+        return await this.getTeamUserIds(accessScope.teamIds);
+      }
+      return [userId];
+    }
+
+    if (accessScope.type === 'PROJECT_ONLY') {
+      if (accessScope.projectIds && accessScope.projectIds.length > 0) {
+        return await this.getProjectUserIds(accessScope.projectIds);
+      }
+      return [userId];
+    }
+
+    if (accessScope.type === 'SELF_ONLY') {
+      return [userId];
+    }
+
+    return undefined;
+  }
+
+  private async canApproveRequest(
+    approverId: number,
+    approverRole: string,
+    requestUserId: number,
+  ): Promise<boolean> {
+    if (approverId === requestUserId) {
+      return approverRole === ROLE_NAMES.ADMIN;
+    }
+
+    const accessScope = await this.determineAccessScope(
+      approverId,
+      approverRole,
+    );
+
+    if (
+      accessScope.type === 'DIVISION_ONLY' &&
+      accessScope.divisionIds &&
+      accessScope.divisionIds.length > 0
+    ) {
+      const divisionUserIds = await this.getDivisionUserIds(
+        accessScope.divisionIds,
+      );
+      return divisionUserIds.includes(requestUserId);
+    }
+
+    if (accessScope.type === 'ADMIN_ACCESS') {
+      const divisionHeadUserIds = await this.getUserIdsByRole(
+        ROLE_NAMES.DIVISION_HEAD,
+      );
+      return (
+        requestUserId === approverId ||
+        divisionHeadUserIds.includes(requestUserId)
+      );
+    }
+
+    if (
+      accessScope.type === 'TEAM_ONLY' &&
+      accessScope.teamIds &&
+      accessScope.teamIds.length > 0
+    ) {
+      const teamUserIds = await this.getTeamUserIds(accessScope.teamIds);
+      return teamUserIds.includes(requestUserId);
+    }
+
+    if (
+      accessScope.type === 'PROJECT_ONLY' &&
+      accessScope.projectIds &&
+      accessScope.projectIds.length > 0
+    ) {
+      const projectUserIds = await this.getProjectUserIds(accessScope.projectIds);
+      return projectUserIds.includes(requestUserId);
+    }
+
+    return false;
+  }
+
   private async determineAccessScope(
     userId: number,
     role: string,
   ): Promise<{
-    type: 'DIVISION_ONLY' | 'ALL_ACCESS' | 'TEAM_ONLY' | 'SELF_ONLY';
+    type:
+      | 'DIVISION_ONLY'
+      | 'ALL_ACCESS'
+      | 'PROJECT_ONLY'
+      | 'TEAM_ONLY'
+      | 'SELF_ONLY'
+      | 'ADMIN_ACCESS';
     divisionIds?: number[];
+    projectIds?: number[];
     teamIds?: number[];
+    userId?: number;
   }> {
     switch (role) {
       case ROLE_NAMES.DIVISION_HEAD: {
@@ -2676,18 +3009,30 @@ export class RequestsService {
       }
 
       case ROLE_NAMES.ADMIN:
-      case ROLE_NAMES.HR_MANAGER:
         return {
-          type: 'ALL_ACCESS',
+          type: 'ADMIN_ACCESS',
+          userId: userId,
         };
 
-      case ROLE_NAMES.PROJECT_MANAGER:
+      case ROLE_NAMES.HR_MANAGER:
+      case ROLE_NAMES.EMPLOYEE:
+        return {
+          type: 'SELF_ONLY',
+        };
+
       case ROLE_NAMES.TEAM_LEADER: {
-        // TODO: Implement team-based access later
         const userTeams = await this.getUserManagedTeams(userId);
         return {
           type: 'TEAM_ONLY',
           teamIds: userTeams,
+        };
+      }
+
+      case ROLE_NAMES.PROJECT_MANAGER: {
+        const userProjects = await this.getUserManagedProjects(userId);
+        return {
+          type: 'PROJECT_ONLY',
+          projectIds: userProjects,
         };
       }
 
@@ -2711,10 +3056,9 @@ export class RequestsService {
   }
 
   /**
-   * Lấy danh sách teams mà user quản lý (cho Team Leader/Project Manager)
+   * Lấy danh sách teams mà user quản lý (cho Team Leader)
    */
   private async getUserManagedTeams(userId: number): Promise<number[]> {
-    // Lấy teams mà user là Team Leader từ user_role_assignment
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
@@ -2722,7 +3066,7 @@ export class RequestsService {
         deleted_at: null,
         scope_id: { not: null },
         role: {
-          name: { in: [ROLE_NAMES.TEAM_LEADER, ROLE_NAMES.PROJECT_MANAGER] },
+          name: ROLE_NAMES.TEAM_LEADER,
           deleted_at: null,
         },
       },
@@ -2741,20 +3085,44 @@ export class RequestsService {
   }
 
   /**
-   * Build role-based where conditions
+   * Lấy danh sách projects mà user là manager (cho Project Manager)
    */
+  private async getUserManagedProjects(userId: number): Promise<number[]> {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: userId,
+        scope_type: ScopeType.PROJECT,
+        deleted_at: null,
+        scope_id: { not: null },
+        role: {
+          name: ROLE_NAMES.PROJECT_MANAGER,
+          deleted_at: null,
+        },
+      },
+      select: {
+        scope_id: true,
+      },
+    });
+
+    return [
+      ...new Set(
+        assignments
+          .map((a) => a.scope_id)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
+  }
+
   private async buildRoleBasedWhereConditions(
     accessScope: any,
     filters: RequestPaginationDto,
   ): Promise<any> {
     const whereConditions: any = {};
 
-    // Apply access scope restrictions
     if (
       accessScope.type === 'DIVISION_ONLY' &&
       accessScope.divisionIds?.length > 0
     ) {
-      // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
@@ -2770,7 +3138,6 @@ export class RequestsService {
       accessScope.type === 'TEAM_ONLY' &&
       accessScope.teamIds?.length > 0
     ) {
-      // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.TEAM,
@@ -2782,16 +3149,27 @@ export class RequestsService {
       });
       const userIds = assignments.map((a) => a.user_id);
       whereConditions.user_id = { in: userIds };
+    } else if (
+      accessScope.type === 'PROJECT_ONLY' &&
+      accessScope.projectIds?.length > 0
+    ) {
+      const assignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.PROJECT,
+          scope_id: { in: accessScope.projectIds },
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+      const userIds = assignments.map((a) => a.user_id);
+      whereConditions.user_id = { in: userIds };
     } else if (accessScope.type === 'SELF_ONLY') {
-      // This will be handled by userIds filter in main logic
       return whereConditions;
     }
 
-    // Apply additional filters for Admin/HR
     if (accessScope.type === 'ALL_ACCESS') {
-      // Admin can filter by division_id
       if (filters.division_id) {
-        // Lấy user IDs từ user_role_assignment
         const assignments = await this.prisma.user_role_assignment.findMany({
           where: {
             scope_type: ScopeType.DIVISION,
@@ -2803,17 +3181,6 @@ export class RequestsService {
         });
         const userIds = assignments.map((a) => a.user_id);
         whereConditions.user_id = { in: userIds };
-      }
-
-      // Admin can filter by leads_only
-      if (filters.leads_only) {
-        const leadershipRoles = this.getLeadershipRoles();
-        whereConditions.user = {
-          ...whereConditions.user,
-          user_information: {
-            // role: { name: { in: leadershipRoles } }, // TODO: Update to use role assignments
-          },
-        };
       }
 
       // Admin can filter by team_id
@@ -2831,17 +3198,6 @@ export class RequestsService {
 
     return whereConditions;
   }
-
-  /**
-   * Check if role is admin-level
-   */
-  private isAdminRole(role: string): boolean {
-    return role === ROLE_NAMES.ADMIN;
-  }
-
-  /**
-   * Determine if request is high priority
-   */
   private isHighPriorityRequest(request: any): boolean {
     // 1. Requests từ leadership roles
     if (
@@ -2881,6 +3237,25 @@ export class RequestsService {
       where: {
         scope_type: ScopeType.TEAM,
         scope_id: { in: teamIds },
+        deleted_at: null,
+      },
+      select: {
+        user_id: true,
+      },
+      distinct: ['user_id'],
+    });
+
+    return assignments.map((a) => a.user_id);
+  }
+
+  /**
+   * Lấy danh sách user IDs làm việc trong projects (từ role assignments)
+   */
+  private async getProjectUserIds(projectIds: number[]): Promise<number[]> {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.PROJECT,
+        scope_id: { in: projectIds },
         deleted_at: null,
       },
       select: {

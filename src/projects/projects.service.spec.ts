@@ -1,39 +1,44 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
+import { PrismaService } from '../database/prisma.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
+  let prismaService: PrismaService;
 
   beforeEach(async () => {
+    const mockPrismaService = {
+      projects: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      divisions: {
+        findUnique: jest.fn(),
+      },
+      teams: {
+        findUnique: jest.fn(),
+      },
+      user_role_assignment: {
+        findMany: jest.fn(),
+        count: jest.fn(),
+        groupBy: jest.fn(),
+        updateMany: jest.fn(),
+      },
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        {
-          provide: ProjectsService,
-          useValue: {
-            // Mock only the methods we want to test
-            create: jest.fn(),
-            findAll: jest.fn(),
-            findOne: jest.fn(),
-            update: jest.fn(),
-            remove: jest.fn(),
-            addUserToProject: jest.fn(),
-            removeUserFromProject: jest.fn(),
-            getProjectMembers: jest.fn(),
-            getMyProjects: jest.fn(),
-            updateProjectStatus: jest.fn(),
-            getProjectStatistics: jest.fn(),
-            searchProjects: jest.fn(),
-            getProjectsByStatus: jest.fn(),
-            assignProjectManager: jest.fn(),
-            removeProjectManager: jest.fn(),
-            getProjectTimesheets: jest.fn(),
-            exportProjectData: jest.fn(),
-          },
-        },
+        ProjectsService,
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
     service = module.get<ProjectsService>(ProjectsService);
+    prismaService = module.get<PrismaService>(PrismaService);
   });
 
   it('should be defined', () => {
@@ -60,51 +65,28 @@ describe('ProjectsService', () => {
     expect(service.remove).toBeDefined();
   });
 
-  it('should have addUserToProject method', () => {
-    expect(service.addUserToProject).toBeDefined();
-  });
-
-  it('should have removeUserFromProject method', () => {
-    expect(service.removeUserFromProject).toBeDefined();
-  });
-
   it('should have getProjectMembers method', () => {
     expect(service.getProjectMembers).toBeDefined();
   });
 
-  it('should have getMyProjects method', () => {
-    expect(service.getMyProjects).toBeDefined();
+  it('should have findMyProjects method', () => {
+    expect(service.findMyProjects).toBeDefined();
   });
 
-  it('should have updateProjectStatus method', () => {
-    expect(service.updateProjectStatus).toBeDefined();
+  it('should have updateProgress method', () => {
+    expect(service.updateProgress).toBeDefined();
   });
 
-  it('should have getProjectStatistics method', () => {
-    expect(service.getProjectStatistics).toBeDefined();
-  });
-
-  it('should have searchProjects method', () => {
-    expect(service.searchProjects).toBeDefined();
-  });
-
-  it('should have getProjectsByStatus method', () => {
-    expect(service.getProjectsByStatus).toBeDefined();
-  });
-
-  it('should have assignProjectManager method', () => {
-    expect(service.assignProjectManager).toBeDefined();
-  });
-
-  it('should have removeProjectManager method', () => {
-    expect(service.removeProjectManager).toBeDefined();
-  });
-
-  it('should have getProjectTimesheets method', () => {
-    expect(service.getProjectTimesheets).toBeDefined();
-  });
-
-  it('should have exportProjectData method', () => {
-    expect(service.exportProjectData).toBeDefined();
+  describe('Service Methods', () => {
+    it('should have all required methods', () => {
+      expect(service.create).toBeDefined();
+      expect(service.findAll).toBeDefined();
+      expect(service.findOne).toBeDefined();
+      expect(service.update).toBeDefined();
+      expect(service.remove).toBeDefined();
+      expect(service.getProjectMembers).toBeDefined();
+      expect(service.findMyProjects).toBeDefined();
+      expect(service.updateProgress).toBeDefined();
+    });
   });
 });

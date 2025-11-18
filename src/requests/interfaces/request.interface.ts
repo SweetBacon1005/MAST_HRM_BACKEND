@@ -1,5 +1,3 @@
-import { DayOffStatus, ApprovalStatus } from '@prisma/client';
-
 export enum RequestType {
   DAY_OFF = 'day-off',
   OVERTIME = 'overtime',

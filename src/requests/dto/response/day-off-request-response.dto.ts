@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DayOffStatus, DayOffType, DayOffDuration } from '@prisma/client';
+import { ApprovalStatus, DayOffType, DayOffDuration } from '@prisma/client';
 
 export class DayOffRequestResponseDto {
   @ApiProperty({
@@ -35,10 +35,10 @@ export class DayOffRequestResponseDto {
 
   @ApiProperty({
     description: 'Trạng thái của request',
-    enum: DayOffStatus,
-    example: DayOffStatus.PENDING,
+    enum: ApprovalStatus,
+    example: ApprovalStatus.PENDING,
   })
-  status: DayOffStatus;
+  status: ApprovalStatus;
 
   @ApiProperty({
     description: 'Loại nghỉ phép',

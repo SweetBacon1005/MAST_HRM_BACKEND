@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IndustryType, ProjectStatus, ProjectType } from '@prisma/client';
 import { Type, Transform } from 'class-transformer';
 import {
   IsString,
@@ -8,6 +9,7 @@ import {
   IsDateString,
   MaxLength,
   Min,
+  IsEnum,
 } from 'class-validator';
 
 export class CreateProjectDto {
@@ -29,13 +31,13 @@ export class CreateProjectDto {
 
   @ApiProperty({
     description: 'Trạng thái dự án',
-    example: 'OPEN',
-    enum: ['OPEN', 'CLOSED', 'PENDING', 'IN_PROGRESS', 'COMPLETED'],
+    example: ProjectStatus.OPEN,
+    enum: ProjectStatus,
     required: false,
   })
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
 
   @ApiProperty({
     description: 'ID phòng ban',
@@ -60,42 +62,14 @@ export class CreateProjectDto {
   team_id?: number;
 
   @ApiProperty({
-    description: 'Loại hợp đồng',
-    example: 'FIXED_PRICE',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  contract_type?: string;
-
-  @ApiProperty({
     description: 'Loại dự án',
-    example: 'WEB_DEVELOPMENT',
+    example: ProjectType.INTERNAL,
+    enum: ProjectType,
     required: false,
   })
   @IsOptional()
-  @IsString()
-  project_type?: string;
-
-  @ApiProperty({
-    description: 'Tỷ lệ billable',
-    example: 0.8,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: 'Billable phải là số' })
-  billable?: number;
-
-  @ApiProperty({
-    description: 'Ngân sách dự án',
-    example: 100000,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({}, { message: 'Budget phải là số' })
-  budget?: number;
+  @IsEnum(ProjectType)
+  project_type?: ProjectType;
 
   @ApiProperty({
     description: 'Xếp hạng',
@@ -108,22 +82,14 @@ export class CreateProjectDto {
   rank?: number;
 
   @ApiProperty({
-    description: 'Loại khách hàng',
-    example: 'ENTERPRISE',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  customer_type?: string;
-
-  @ApiProperty({
     description: 'Ngành công nghiệp',
-    example: 'IT',
+    example: IndustryType.IT,
+    enum: IndustryType,
     required: false,
   })
   @IsOptional()
-  @IsString()
-  industry?: string;
+  @IsEnum(IndustryType)
+  industry?: IndustryType;
 
   @ApiProperty({
     description: 'Phạm vi dự án',
@@ -133,16 +99,6 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   scope?: string;
-
-  @ApiProperty({
-    description: 'Số quy trình áp dụng',
-    example: 5,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  number_process_apply?: number;
 
   @ApiProperty({
     description: 'Mô tả dự án',

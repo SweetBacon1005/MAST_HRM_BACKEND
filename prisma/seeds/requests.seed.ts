@@ -1,6 +1,6 @@
 import {
   DayOffDuration,
-  DayOffStatus,
+  ApprovalStatus,
   DayOffType,
   PrismaClient,
   RemoteType,
@@ -86,7 +86,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       title: 'Xin nghỉ phép năm',
       type: DayOffType.PAID,
       reason: 'Nghỉ phép năm',
-      status: DayOffStatus.PENDING,
+      status: ApprovalStatus.PENDING,
       is_past: false,
     },
     {
@@ -96,7 +96,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       title: 'Xin nghỉ lễ Giáng sinh (ngày 1)',
       type: DayOffType.PAID,
       reason: 'Nghỉ lễ Giáng sinh',
-      status: DayOffStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-08T14:00:00Z'),
       is_past: false,
@@ -108,7 +108,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       title: 'Xin nghỉ lễ Giáng sinh (ngày 2)',
       type: DayOffType.PAID,
       reason: 'Nghỉ lễ Giáng sinh',
-      status: DayOffStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-12-08T14:00:00Z'),
       is_past: false,
@@ -120,7 +120,7 @@ export async function seedRequests(prisma: PrismaClient, seedData: any) {
       title: 'Xin nghỉ buổi sáng để khám sức khỏe',
       type: DayOffType.UNPAID,
       reason: 'Khám sức khỏe định kỳ',
-      status: DayOffStatus.APPROVED,
+      status: ApprovalStatus.APPROVED,
       approved_by: users[1].id, // HR Manager
       approved_at: new Date('2024-11-10T11:00:00Z'),
       is_past: true,

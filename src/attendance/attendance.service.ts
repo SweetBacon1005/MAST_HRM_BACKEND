@@ -7,7 +7,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import {
-  DayOffStatus,
   DayOffType,
   RemoteType,
   ApprovalStatus,
@@ -495,7 +494,7 @@ export class AttendanceService {
     const conflictingLeave = await this.prisma.day_offs.findFirst({
       where: {
         user_id,
-        status: { in: [DayOffStatus.PENDING, DayOffStatus.APPROVED] },
+        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
         deleted_at: null,
         OR: [
           {
@@ -527,7 +526,7 @@ export class AttendanceService {
           work_date: startDateObj,
           duration: 'FULL_DAY', // Default to full day
           title: `Đơn nghỉ phép từ ${start_date} đến ${end_date}`,
-          status: DayOffStatus.PENDING,
+          status: ApprovalStatus.PENDING,
           type: leave_type as DayOffType,
           reason: `Nghỉ phép từ ${start_date} đến ${end_date}`,
           is_past: false,
@@ -989,7 +988,7 @@ export class AttendanceService {
         lte: new Date(endDate),
       },
       deleted_at: null,
-      status: DayOffStatus.APPROVED, // Đã duyệt
+      status: ApprovalStatus.APPROVED, // Đã duyệt
     };
 
     if (userIds.length > 0) {
