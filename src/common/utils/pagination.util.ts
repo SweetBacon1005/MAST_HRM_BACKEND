@@ -43,7 +43,7 @@ export function buildPaginationResponse<T>(
       current_page: page,
       per_page: limit,
       total,
-      total_pages: totalPages,
+      totalPages: totalPages,
       has_next_page: page < totalPages,
       has_prev_page: page > 1,
     },

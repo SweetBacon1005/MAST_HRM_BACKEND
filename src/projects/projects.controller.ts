@@ -20,9 +20,11 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpdateProjectProgressDto } from './dto/update-progress.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
 
 @ApiTags('projects')
@@ -56,7 +58,21 @@ export class ProjectsController {
   })
   findAll(@Query() paginationDto: ProjectPaginationDto) {
     return this.projectsService.findAll(paginationDto);
-  }  
+  }
+
+  @Get('my')
+  @RequirePermission('project.read')
+  @ApiOperation({ summary: 'Lấy danh sách dự án của user hiện tại' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách dự án thành công',
+  })
+  findMy(
+    @Query() paginationDto: ProjectPaginationDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return this.projectsService.findMyProjects(paginationDto, userId);
+  }
 
   @Get(':id/members')
   @RequirePermission('project.read')
@@ -84,6 +100,29 @@ export class ProjectsController {
   })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.findOne(id);
+  }
+
+  @Patch(':id/progress')
+  @RequirePermission('project.update')
+  @ApiOperation({ summary: 'Cập nhật tiến độ dự án (0-100)' })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật tiến độ thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Dữ liệu không hợp lệ',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy dự án',
+  })
+  updateProgress(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateProgressDto: UpdateProjectProgressDto,
+  ) {
+    return this.projectsService.updateProgress(id, updateProgressDto.progress);
   }
 
   @Patch(':id')

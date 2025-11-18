@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsArray } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { UserInformationStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class UsersPaginationDto extends PaginationDto {
@@ -23,4 +24,33 @@ export class UsersPaginationDto extends PaginationDto {
   @IsInt()
   position_id?: number;
 
+  @ApiProperty({
+    description: 'ID phòng ban',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  division_id?: number;
+
+  @ApiProperty({
+    description: 'ID vai trò',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  role_id?: number;
+
+  @ApiProperty({
+    description: 'Trạng thái người dùng',
+    example: 'ACTIVE',
+    enum: UserInformationStatus,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(UserInformationStatus)
+  status?: UserInformationStatus;
 }

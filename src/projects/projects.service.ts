@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ScopeType } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -23,7 +23,7 @@ export class ProjectsService {
   private async getProjectMemberCount(projectId: number): Promise<number> {
     return await this.prisma.user_role_assignment.count({
       where: {
-        scope_type: 'PROJECT',
+        scope_type: ScopeType.PROJECT,
         scope_id: projectId,
         deleted_at: null
       }
@@ -33,7 +33,7 @@ export class ProjectsService {
   private async getProjectMembersData(projectId: number) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        scope_type: 'PROJECT',
+        scope_type: ScopeType.PROJECT,
         scope_id: projectId,
         deleted_at: null
       },
@@ -53,7 +53,7 @@ export class ProjectsService {
 
     return assignments.map(assignment => ({
       id: assignment.user.id,
-      name: assignment.user.user_information?.[0]?.name || '',
+      name: assignment.user.user_information?.name || '',
       email: assignment.user.email,
       role: assignment.role?.name || ''
     }));
@@ -167,15 +167,31 @@ export class ProjectsService {
       this.prisma.projects.count({ where }),
     ]);
 
-    // Transform dates
-    const transformedData = await Promise.all(
-      data.map(async (project) => ({
-        ...project,
-        start_date: project.start_date.toISOString().split('T')[0],
-        end_date: project.end_date.toISOString().split('T')[0],
-        member_count: await this.getProjectMemberCount(project.id),
-      }))
+    const projectIds = data.map((p) => p.id);
+    const memberCounts =
+      projectIds.length > 0
+        ? await this.prisma.user_role_assignment.groupBy({
+            by: ['scope_id'],
+            where: {
+              scope_type: ScopeType.PROJECT,
+              scope_id: { in: projectIds },
+              deleted_at: null,
+            },
+            _count: {
+              user_id: true,
+            },
+          })
+        : [];
+    const memberCountMap = new Map(
+      memberCounts.map((mc) => [mc.scope_id, mc._count.user_id]),
     );
+
+    const transformedData = data.map((project) => ({
+      ...project,
+      start_date: project.start_date.toISOString().split('T')[0],
+      end_date: project.end_date.toISOString().split('T')[0],
+      member_count: memberCountMap.get(project.id) || 0,
+    }));
 
     return buildPaginationResponse(
       transformedData,
@@ -234,6 +250,30 @@ export class ProjectsService {
       }
     }
 
+    // Kiểm tra division nếu có thay đổi
+    if (updateProjectDto.division_id !== undefined) {
+      if (updateProjectDto.division_id !== null) {
+        const division = await this.prisma.divisions.findUnique({
+          where: { id: updateProjectDto.division_id, deleted_at: null },
+        });
+        if (!division) {
+          throw new NotFoundException('Phòng ban không tồn tại');
+        }
+      }
+    }
+
+    // Kiểm tra team nếu có thay đổi
+    if (updateProjectDto.team_id !== undefined) {
+      if (updateProjectDto.team_id !== null) {
+        const team = await this.prisma.teams.findUnique({
+          where: { id: updateProjectDto.team_id, deleted_at: null },
+        });
+        if (!team) {
+          throw new NotFoundException('Team không tồn tại');
+        }
+      }
+    }
+
     const { start_date, end_date, ...rest } = updateProjectDto;
     const updateData: any = { ...rest };
 
@@ -279,7 +319,7 @@ export class ProjectsService {
 
     const projectMembers = await this.prisma.user_role_assignment.updateMany({
       where: {
-        scope_type: 'PROJECT',
+        scope_type: ScopeType.PROJECT,
         scope_id: id,
         deleted_at: null
       },
@@ -303,9 +343,9 @@ export class ProjectsService {
       throw new NotFoundException('Không tìm thấy dự án');
     }
 
-    const members = await this.prisma.user_role_assignment.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        scope_type: 'PROJECT',
+        scope_type: ScopeType.PROJECT,
         scope_id: projectId,
         deleted_at: null
       },
@@ -317,33 +357,64 @@ export class ProjectsService {
             user_information: {
               select: {
                 name: true,
-                position: { select: { name: true } },
-                level: { select: { name: true } },
+                position: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true, coefficient: true } },
               },
             },
           },
         },
+        role: {
+          select: { id: true, name: true },
+        },
       },
     });
 
-    return members;
+    return assignments.map(assignment => ({
+      id: assignment.user.id,
+      email: assignment.user.email,
+      name: assignment.user.user_information?.name || '',
+      role: {
+        id: assignment.role?.id || null,
+        name: assignment.role?.name || '',
+      },
+      position: assignment.user.user_information?.position
+        ? {
+            id: assignment.user.user_information.position.id,
+            name: assignment.user.user_information.position.name,
+          }
+        : null,
+      level: assignment.user.user_information?.level
+        ? {
+            id: assignment.user.user_information.level.id,
+            name: assignment.user.user_information.level.name,
+            coefficient: assignment.user.user_information.level.coefficient,
+          }
+        : null,
+    }));
   }
   async findMyProjects(paginationDto: ProjectPaginationDto, userId: number) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const projectIds = await this.prisma.user_role_assignment.findMany({
+    const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: userId,
-        scope_type: 'PROJECT',
+        scope_type: ScopeType.PROJECT,
         deleted_at: null,
       },
       select: { scope_id: true },
     });
 
-    const ids = projectIds.map((p) => p.scope_id).filter((id): id is number => typeof id === 'number');
+    const ids = assignments
+      .map((p) => p.scope_id)
+      .filter((id): id is number => typeof id === 'number');
 
     if (!ids.length) {
-      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
     const where: Prisma.projectsWhereInput = {
@@ -376,14 +447,34 @@ export class ProjectsService {
       this.prisma.projects.count({ where }),
     ]);
 
-    const transformedData = await Promise.all(
-      data.map(async (project) => ({
-        ...project,
-        start_date: project.start_date.toISOString().split('T')[0],
-        end_date: project.end_date.toISOString().split('T')[0],
-        member_count: await this.getProjectMemberCount(project.id),
-      }))
+    // Lấy member count cho tất cả projects trong 1 query
+    const dataProjectIds = data.map((p) => p.id);
+    const memberCounts =
+      dataProjectIds.length > 0
+        ? await this.prisma.user_role_assignment.groupBy({
+            by: ['scope_id'],
+            where: {
+              scope_type: ScopeType.PROJECT,
+              scope_id: { in: dataProjectIds },
+              deleted_at: null,
+            },
+            _count: {
+              user_id: true,
+            },
+          })
+        : [];
+    const memberCountMap = new Map(
+      memberCounts
+        .filter((mc) => mc.scope_id !== null)
+        .map((mc) => [mc.scope_id!, mc._count.user_id]),
     );
+
+    const transformedData = data.map((project) => ({
+      ...project,
+      start_date: project.start_date.toISOString().split('T')[0],
+      end_date: project.end_date.toISOString().split('T')[0],
+      member_count: memberCountMap.get(project.id) || 0,
+    }));
 
     return buildPaginationResponse(
       transformedData,
@@ -399,7 +490,7 @@ export class ProjectsService {
     });
 
     if (!project) {
-      throw new NotFoundException('Kh�ng t�m th?y d? �n');
+      throw new NotFoundException('Kh�ng t�m th?y d? �n');
     }
 
     // Prisma model has Float? progress; store 0-1 or 0-100? Seeds/readme mention Float?

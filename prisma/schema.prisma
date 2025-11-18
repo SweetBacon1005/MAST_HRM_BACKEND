@@ -659,7 +659,6 @@ model user_role_assignment {
     role        roles     @relation(fields: [role_id], references: [id])
     assigner    users     @relation("UserRoleAssigner", fields: [assigned_by], references: [id])
 
-    @@unique([user_id, role_id, scope_type, scope_id], name: "unique_user_role_scope")
     @@index([user_id])
     @@index([role_id])
     @@index([scope_type, scope_id])
@@ -914,7 +913,6 @@ model user_notifications {
     updated_at      DateTime      @updatedAt
     deleted_at      DateTime?     @db.DateTime()
 
-    @@unique([notification_id, user_id])
     @@index([user_id])
     @@index([notification_id])
     @@index([is_read])

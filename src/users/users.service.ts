@@ -112,6 +112,10 @@ export class UsersService {
       ];
     }
 
+    if (paginationDto.status) {
+      where.status = paginationDto.status;
+    }
+
     const userInfoFilters: Prisma.user_informationWhereInput = {};
     if (paginationDto.position_id) {
       userInfoFilters.position = {
@@ -123,6 +127,34 @@ export class UsersService {
       where.user_information = {
         ...userInfoFilters,
       };
+    }
+
+    if (paginationDto.role_id) {
+      where.user_role_assignments = {
+        some: {
+          role_id: paginationDto.role_id,
+          deleted_at: null,
+        },
+      };
+    }
+
+    let userIdsForDivisionFilter: number[] | undefined;
+    if (paginationDto.division_id) {
+      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: paginationDto.division_id,
+          deleted_at: null,
+        },
+        select: { user_id: true },
+      });
+      userIdsForDivisionFilter = divisionAssignments.map((a) => a.user_id);
+      
+      if (userIdsForDivisionFilter.length === 0) {
+        return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      }
+      
+      where.id = { in: userIdsForDivisionFilter };
     }
 
     const [data, total] = await Promise.all([
@@ -151,14 +183,12 @@ export class UsersService {
               scope_type: true,
             },
           },
-          // user_division đã bị xóa, sử dụng user_role_assignment thay thế
         },
       }),
       this.prisma.users.count({ where }),
     ]);
 
 
-    // Lấy division và team info từ user_role_assignment
     const userIds = data.map((u) => u.id);
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
@@ -308,7 +338,6 @@ export class UsersService {
 
     const roleAssignments = await this.roleAssignmentService.getUserRoles(id);
 
-    // Format response giống như user_division cũ
     return {
       ...user,
       user_division: division

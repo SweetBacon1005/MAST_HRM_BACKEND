@@ -15,11 +15,10 @@ import { TimesheetModule } from './timesheet/timesheet.module';
 import { UserProfileModule } from './user-profile/user-profile.module';
 import { UsersModule } from './users/users.module';
 
-// import { DailyReportsModule } from './daily-reports/daily-reports.module';
-import { APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { DailyReportsModule } from './daily-reports/daily-reports.module';
+import { APP_INTERCEPTOR, Reflector } from '@nestjs/core';
 import { AssetsModule } from './assets/assets.module';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
 import { PermissionModule } from './auth/permission.module';
 import { CommonModule } from './common/common.module';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
@@ -51,7 +50,7 @@ import { UploadModule } from './upload/upload.module';
     DivisionModule,
     ProjectsModule,
     ReportsModule,
-    // DailyReportsModule,
+    DailyReportsModule,
     UploadModule,
     AssetsModule,
     NewsModule,

@@ -61,7 +61,7 @@ export class PaginationResponseDto<T> {
     current_page: number;
     per_page: number;
     total: number;
-    total_pages: number;
+    totalPages: number;
     has_next_page: boolean;
     has_prev_page: boolean;
   };
@@ -72,7 +72,7 @@ export class PaginationResponseDto<T> {
       current_page: page,
       per_page: limit,
       total,
-      total_pages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit),
       has_next_page: page < Math.ceil(total / limit),
       has_prev_page: page > 1,
     };

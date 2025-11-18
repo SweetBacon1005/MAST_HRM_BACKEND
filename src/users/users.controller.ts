@@ -1,30 +1,30 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  UseGuards,
-  Query,
+  Get,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UsersPaginationDto } from './dto/pagination-queries.dto';
+import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { RequirePermission } from '../auth/decorators/require-permission.decorator';
-import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UsersPaginationDto } from './dto/pagination-queries.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersService } from './users.service';
 
 @ApiTags('users')
 @Controller('users')
@@ -44,7 +44,10 @@ export class UsersController {
     status: 400,
     description: 'Dữ liệu không hợp lệ',
   })
-  create(@Body() createUserDto: CreateUserDto, @GetCurrentUser('id') assignedBy: number) {
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @GetCurrentUser('id') assignedBy: number,
+  ) {
     return this.usersService.create(createUserDto, assignedBy);
   }
 
@@ -70,8 +73,11 @@ export class UsersController {
     status: 404,
     description: 'User không tồn tại',
   })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findById(id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const user = await this.usersService.findById(id);
+    const { password, ...safeUser } = user;
+
+    return safeUser;
   }
 
   @Patch(':id')

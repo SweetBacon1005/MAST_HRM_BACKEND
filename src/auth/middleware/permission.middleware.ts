@@ -77,7 +77,6 @@ export class SpecificPermissionMiddleware implements NestMiddleware {
     );
 
     try {
-      // Kiểm tra permissions cụ thể nếu có
       if (this.requiredPermissions.length > 0) {
         const hasRequiredPermission =
           await this.permissionService.hasAnyPermission(

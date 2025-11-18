@@ -64,8 +64,22 @@ export class RoleAssignmentService {
     );
 
     if (existingAssignment) {
-      throw new ConflictException('User đã có role này trong context này');
+      throw new ConflictException(
+        `User đã có role này trong scope ${data.scope_type} này`,
+      );
     }
+
+    const updateAssignments = await this.prisma.user_role_assignment.updateMany(
+      {
+        where: {
+          user_id: data.user_id,
+          scope_id: data.scope_id,
+          scope_type: data.scope_type,
+          deleted_at: null,
+        },
+        data: { deleted_at: new Date() },
+      },
+    );
 
     const newAssignment = await this.prisma.user_role_assignment.create({
       data: {
@@ -87,16 +101,6 @@ export class RoleAssignmentService {
           },
         },
       },
-    });
-
-    await this.prisma.user_role_assignment.updateMany({
-      where: {
-        user_id: data.user_id,
-        scope_id: newAssignment.scope_id,
-        scope_type: newAssignment.scope_type,
-        deleted_at: { not: null },
-      },
-      data: { deleted_at: null },
     });
 
     await this.logRoleChange(
