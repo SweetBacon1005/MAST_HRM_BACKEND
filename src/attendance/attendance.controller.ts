@@ -154,7 +154,7 @@ export class AttendanceController {
     @Param(
       'id',
       new ParseIntPipe({
-        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
         exceptionFactory: () =>
           new Error('ID ca làm việc phải là số nguyên dương'),
       }),
@@ -189,7 +189,7 @@ export class AttendanceController {
       new DefaultValuePipe(new Date().getFullYear()),
       new ParseIntPipe({
         optional: true,
-        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
         exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
       }),
     )
@@ -234,7 +234,7 @@ export class AttendanceController {
     @Param(
       'user_id',
       new ParseIntPipe({
-        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
         exceptionFactory: () =>
           new Error('ID người dùng phải là số nguyên dương'),
       }),
@@ -243,7 +243,7 @@ export class AttendanceController {
     @Param(
       'year',
       new ParseIntPipe({
-        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
+        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
         exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
       }),
     )
