@@ -382,14 +382,14 @@ function calculateWorkHours(checkin: Date, checkout: Date, shift: WorkShift) {
 ```typescript
 function calculateLateness(checkin: Date, shift: WorkShift) {
   const shiftStart = new Date(shift.start_time);
-  const lateMinutes = Math.max(
+  const late_minutes = Math.max(
     0,
     (checkin.getTime() - shiftStart.getTime()) / (1000 * 60),
   );
 
   return {
-    late_minutes: lateMinutes,
-    late_penalty: calculateLatePenalty(lateMinutes),
+    late_minutes: late_minutes,
+    late_penalty: calculateLatePenalty(late_minutes),
   };
 }
 ```
@@ -440,7 +440,7 @@ function calculateLateness(checkin: Date, shift: WorkShift) {
 
 ### Leave Management
 
-- `GET /attendance/leave-balance/:userId` - Xem leave balance
+- `GET /attendance/leave-balance/:user_id` - Xem leave balance
 - `POST /attendance/remote-work-requests` - Tạo đơn remote work
 - `PUT /attendance/remote-work-requests/:id/approve` - Duyệt remote work
 

@@ -123,16 +123,16 @@ export class RoleAssignmentService {
   }
 
   async revokeRole(
-    userId: number,
-    roleId: number,
+    user_id: number,
+    role_id: number,
     scopeType: ScopeType,
     revokedBy: number,
     scopeId?: number,
   ) {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
-        user_id: userId,
-        role_id: roleId,
+        user_id: user_id,
+        role_id: role_id,
         scope_type: scopeType,
         scope_id: scopeId,
         deleted_at: { not: null },
@@ -154,10 +154,10 @@ export class RoleAssignmentService {
     return newAssignment;
   }
 
-  async getUserRoles(userId: number): Promise<UserRoleContext> {
+  async getUserRoles(user_id: number): Promise<UserRoleContext> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         deleted_at: null,
       },
       include: {
@@ -167,7 +167,7 @@ export class RoleAssignmentService {
     });
 
     return {
-      user_id: userId,
+      user_id: user_id,
       roles: assignments.map((assignment) => ({
         id: assignment.role.id,
         name: assignment.role.name,
@@ -178,13 +178,13 @@ export class RoleAssignmentService {
   }
 
   async getUserRolesByScope(
-    userId: number,
+    user_id: number,
     scopeType: ScopeType,
     scopeId?: number,
   ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: scopeType,
         scope_id: scopeId,
         deleted_at: null,
@@ -203,13 +203,13 @@ export class RoleAssignmentService {
   }
 
   async getUserPrimaryRole(
-    userId: number,
+    user_id: number,
     scopeType: ScopeType,
     scopeId?: number,
   ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: scopeType,
         scope_id: scopeId,
         deleted_at: null,
@@ -238,14 +238,14 @@ export class RoleAssignmentService {
   }
 
   async hasRole(
-    userId: number,
+    user_id: number,
     roleName: string,
     scopeType: ScopeType,
     scopeId?: number,
   ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: scopeType,
         scope_id: scopeId,
         deleted_at: null,
@@ -260,14 +260,14 @@ export class RoleAssignmentService {
   }
 
   async hasAnyRole(
-    userId: number,
+    user_id: number,
     roleNames: string[],
     scopeType: ScopeType,
     scopeId?: number,
   ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: scopeType,
         scope_id: scopeId,
         deleted_at: null,
@@ -395,12 +395,12 @@ export class RoleAssignmentService {
   }
 
   async getRoleHierarchy(
-    userId: number,
+    user_id: number,
     scopeType: ScopeType,
     scopeId?: number,
   ) {
     const userRoles = await this.getUserRolesByScope(
-      userId,
+      user_id,
       scopeType,
       scopeId,
     );
@@ -420,7 +420,7 @@ export class RoleAssignmentService {
     );
 
     return {
-      user_id: userId,
+      user_id: user_id,
       max_role_level: maxLevel,
       roles: userRoles,
       inherited_permissions: this.getInheritedPermissions(
@@ -444,7 +444,7 @@ export class RoleAssignmentService {
    */
   async assignProjectManager(
     projectId: number,
-    newUserId: number,
+    newuser_id: number,
     assignedBy: number,
   ) {
     return await this.prisma.$transaction(async (tx) => {
@@ -496,7 +496,7 @@ export class RoleAssignmentService {
       // 4. Gán PM mới
       const newAssignment = await tx.user_role_assignment.create({
         data: {
-          user_id: newUserId,
+          user_id: newuser_id,
           role_id: pmRole.id,
           scope_type: ScopeType.PROJECT,
           scope_id: projectId,
@@ -519,7 +519,7 @@ export class RoleAssignmentService {
       // 5. Ghi log
       await this.logRoleChange(
         tx,
-        newUserId,
+        newuser_id,
         'role.assigned',
         `Gán PM cho project ${projectId}`,
         assignedBy,
@@ -548,14 +548,14 @@ export class RoleAssignmentService {
    */
   async demoteProjectManager(
     projectId: number,
-    userId: number,
+    user_id: number,
     demotedBy: number,
   ) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Tìm và xóa role PM trong project
       const pmAssignment = await tx.user_role_assignment.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: ScopeType.PROJECT,
           scope_id: projectId,
           role: {
@@ -579,7 +579,7 @@ export class RoleAssignmentService {
       // 2. Kiểm tra user còn role nào khác không
       const remainingRoles = await tx.user_role_assignment.findMany({
         where: {
-          user_id: userId,
+          user_id: user_id,
           deleted_at: null,
         },
         include: {
@@ -598,7 +598,7 @@ export class RoleAssignmentService {
         if (employeeRole) {
           autoAssignedEmployee = await tx.user_role_assignment.create({
             data: {
-              user_id: userId,
+              user_id: user_id,
               role_id: employeeRole.id,
               scope_type: ScopeType.COMPANY,
               assigned_by: demotedBy,
@@ -610,7 +610,7 @@ export class RoleAssignmentService {
       // 4. Ghi log
       await this.logRoleChange(
         tx,
-        userId,
+        user_id,
         'role.revoked',
         `Giáng chức PM khỏi project ${projectId}`,
         demotedBy,
@@ -630,33 +630,33 @@ export class RoleAssignmentService {
   }
 
   async assignRoleUnified(
-    targetUserIds: number[],
-    roleId: number,
+    targetuser_ids: number[],
+    role_id: number,
     assignedBy: number,
     context?: {
       projectId?: number;
-      teamId?: number;
-      divisionId?: number;
+      team_id?: number;
+      division_id?: number;
     },
   ) {
     const results: any[] = [];
 
-    for (const userId of targetUserIds) {
+    for (const user_id of targetuser_ids) {
       try {
         const result = await this.assignRoleToUser(
-          userId,
-          roleId,
+          user_id,
+          role_id,
           assignedBy,
           context,
         );
         results.push({
-          userId,
+          user_id,
           success: true,
           ...result,
         });
       } catch (error: any) {
         results.push({
-          userId,
+          user_id,
           success: false,
           error: error.message,
         });
@@ -666,7 +666,7 @@ export class RoleAssignmentService {
     return {
       results,
       summary: {
-        total: targetUserIds.length,
+        total: targetuser_ids.length,
         successful: results.filter((r) => r.success).length,
         failed: results.filter((r) => !r.success).length,
       },
@@ -674,17 +674,17 @@ export class RoleAssignmentService {
   }
 
   private async assignRoleToUser(
-    userId: number,
-    roleId: number,
+    user_id: number,
+    role_id: number,
     assignedBy: number,
     context?: {
       projectId?: number;
-      teamId?: number;
-      divisionId?: number;
+      team_id?: number;
+      division_id?: number;
     },
   ) {
     const role = await this.prisma.roles.findFirst({
-      where: { id: roleId, deleted_at: null },
+      where: { id: role_id, deleted_at: null },
     });
 
     if (!role) {
@@ -700,33 +700,33 @@ export class RoleAssignmentService {
         }
         return await this.assignProjectManager(
           context.projectId,
-          userId,
+          user_id,
           assignedBy,
         );
 
       case 'team_leader':
-        if (!context?.teamId) {
-          throw new BadRequestException('Role team_leader yêu cầu teamId');
+        if (!context?.team_id) {
+          throw new BadRequestException('Role team_leader yêu cầu team_id');
         }
-        return await this.assignTeamLeader(context.teamId, userId, assignedBy);
+        return await this.assignTeamLeader(context.team_id, user_id, assignedBy);
 
       case 'division_head':
-        if (!context?.divisionId) {
+        if (!context?.division_id) {
           throw new BadRequestException(
-            'Role division_head yêu cầu divisionId',
+            'Role division_head yêu cầu division_id',
           );
         }
         return await this.assignDivisionHead(
-          context.divisionId,
-          userId,
+          context.division_id,
+          user_id,
           assignedBy,
         );
 
       default:
         // Gán role thông thường
         return await this.assignGeneralRole(
-          userId,
-          roleId,
+          user_id,
+          role_id,
           assignedBy,
           context,
         );
@@ -737,8 +737,8 @@ export class RoleAssignmentService {
    * Gán Team Leader
    */
   private async assignTeamLeader(
-    teamId: number,
-    newUserId: number,
+    team_id: number,
+    newuser_id: number,
     assignedBy: number,
   ) {
     return await this.prisma.$transaction(async (tx) => {
@@ -746,7 +746,7 @@ export class RoleAssignmentService {
       const currentLeader = await tx.user_role_assignment.findFirst({
         where: {
           scope_type: ScopeType.TEAM,
-          scope_id: teamId,
+          scope_id: team_id,
           role: {
             name: 'team_leader',
             deleted_at: null,
@@ -786,10 +786,10 @@ export class RoleAssignmentService {
 
       const newAssignment = await tx.user_role_assignment.create({
         data: {
-          user_id: newUserId,
+          user_id: newuser_id,
           role_id: teamLeaderRole.id,
           scope_type: ScopeType.TEAM,
-          scope_id: teamId,
+          scope_id: team_id,
           assigned_by: assignedBy,
         },
         include: {
@@ -807,12 +807,12 @@ export class RoleAssignmentService {
       // Ghi log
       await this.logRoleChange(
         tx,
-        newUserId,
+        newuser_id,
         'role.assigned',
-        `Gán Team Leader cho team ${teamId}`,
+        `Gán Team Leader cho team ${team_id}`,
         assignedBy,
         {
-          team_id: teamId,
+          team_id: team_id,
           new_role: 'team_leader',
           replaced_user: replacedUser
             ? {
@@ -832,8 +832,8 @@ export class RoleAssignmentService {
    * Gán Division Head
    */
   private async assignDivisionHead(
-    divisionId: number,
-    newUserId: number,
+    division_id: number,
+    newuser_id: number,
     assignedBy: number,
   ) {
     return await this.prisma.$transaction(async (tx) => {
@@ -841,7 +841,7 @@ export class RoleAssignmentService {
       const currentHead = await tx.user_role_assignment.findFirst({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           role: {
             name: 'division_head',
             deleted_at: null,
@@ -881,10 +881,10 @@ export class RoleAssignmentService {
 
       const newAssignment = await tx.user_role_assignment.create({
         data: {
-          user_id: newUserId,
+          user_id: newuser_id,
           role_id: divisionHeadRole.id,
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           assigned_by: assignedBy,
         },
         include: {
@@ -902,12 +902,12 @@ export class RoleAssignmentService {
       // Ghi log
       await this.logRoleChange(
         tx,
-        newUserId,
+        newuser_id,
         'role.assigned',
-        `Gán Division Head cho division ${divisionId}`,
+        `Gán Division Head cho division ${division_id}`,
         assignedBy,
         {
-          division_id: divisionId,
+          division_id: division_id,
           new_role: 'division_head',
           replaced_user: replacedUser
             ? {
@@ -927,13 +927,13 @@ export class RoleAssignmentService {
    * Gán role thông thường (employee, etc.)
    */
   private async assignGeneralRole(
-    userId: number,
-    roleId: number,
+    user_id: number,
+    role_id: number,
     assignedBy: number,
     context?: {
       projectId?: number;
-      teamId?: number;
-      divisionId?: number;
+      team_id?: number;
+      division_id?: number;
     },
   ) {
     // Xác định scope
@@ -943,17 +943,17 @@ export class RoleAssignmentService {
     if (context?.projectId) {
       scopeType = ScopeType.PROJECT;
       scopeId = context.projectId;
-    } else if (context?.teamId) {
+    } else if (context?.team_id) {
       scopeType = ScopeType.TEAM;
-      scopeId = context.teamId;
-    } else if (context?.divisionId) {
+      scopeId = context.team_id;
+    } else if (context?.division_id) {
       scopeType = ScopeType.DIVISION;
-      scopeId = context.divisionId;
+      scopeId = context.division_id;
     }
 
     return await this.assignRole({
-      user_id: userId,
-      role_id: roleId,
+      user_id: user_id,
+      role_id: role_id,
       scope_type: scopeType,
       scope_id: scopeId,
       assigned_by: assignedBy,
@@ -962,19 +962,19 @@ export class RoleAssignmentService {
 
   private async logRoleChange(
     tx: any,
-    userId: number,
+    user_id: number,
     event: string,
     description: string,
-    causerId: number,
+    causer_id: number,
     properties: any,
   ) {
     const activityLogData: Prisma.activity_logCreateInput = {
       log_name: 'role_change',
       subject: {
-        connect: { id: userId },
+        connect: { id: user_id },
       },
       causer: {
-        connect: { id: causerId },
+        connect: { id: causer_id },
       },
       subject_type: 'users',
       causer_type: 'users',

@@ -58,14 +58,14 @@ export class NewsService {
     return cleanContent;
   }
 
-  async create(createNewsDto: CreateNewsDto, authorId: number) {
+  async create(createNewsDto: CreateNewsDto, author_id: number) {
     const sanitizedContent = this.sanitizeHtmlContent(createNewsDto.content);
 
     const news = await this.prisma.news.create({
       data: {
         ...createNewsDto,
         content: sanitizedContent,
-        author_id: authorId,
+        author_id: author_id,
         status: NewsStatus.DRAFT,
       },
     });
@@ -74,7 +74,7 @@ export class NewsService {
     await this.activityLogService.logNewsOperation(
       'created',
       news.id,
-      authorId,
+      author_id,
       news.title,
       { status: news.status }
     );
@@ -87,10 +87,10 @@ export class NewsService {
       page = 1,
       limit = 10,
       status,
-      authorId,
+      author_id,
       search,
-      sortBy = 'created_at',
-      sortOrder = 'desc',
+      sort_by = 'created_at',
+      sort_order = 'desc',
     } = paginationDto;
 
     const skip = (page - 1) * limit;
@@ -103,8 +103,8 @@ export class NewsService {
       whereConditions.status = status;
     }
 
-    if (authorId) {
-      whereConditions.author_id = authorId;
+    if (author_id) {
+      whereConditions.author_id = author_id;
     }
 
     if (search) {
@@ -115,12 +115,12 @@ export class NewsService {
     }
 
     const orderBy: Prisma.newsOrderByWithRelationInput = {};
-    if (sortBy === 'title') {
-      orderBy.title = sortOrder;
-    } else if (sortBy === 'updated_at') {
-      orderBy.updated_at = sortOrder;
+    if (sort_by === 'title') {
+      orderBy.title = sort_order;
+    } else if (sort_by === 'updated_at') {
+      orderBy.updated_at = sort_order;
     } else {
-      orderBy.created_at = sortOrder;
+      orderBy.created_at = sort_order;
     }
 
     const [news, total] = await Promise.all([
@@ -162,7 +162,7 @@ export class NewsService {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        total_pages: Math.ceil(total / limit),
       },
     };
   }
@@ -211,7 +211,7 @@ export class NewsService {
     };
   }
 
-  async update(id: number, updateNewsDto: UpdateNewsDto, userId: number) {
+  async update(id: number, updateNewsDto: UpdateNewsDto, user_id: number) {
     const existingNews = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
     });
@@ -220,7 +220,7 @@ export class NewsService {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
     }
 
-    if (existingNews.author_id !== userId) {
+    if (existingNews.author_id !== user_id) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_UPDATE);
     }
 
@@ -247,7 +247,7 @@ export class NewsService {
     await this.activityLogService.logNewsOperation(
       'updated',
       updatedNews.id,
-      userId,
+      user_id,
       updatedNews.title,
       { 
         previous_status: existingNews.status,
@@ -259,7 +259,7 @@ export class NewsService {
     return updatedNews;
   }
 
-  async submitForReview(id: number, userId: number) {
+  async submitForReview(id: number, user_id: number) {
     const existingNews = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
     });
@@ -268,7 +268,7 @@ export class NewsService {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
     }
 
-    if (existingNews.author_id !== userId) {
+    if (existingNews.author_id !== user_id) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_SUBMIT);
     }
 
@@ -292,7 +292,7 @@ export class NewsService {
     await this.activityLogService.logNewsOperation(
       'submitted',
       updatedNews.id,
-      userId,
+      user_id,
       updatedNews.title,
       { 
         previous_status: existingNews.status,
@@ -362,7 +362,7 @@ export class NewsService {
     return updatedNews;
   }
 
-  async remove(id: number, userId: number, role: string) {
+  async remove(id: number, user_id: number, role: string) {
     const existingNews = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
     });
@@ -372,7 +372,7 @@ export class NewsService {
     }
 
     if (
-      existingNews.author_id !== userId ||
+      existingNews.author_id !== user_id ||
       (role !== ROLE_NAMES.ADMIN)
     ) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_DELETE);
@@ -410,7 +410,7 @@ export class NewsService {
     await this.activityLogService.logNewsOperation(
       'deleted',
       id,
-      userId,
+      user_id,
       existingNews.title,
       { 
         status: existingNews.status,

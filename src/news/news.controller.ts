@@ -43,8 +43,8 @@ export class NewsController {
   @ApiOperation({ summary: 'Tạo tin tức mới' })
   @ApiResponse({ status: 201, description: 'Tạo tin tức thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  async create(@Body() createNewsDto: CreateNewsDto, @GetCurrentUser('id') authorId: number) {
-    return this.newsService.create(createNewsDto, authorId);
+  async create(@Body() createNewsDto: CreateNewsDto, @GetCurrentUser('id') author_id: number) {
+    return this.newsService.create(createNewsDto, author_id);
   }
 
   @Get()
@@ -79,9 +79,9 @@ export class NewsController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateNewsDto: UpdateNewsDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.newsService.update(id, updateNewsDto, userId);
+    return this.newsService.update(id, updateNewsDto, user_id);
   }
 
   @Delete(':id')
@@ -91,8 +91,8 @@ export class NewsController {
   @ApiResponse({ status: 200, description: 'Xóa tin tức thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền xóa tin tức này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
-  async remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') userId: number, @GetCurrentUser('role') role: string) {
-    return this.newsService.remove(id, userId, role);
+  async remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number, @GetCurrentUser('role') role: string) {
+    return this.newsService.remove(id, user_id, role);
   }
 
 
@@ -104,8 +104,8 @@ export class NewsController {
   @ApiResponse({ status: 400, description: 'Tin tức không ở trạng thái DRAFT/REJECTED' })
   @ApiResponse({ status: 403, description: 'Không có quyền gửi tin tức này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
-  async submitForReview(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') userId: number) {
-    return this.newsService.submitForReview(id, userId);
+  async submitForReview(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number) {
+    return this.newsService.submitForReview(id, user_id);
   }
 
   @Patch(':id/review')

@@ -75,8 +75,8 @@ export class DivisionController {
     status: 404,
     description: 'Phòng ban cha không tồn tại',
   })
-  create(@Body() createDivisionDto: CreateDivisionDto, @GetCurrentUser('id') currentUserId: number) {
-    createDivisionDto.creator_id = currentUserId;
+  create(@Body() createDivisionDto: CreateDivisionDto, @GetCurrentUser('id') currentuser_id: number) {
+    createDivisionDto.creator_id = currentuser_id;
     return this.divisionService.create(createDivisionDto);
   }
 
@@ -119,18 +119,18 @@ export class DivisionController {
   })
   findAllRotationMembers(
     @Query() paginationDto: RotationMemberPaginationDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     // Nếu là division_head: ép division_id theo division hiện tại của user
     if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
       return this.divisionService
-        .findOneUserDivision(currentUserId)
+        .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const currentdivision_id = (userDivision as any)?.data?.division?.id;
           const effectiveDto = { ...paginationDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.division_id = currentDivisionId;
+          if (typeof currentdivision_id === 'number') {
+            effectiveDto.division_id = currentdivision_id;
           }
           return this.divisionService.findAllRotationMembers(effectiveDto);
         });
@@ -173,10 +173,10 @@ export class DivisionController {
           type: 'object',
           properties: {
             id: { type: 'number', example: 1 },
-            userId: { type: 'number', example: 5 },
-            divisionId: { type: 'number', example: 2 },
+            user_id: { type: 'number', example: 5 },
+            division_id: { type: 'number', example: 2 },
             role_id: { type: 'number', example: 3 },
-            teamId: { type: 'number', example: 1 },
+            team_id: { type: 'number', example: 1 },
             description: {
               type: 'string',
               example: 'Developer chính của team',
@@ -233,17 +233,17 @@ export class DivisionController {
   })
   createUserDivision(
     @Body() createUserDivisionDto: CreateUserDivisionDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
       return this.divisionService
-        .findOneUserDivision(currentUserId)
+        .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const currentdivision_id = (userDivision as any)?.data?.division?.id;
           const effectiveDto = { ...createUserDivisionDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.divisionId = currentDivisionId;
+          if (typeof currentdivision_id === 'number') {
+            effectiveDto.division_id = currentdivision_id;
           }
           return this.divisionService.createUserDivision(effectiveDto);
         });
@@ -268,10 +268,10 @@ export class DivisionController {
             type: 'object',
             properties: {
               id: { type: 'number', example: 1 },
-              userId: { type: 'number', example: 5 },
-              divisionId: { type: 'number', example: 2 },
+              user_id: { type: 'number', example: 5 },
+              division_id: { type: 'number', example: 2 },
               role_id: { type: 'number', example: 3 },
-              teamId: { type: 'number', example: 1 },
+              team_id: { type: 'number', example: 1 },
               description: {
                 type: 'string',
                 example: 'Developer chính của team',
@@ -322,7 +322,7 @@ export class DivisionController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },
@@ -330,17 +330,17 @@ export class DivisionController {
   })
   findAllUserDivisions(
     @Query() paginationDto: UserDivisionPaginationDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
       return this.divisionService
-        .findOneUserDivision(currentUserId)
+        .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const currentdivision_id = (userDivision as any)?.data?.division?.id;
           const effectiveDto = { ...paginationDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.divisionId = currentDivisionId;
+          if (typeof currentdivision_id === 'number') {
+            effectiveDto.division_id = currentdivision_id;
           }
           return this.divisionService.findAllUserDivisions(effectiveDto);
         });
@@ -451,7 +451,7 @@ export class DivisionController {
               example: 10,
               description: 'Số bản ghi trên mỗi trang',
             },
-            totalPages: {
+            total_pages: {
               type: 'number',
               example: 3,
               description: 'Tổng số trang',
@@ -465,10 +465,10 @@ export class DivisionController {
     return this.divisionService.getUnassignedUsers(paginationDto);
   }
 
-  @Get('user-assignments/:userId')
+  @Get('user-assignments/:user_id')
   @RequirePermission('division.assignment.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết user division' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
+  @ApiParam({ name: 'user_id', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Lấy thông tin user division thành công',
@@ -477,14 +477,14 @@ export class DivisionController {
     status: 404,
     description: 'Không tìm thấy user division',
   })
-  findOneUserDivision(@Param('userId', ParseIntPipe) userId: number) {
-    return this.divisionService.findOneUserDivision(userId);
+  findOneUserDivision(@Param('user_id', ParseIntPipe) user_id: number) {
+    return this.divisionService.findOneUserDivision(user_id);
   }
 
-  @Patch('user-assignments/:userId')
+  @Patch('user-assignments/:user_id')
   @RequirePermission('division.assignment.update')
   @ApiOperation({ summary: 'Cập nhật user division assignment' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
+  @ApiParam({ name: 'user_id', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Cập nhật assignment thành công',
@@ -498,19 +498,19 @@ export class DivisionController {
     description: 'Không tìm thấy assignment, role hoặc team',
   })
   updateUserDivision(
-    @Param('userId', ParseIntPipe) userId: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
     @Body() updateUserDivisionDto: UpdateUserDivisionDto,
   ) {
     return this.divisionService.updateUserDivision(
-      userId,
+      user_id,
       updateUserDivisionDto,
     );
   }
 
-  @Delete('user-assignments/:userId')
+  @Delete('user-assignments/:user_id')
   @RequirePermission('division.assignment.delete')
   @ApiOperation({ summary: 'Xóa user khỏi division' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
+  @ApiParam({ name: 'user_id', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Xóa user khỏi division thành công',
@@ -519,8 +519,8 @@ export class DivisionController {
     status: 404,
     description: 'Không tìm thấy user division',
   })
-  removeUserDivision(@Param('userId', ParseIntPipe) userId: number, @GetCurrentUser('id') currentUserId: number, @GetCurrentUser('roles') roles: string[]) {
-    return this.divisionService.removeUserDivision(userId, currentUserId, roles);
+  removeUserDivision(@Param('user_id', ParseIntPipe) user_id: number, @GetCurrentUser('id') currentuser_id: number, @GetCurrentUser('roles') roles: string[]) {
+    return this.divisionService.removeUserDivision(user_id, currentuser_id, roles);
   }
 
   @Get('teams')
@@ -579,7 +579,7 @@ export class DivisionController {
             total: { type: 'number' },
             page: { type: 'number' },
             limit: { type: 'number' },
-            totalPages: { type: 'number' },
+            total_pages: { type: 'number' },
           },
         },
       },
@@ -587,17 +587,17 @@ export class DivisionController {
   })
   findAllTeams(
     @Query() paginationDto: TeamPaginationDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
       return this.divisionService
-        .findOneUserDivision(currentUserId)
+        .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
-          const currentDivisionId = (userDivision as any)?.data?.division?.id;
+          const currentdivision_id = (userDivision as any)?.data?.division?.id;
           const effectiveDto = { ...paginationDto };
-          if (typeof currentDivisionId === 'number') {
-            effectiveDto.divisionId = currentDivisionId;
+          if (typeof currentdivision_id === 'number') {
+            effectiveDto.division_id = currentdivision_id;
           }
           return this.divisionService.findAllTeams(effectiveDto);
         });
@@ -675,7 +675,7 @@ export class DivisionController {
             total: { type: 'number', description: 'Tổng số bản ghi' },
             page: { type: 'number', description: 'Trang hiện tại' },
             limit: { type: 'number', description: 'Số bản ghi trên mỗi trang' },
-            totalPages: { type: 'number', description: 'Tổng số trang' },
+            total_pages: { type: 'number', description: 'Tổng số trang' },
           },
         },
       },
@@ -684,11 +684,11 @@ export class DivisionController {
   getDivisionMembers(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: DivisionMembersQueryDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     queryDto.roles = roles;
-    queryDto.currentUserId = currentUserId;
+    queryDto.current_user_id = currentuser_id;
     return this.divisionService.getDivisionMembers(id, queryDto);
   }
 
@@ -1012,10 +1012,10 @@ export class DivisionController {
             type: 'object',
             properties: {
               id: { type: 'number', example: 1 },
-              userId: { type: 'number', example: 5 },
-              divisionId: { type: 'number', example: 2 },
+              user_id: { type: 'number', example: 5 },
+              division_id: { type: 'number', example: 2 },
               role_id: { type: 'number', example: 3 },
-              teamId: { type: 'number', example: 1 },
+              team_id: { type: 'number', example: 1 },
               description: {
                 type: 'string',
                 example: 'Developer chính của team',
@@ -1074,7 +1074,7 @@ export class DivisionController {
             total: { type: 'number', example: 20 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 2 },
+            total_pages: { type: 'number', example: 2 },
           },
         },
       },

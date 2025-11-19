@@ -19,7 +19,7 @@ export class UploadService {
    * Tạo presigned URL để upload ảnh lên Cloudinary
    */
   async getPresignedUrl(
-    userId: number,
+    user_id: number,
     getPresignedUrlDto: GetPresignedUrlDto,
   ): Promise<PresignedUrlResponseDto> {
     try {
@@ -35,7 +35,7 @@ export class UploadService {
 
       // Tạo public_id duy nhất
       const timestamp = Date.now();
-      const public_id = `${folder}/${userId}_${timestamp}`;
+      const public_id = `${folder}/${user_id}_${timestamp}`;
 
       // Tạo signature cho upload
       const uploadParams = {

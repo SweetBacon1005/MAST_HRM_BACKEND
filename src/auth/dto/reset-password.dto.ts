@@ -19,10 +19,10 @@ export class ResetPasswordDto {
 
   @ApiProperty({
     description: 'Mật khẩu mới (tối thiểu 6 ký tự)',
-    example: 'newpassword123',
+    example: 'new_password123',
     minLength: 6,
   })
   @IsString({ message: 'Mật khẩu phải là chuỗi' })
   @MinLength(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' })
-  newPassword: string;
+  new_password: string;
 }

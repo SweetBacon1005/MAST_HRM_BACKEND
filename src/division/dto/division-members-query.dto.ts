@@ -2,7 +2,7 @@ import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 
-export enum DivisionMembersSortByEnum {
+export enum DivisionMemberssort_byEnum {
   NAME = 'name',
   BIRTHDAY = 'birthday',
   JOIN_DATE = 'join_date',
@@ -46,7 +46,7 @@ export class DivisionMembersQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  teamId?: number;
+  team_id?: number;
 
   @ApiHideProperty()
   @IsOptional()
@@ -54,7 +54,7 @@ export class DivisionMembersQueryDto {
 
   @ApiHideProperty()
   @IsOptional()
-  currentUserId?: number;
+  current_user_id?: number;
 
   @ApiProperty({
     description: 'Lọc theo vị trí ID',
@@ -64,7 +64,7 @@ export class DivisionMembersQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  positionId?: number;
+  position_id?: number;
 
   @ApiProperty({
     description: 'Lọc theo kỹ năng ID',
@@ -74,7 +74,7 @@ export class DivisionMembersQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  skillId?: number;
+  skill_id?: number;
 
   @ApiProperty({
     description: 'Lọc theo level ID',
@@ -84,16 +84,16 @@ export class DivisionMembersQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  levelId?: number;
+  level_id?: number;
 
   @ApiProperty({
     description: 'Sắp xếp theo trường (name, birthday, join_date)',
-    example: DivisionMembersSortByEnum.NAME,
-    enum: DivisionMembersSortByEnum,
+    example: DivisionMemberssort_byEnum.NAME,
+    enum: DivisionMemberssort_byEnum,
     required: false,
   })
   @IsOptional()
-  sortBy?: DivisionMembersSortByEnum;
+  sort_by?: DivisionMemberssort_byEnum;
 
   @ApiProperty({
     description: 'Thứ tự sắp xếp (asc, desc)',
@@ -102,5 +102,5 @@ export class DivisionMembersQueryDto {
     required: false,
   })
   @IsOptional()
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sort_order?: 'asc' | 'desc' = 'desc';
 }

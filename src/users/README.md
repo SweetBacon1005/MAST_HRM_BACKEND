@@ -322,10 +322,10 @@ class UsersService {
   findByOffice(officeId: number): Promise<User[]>;
 
   // Verify email
-  verifyEmail(userId: number): Promise<User>;
+  verifyEmail(user_id: number): Promise<User>;
 
   // Active/Inactive user
-  setUserStatus(userId: number, isActive: boolean): Promise<User>;
+  setUserStatus(user_id: number, isActive: boolean): Promise<User>;
 }
 ```
 
@@ -358,21 +358,21 @@ class UsersService {
 ```typescript
 // User not found
 {
-  "statusCode": 404,
+  "status_code": 404,
   "message": "User not found",
   "error": "Not Found"
 }
 
 // Email already exists
 {
-  "statusCode": 400,
+  "status_code": 400,
   "message": "Email đã tồn tại",
   "error": "Bad Request"
 }
 
 // Validation error
 {
-  "statusCode": 400,
+  "status_code": 400,
   "message": [
     "name must be longer than or equal to 2 characters",
     "email must be an email"

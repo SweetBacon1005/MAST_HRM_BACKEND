@@ -44,7 +44,7 @@ export class EnhancedRolesGuard implements CanActivate {
     );
 
     const divisionAccess = this.reflector.getAllAndOverride<{
-      divisionId: number;
+      division_id: number;
       roles: string[];
     }>(DIVISION_ACCESS_KEY, [context.getHandler(), context.getClass()]);
 
@@ -81,10 +81,10 @@ export class EnhancedRolesGuard implements CanActivate {
 
     // Kiểm tra division access cụ thể
     if (divisionAccess) {
-      const { divisionId, roles } = divisionAccess;
+      const { division_id, roles } = divisionAccess;
       const hasAccessToDivision = await this.checkDivisionAccess(
         user.id,
-        divisionId,
+        division_id,
         roles,
       );
       if (hasAccessToDivision) {
@@ -116,37 +116,37 @@ export class EnhancedRolesGuard implements CanActivate {
   }
 
   private async checkSystemRoles(
-    userId: number,
+    user_id: number,
     requiredRoles: string[],
   ): Promise<boolean> {
-    const companyRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.COMPANY);
+    const companyRoles = await this.roleAssignmentService.getUserRolesByScope(user_id, ScopeType.COMPANY);
     
     return companyRoles.some(role => requiredRoles.includes(role.name));
   }
 
   private async checkDivisionRoles(
-    userId: number,
+    user_id: number,
     requiredRoles: string[],
   ): Promise<boolean> {
-    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.DIVISION);
+    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user_id, ScopeType.DIVISION);
     
     return divisionRoles.some(role => requiredRoles.includes(role.name));
   }
 
   private async checkDivisionAccess(
-    userId: number,
-    divisionId: number,
+    user_id: number,
+    division_id: number,
     roles: string[],
   ): Promise<boolean> {
-    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(userId, ScopeType.DIVISION, divisionId);
+    const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user_id, ScopeType.DIVISION, division_id);
     
     return divisionRoles.some(role => roles.includes(role.name));
   }
 
-  private async checkTeamLeader(userId: number): Promise<boolean> {
+  private async checkTeamLeader(user_id: number): Promise<boolean> {
     const teamLeaderRecord = await this.prisma.user_role_assignment.findFirst({
       where: {
-        user_id: userId,
+        user_id: user_id,
         role: {
           name: 'team_leader',
           deleted_at: null

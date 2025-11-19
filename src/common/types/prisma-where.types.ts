@@ -81,9 +81,9 @@ export interface IdArrayFilter {
 export interface FilterBuilderOptions {
   startDate?: string | Date;
   endDate?: string | Date;
-  userIds?: number[];
-  divisionId?: number;
-  teamId?: number;
+  user_ids?: number[];
+  division_id?: number;
+  team_id?: number;
   status?: string | string[];
   includeDeleted?: boolean;
 }

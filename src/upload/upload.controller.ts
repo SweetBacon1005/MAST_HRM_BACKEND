@@ -64,9 +64,9 @@ export class UploadController {
     description: 'Không có quyền truy cập',
   })
   async getPresignedUrl(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() getPresignedUrlDto: GetPresignedUrlDto,
   ): Promise<PresignedUrlResponseDto> {
-    return await this.uploadService.getPresignedUrl(userId, getPresignedUrlDto);
+    return await this.uploadService.getPresignedUrl(user_id, getPresignedUrlDto);
   }
 }

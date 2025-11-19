@@ -62,8 +62,8 @@ export class NotificationsController {
     status: 200,
     description: 'Lấy danh sách thông báo thành công',
   })
-  async findAll(@GetCurrentUser('id') userId: number) {
-    return this.notificationsService.findAll(userId);
+  async findAll(@GetCurrentUser('id') user_id: number) {
+    return this.notificationsService.findAll(user_id);
   }
 
   @Get('/admin')
@@ -141,11 +141,11 @@ export class NotificationsController {
   async markAsRead(
     @Param('id', ParseIntPipe) userNotificationId: number,
     @Body() markReadDto: MarkReadDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
     return this.notificationsService.markAsRead(
       userNotificationId,
-      userId,
+      user_id,
       markReadDto.is_read,
     );
   }
@@ -163,12 +163,12 @@ export class NotificationsController {
   @Roles(ROLE_NAMES.ADMIN)
   async remove(
     @Param('notificationId', ParseIntPipe) notificationId: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
     if (!roles.includes(ROLE_NAMES.ADMIN)) {
       throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
     }
-    return this.notificationsService.remove(notificationId, userId);
+    return this.notificationsService.remove(notificationId, user_id);
   }
 }

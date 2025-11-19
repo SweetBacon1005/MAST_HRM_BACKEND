@@ -180,11 +180,11 @@ export function IsCheckoutAfterCheckin(
           const checkin = (_args.object as any)[checkinProperty];
           if (!checkin) return true; // If no checkin, skip validation
           
-          const checkinTime = new Date(checkin);
-          const checkoutTime = new Date(value);
+          const checkin_time = new Date(checkin);
+          const checkout_time = new Date(value);
           
           // Checkout must be after checkin
-          return checkoutTime > checkinTime;
+          return checkout_time > checkin_time;
         },
         defaultMessage(args: ValidationArguments) {
           return `${args.property} phải sau thời gian check-in`;

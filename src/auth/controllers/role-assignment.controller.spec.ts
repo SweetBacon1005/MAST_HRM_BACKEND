@@ -104,9 +104,9 @@ describe('RoleAssignmentController', () => {
   describe('getUserRoles', () => {
     it('should get user roles successfully', async () => {
       // Arrange
-      const userId = 1;
+      const user_id = 1;
       const expectedResult = {
-        user_id: userId,
+        user_id: user_id,
         roles: [
           { id: 2, name: 'Manager', scope_type: ScopeType.COMPANY, scope_id: null },
         ],
@@ -115,11 +115,11 @@ describe('RoleAssignmentController', () => {
       mockRoleAssignmentService.getUserRoles.mockResolvedValue(expectedResult);
 
       // Act
-      const result = await controller.getUserRoles(userId);
+      const result = await controller.getUserRoles(user_id);
 
       // Assert
       expect(result).toEqual(expectedResult);
-      expect(service.getUserRoles).toHaveBeenCalledWith(userId);
+      expect(service.getUserRoles).toHaveBeenCalledWith(user_id);
     });
   });
 

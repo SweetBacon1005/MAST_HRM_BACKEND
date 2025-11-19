@@ -70,7 +70,7 @@ export class UserProfileController {
       type: 'object',
       properties: {
         id: { type: 'number' },
-        username: { type: 'string' },
+        user_name: { type: 'string' },
         email: { type: 'string' },
         user_information: {
           type: 'object',
@@ -159,8 +159,8 @@ export class UserProfileController {
       },
     },
   })
-  async getUserProfile(@GetCurrentUser('id') userId: number) {
-    return await this.userProfileService.getUserProfile(userId);
+  async getUserProfile(@GetCurrentUser('id') user_id: number) {
+    return await this.userProfileService.getUserProfile(user_id);
   }
 
   @Patch('information')
@@ -171,11 +171,11 @@ export class UserProfileController {
     description: 'Cập nhật thông tin thành công',
   })
   async updateUserInformation(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() updateDto: UpdateUserInformationDto,
   ) {
     return await this.userProfileService.updateUserInformation(
-      userId,
+      user_id,
       updateDto,
     );
   }
@@ -189,10 +189,10 @@ export class UserProfileController {
     description: 'Thêm thông tin học vấn thành công',
   })
   async createEducation(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() createDto: CreateEducationDto,
   ) {
-    createDto.user_id = userId;
+    createDto.user_id = user_id;
     return await this.userProfileService.createEducation(createDto);
   }
 
@@ -203,11 +203,11 @@ export class UserProfileController {
     description: 'Danh sách học vấn có phân trang',
   })
   async getEducations(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: EducationPaginationDto,
   ) {
     return await this.userProfileService.getEducationsPaginated(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -222,9 +222,9 @@ export class UserProfileController {
   async updateEducation(
     @Param('id', ParseIntPipe) educationId: number,
     @Body() updateDto: UpdateEducationDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    updateDto.user_id = userId;
+    updateDto.user_id = user_id;
     return await this.userProfileService.updateEducation(
       educationId,
       updateDto,
@@ -240,9 +240,9 @@ export class UserProfileController {
   })
   async deleteEducation(
     @Param('id', ParseIntPipe) educationId: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.userProfileService.deleteEducation(educationId, userId);
+    return await this.userProfileService.deleteEducation(educationId, user_id);
   }
 
   // ===== QUẢN LÝ KINH NGHIỆM =====
@@ -253,10 +253,10 @@ export class UserProfileController {
     description: 'Thêm thông tin kinh nghiệm thành công',
   })
   async createExperience(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() createDto: CreateExperienceDto,
   ) {
-    createDto.user_id = userId;
+    createDto.user_id = user_id;
     return await this.userProfileService.createExperience(createDto);
   }
 
@@ -267,11 +267,11 @@ export class UserProfileController {
     description: 'Danh sách kinh nghiệm có phân trang',
   })
   async getExperiences(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: ExperiencePaginationDto,
   ) {
     return await this.userProfileService.getExperiencesPaginated(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -286,9 +286,9 @@ export class UserProfileController {
   async updateExperience(
     @Param('id', ParseIntPipe) experienceId: number,
     @Body() updateDto: UpdateExperienceDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    updateDto.user_id = userId;
+    updateDto.user_id = user_id;
     return await this.userProfileService.updateExperience(
       experienceId,
       updateDto,
@@ -304,9 +304,9 @@ export class UserProfileController {
   })
   async deleteExperience(
     @Param('id', ParseIntPipe) experienceId: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.userProfileService.deleteExperience(experienceId, userId);
+    return await this.userProfileService.deleteExperience(experienceId, user_id);
   }
 
   // ===== QUẢN LÝ KỸ NĂNG CỦA USER =====
@@ -318,24 +318,24 @@ export class UserProfileController {
     description: 'Thêm kỹ năng thành công',
   })
   async createUserSkill(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() createDto: CreateUserSkillDto,
   ) {
-    createDto.user_id = userId;
+    createDto.user_id = user_id;
     return await this.userProfileService.createUserSkill(createDto);
   }
 
-  @Get('user-skills/position/:positionId')
+  @Get('user-skills/position/:position_id')
   @ApiOperation({ summary: 'Lấy danh sách kỹ năng theo vị trí' })
-  @ApiParam({ name: 'positionId', description: 'ID của vị trí' })
+  @ApiParam({ name: 'position_id', description: 'ID của vị trí' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách kỹ năng theo vị trí',
   })
   async getSkillsByPosition(
-    @Param('positionId', ParseIntPipe) positionId: number,
+    @Param('position_id', ParseIntPipe) position_id: number,
   ) {
-    return await this.userProfileService.getSkillsByPosition(positionId);
+    return await this.userProfileService.getSkillsByPosition(position_id);
   }
 
   @Get('skills')
@@ -345,11 +345,11 @@ export class UserProfileController {
     description: 'Danh sách kỹ năng có phân trang',
   })
   async getUserSkills(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: UserSkillPaginationDto,
   ) {
     return await this.userProfileService.getUserSkillsPaginated(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -362,13 +362,13 @@ export class UserProfileController {
     description: 'Cập nhật thành công',
   })
   async updateUserSkill(
-    @Param('id', ParseIntPipe) userSkillId: number,
+    @Param('id', ParseIntPipe) userskill_id: number,
     @Body() updateDto: UpdateUserSkillDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    updateDto.user_id = userId;
+    updateDto.user_id = user_id;
     return await this.userProfileService.updateUserSkill(
-      userSkillId,
+      userskill_id,
       updateDto,
     );
   }
@@ -381,10 +381,10 @@ export class UserProfileController {
     description: 'Xóa thành công',
   })
   async deleteUserSkill(
-    @Param('id', ParseIntPipe) userSkillId: number,
-    @GetCurrentUser('id') userId: number,
+    @Param('id', ParseIntPipe) userskill_id: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.userProfileService.deleteUserSkill(userSkillId, userId);
+    return await this.userProfileService.deleteUserSkill(userskill_id, user_id);
   }
 
   // ===== CÁC DANH SÁCH THAM CHIẾU =====
@@ -427,11 +427,11 @@ export class UserProfileController {
     description: 'Cập nhật avatar thành công',
   })
   async updateAvatar(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() updateAvatarDto: UpdateAvatarDto,
   ) {
     return await this.userProfileService.updateAvatar(
-      userId,
+      user_id,
       updateAvatarDto.avatar_url,
     );
   }
@@ -502,7 +502,7 @@ export class UserProfileController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },
@@ -691,7 +691,7 @@ export class UserProfileController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },
@@ -893,7 +893,7 @@ export class UserProfileController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },
@@ -1074,7 +1074,7 @@ export class UserProfileController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },

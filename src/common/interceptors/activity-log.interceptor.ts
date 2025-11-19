@@ -27,10 +27,10 @@ export class ActivityLogInterceptor implements NestInterceptor {
     }
 
     const request = context.switchToHttp().getRequest();
-    const userId = request.user?.id;
+    const user_id = request.user?.id;
     const args = context.getArgs();
 
-    if (!userId) {
+    if (!user_id) {
       // Không có user ID, skip logging
       return next.handle();
     }
@@ -38,7 +38,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(async (result) => {
         if (logOptions.logOnSuccess !== false) {
-          await this.logActivity(logOptions, args, result, userId);
+          await this.logActivity(logOptions, args, result, user_id);
         }
       }),
       catchError(async (error) => {
@@ -51,7 +51,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
             },
             args,
             null,
-            userId,
+            user_id,
             error,
           );
         }
@@ -64,13 +64,13 @@ export class ActivityLogInterceptor implements NestInterceptor {
     options: LogActivityOptions,
     args: any[],
     result: any,
-    userId: number,
+    user_id: number,
     error?: any,
   ): Promise<void> {
     try {
       const subjectId = options.getSubjectId 
         ? options.getSubjectId(args, result)
-        : result?.data?.id || result?.id || userId;
+        : result?.data?.id || result?.id || user_id;
 
       const properties = options.getProperties 
         ? options.getProperties(args, result)
@@ -87,7 +87,7 @@ export class ActivityLogInterceptor implements NestInterceptor {
         subjectType: options.subjectType,
         event: options.event,
         subjectId,
-        causerId: userId,
+        causer_id: user_id,
         properties,
       });
     } catch (logError) {

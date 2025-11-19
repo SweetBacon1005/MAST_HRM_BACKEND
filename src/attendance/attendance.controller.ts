@@ -111,10 +111,10 @@ export class AttendanceController {
   })
   calculateAttendance(
     @Body() attendanceDto: AttendanceCalculationDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
     // Gán user_id từ token để đảm bảo security
-    attendanceDto.user_id = userId;
+    attendanceDto.user_id = user_id;
     return this.attendanceService.calculateAttendance(attendanceDto);
   }
   // === QUẢN LÝ CA LÀM VIỆC ===
@@ -154,7 +154,7 @@ export class AttendanceController {
     @Param(
       'id',
       new ParseIntPipe({
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
         exceptionFactory: () =>
           new Error('ID ca làm việc phải là số nguyên dương'),
       }),
@@ -183,26 +183,26 @@ export class AttendanceController {
   })
   @ApiBadRequestResponse({ description: 'Tham số năm không hợp lệ' })
   getMyLeaveBalance(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query(
       'year',
       new DefaultValuePipe(new Date().getFullYear()),
       new ParseIntPipe({
         optional: true,
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
         exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
       }),
     )
     year?: number,
   ) {
     const targetYear = year || new Date().getFullYear();
-    return this.attendanceService.getLeaveBalance(userId, targetYear);
+    return this.attendanceService.getLeaveBalance(user_id, targetYear);
   }
 
-  @Get('leave-balance/:userId/:year')
+  @Get('leave-balance/:user_id/:year')
   @ApiOperation({ summary: 'Xem số dư phép năm của nhân viên' })
   @ApiParam({
-    name: 'userId',
+    name: 'user_id',
     description: 'ID người dùng',
     type: 'integer',
     example: 1,
@@ -232,24 +232,24 @@ export class AttendanceController {
   @ApiNotFoundResponse({ description: 'Không tìm thấy người dùng' })
   getLeaveBalance(
     @Param(
-      'userId',
+      'user_id',
       new ParseIntPipe({
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
         exceptionFactory: () =>
           new Error('ID người dùng phải là số nguyên dương'),
       }),
     )
-    userId: number,
+    user_id: number,
     @Param(
       'year',
       new ParseIntPipe({
-        errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        errorHttpstatus_code: HttpStatus.BAD_REQUEST,
         exceptionFactory: () => new Error('Năm phải là số nguyên hợp lệ'),
       }),
     )
     year: number,
   ) {
-    return this.attendanceService.getLeaveBalance(userId, year);
+    return this.attendanceService.getLeaveBalance(user_id, year);
   }
 
   // === DASHBOARD CHẤM CÔNG ===
@@ -289,12 +289,12 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Báo cáo chấm công cá nhân' })
   @ApiResponse({ status: 200, description: 'Lấy báo cáo cá nhân thành công' })
   getMyAttendanceReport(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() reportDto: AttendanceReportDto,
   ) {
     const personalReportDto: AttendanceReportDto = {
       ...reportDto,
-      user_ids: [userId],
+      user_ids: [user_id],
     };
 
     return this.attendanceService.generateAttendanceReport(personalReportDto);
@@ -325,13 +325,13 @@ export class AttendanceController {
   async exportAttendanceLogs(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
     @Res() res?: Response,
   ) {
     const csv = await this.exportService.exportAttendanceLogs(
       startDate,
       endDate,
-      divisionId,
+      division_id,
     );
 
     if (res) {
@@ -371,14 +371,14 @@ export class AttendanceController {
   async exportLeaveRequests(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
     const csv = await this.exportService.exportLeaveRequests(
       startDate,
       endDate,
-      divisionId,
+      division_id,
       status,
     );
 
@@ -418,14 +418,14 @@ export class AttendanceController {
   async exportOvertimeRecords(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
     const csv = await this.exportService.exportOvertimeRecords(
       startDate,
       endDate,
-      divisionId,
+      division_id,
       status,
     );
 
@@ -467,13 +467,13 @@ export class AttendanceController {
   async exportLateEarlyRequests(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
     @Res() res?: Response,
   ) {
     const csv = await this.exportService.exportLateEarlyRequests(
       startDate,
       endDate,
-      divisionId,
+      division_id,
     );
 
     if (res) {
@@ -515,14 +515,14 @@ export class AttendanceController {
   async exportRemoteWorkRequests(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
     @Query('status') status?: string,
     @Res() res?: Response,
   ) {
     const csv = await this.exportService.exportRemoteWorkRequests(
       startDate,
       endDate,
-      divisionId,
+      division_id,
       status,
     );
 

@@ -50,7 +50,7 @@ export class NotificationRecipientDto {
   user_id: number;
 
   @ApiProperty({ description: 'Tên người nhận', example: 'Nguyễn Văn A' })
-  userName: string;
+  user_name: string;
 
   @ApiProperty({ description: 'Trạng thái đã đọc', example: false })
   is_read: boolean;

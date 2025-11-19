@@ -15,14 +15,14 @@ import {
 import { RequirePermission } from '../../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../../auth/guards/permission.guard';
-import { IpValidationService } from '../services/ip-validation.service';
+import { ip_validationService } from '../services/ip-validation.service';
 
 @ApiTags('IP Management')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('ip-management')
 export class IpManagementController {
-  constructor(private readonly ipValidationService: IpValidationService) {}
+  constructor(private readonly ip_validationService: ip_validationService) {}
 
   @Get('office-ips')
   @RequirePermission('system.config.read')
@@ -36,7 +36,7 @@ export class IpManagementController {
     schema: {
       type: 'object',
       properties: {
-        allowedIps: {
+        allowed_ips: {
           type: 'array',
           items: { type: 'string' },
           example: ['192.168.1.0/24', '10.0.0.100', '172.16.1.*']
@@ -59,10 +59,10 @@ export class IpManagementController {
     }
   })
   async getOfficeIpAddresses() {
-    const config = this.ipValidationService.getIpConfiguration();
+    const config = this.ip_validationService.getIpConfiguration();
     
     return {
-      allowedIps: config.ips,
+      allowed_ips: config.ips,
       total: config.ips.length,
       source: config.source,
       envValue: config.envValue,
@@ -110,7 +110,7 @@ export class IpManagementController {
     }
   })
   async validateIpFormat(@Body('ipAddress') ipAddress: string) {
-    const isValid = this.ipValidationService.validateIpFormat(ipAddress);
+    const isValid = this.ip_validationService.validateIpFormat(ipAddress);
     
     let format = 'invalid';
     if (isValid) {
@@ -146,7 +146,7 @@ export class IpManagementController {
           example: '192.168.1.100',
           description: 'IP address cần kiểm tra'
         },
-        userId: {
+        user_id: {
           type: 'number',
           example: 123,
           description: 'ID của user (để kiểm tra remote work request)'
@@ -158,7 +158,7 @@ export class IpManagementController {
           description: 'Ngày làm việc (YYYY-MM-DD)'
         }
       },
-      required: ['ipAddress', 'userId', 'workDate']
+      required: ['ipAddress', 'user_id', 'workDate']
     }
   })
   @ApiResponse({
@@ -168,14 +168,14 @@ export class IpManagementController {
       type: 'object',
       properties: {
         isValid: { type: 'boolean', example: true },
-        isOfficeNetwork: { type: 'boolean', example: true },
-        clientIp: { type: 'string', example: '192.168.1.100' },
-        allowedIps: { 
+        is_office_network: { type: 'boolean', example: true },
+        client_ip: { type: 'string', example: '192.168.1.100' },
+        allowed_ips: { 
           type: 'array', 
           items: { type: 'string' },
           example: ['192.168.1.0/24', '10.0.0.100']
         },
-        hasApprovedRemoteRequest: { type: 'boolean', example: false },
+        has_approved_remote_request: { type: 'boolean', example: false },
         message: { 
           type: 'string', 
           example: 'Check in/out từ văn phòng được phép' 
@@ -185,11 +185,11 @@ export class IpManagementController {
   })
   async validateIpAddress(
     @Body('ipAddress') ipAddress: string,
-    @Body('userId') userId: number,
+    @Body('user_id') user_id: number,
     @Body('workDate') workDate: string,
   ) {
-    return await this.ipValidationService.validateIpForAttendance(
-      userId,
+    return await this.ip_validationService.validateIpForAttendance(
+      user_id,
       ipAddress,
       workDate,
     );

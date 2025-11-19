@@ -24,7 +24,7 @@ export class CreateNotificationResponseDto {
   count: number;
 
   @ApiPropertyOptional({ description: 'Tiêu đề tin tức (nếu có)', example: 'Thông báo nghỉ lễ 30/4' })
-  newsTitle?: string | null;
+  news_title?: string | null;
 }
 
 // Response khi cập nhật notification (dựa trên service line 401)

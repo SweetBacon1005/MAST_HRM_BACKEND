@@ -69,12 +69,12 @@ export class ReportsController {
   async getAttendanceSummary(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
   ) {
     return this.reportsService.getAttendanceSummary(
       startDate,
       endDate,
-      divisionId,
+      division_id,
     );
   }
 
@@ -91,9 +91,9 @@ export class ReportsController {
   @ApiOperation({ summary: 'Báo cáo tổng hợp nghỉ phép' })
   async getLeaveSummary(
     @Query('year') year?: number,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
   ) {
-    return this.reportsService.getLeaveSummary(year, divisionId);
+    return this.reportsService.getLeaveSummary(year, division_id);
   }
 
   @Get('overtime/summary')
@@ -101,12 +101,12 @@ export class ReportsController {
   async getOvertimeSummary(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
   ) {
     return this.reportsService.getOvertimeSummary(
       startDate,
       endDate,
-      divisionId,
+      division_id,
     );
   }
 
@@ -114,9 +114,9 @@ export class ReportsController {
   @ApiOperation({ summary: 'Báo cáo tổng hợp điều chuyển nhân sự' })
   async getPersonnelTransferSummary(
     @Query('year') year?: number,
-    @Query('division_id') divisionId?: number,
+    @Query('division_id') division_id?: number,
   ) {
-    return this.reportsService.getPersonnelTransferSummary(year, divisionId);
+    return this.reportsService.getPersonnelTransferSummary(year, division_id);
   }
 
   @Get('dashboard/comprehensive')

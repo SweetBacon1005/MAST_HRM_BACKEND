@@ -35,10 +35,10 @@ export class MeetingRoomsController {
   @ApiOperation({ summary: 'Đặt phòng họp' })
   @ApiResponse({ status: 201, description: 'Đặt phòng thành công' })
   async book(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() dto: CreateBookingDto,
   ) {
-    return this.service.createBooking(userId, dto);
+    return this.service.createBooking(user_id, dto);
   }
 
   @Post('rooms')
@@ -100,10 +100,10 @@ export class MeetingRoomsController {
   @ApiOperation({ summary: 'Cập nhật lịch đặt phòng' })
   updateBooking(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() dto: UpdateBookingDto,
   ) {
-    return this.service.updateBooking(id, userId, dto);
+    return this.service.updateBooking(id, user_id, dto);
   }
 
   @Delete('bookings/:id')
@@ -111,8 +111,8 @@ export class MeetingRoomsController {
   @ApiOperation({ summary: 'Xóa mềm lịch đặt phòng' })
   removeBooking(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.service.removeBooking(id, userId);
+    return this.service.removeBooking(id, user_id);
   }
 }

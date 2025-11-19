@@ -33,12 +33,12 @@ export class QueryBuilderService {
   /**
    * Build user IDs filter - TYPE SAFE
    */
-  buildUserIdsFilter(userIds: number[]): { in: number[] } | Record<string, never> {
-    if (!userIds || userIds.length === 0) {
+  builduser_idsFilter(user_ids: number[]): { in: number[] } | Record<string, never> {
+    if (!user_ids || user_ids.length === 0) {
       return {};
     }
 
-    return { in: userIds };
+    return { in: user_ids };
   }
 
   /**
@@ -71,10 +71,10 @@ export class QueryBuilderService {
   buildTimesheetWhereClause(params: {
     startDate?: string;
     endDate?: string;
-    userIds?: number[];
+    user_ids?: number[];
     status?: string;
   }): TimesheetWhereInput {
-    const { startDate, endDate, userIds, status } = params;
+    const { startDate, endDate, user_ids, status } = params;
 
     const where: TimesheetWhereInput = {
       deleted_at: null,
@@ -84,8 +84,8 @@ export class QueryBuilderService {
       where.work_date = this.buildDateRangeFilter(startDate, endDate);
     }
 
-    if (userIds && userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids && user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     if (status) {
@@ -101,9 +101,9 @@ export class QueryBuilderService {
   buildAttendanceLogWhereClause(params: {
     startDate?: string;
     endDate?: string;
-    userIds?: number[];
+    user_ids?: number[];
   }): AttendanceLogWhereInput {
-    const { startDate, endDate, userIds } = params;
+    const { startDate, endDate, user_ids } = params;
 
     const where: AttendanceLogWhereInput = {
       deleted_at: null,
@@ -113,8 +113,8 @@ export class QueryBuilderService {
       where.timestamp = this.buildDateRangeFilter(startDate, endDate);
     }
 
-    if (userIds && userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids && user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     return where;
@@ -126,10 +126,10 @@ export class QueryBuilderService {
   buildDayOffWhereClause(params: {
     startDate?: string;
     endDate?: string;
-    userIds?: number[];
+    user_ids?: number[];
     status?: string;
   }): DayOffWhereInput {
-    const { startDate, endDate, userIds, status } = params;
+    const { startDate, endDate, user_ids, status } = params;
 
     const where: DayOffWhereInput = {
       deleted_at: null,
@@ -139,8 +139,8 @@ export class QueryBuilderService {
       where.work_date = this.buildDateRangeFilter(startDate, endDate);
     }
 
-    if (userIds && userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids && user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     if (status) {

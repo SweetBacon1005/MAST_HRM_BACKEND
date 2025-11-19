@@ -27,7 +27,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
       const validationErrors = (exceptionResponse as any).message;
       
       response.status(status).json({
-        statusCode: status,
+        status_code: status,
         error: 'Validation Error',
         message: 'Dữ liệu đầu vào không hợp lệ',
         details: this.formatValidationErrors(validationErrors),
@@ -36,7 +36,7 @@ export class ValidationExceptionFilter implements ExceptionFilter {
     } else {
       // Handle other BadRequestExceptions
       response.status(status).json({
-        statusCode: status,
+        status_code: status,
         error: 'Bad Request',
         message: exception.message || 'Yêu cầu không hợp lệ',
         timestamp: new Date().toISOString(),

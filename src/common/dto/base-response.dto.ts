@@ -54,17 +54,17 @@ export class BasePaginationDto {
     description: 'Tổng số trang',
     example: 10,
   })
-  totalPages: number;
+  total_pages: number;
 
   @ApiProperty({
     description: 'Có trang tiếp theo không',
     example: true,
   })
-  hasNext: boolean;
+  has_next: boolean;
 
   @ApiProperty({
     description: 'Có trang trước không',
     example: false,
   })
-  hasPrev: boolean;
+  has_prev: boolean;
 }

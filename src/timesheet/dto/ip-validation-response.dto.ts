@@ -1,29 +1,29 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class IpValidationResponseDto {
+export class ip_validationResponseDto {
   @ApiProperty({
     description: 'IP address của client',
     example: '192.168.1.100',
   })
-  clientIp: string;
+  client_ip: string;
 
   @ApiProperty({
     description: 'Có đang ở mạng văn phòng không',
     example: true,
   })
-  isOfficeNetwork: boolean;
+  is_office_network: boolean;
 
   @ApiProperty({
     description: 'Có remote work request được duyệt không',
     example: false,
   })
-  hasApprovedRemoteRequest: boolean;
+  has_approved_remote_request: boolean;
 
   @ApiProperty({
     description: 'Thông báo về trạng thái IP validation',
     example: 'Check in/out từ văn phòng được phép',
   })
-  validationMessage: string;
+  validation_message: string;
 
   @ApiProperty({
     description: 'Danh sách IP văn phòng được phép (chỉ hiển thị cho admin)',
@@ -31,7 +31,7 @@ export class IpValidationResponseDto {
     required: false,
     example: ['192.168.1.0/24', '10.0.0.100'],
   })
-  allowedIps?: string[];
+  allowed_ips?: string[];
 }
 
 export class CheckinResponseDto {
@@ -45,19 +45,19 @@ export class CheckinResponseDto {
     description: 'Thời gian check-in',
     example: '2024-01-15T08:30:00.000Z',
   })
-  checkinTime: Date;
+  checkin_time: Date;
 
   @ApiProperty({
     description: 'Số phút đi muộn',
     example: 30,
   })
-  lateMinutes: number;
+  late_minutes: number;
 
   @ApiProperty({
     description: 'Thông tin IP validation',
-    type: IpValidationResponseDto,
+    type: ip_validationResponseDto,
   })
-  ipValidation: IpValidationResponseDto;
+  ip_validation: ip_validationResponseDto;
 
   @ApiProperty({
     description: 'Thông báo thành công',
@@ -77,25 +77,25 @@ export class CheckoutResponseDto {
     description: 'Thời gian check-out',
     example: '2024-01-15T17:30:00.000Z',
   })
-  checkoutTime: Date;
+  checkout_time: Date;
 
   @ApiProperty({
     description: 'Số phút về sớm',
     example: 0,
   })
-  earlyMinutes: number;
+  early_minutes: number;
 
   @ApiProperty({
     description: 'Tổng thời gian làm việc (phút)',
     example: 480,
   })
-  totalWorkMinutes: number;
+  total_work_minutes: number;
 
   @ApiProperty({
     description: 'Thông tin IP validation',
-    type: IpValidationResponseDto,
+    type: ip_validationResponseDto,
   })
-  ipValidation: IpValidationResponseDto;
+  ip_validation: ip_validationResponseDto;
 
   @ApiProperty({
     description: 'Thông báo thành công',

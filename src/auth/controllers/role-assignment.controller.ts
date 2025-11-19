@@ -129,18 +129,18 @@ export class RoleAssignmentController {
     );
   }
 
-  @Get('users/:userId/roles')
+  @Get('users/:user_id/roles')
   @RequirePermission('role.view')
   @ApiOperation({ summary: 'Lấy tất cả role assignments của user' })
-  @ApiParam({ name: 'userId', description: 'ID của user' })
+  @ApiParam({ name: 'user_id', description: 'ID của user' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách role assignments',
     type: UserRoleContextResponseDto,
   })
   async getUserRoles(
-    @Param('userId', ParseIntPipe) userId: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
   ): Promise<UserRoleContextResponseDto> {
-    return await this.roleAssignmentService.getUserRoles(userId);
+    return await this.roleAssignmentService.getUserRoles(user_id);
   }
 }

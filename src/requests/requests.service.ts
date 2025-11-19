@@ -54,9 +54,9 @@ export class RequestsService {
 
   // === COMMON UTILITIES ===
 
-  private async validateUser(userId: number): Promise<void> {
+  private async validateUser(user_id: number): Promise<void> {
     const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
+      where: { id: user_id, deleted_at: null },
     });
 
     if (!user) {
@@ -176,25 +176,25 @@ export class RequestsService {
 
   async findAllRemoteWorkRequests(
     paginationDto: RemoteWorkRequestPaginationDto = {},
-    userId: number,
+    user_id: number,
     userRole: string,
   ) {
-    const accessScope = await this.determineAccessScope(userId, userRole);
+    const accessScope = await this.determineAccessScope(user_id, userRole);
 
-    let userIdsFilter: number[] | undefined;
+    let user_idsFilter: number[] | undefined;
 
     if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
-        userIdsFilter = await this.getDivisionUserIds(accessScope.divisionIds);
+      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
+        user_idsFilter = await this.getDivisionuser_ids(accessScope.division_ids);
       } else {
-        userIdsFilter = [];
+        user_idsFilter = [];
       }
     } else if (accessScope.type === 'ADMIN_ACCESS') {
       // Admin - own requests + division_head requests
-      const divisionHeadUserIds = await this.getUserIdsByRole(
+      const divisionHeaduser_ids = await this.getuser_idsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
-      userIdsFilter = [userId, ...divisionHeadUserIds];
+      user_idsFilter = [user_id, ...divisionHeaduser_ids];
     }
 
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
@@ -202,8 +202,8 @@ export class RequestsService {
     const where: Prisma.remote_work_requestsWhereInput = { deleted_at: null };
 
     // Apply user filter based on role
-    if (userIdsFilter !== undefined) {
-      if (userIdsFilter.length === 0) {
+    if (user_idsFilter !== undefined) {
+      if (user_idsFilter.length === 0) {
         // No users in scope, return empty
         return buildPaginationResponse(
           [],
@@ -212,7 +212,7 @@ export class RequestsService {
           paginationDto.limit || 10,
         );
       }
-      where.user_id = { in: userIdsFilter };
+      where.user_id = { in: user_idsFilter };
     }
 
     if (paginationDto.status)
@@ -259,12 +259,12 @@ export class RequestsService {
   }
 
   async findMyRemoteWorkRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RemoteWorkRequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { user_id: userId, deleted_at: null };
+    const where: any = { user_id: user_id, deleted_at: null };
 
     if (paginationDto.status)
       where.status = paginationDto.status as ApprovalStatus;
@@ -364,15 +364,15 @@ export class RequestsService {
 
   async findAllDayOffRequests(
     paginationDto: RequestPaginationDto = {},
-    userId?: number,
+    user_id?: number,
     userRole?: string,
   ) {
-    let userIdsFilter: number[] | undefined;
+    let user_idsFilter: number[] | undefined;
 
-    if (userId && userRole) {
-      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+    if (user_id && userRole) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
 
-      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
           [],
           0,
@@ -386,8 +386,8 @@ export class RequestsService {
 
     const where: Prisma.day_offsWhereInput = { deleted_at: null };
 
-    if (userIdsFilter !== undefined) {
-      where.user_id = { in: userIdsFilter };
+    if (user_idsFilter !== undefined) {
+      where.user_id = { in: user_idsFilter };
     }
 
     if (paginationDto.status)
@@ -432,12 +432,12 @@ export class RequestsService {
   }
 
   async findMyDayOffRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { user_id: userId };
+    const where: any = { user_id: user_id };
 
     if (paginationDto.status)
       where.status = paginationDto.status as ApprovalStatus;
@@ -562,15 +562,15 @@ export class RequestsService {
 
   async findAllOvertimeRequests(
     paginationDto: RequestPaginationDto = {},
-    userId?: number,
+    user_id?: number,
     userRole?: string,
   ) {
-    let userIdsFilter: number[] | undefined;
+    let user_idsFilter: number[] | undefined;
 
-    if (userId && userRole) {
-      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+    if (user_id && userRole) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
 
-      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
           [],
           0,
@@ -584,8 +584,8 @@ export class RequestsService {
 
     const where: Prisma.over_times_historyWhereInput = { deleted_at: null };
 
-    if (userIdsFilter !== undefined) {
-      where.user_id = { in: userIdsFilter };
+    if (user_idsFilter !== undefined) {
+      where.user_id = { in: user_idsFilter };
     }
 
     if (paginationDto.status)
@@ -631,12 +631,12 @@ export class RequestsService {
   }
 
   async findMyOvertimeRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: any = { user_id: userId, deleted_at: null };
+    const where: any = { user_id: user_id, deleted_at: null };
 
     if (paginationDto.status)
       where.status = paginationDto.status as ApprovalStatus;
@@ -693,9 +693,9 @@ export class RequestsService {
     await this.validateDivisionHead(divisionHeadId);
 
     // 2. Lấy division IDs của Division Head
-    const divisionIds = await this.getUserDivisions(divisionHeadId);
+    const division_ids = await this.getUserDivisions(divisionHeadId);
 
-    if (divisionIds.length === 0) {
+    if (division_ids.length === 0) {
       return buildPaginationResponse(
         [],
         0,
@@ -705,20 +705,20 @@ export class RequestsService {
     }
 
     // 3. Lấy tất cả user trong divisions
-    const divisionUserIds = await this.getDivisionUserIds(divisionIds);
+    const divisionuser_ids = await this.getDivisionuser_ids(division_ids);
 
     // 4. Query requests với filter division users
-    return await this.getRequestsByUserIds(divisionUserIds, paginationDto);
+    return await this.getRequestsByuser_ids(divisionuser_ids, paginationDto);
   }
 
   /**
    * Lấy requests theo user IDs với pagination
    */
-  async getRequestsByUserIds(
-    userIds: number[],
+  async getRequestsByuser_ids(
+    user_ids: number[],
     paginationDto: RequestPaginationDto = {},
   ) {
-    if (userIds.length === 0) {
+    if (user_ids.length === 0) {
       return buildPaginationResponse(
         [],
         0,
@@ -731,7 +731,7 @@ export class RequestsService {
     const whereConditions = this.buildWhereConditions(paginationDto);
 
     // Add user filter
-    const userFilter = { user_id: { in: userIds } };
+    const userFilter = { user_id: { in: user_ids } };
 
     // Get all requests from different tables with unified structure
     const [
@@ -1113,14 +1113,14 @@ export class RequestsService {
       paginationDto,
     );
 
-    let userIds: number[] | undefined;
+    let user_ids: number[] | undefined;
 
     if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
-        const divisionUserIds = await this.getDivisionUserIds(
-          accessScope.divisionIds,
+      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
+        const divisionuser_ids = await this.getDivisionuser_ids(
+          accessScope.division_ids,
         );
-        userIds = divisionUserIds;
+        user_ids = divisionuser_ids;
       } else {
         return buildPaginationResponse(
           [],
@@ -1130,58 +1130,58 @@ export class RequestsService {
         );
       }
     } else if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeadUserIds = await this.getUserIdsByRole(
+      const divisionHeaduser_ids = await this.getuser_idsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
 
-      userIds = [accessScope.userId!, ...divisionHeadUserIds];
+      user_ids = [accessScope.user_id!, ...divisionHeaduser_ids];
     } else if (accessScope.type === 'ALL_ACCESS') {
       if (paginationDto.division_id) {
-        const divisionUserIds = await this.getDivisionUserIds([
+        const divisionuser_ids = await this.getDivisionuser_ids([
           paginationDto.division_id,
         ]);
-        userIds = divisionUserIds;
+        user_ids = divisionuser_ids;
       }
     } else if (accessScope.type === 'TEAM_ONLY') {
       // Team Leader chỉ xem requests từ team members
-      if (accessScope.teamIds && accessScope.teamIds.length > 0) {
-        const teamUserIds = await this.getTeamUserIds(accessScope.teamIds);
-        userIds = teamUserIds;
+      if (accessScope.team_ids && accessScope.team_ids.length > 0) {
+        const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
+        user_ids = teamuser_ids;
       } else {
-        userIds = [requesterId!]; // Fallback to self-only
+        user_ids = [requesterId!]; // Fallback to self-only
       }
     } else if (accessScope.type === 'PROJECT_ONLY') {
       // Project Manager chỉ xem requests từ project members
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        const projectUserIds = await this.getProjectUserIds(accessScope.projectIds);
-        userIds = projectUserIds;
+        const projectuser_ids = await this.getProjectuser_ids(accessScope.projectIds);
+        user_ids = projectuser_ids;
       } else {
-        userIds = [requesterId!]; // Fallback to self-only
+        user_ids = [requesterId!]; // Fallback to self-only
       }
     } else {
       // SELF_ONLY - chỉ xem requests của chính mình
-      userIds = [requesterId!];
+      user_ids = [requesterId!];
     }
 
     // Filter theo role của requester nếu có
     if (paginationDto.requester_role) {
-      const roleUserIds = await this.getUserIdsByRole(
+      const roleuser_ids = await this.getuser_idsByRole(
         paginationDto.requester_role,
       );
-      userIds = userIds
-        ? userIds.filter((id) => roleUserIds.includes(id))
-        : roleUserIds;
+      user_ids = user_ids
+        ? user_ids.filter((id) => roleuser_ids.includes(id))
+        : roleuser_ids;
     }
 
-    if (userIds && userIds.length > 0) {
-      const result = await this.getRequestsByUserIds(userIds, paginationDto);
+    if (user_ids && user_ids.length > 0) {
+      const result = await this.getRequestsByuser_ids(user_ids, paginationDto);
 
       return {
         ...result,
         metadata: {
           access_scope: accessScope.type,
-          managed_divisions: accessScope.divisionIds,
-          managed_teams: accessScope.teamIds,
+          managed_divisions: accessScope.division_ids,
+          managed_teams: accessScope.team_ids,
           managed_projects: accessScope.projectIds,
           filters_applied: {
             division_restriction: accessScope.type === 'DIVISION_ONLY',
@@ -1192,7 +1192,7 @@ export class RequestsService {
           },
         },
       };
-    } else if (userIds && userIds.length === 0) {
+    } else if (user_ids && user_ids.length === 0) {
       // Không có user nào match filter
       return {
         ...buildPaginationResponse(
@@ -1203,8 +1203,8 @@ export class RequestsService {
         ),
         metadata: {
           access_scope: accessScope.type,
-          managed_divisions: accessScope.divisionIds,
-          managed_teams: accessScope.teamIds,
+          managed_divisions: accessScope.division_ids,
+          managed_teams: accessScope.team_ids,
           managed_projects: accessScope.projectIds,
           filters_applied: {
             division_restriction: accessScope.type === 'DIVISION_ONLY',
@@ -1225,8 +1225,8 @@ export class RequestsService {
       ),
       metadata: {
         access_scope: accessScope.type,
-        managed_divisions: accessScope.divisionIds,
-        managed_teams: accessScope.teamIds,
+        managed_divisions: accessScope.division_ids,
+        managed_teams: accessScope.team_ids,
         managed_projects: accessScope.projectIds,
         filters_applied: {
           division_restriction: accessScope.type === 'DIVISION_ONLY',
@@ -1240,13 +1240,13 @@ export class RequestsService {
   // ==================== EXISTING METHODS ====================
 
   async getAllMyRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     // Build where conditions for filtering
-    const whereConditions: any = { user_id: userId, deleted_at: null };
+    const whereConditions: any = { user_id: user_id, deleted_at: null };
 
     if (paginationDto.status) {
       whereConditions.status = paginationDto.status;
@@ -1354,7 +1354,7 @@ export class RequestsService {
       orderBy && typeof orderBy === 'object' && orderBy.created_at
         ? 'created_at'
         : 'created_at';
-    const sortOrder =
+    const sort_order =
       orderBy && typeof orderBy === 'object' && orderBy.created_at === 'asc'
         ? 'asc'
         : 'desc';
@@ -1362,7 +1362,7 @@ export class RequestsService {
     allRequests.sort((a, b) => {
       const aDate = new Date(a[sortField]).getTime();
       const bDate = new Date(b[sortField]).getTime();
-      return sortOrder === 'asc' ? aDate - bDate : bDate - aDate;
+      return sort_order === 'asc' ? aDate - bDate : bDate - aDate;
     });
 
     // Apply pagination to the combined results
@@ -1377,32 +1377,32 @@ export class RequestsService {
     );
   }
 
-  async getMyRequestsStats(userId: number) {
+  async getMyRequestsStats(user_id: number) {
     const [remoteWork, dayOffs, overtimes, lateEarly, forgotCheckin] =
       await Promise.all([
         this.prisma.remote_work_requests.groupBy({
           by: ['status'],
-          where: { user_id: userId, deleted_at: null },
+          where: { user_id: user_id, deleted_at: null },
           _count: { status: true },
         }),
         this.prisma.day_offs.groupBy({
           by: ['status'],
-          where: { user_id: userId, deleted_at: null },
+          where: { user_id: user_id, deleted_at: null },
           _count: { status: true },
         }),
         this.prisma.over_times_history.groupBy({
           by: ['status'],
-          where: { user_id: userId, deleted_at: null },
+          where: { user_id: user_id, deleted_at: null },
           _count: { status: true },
         }),
         this.prisma.late_early_requests.groupBy({
           by: ['status'],
-          where: { user_id: userId, deleted_at: null },
+          where: { user_id: user_id, deleted_at: null },
           _count: { status: true },
         }),
         this.prisma.forgot_checkin_requests.groupBy({
           by: ['status'],
-          where: { user_id: userId, deleted_at: null },
+          where: { user_id: user_id, deleted_at: null },
           _count: { status: true },
         }),
       ]);
@@ -1890,22 +1890,22 @@ export class RequestsService {
   /**
    * Lấy thông tin leave balance của user
    */
-  async getMyLeaveBalance(userId: number) {
-    await this.validateUser(userId);
-    return await this.leaveBalanceService.getLeaveBalanceStats(userId);
+  async getMyLeaveBalance(user_id: number) {
+    await this.validateUser(user_id);
+    return await this.leaveBalanceService.getLeaveBalanceStats(user_id);
   }
 
   /**
    * Lấy lịch sử giao dịch leave balance
    */
   async getMyLeaveTransactionHistory(
-    userId: number,
+    user_id: number,
     limit: number = 50,
     offset: number = 0,
   ) {
-    await this.validateUser(userId);
+    await this.validateUser(user_id);
     return await this.leaveBalanceService.getLeaveTransactionHistory(
-      userId,
+      user_id,
       limit,
       offset,
     );
@@ -1915,14 +1915,14 @@ export class RequestsService {
    * Kiểm tra có đủ leave balance để tạo đơn không
    */
   async checkLeaveBalanceAvailability(
-    userId: number,
+    user_id: number,
     leaveType: DayOffType,
     requestedDays: number,
   ) {
-    await this.validateUser(userId);
+    await this.validateUser(user_id);
 
     const balance =
-      await this.leaveBalanceService.getOrCreateLeaveBalance(userId);
+      await this.leaveBalanceService.getOrCreateLeaveBalance(user_id);
 
     let availableDays = 0;
     let balanceType = '';
@@ -2029,15 +2029,15 @@ export class RequestsService {
 
   async findAllLateEarlyRequests(
     paginationDto: RequestPaginationDto = {},
-    userId?: number,
+    user_id?: number,
     userRole?: string,
   ) {
-    let userIdsFilter: number[] | undefined;
+    let user_idsFilter: number[] | undefined;
 
-    if (userId && userRole) {
-      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+    if (user_id && userRole) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
 
-      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
           [],
           0,
@@ -2051,8 +2051,8 @@ export class RequestsService {
 
     const where: Prisma.late_early_requestsWhereInput = { deleted_at: null };
 
-    if (userIdsFilter !== undefined) {
-      where.user_id = { in: userIdsFilter };
+    if (user_idsFilter !== undefined) {
+      where.user_id = { in: user_idsFilter };
     }
 
     if (paginationDto.status)
@@ -2097,12 +2097,12 @@ export class RequestsService {
   }
 
   async getLateEarlyRequests(
-    userId?: number,
+    user_id?: number,
     paginationDto: RequestPaginationDto = {},
   ): Promise<any> {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereClause = { user_id: userId, deleted_at: null };
+    const whereClause = { user_id: user_id, deleted_at: null };
 
     const [requests, total] = await Promise.all([
       this.prisma.late_early_requests.findMany({
@@ -2137,10 +2137,10 @@ export class RequestsService {
   }
 
   async findMyLateEarlyRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RequestPaginationDto = {},
   ): Promise<any> {
-    return this.getLateEarlyRequests(userId, paginationDto);
+    return this.getLateEarlyRequests(user_id, paginationDto);
   }
 
   async approveLateEarlyRequest(
@@ -2374,14 +2374,14 @@ export class RequestsService {
 
     // Validate thời gian checkin/checkout
     if (dto.checkin_time && dto.checkout_time) {
-      const checkinTime = new Date(
+      const checkin_time = new Date(
         `${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`,
       );
-      const checkoutTime = new Date(
+      const checkout_time = new Date(
         `${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`,
       );
 
-      if (checkoutTime <= checkinTime) {
+      if (checkout_time <= checkin_time) {
         throw new BadRequestException(REQUEST_ERRORS.INVALID_TIME_RANGE);
       }
     }
@@ -2461,15 +2461,15 @@ export class RequestsService {
 
   async findAllForgotCheckinRequests(
     paginationDto: RequestPaginationDto = {},
-    userId?: number,
+    user_id?: number,
     userRole?: string,
   ) {
-    let userIdsFilter: number[] | undefined;
+    let user_idsFilter: number[] | undefined;
 
-    if (userId && userRole) {
-      userIdsFilter = await this.getUserIdsFilterByRole(userId, userRole);
+    if (user_id && userRole) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
 
-      if (userIdsFilter !== undefined && userIdsFilter.length === 0) {
+      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
           [],
           0,
@@ -2485,8 +2485,8 @@ export class RequestsService {
       deleted_at: null,
     };
 
-    if (userIdsFilter !== undefined) {
-      whereConditions.user_id = { in: userIdsFilter };
+    if (user_idsFilter !== undefined) {
+      whereConditions.user_id = { in: user_idsFilter };
     }
 
     if (paginationDto.status) {
@@ -2539,13 +2539,13 @@ export class RequestsService {
   }
 
   async findMyForgotCheckinRequests(
-    userId: number,
+    user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const whereConditions: any = {
-      user_id: userId,
+      user_id: user_id,
       deleted_at: null,
     };
 
@@ -2729,16 +2729,16 @@ export class RequestsService {
   /**
    * Validate user là Division Head
    */
-  private async validateDivisionHead(userId: number): Promise<void> {
+  private async validateDivisionHead(user_id: number): Promise<void> {
     const userInfo = await this.prisma.user_information.findFirst({
       where: {
-        user_id: userId,
+        user_id: user_id,
         deleted_at: null,
       },
       include: {},
     });
 
-    const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+    const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
     const isDivisionHead = userRoles.roles.some(
       (role) =>
         role.name === ROLE_NAMES.DIVISION_HEAD &&
@@ -2750,10 +2750,10 @@ export class RequestsService {
     }
   }
 
-  private async getUserDivisions(userId: number): Promise<number[]> {
+  private async getUserDivisions(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -2768,11 +2768,11 @@ export class RequestsService {
       .filter((id): id is number => id !== null);
   }
 
-  private async getDivisionUserIds(divisionIds: number[]): Promise<number[]> {
+  private async getDivisionuser_ids(division_ids: number[]): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.DIVISION,
-        scope_id: { in: divisionIds },
+        scope_id: { in: division_ids },
         deleted_at: null,
       },
       select: {
@@ -2787,7 +2787,7 @@ export class RequestsService {
   /**
    * Lấy danh sách user IDs có role là lead (team_leader, division_head, project_manager)
    */
-  private async getLeadUserIds(divisionId?: number): Promise<number[]> {
+  private async getLeaduser_ids(division_id?: number): Promise<number[]> {
     const leadRoles = [
       ROLE_NAMES.TEAM_LEADER,
       ROLE_NAMES.DIVISION_HEAD,
@@ -2803,19 +2803,19 @@ export class RequestsService {
     };
 
     // Nếu có filter theo division
-    if (divisionId) {
+    if (division_id) {
       // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      whereConditions.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      whereConditions.user_id = { in: user_ids };
     }
 
     const leadUsers = await this.prisma.user_information.findMany({
@@ -2828,7 +2828,7 @@ export class RequestsService {
     return [...new Set(leadUsers.map((lu) => lu.user_id))];
   }
 
-  private async getUserIdsByRole(roleName: string): Promise<number[]> {
+  private async getuser_idsByRole(roleName: string): Promise<number[]> {
     const roleUsers = await this.prisma.user_role_assignment.findMany({
       where: {
         role: {
@@ -2860,10 +2860,10 @@ export class RequestsService {
 
   // ==================== ENHANCED HELPER METHODS ====================
 
-  private async getUserManagedDivisions(userId: number): Promise<number[]> {
+  private async getUserManagedDivisions(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -2886,42 +2886,42 @@ export class RequestsService {
     ];
   }
 
-  private async getUserIdsFilterByRole(
-    userId: number,
+  private async getuser_idsFilterByRole(
+    user_id: number,
     userRole: string,
   ): Promise<number[] | undefined> {
-    const accessScope = await this.determineAccessScope(userId, userRole);
+    const accessScope = await this.determineAccessScope(user_id, userRole);
 
     if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.divisionIds && accessScope.divisionIds.length > 0) {
-        return await this.getDivisionUserIds(accessScope.divisionIds);
+      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
+        return await this.getDivisionuser_ids(accessScope.division_ids);
       }
       return [];
     }
 
     if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeadUserIds = await this.getUserIdsByRole(
+      const divisionHeaduser_ids = await this.getuser_idsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
-      return [userId, ...divisionHeadUserIds];
+      return [user_id, ...divisionHeaduser_ids];
     }
 
     if (accessScope.type === 'TEAM_ONLY') {
-      if (accessScope.teamIds && accessScope.teamIds.length > 0) {
-        return await this.getTeamUserIds(accessScope.teamIds);
+      if (accessScope.team_ids && accessScope.team_ids.length > 0) {
+        return await this.getTeamuser_ids(accessScope.team_ids);
       }
-      return [userId];
+      return [user_id];
     }
 
     if (accessScope.type === 'PROJECT_ONLY') {
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        return await this.getProjectUserIds(accessScope.projectIds);
+        return await this.getProjectuser_ids(accessScope.projectIds);
       }
-      return [userId];
+      return [user_id];
     }
 
     if (accessScope.type === 'SELF_ONLY') {
-      return [userId];
+      return [user_id];
     }
 
     return undefined;
@@ -2930,9 +2930,9 @@ export class RequestsService {
   private async canApproveRequest(
     approverId: number,
     approverRole: string,
-    requestUserId: number,
+    requestuser_id: number,
   ): Promise<boolean> {
-    if (approverId === requestUserId) {
+    if (approverId === requestuser_id) {
       return approverRole === ROLE_NAMES.ADMIN;
     }
 
@@ -2943,32 +2943,32 @@ export class RequestsService {
 
     if (
       accessScope.type === 'DIVISION_ONLY' &&
-      accessScope.divisionIds &&
-      accessScope.divisionIds.length > 0
+      accessScope.division_ids &&
+      accessScope.division_ids.length > 0
     ) {
-      const divisionUserIds = await this.getDivisionUserIds(
-        accessScope.divisionIds,
+      const divisionuser_ids = await this.getDivisionuser_ids(
+        accessScope.division_ids,
       );
-      return divisionUserIds.includes(requestUserId);
+      return divisionuser_ids.includes(requestuser_id);
     }
 
     if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeadUserIds = await this.getUserIdsByRole(
+      const divisionHeaduser_ids = await this.getuser_idsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
       return (
-        requestUserId === approverId ||
-        divisionHeadUserIds.includes(requestUserId)
+        requestuser_id === approverId ||
+        divisionHeaduser_ids.includes(requestuser_id)
       );
     }
 
     if (
       accessScope.type === 'TEAM_ONLY' &&
-      accessScope.teamIds &&
-      accessScope.teamIds.length > 0
+      accessScope.team_ids &&
+      accessScope.team_ids.length > 0
     ) {
-      const teamUserIds = await this.getTeamUserIds(accessScope.teamIds);
-      return teamUserIds.includes(requestUserId);
+      const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
+      return teamuser_ids.includes(requestuser_id);
     }
 
     if (
@@ -2976,15 +2976,15 @@ export class RequestsService {
       accessScope.projectIds &&
       accessScope.projectIds.length > 0
     ) {
-      const projectUserIds = await this.getProjectUserIds(accessScope.projectIds);
-      return projectUserIds.includes(requestUserId);
+      const projectuser_ids = await this.getProjectuser_ids(accessScope.projectIds);
+      return projectuser_ids.includes(requestuser_id);
     }
 
     return false;
   }
 
   private async determineAccessScope(
-    userId: number,
+    user_id: number,
     role: string,
   ): Promise<{
     type:
@@ -2994,24 +2994,24 @@ export class RequestsService {
       | 'TEAM_ONLY'
       | 'SELF_ONLY'
       | 'ADMIN_ACCESS';
-    divisionIds?: number[];
+    division_ids?: number[];
     projectIds?: number[];
-    teamIds?: number[];
-    userId?: number;
+    team_ids?: number[];
+    user_id?: number;
   }> {
     switch (role) {
       case ROLE_NAMES.DIVISION_HEAD: {
-        const managedDivisions = await this.getUserManagedDivisions(userId);
+        const managedDivisions = await this.getUserManagedDivisions(user_id);
         return {
           type: 'DIVISION_ONLY',
-          divisionIds: managedDivisions,
+          division_ids: managedDivisions,
         };
       }
 
       case ROLE_NAMES.ADMIN:
         return {
           type: 'ADMIN_ACCESS',
-          userId: userId,
+          user_id: user_id,
         };
 
       case ROLE_NAMES.HR_MANAGER:
@@ -3021,15 +3021,15 @@ export class RequestsService {
         };
 
       case ROLE_NAMES.TEAM_LEADER: {
-        const userTeams = await this.getUserManagedTeams(userId);
+        const userTeams = await this.getUserManagedTeams(user_id);
         return {
           type: 'TEAM_ONLY',
-          teamIds: userTeams,
+          team_ids: userTeams,
         };
       }
 
       case ROLE_NAMES.PROJECT_MANAGER: {
-        const userProjects = await this.getUserManagedProjects(userId);
+        const userProjects = await this.getUserManagedProjects(user_id);
         return {
           type: 'PROJECT_ONLY',
           projectIds: userProjects,
@@ -3058,10 +3058,10 @@ export class RequestsService {
   /**
    * Lấy danh sách teams mà user quản lý (cho Team Leader)
    */
-  private async getUserManagedTeams(userId: number): Promise<number[]> {
+  private async getUserManagedTeams(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.TEAM,
         deleted_at: null,
         scope_id: { not: null },
@@ -3087,10 +3087,10 @@ export class RequestsService {
   /**
    * Lấy danh sách projects mà user là manager (cho Project Manager)
    */
-  private async getUserManagedProjects(userId: number): Promise<number[]> {
+  private async getUserManagedProjects(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.PROJECT,
         deleted_at: null,
         scope_id: { not: null },
@@ -3121,34 +3121,34 @@ export class RequestsService {
 
     if (
       accessScope.type === 'DIVISION_ONLY' &&
-      accessScope.divisionIds?.length > 0
+      accessScope.division_ids?.length > 0
     ) {
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: { in: accessScope.divisionIds },
+          scope_id: { in: accessScope.division_ids },
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      whereConditions.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      whereConditions.user_id = { in: user_ids };
     } else if (
       accessScope.type === 'TEAM_ONLY' &&
-      accessScope.teamIds?.length > 0
+      accessScope.team_ids?.length > 0
     ) {
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.TEAM,
-          scope_id: { in: accessScope.teamIds },
+          scope_id: { in: accessScope.team_ids },
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      whereConditions.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      whereConditions.user_id = { in: user_ids };
     } else if (
       accessScope.type === 'PROJECT_ONLY' &&
       accessScope.projectIds?.length > 0
@@ -3162,8 +3162,8 @@ export class RequestsService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      whereConditions.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      whereConditions.user_id = { in: user_ids };
     } else if (accessScope.type === 'SELF_ONLY') {
       return whereConditions;
     }
@@ -3179,8 +3179,8 @@ export class RequestsService {
           select: { user_id: true },
           distinct: ['user_id'],
         });
-        const userIds = assignments.map((a) => a.user_id);
-        whereConditions.user_id = { in: userIds };
+        const user_ids = assignments.map((a) => a.user_id);
+        whereConditions.user_id = { in: user_ids };
       }
 
       // Admin can filter by team_id
@@ -3189,7 +3189,7 @@ export class RequestsService {
           ...whereConditions.user,
           user_division: {
             some: {
-              teamId: filters.team_id,
+              team_id: filters.team_id,
             },
           },
         };
@@ -3232,11 +3232,11 @@ export class RequestsService {
   /**
    * Lấy danh sách user IDs trong teams
    */
-  private async getTeamUserIds(teamIds: number[]): Promise<number[]> {
+  private async getTeamuser_ids(team_ids: number[]): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.TEAM,
-        scope_id: { in: teamIds },
+        scope_id: { in: team_ids },
         deleted_at: null,
       },
       select: {
@@ -3251,7 +3251,7 @@ export class RequestsService {
   /**
    * Lấy danh sách user IDs làm việc trong projects (từ role assignments)
    */
-  private async getProjectUserIds(projectIds: number[]): Promise<number[]> {
+  private async getProjectuser_ids(projectIds: number[]): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.PROJECT,
@@ -3287,7 +3287,7 @@ export class RequestsService {
     const filteredTotal = highPriorityRequests.length;
     const page = paginationDto.page || 1;
     const limit = paginationDto.limit || 10;
-    const totalPages = Math.ceil(filteredTotal / limit);
+    const total_pages = Math.ceil(filteredTotal / limit);
 
     // Apply pagination to filtered results
     const startIndex = (page - 1) * limit;
@@ -3300,20 +3300,20 @@ export class RequestsService {
         total: filteredTotal,
         page: page,
         limit: limit,
-        totalPages: totalPages,
+        total_pages: total_pages,
       },
     };
   }
   async updateRemoteWorkRequest(
     id: number,
     dto: CreateRemoteWorkRequestDto,
-    userId: number,
+    user_id: number,
   ) {
     const existing = await this.prisma.remote_work_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.REJECTED)
       throw new BadRequestException(
@@ -3337,13 +3337,13 @@ export class RequestsService {
     });
   }
 
-  async deleteRemoteWorkRequest(id: number, userId: number) {
+  async deleteRemoteWorkRequest(id: number, user_id: number) {
     const existing = await this.prisma.remote_work_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing)
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
     if (existing.status !== ApprovalStatus.PENDING)
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_PROCESSED);
@@ -3356,14 +3356,14 @@ export class RequestsService {
   async updateDayOffRequest(
     id: number,
     dto: CreateDayOffRequestDto,
-    userId: number,
+    user_id: number,
   ) {
     const existing = await this.prisma.day_offs.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing)
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
     if (existing.status !== 'REJECTED')
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_NOT_REJECTED);
@@ -3385,12 +3385,12 @@ export class RequestsService {
     });
   }
 
-  async deleteDayOffRequest(id: number, userId: number) {
+  async deleteDayOffRequest(id: number, user_id: number) {
     const existing = await this.prisma.day_offs.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== 'PENDING')
       throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
@@ -3403,13 +3403,13 @@ export class RequestsService {
   async updateOvertimeRequest(
     id: number,
     dto: CreateOvertimeRequestDto,
-    userId: number,
+    user_id: number,
   ) {
     const existing = await this.prisma.over_times_history.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.REJECTED)
       throw new BadRequestException(
@@ -3437,12 +3437,12 @@ export class RequestsService {
     });
   }
 
-  async deleteOvertimeRequest(id: number, userId: number) {
+  async deleteOvertimeRequest(id: number, user_id: number) {
     const existing = await this.prisma.over_times_history.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.PENDING)
       throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
@@ -3455,13 +3455,13 @@ export class RequestsService {
   async updateLateEarlyRequest(
     id: number,
     dto: CreateLateEarlyRequestDto,
-    userId: number,
+    user_id: number,
   ) {
     const existing = await this.prisma.late_early_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.REJECTED)
       throw new BadRequestException(
@@ -3485,12 +3485,12 @@ export class RequestsService {
     });
   }
 
-  async deleteLateEarlyRequest(id: number, userId: number) {
+  async deleteLateEarlyRequest(id: number, user_id: number) {
     const existing = await this.prisma.late_early_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.PENDING)
       throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');
@@ -3503,13 +3503,13 @@ export class RequestsService {
   async updateForgotCheckinRequest(
     id: number,
     dto: CreateForgotCheckinRequestDto,
-    userId: number,
+    user_id: number,
   ) {
     const existing = await this.prisma.forgot_checkin_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.REJECTED)
       throw new BadRequestException(
@@ -3538,12 +3538,12 @@ export class RequestsService {
     });
   }
 
-  async deleteForgotCheckinRequest(id: number, userId: number) {
+  async deleteForgotCheckinRequest(id: number, user_id: number) {
     const existing = await this.prisma.forgot_checkin_requests.findFirst({
       where: { id, deleted_at: null },
     });
     if (!existing) throw new NotFoundException('Kh�ng t�m th?y request');
-    if (existing.user_id !== userId)
+    if (existing.user_id !== user_id)
       throw new ForbiddenException('Kh�ng c� quy?n');
     if (existing.status !== ApprovalStatus.PENDING)
       throw new BadRequestException('Ch? du?c x�a khi ? tr?ng th�i PENDING');

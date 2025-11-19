@@ -27,7 +27,7 @@ export class CreateTeamDto {
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty({ message: 'ID phòng ban không được để trống' })
-  divisionId: number;
+  division_id: number;
 
   @ApiProperty({
     description: 'ID người lãnh đạo team (user_id)',
@@ -37,7 +37,7 @@ export class CreateTeamDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  leader_Id?: number;
+  leader_id?: number;
 
   @ApiProperty({
     description: 'Ngày thành lập team',
@@ -46,7 +46,7 @@ export class CreateTeamDto {
   })
   @IsOptional()
   @IsDateString()
-  foundingDate?: string;
+  founding_date?: string;
 }
 
 export class UpdateTeamDto {
@@ -67,7 +67,7 @@ export class UpdateTeamDto {
   })
   @IsOptional()
   @IsDateString()
-  foundingDate?: string;
+  founding_date?: string;
 }
 
 export class TeamPaginationDto extends PaginationDto {
@@ -91,7 +91,7 @@ export class TeamPaginationDto extends PaginationDto {
     return Number(value);
   })
   @IsInt()
-  divisionId?: number;
+  division_id?: number;
 
   @ApiProperty({
     description: 'Sắp xếp theo trường (name, created_at, member_count)',
@@ -100,6 +100,6 @@ export class TeamPaginationDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortBy?: string;
+  declare sort_by?: string;
 }
 

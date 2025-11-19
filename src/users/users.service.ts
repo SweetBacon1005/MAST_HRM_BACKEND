@@ -37,10 +37,10 @@ export class UsersService {
       },
     });
 
-    if (userData.roleId) {
+    if (userData.role_id) {
       await this.roleAssignmentService.assignRole({
         user_id: user.id,
-        role_id: Number(userData.roleId),
+        role_id: Number(userData.role_id),
         scope_type: ScopeType.COMPANY,
         assigned_by: assignedBy,
       });
@@ -138,7 +138,7 @@ export class UsersService {
       };
     }
 
-    let userIdsForDivisionFilter: number[] | undefined;
+    let user_idsForDivisionFilter: number[] | undefined;
     if (paginationDto.division_id) {
       const divisionAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -148,13 +148,13 @@ export class UsersService {
         },
         select: { user_id: true },
       });
-      userIdsForDivisionFilter = divisionAssignments.map((a) => a.user_id);
+      user_idsForDivisionFilter = divisionAssignments.map((a) => a.user_id);
       
-      if (userIdsForDivisionFilter.length === 0) {
+      if (user_idsForDivisionFilter.length === 0) {
         return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
       }
       
-      where.id = { in: userIdsForDivisionFilter };
+      where.id = { in: user_idsForDivisionFilter };
     }
 
     const [data, total] = await Promise.all([
@@ -189,10 +189,10 @@ export class UsersService {
     ]);
 
 
-    const userIds = data.map((u) => u.id);
+    const user_ids = data.map((u) => u.id);
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: { in: userIds },
+        user_id: { in: user_ids },
         scope_type: 'DIVISION',
         deleted_at: null,
         scope_id: { not: null },
@@ -203,7 +203,7 @@ export class UsersService {
 
     const teamAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: { in: userIds },
+        user_id: { in: user_ids },
         scope_type: 'TEAM',
         deleted_at: null,
         scope_id: { not: null },
@@ -212,12 +212,12 @@ export class UsersService {
       distinct: ['user_id'],
     });
 
-    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
-    const teamIds = [...new Set(teamAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const division_ids = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const team_ids = [...new Set(teamAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
 
     const [divisions, teams] = await Promise.all([
       this.prisma.divisions.findMany({
-        where: { id: { in: divisionIds } },
+        where: { id: { in: division_ids } },
         select: {
           id: true,
           name: true,
@@ -230,7 +230,7 @@ export class UsersService {
         },
       }),
       this.prisma.teams.findMany({
-        where: { id: { in: teamIds } },
+        where: { id: { in: team_ids } },
         select: {
           id: true,
           name: true,
@@ -256,10 +256,10 @@ export class UsersService {
     });
 
     const transformedData = data.map((user) => {
-      const divisionId = userDivisionMap.get(user.id);
-      const teamId = userTeamMap.get(user.id);
-      const division = divisionId ? divisionMap.get(divisionId) : null;
-      const team = teamId ? teamMap.get(teamId) : null;
+      const division_id = userDivisionMap.get(user.id);
+      const team_id = userTeamMap.get(user.id);
+      const division = division_id ? divisionMap.get(division_id) : null;
+      const team = team_id ? teamMap.get(team_id) : null;
 
       return {
         ...user,
@@ -398,9 +398,9 @@ export class UsersService {
     return { message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY };
   }
 
-  async updatePassword(userId: number, hashedPassword: string) {
+  async updatePassword(user_id: number, hashedPassword: string) {
     await this.prisma.users.update({
-      where: { id: userId },
+      where: { id: user_id },
       data: {
         password: hashedPassword,
       },

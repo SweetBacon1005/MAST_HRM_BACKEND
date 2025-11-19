@@ -36,7 +36,7 @@ export class DivisionRolesGuard implements CanActivate {
     );
 
     const divisionAccess = this.reflector.getAllAndOverride<{
-      divisionId: number;
+      division_id: number;
       roles: string[];
     }>(DIVISION_ACCESS_KEY, [context.getHandler(), context.getClass()]);
 
@@ -59,8 +59,8 @@ export class DivisionRolesGuard implements CanActivate {
     }
 
     if (divisionAccess) {
-      const { divisionId, roles } = divisionAccess;
-      const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user.id, ScopeType.DIVISION, divisionId);
+      const { division_id, roles } = divisionAccess;
+      const divisionRoles = await this.roleAssignmentService.getUserRolesByScope(user.id, ScopeType.DIVISION, division_id);
       const hasAccessToDivision = divisionRoles.some(role => 
         roles.includes(role.name)
       );

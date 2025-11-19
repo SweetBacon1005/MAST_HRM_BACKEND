@@ -72,9 +72,9 @@ export class AuthController {
   })
   async register(
     @Body() registerDto: RegisterDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.authService.register(registerDto, userId);
+    return this.authService.register(registerDto, user_id);
   }
 
   @Public()
@@ -104,8 +104,8 @@ export class AuthController {
     status: 200,
     description: 'Đăng xuất thành công',
   })
-  async logout(@GetCurrentUser('id') userId: number) {
-    return this.authService.logOut(userId);
+  async logout(@GetCurrentUser('id') user_id: number) {
+    return this.authService.logOut(user_id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -123,9 +123,9 @@ export class AuthController {
     description: 'Token không hợp lệ',
   })
   async getProfile(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ): Promise<ProfileResponseDto> {
-    return this.authService.getProfile(userId);
+    return this.authService.getProfile(user_id);
   }
 
   @Public()
@@ -173,7 +173,7 @@ export class AuthController {
           type: 'boolean',
           example: true,
         },
-        resetToken: {
+        reset_token: {
           type: 'string',
           example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
           description: 'Token để reset password (có thời hạn 15 phút)',
@@ -298,10 +298,10 @@ export class AuthController {
     description: 'Token không hợp lệ',
   })
   async changePassword(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
-    return this.authService.changePassword(userId, changePasswordDto);
+    return this.authService.changePassword(user_id, changePasswordDto);
   }
 
   @Public()
@@ -368,7 +368,7 @@ export class AuthController {
     return this.authService.changePasswordWithOTP(
       changePasswordWithOtpDto.email,
       changePasswordWithOtpDto.otp,
-      changePasswordWithOtpDto.newPassword,
+      changePasswordWithOtpDto.new_password,
     );
   }
 }

@@ -316,7 +316,7 @@ Content-Type: application/json
     "total": 100,
     "page": 1,
     "limit": 10,
-    "totalPages": 10
+    "total_pages": 10
   }
 }
 ```

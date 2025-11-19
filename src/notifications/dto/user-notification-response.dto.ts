@@ -26,10 +26,10 @@ export class UserNotificationResponseDto {
   updated_at: Date;
 
   @ApiProperty({ description: 'Tên người tạo', example: 'Admin System' })
-  creatorName: string;
+  creator_name: string;
 
   @ApiPropertyOptional({ description: 'Tiêu đề tin tức', example: 'Thông báo nghỉ lễ 30/4' })
-  newsTitle?: string | null;
+  news_title?: string | null;
 
   @ApiPropertyOptional({ description: 'ID tin tức liên quan', example: 1 })
   news_id?: number | null;
@@ -61,10 +61,10 @@ export class UserNotificationDetailResponseDto {
   updated_at: Date;
 
   @ApiProperty({ description: 'Tên người tạo', example: 'Admin System' })
-  creatorName: string;
+  creator_name: string;
 
   @ApiPropertyOptional({ description: 'Tiêu đề tin tức', example: 'Thông báo nghỉ lễ 30/4' })
-  newsTitle?: string | null;
+  news_title?: string | null;
 
   @ApiPropertyOptional({ description: 'ID tin tức liên quan', example: 1 })
   news_id?: number | null;

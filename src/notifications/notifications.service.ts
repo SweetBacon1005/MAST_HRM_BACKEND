@@ -64,17 +64,17 @@ export class NotificationsService {
 
         return {
           ...createNotification,
-          newsTitle: news?.title,
+          news_title: news?.title,
         };
       },
       { timeout: 20000 },
     );
   }
 
-  async findAll(userId: number): Promise<UserNotificationResponseDto[]> {
+  async findAll(user_id: number): Promise<UserNotificationResponseDto[]> {
     const notifications = await this.prisma.user_notifications.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         deleted_at: null,
         notification: {
           deleted_at: null,
@@ -110,11 +110,11 @@ export class NotificationsService {
       read_at: un.read_at,
       created_at: un.created_at,
       updated_at: un.updated_at,
-      creatorName:
+      creator_name:
         un.notification.creator?.user_information?.name ??
         un.notification.creator?.email ??
         'System',
-      newsTitle: un.notification.news?.title || null,
+      news_title: un.notification.news?.title || null,
       news_id: un.notification.news_id,
     }));
   }
@@ -126,8 +126,8 @@ export class NotificationsService {
       page = 1,
       limit = 10,
       search,
-      sortBy = 'created_at',
-      sortOrder = 'desc',
+      sort_by = 'created_at',
+      sort_order = 'desc',
     } = paginationDto;
 
     const skip = (page - 1) * limit;
@@ -144,12 +144,12 @@ export class NotificationsService {
     }
 
     const orderBy: Prisma.notificationsOrderByWithRelationInput = {};
-    if (sortBy === 'title') {
-      orderBy.title = sortOrder;
-    } else if (sortBy === 'updated_at') {
-      orderBy.updated_at = sortOrder;
+    if (sort_by === 'title') {
+      orderBy.title = sort_order;
+    } else if (sort_by === 'updated_at') {
+      orderBy.updated_at = sort_order;
     } else {
-      orderBy.created_at = sortOrder;
+      orderBy.created_at = sort_order;
     }
 
     const [notifications, total] = await Promise.all([
@@ -185,11 +185,11 @@ export class NotificationsService {
       const { user_notifications, ...notificationWithoutUserNotifications } = n;
       return {
         ...notificationWithoutUserNotifications,
-        creatorName:
+        creator_name:
           n.creator?.user_information?.name ?? n.creator?.email ?? 'System',
-        newsTitle: n.news?.title || null,
-        totalRecipients: user_notifications.length,
-        readCount: user_notifications.filter((un) => un.is_read).length,
+        news_title: n.news?.title || null,
+        total_recipients: user_notifications.length,
+        read_count: user_notifications.filter((un) => un.is_read).length,
       };
     });
 
@@ -199,7 +199,7 @@ export class NotificationsService {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        total_pages: Math.ceil(total / limit),
       },
     };
   }
@@ -242,14 +242,14 @@ export class NotificationsService {
 
     return {
       ...notification,
-      creatorName:
+      creator_name:
         notification.creator?.user_information?.name ??
         notification.creator?.email ??
         'System',
-      newsTitle: notification.news?.title || null,
+      news_title: notification.news?.title || null,
       recipients: notification.user_notifications.map((un) => ({
         user_id: un.user_id,
-        userName: un.user.user_information?.name ?? un.user.email,
+        user_name: un.user.user_information?.name ?? un.user.email,
         is_read: un.is_read,
         read_at: un.read_at,
       })),
@@ -303,13 +303,13 @@ export class NotificationsService {
 
   async markAsRead(
     userNotificationId: number,
-    userId: number,
+    user_id: number,
     isRead: boolean,
   ): Promise<MarkReadResponseDto> {
     const userNotification = await this.prisma.user_notifications.findFirst({
       where: {
         id: userNotificationId,
-        user_id: userId,
+        user_id: user_id,
         deleted_at: null,
       },
     });
@@ -336,7 +336,7 @@ export class NotificationsService {
     await this.activityLogService.logNotificationOperation(
       isRead ? 'read' : 'unread',
       userNotificationId,
-      userId,
+      user_id,
       updatedUserNotification.notification.title,
       {
         previous_read_status: userNotification.is_read,
@@ -349,7 +349,7 @@ export class NotificationsService {
 
   async remove(
     notificationId: number,
-    userId: number,
+    user_id: number,
   ): Promise<DeleteNotificationResponseDto> {
     const existingNotification = await this.prisma.notifications.findFirst({
       where: { id: notificationId, deleted_at: null },
@@ -378,7 +378,7 @@ export class NotificationsService {
     await this.activityLogService.logNotificationOperation(
       'deleted',
       notificationId,
-      userId,
+      user_id,
       existingNotification.title,
       {
         is_admin_delete: true,

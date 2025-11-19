@@ -39,16 +39,16 @@ export class AdminNotificationResponseDto {
   news?: NotificationNewsDto | null;
 
   @ApiProperty({ description: 'Tên người tạo', example: 'Admin System' })
-  creatorName: string;
+  creator_name: string;
 
   @ApiPropertyOptional({ description: 'Tiêu đề tin tức', example: 'Thông báo nghỉ lễ 30/4' })
-  newsTitle?: string | null;
+  news_title?: string | null;
 
   @ApiProperty({ description: 'Tổng số người nhận', example: 150 })
-  totalRecipients: number;
+  total_recipients: number;
 
   @ApiProperty({ description: 'Số người đã đọc', example: 45 })
-  readCount: number;
+  read_count: number;
 }
 
 // Response cho Admin xem chi tiết notification (dựa trên service line 286-299)
@@ -84,10 +84,10 @@ export class AdminNotificationDetailResponseDto {
   news?: NotificationNewsDto | null;
 
   @ApiProperty({ description: 'Tên người tạo', example: 'Admin System' })
-  creatorName: string;
+  creator_name: string;
 
   @ApiPropertyOptional({ description: 'Tiêu đề tin tức', example: 'Thông báo nghỉ lễ 30/4' })
-  newsTitle?: string | null;
+  news_title?: string | null;
 
   @ApiProperty({ description: 'Danh sách người nhận chi tiết', type: [NotificationRecipientDto] })
   recipients: NotificationRecipientDto[];

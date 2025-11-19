@@ -43,9 +43,9 @@ import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 export class UserProfileService {
   constructor(private prisma: PrismaService) {}
 
-  async getUserProfile(userId: number) {
+  async getUserProfile(user_id: number) {
     const userProfile = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
+      where: { id: user_id, deleted_at: null },
       include: {
         user_information: true,
         education: {
@@ -71,7 +71,7 @@ export class UserProfileService {
     const divisionAssignment = await this.prisma.user_role_assignment.findFirst(
       {
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: ScopeType.DIVISION,
           deleted_at: null,
           scope_id: { not: null },
@@ -153,11 +153,11 @@ export class UserProfileService {
   }
 
   async updateUserInformation(
-    userId: number,
+    user_id: number,
     updateDto: UpdateUserInformationDto,
   ) {
     const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
+      where: { id: user_id, deleted_at: null },
     });
 
     if (!user) {
@@ -188,7 +188,7 @@ export class UserProfileService {
     const { position_id, level_id, language_id, ...rest } = updateDto;
 
     const existingInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: userId, ...{ deleted_at: null } },
+      where: { user_id: user_id, ...{ deleted_at: null } },
     });
 
     if (existingInfo) {
@@ -222,7 +222,7 @@ export class UserProfileService {
       // Tạo mới thông tin
       return await this.prisma.user_information.create({
         data: {
-          user_id: userId,
+          user_id: user_id,
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
@@ -260,10 +260,10 @@ export class UserProfileService {
     });
   }
 
-  async getEducations(userId: number) {
+  async getEducations(user_id: number) {
     return await this.prisma.education.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         ...{ deleted_at: null },
       },
       orderBy: { start_date: 'desc' },
@@ -271,12 +271,12 @@ export class UserProfileService {
   }
 
   async getEducationsPaginated(
-    userId: number,
+    user_id: number,
     paginationDto: EducationPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.educationWhereInput = {
-      user_id: userId,
+      user_id: user_id,
       deleted_at: null,
     };
 
@@ -344,9 +344,9 @@ export class UserProfileService {
     });
   }
 
-  async deleteEducation(educationId: number, userId: number) {
+  async deleteEducation(educationId: number, user_id: number) {
     const education = await this.prisma.education.findFirst({
-      where: { id: educationId, user_id: userId, deleted_at: null },
+      where: { id: educationId, user_id: user_id, deleted_at: null },
     });
 
     if (!education) {
@@ -371,10 +371,10 @@ export class UserProfileService {
     });
   }
 
-  async getExperiences(userId: number) {
+  async getExperiences(user_id: number) {
     return await this.prisma.experience.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         ...{ deleted_at: null },
       },
       orderBy: { start_date: 'desc' },
@@ -408,9 +408,9 @@ export class UserProfileService {
     });
   }
 
-  async deleteExperience(experienceId: number, userId: number) {
+  async deleteExperience(experienceId: number, user_id: number) {
     const experience = await this.prisma.experience.findFirst({
-      where: { id: experienceId, user_id: userId, deleted_at: null },
+      where: { id: experienceId, user_id: user_id, deleted_at: null },
     });
 
     if (!experience) {
@@ -458,10 +458,10 @@ export class UserProfileService {
     });
   }
 
-  async getUserSkills(userId: number) {
+  async getUserSkills(user_id: number) {
     return await this.prisma.user_skills.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         ...{ deleted_at: null },
       },
       include: {
@@ -475,9 +475,9 @@ export class UserProfileService {
     });
   }
 
-  async updateUserSkill(userSkillId: number, updateDto: UpdateUserSkillDto) {
+  async updateUserSkill(userskill_id: number, updateDto: UpdateUserSkillDto) {
     const userSkill = await this.prisma.user_skills.findFirst({
-      where: { id: userSkillId, deleted_at: null },
+      where: { id: userskill_id, deleted_at: null },
     });
 
     if (!userSkill) {
@@ -499,7 +499,7 @@ export class UserProfileService {
     }
 
     return await this.prisma.user_skills.update({
-      where: { id: userSkillId },
+      where: { id: userskill_id },
       data: {
         ...updateDto,
         experience: updateDto.experience || 0,
@@ -515,31 +515,31 @@ export class UserProfileService {
     });
   }
 
-  async deleteUserSkill(userSkillId: number, userId: number) {
+  async deleteUserSkill(userskill_id: number, user_id: number) {
     const userSkill = await this.prisma.user_skills.findFirst({
-      where: { id: userSkillId, deleted_at: null },
+      where: { id: userskill_id, deleted_at: null },
     });
 
     if (!userSkill) {
       throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
     }
 
-    if (userSkill.user_id !== userId) {
+    if (userSkill.user_id !== user_id) {
       throw new ForbiddenException('Bạn không có quyền xóa thông tin kỹ năng');
     }
 
     await this.prisma.user_skills.update({
-      where: { id: userSkillId },
+      where: { id: userskill_id },
       data: { deleted_at: new Date() },
     });
 
     return { message: 'Xóa thông tin kỹ năng thành công' };
   }
 
-  async getSkillsByPosition(positionId: number) {
+  async getSkillsByPosition(position_id: number) {
     return await this.prisma.skills.findMany({
       where: {
-        position_id: positionId,
+        position_id: position_id,
         ...{ deleted_at: null },
       },
       include: {
@@ -566,9 +566,9 @@ export class UserProfileService {
     });
   }
 
-  async updateAvatar(userId: number, avatarUrl: string) {
+  async updateAvatar(user_id: number, avatarUrl: string) {
     const user = await this.prisma.users.findFirst({
-      where: { id: userId, ...{ deleted_at: null } },
+      where: { id: user_id, ...{ deleted_at: null } },
     });
 
     if (!user) {
@@ -576,7 +576,7 @@ export class UserProfileService {
     }
 
     const userInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: userId, ...{ deleted_at: null } },
+      where: { user_id: user_id, ...{ deleted_at: null } },
     });
 
     if (userInfo) {
@@ -597,7 +597,7 @@ export class UserProfileService {
     } else {
       const newInfo = await this.prisma.user_information.create({
         data: {
-          user_id: userId,
+          user_id: user_id,
           avatar: avatarUrl,
         },
         include: {
@@ -618,12 +618,12 @@ export class UserProfileService {
   // === PAGINATION METHODS ===
 
   async getExperiencesPaginated(
-    userId: number,
+    user_id: number,
     paginationDto: ExperiencePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.experienceWhereInput = {
-      user_id: userId,
+      user_id: user_id,
       deleted_at: null,
     };
 
@@ -661,7 +661,7 @@ export class UserProfileService {
   }
 
   async getUserCertificatesPaginated(
-    userId: number,
+    user_id: number,
     paginationDto: CertificatePaginationDto,
   ) {
     return buildPaginationResponse(
@@ -673,12 +673,12 @@ export class UserProfileService {
   }
 
   async getUserSkillsPaginated(
-    userId: number,
+    user_id: number,
     paginationDto: UserSkillPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.user_skillsWhereInput = {
-      user_id: userId,
+      user_id: user_id,
       deleted_at: null,
     };
 
@@ -1509,13 +1509,13 @@ export class UserProfileService {
 
     if (updateSkillDto.name || updateSkillDto.position_id) {
       const checkName = updateSkillDto.name || existingSkill.name;
-      const checkPositionId =
+      const checkposition_id =
         updateSkillDto.position_id || existingSkill.position_id;
 
       const duplicateSkill = await this.prisma.skills.findFirst({
         where: {
           name: checkName,
-          position_id: checkPositionId,
+          position_id: checkposition_id,
           deleted_at: null,
           NOT: { id },
         },

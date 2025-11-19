@@ -52,16 +52,16 @@ export class ReportsService {
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
     // REFACTORED: Use UserQueryService instead of duplicate code
-    const userIds = await this.userQuery.getUserIdsByDivisionOrTeam({
-      divisionId: Number(division_id),
-      teamId: Number(team_id),
+    const user_ids = await this.userQuery.getuser_idsByDivisionOrTeam({
+      division_id: Number(division_id),
+      team_id: Number(team_id),
     });
 
     // REFACTORED: Use QueryBuilderService to build where clause
     const where = this.queryBuilder.buildTimesheetWhereClause({
       startDate,
       endDate,
-      userIds,
+      user_ids,
     });
 
     const timesheets = await this.prisma.time_sheets.findMany({
@@ -84,8 +84,8 @@ export class ReportsService {
 
     // Default: Trả về format cũ
     // REFACTORED: Use UserQueryService (keeping for potential future use)
-    if (userIds.length > 0) {
-      await this.userQuery.getBasicUserInfo(userIds);
+    if (user_ids.length > 0) {
+      await this.userQuery.getBasicUserInfo(user_ids);
     }
 
     // Thống kê tổng hợp
@@ -162,10 +162,10 @@ export class ReportsService {
 
     // Group by user - TYPE SAFE
     const userStats = timesheets.reduce((acc: UserStatsMap, timesheet) => {
-      const userId = timesheet.user_id;
-      if (!acc[userId]) {
-        acc[userId] = {
-          user_id: userId,
+      const user_id = timesheet.user_id;
+      if (!acc[user_id]) {
+        acc[user_id] = {
+          user_id: user_id,
           total_days: 0,
           total_work_hours: 0,
           total_ot_hours: 0,
@@ -175,7 +175,7 @@ export class ReportsService {
         };
       }
 
-      const userStat = acc[userId];
+      const userStat = acc[user_id];
       userStat.total_days += 1;
       userStat.total_work_hours +=
         ((timesheet.work_time_morning || 0) +
@@ -291,11 +291,11 @@ export class ReportsService {
     const earlyLeaveDays = timesheets.filter(
       (t) => t.early_time && t.early_time > 0,
     ).length;
-    const totalLateMinutes = timesheets.reduce(
+    const totallate_minutes = timesheets.reduce(
       (sum, t) => sum + (t.late_time || 0),
       0,
     );
-    const totalEarlyMinutes = timesheets.reduce(
+    const totalearly_minutes = timesheets.reduce(
       (sum, t) => sum + (t.early_time || 0),
       0,
     );
@@ -352,7 +352,7 @@ export class ReportsService {
       },
       total_work_days: `${completeDays}/${expectedWorkDays}`,
       overtime_hours: totalOvertimeHours,
-      late_minutes: totalLateMinutes,
+      late_minutes: totallate_minutes,
       violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
       paid_leave_hours: paidLeaveDays * 8,
       unpaid_leave_hours: unpaidLeaveDays * 8,
@@ -360,11 +360,11 @@ export class ReportsService {
         total_days: `${completeDays}/${expectedWorkDays}`,
         complete_days: completeDays,
         working_days_in_month: workingDaysInMonth,
-        late: totalLateMinutes,
+        late: totallate_minutes,
         late_days: lateDays,
         early_leave: `${earlyLeaveDays}/${totalDays}`,
         early_leave_days: earlyLeaveDays,
-        early_leave_minutes: totalEarlyMinutes,
+        early_leave_minutes: totalearly_minutes,
       },
       overtime: {
         total_hours: totalOvertimeHours,
@@ -406,7 +406,7 @@ export class ReportsService {
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
     // Lấy danh sách user theo phòng ban/team
-    let userIds: number[] = [];
+    let user_ids: number[] = [];
     if (team_id) {
       const teamAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -417,7 +417,7 @@ export class ReportsService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = teamAssignments.map((assignment) => assignment.user_id);
+      user_ids = teamAssignments.map((assignment) => assignment.user_id);
     } else if (division_id) {
       const divisionAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -428,7 +428,7 @@ export class ReportsService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = divisionAssignments.map((assignment) => assignment.user_id);
+      user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const whereTimesheet: TimesheetWhereInput = {
@@ -439,8 +439,8 @@ export class ReportsService {
       deleted_at: null,
     };
 
-    if (userIds.length > 0) {
-      whereTimesheet.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      whereTimesheet.user_id = { in: user_ids };
     }
 
     // Thống kê tổng quan
@@ -471,14 +471,14 @@ export class ReportsService {
 
     // Top vi phạm
     const violationStats = await this.getViolationStatistics(
-      userIds,
+      user_ids,
       startDate,
       endDate,
     );
 
     // Thống kê nghỉ phép
     const leaveStats = await this.getLeaveStatistics(
-      userIds,
+      user_ids,
       startDate,
       endDate,
     );
@@ -519,7 +519,7 @@ export class ReportsService {
   async getAttendanceSummary(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
   ) {
     const where: AttendanceLogWhereInput = {};
 
@@ -530,19 +530,19 @@ export class ReportsService {
       };
     }
 
-    if (divisionId) {
+    if (division_id) {
       // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      where.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      where.user_id = { in: user_ids };
     }
 
     const attendanceStats = await this.prisma.attendance_logs.groupBy({
@@ -560,9 +560,9 @@ export class ReportsService {
     });
 
     // Lấy thông tin user để hiển thị
-    const userIds = attendanceStats.map((stat) => stat.user_id);
+    const user_ids = attendanceStats.map((stat) => stat.user_id);
     const users = await this.prisma.users.findMany({
-      where: { id: { in: userIds } },
+      where: { id: { in: user_ids } },
       select: {
         id: true,
         user_information: { select: { name: true } },
@@ -573,7 +573,7 @@ export class ReportsService {
     // Lấy division names từ user_role_assignment
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: { in: userIds },
+        user_id: { in: user_ids },
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -582,9 +582,9 @@ export class ReportsService {
       distinct: ['user_id'],
     });
 
-    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const division_ids = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
     const divisions = await this.prisma.divisions.findMany({
-      where: { id: { in: divisionIds } },
+      where: { id: { in: division_ids } },
       select: { id: true, name: true },
     });
 
@@ -614,7 +614,7 @@ export class ReportsService {
 
     return {
       period: { start_date: startDate, end_date: endDate },
-      division_id: divisionId,
+      division_id: division_id,
       data: result,
       total_records: result.length,
     };
@@ -659,9 +659,9 @@ export class ReportsService {
 
     // Thống kê theo user
     const userStats = lateRequests.reduce((acc, request) => {
-      const userId = request.user_id;
-      if (!acc[userId]) {
-        acc[userId] = {
+      const user_id = request.user_id;
+      if (!acc[user_id]) {
+        acc[user_id] = {
           user: request.user.user_information?.name || '',
           late_count: 0,
           early_count: 0,
@@ -670,11 +670,11 @@ export class ReportsService {
         };
       }
 
-      if (request.request_type === 'LATE') acc[userId].late_count++;
-      else if (request.request_type === 'EARLY') acc[userId].early_count++;
-      else if (request.request_type === 'BOTH') acc[userId].both_count++;
+      if (request.request_type === 'LATE') acc[user_id].late_count++;
+      else if (request.request_type === 'EARLY') acc[user_id].early_count++;
+      else if (request.request_type === 'BOTH') acc[user_id].both_count++;
 
-      acc[userId].total++;
+      acc[user_id].total++;
       return acc;
     }, {});
 
@@ -688,7 +688,7 @@ export class ReportsService {
   /**
    * Báo cáo tổng hợp nghỉ phép
    */
-  async getLeaveSummary(year?: number, divisionId?: number) {
+  async getLeaveSummary(year?: number, division_id?: number) {
     const targetYear = year || new Date().getFullYear();
     const startDate = new Date(targetYear, 0, 1);
     const endDate = new Date(targetYear, 11, 31);
@@ -700,19 +700,19 @@ export class ReportsService {
       },
     };
 
-    if (divisionId) {
+    if (division_id) {
       // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      where.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      where.user_id = { in: user_ids };
     }
 
     const leaveRequests = await this.prisma.day_offs.findMany({
@@ -751,9 +751,9 @@ export class ReportsService {
 
     // Thống kê theo user
     const userStats = leaveRequests.reduce((acc, leave) => {
-      const userId = leave.user_id;
-      if (!acc[userId]) {
-        acc[userId] = {
+      const user_id = leave.user_id;
+      if (!acc[user_id]) {
+        acc[user_id] = {
           user: leave.user.user_information?.name || '',
           total_requests: 0,
           total_days: 0,
@@ -762,13 +762,13 @@ export class ReportsService {
         };
       }
 
-      acc[userId].total_requests++;
-      acc[userId].total_days += 1;
+      acc[user_id].total_requests++;
+      acc[user_id].total_days += 1;
 
       if (leave.status === 'APPROVED') {
-        acc[userId].approved_days += 1;
+        acc[user_id].approved_days += 1;
       } else if (leave.status === 'PENDING') {
-        acc[userId].pending_days += 1;
+        acc[user_id].pending_days += 1;
       }
 
       return acc;
@@ -776,7 +776,7 @@ export class ReportsService {
 
     return {
       year: targetYear,
-      division_id: divisionId,
+      division_id: division_id,
       leave_type_stats: leaveTypeStats,
       status_stats: statusStats,
       user_stats: Object.values(userStats),
@@ -790,7 +790,7 @@ export class ReportsService {
   async getOvertimeSummary(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
   ) {
     const where: any = {};
 
@@ -801,19 +801,19 @@ export class ReportsService {
       };
     }
 
-    if (divisionId) {
+    if (division_id) {
       // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           deleted_at: null,
         },
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      const userIds = assignments.map((a) => a.user_id);
-      where.user_id = { in: userIds };
+      const user_ids = assignments.map((a) => a.user_id);
+      where.user_id = { in: user_ids };
     }
 
     const overtimeRecords = await this.prisma.over_times_history.findMany({
@@ -859,9 +859,9 @@ export class ReportsService {
 
     // Thống kê theo user
     const userStats = overtimeRecords.reduce((acc, record) => {
-      const userId = record.user_id;
-      if (!acc[userId]) {
-        acc[userId] = {
+      const user_id = record.user_id;
+      if (!acc[user_id]) {
+        acc[user_id] = {
           user: record.user.user_information?.name || '',
           total_sessions: 0,
           total_hours: 0,
@@ -872,14 +872,14 @@ export class ReportsService {
         };
       }
 
-      acc[userId].total_sessions++;
-      acc[userId].total_hours += record.total_hours || 0;
-      acc[userId].total_amount += record.total_amount || 0;
+      acc[user_id].total_sessions++;
+      acc[user_id].total_hours += record.total_hours || 0;
+      acc[user_id].total_amount += record.total_amount || 0;
 
       if (record.status === 'APPROVED') {
-        acc[userId].approved_sessions++;
-        acc[userId].approved_hours += record.total_hours || 0;
-        acc[userId].approved_amount += record.total_amount || 0;
+        acc[user_id].approved_sessions++;
+        acc[user_id].approved_hours += record.total_hours || 0;
+        acc[user_id].approved_amount += record.total_amount || 0;
       }
 
       return acc;
@@ -908,14 +908,14 @@ export class ReportsService {
 
     return {
       period: { start_date: startDate, end_date: endDate },
-      division_id: divisionId,
+      division_id: division_id,
       total_stats: totalStats,
       user_stats: Object.values(userStats),
       project_stats: Object.values(projectStats),
     };
   }
 
-  async getPersonnelTransferSummary(year?: number, divisionId?: number) {
+  async getPersonnelTransferSummary(year?: number, division_id?: number) {
     const targetYear = year || new Date().getFullYear();
     const startDate = new Date(targetYear, 0, 1);
     const endDate = new Date(targetYear, 11, 31);
@@ -928,14 +928,14 @@ export class ReportsService {
       deleted_at: null,
     };
 
-    if (divisionId) {
+    if (division_id) {
       where.OR = [
-        { division_id: divisionId },
+        { division_id: division_id },
         {
           user: {
             user_division: {
               some: {
-                divisionId: divisionId,
+                division_id: division_id,
               },
             },
           },
@@ -982,21 +982,21 @@ export class ReportsService {
 
     // Thống kê theo phòng ban đích
     const divisionStats = transfers.reduce((acc, transfer) => {
-      const divisionId = transfer.to_division.id;
+      const division_id = transfer.to_division.id;
       const divisionName = transfer.to_division.name || '';
-      if (!acc[divisionId]) {
-        acc[divisionId] = {
+      if (!acc[division_id]) {
+        acc[division_id] = {
           division_name: divisionName,
           count: 0,
         };
       }
-      acc[divisionId].count++;
+      acc[division_id].count++;
       return acc;
     }, {});
 
     return {
       year: targetYear,
-      division_id: divisionId,
+      division_id: division_id,
       total_transfers: transfers.length,
       type_stats: typeStats,
       monthly_stats: monthlyStats,
@@ -1161,7 +1161,7 @@ export class ReportsService {
    * Thống kê vi phạm theo user
    */
   private async getViolationStatistics(
-    userIds: number[],
+    user_ids: number[],
     startDate: string,
     endDate: string,
   ) {
@@ -1174,8 +1174,8 @@ export class ReportsService {
       OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],
     };
 
-    if (userIds.length > 0) {
-      whereViolation.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      whereViolation.user_id = { in: user_ids };
     }
 
     const violations = await this.prisma.time_sheets.findMany({
@@ -1186,10 +1186,10 @@ export class ReportsService {
     const userViolations: Record<number, Partial<ViolationStats>> = {};
 
     violations.forEach((violation) => {
-      const userId = violation.user_id;
-      if (!userViolations[userId]) {
-        userViolations[userId] = {
-          user_id: userId,
+      const user_id = violation.user_id;
+      if (!userViolations[user_id]) {
+        userViolations[user_id] = {
+          user_id: user_id,
           user_name: undefined, // No user relation in time_sheets
           total_violations: 0,
           late_count: 0,
@@ -1200,7 +1200,7 @@ export class ReportsService {
         };
       }
 
-      const uv = userViolations[userId];
+      const uv = userViolations[user_id];
       uv.total_violations = (uv.total_violations || 0) + 1;
 
       if (violation.late_time && violation.late_time > 0) {
@@ -1225,7 +1225,7 @@ export class ReportsService {
    * Thống kê nghỉ phép
    */
   private async getLeaveStatistics(
-    userIds: number[],
+    user_ids: number[],
     startDate: string,
     endDate: string,
   ) {
@@ -1238,8 +1238,8 @@ export class ReportsService {
       status: ApprovalStatus.APPROVED,
     };
 
-    if (userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     const leaves = await this.prisma.day_offs.findMany({ where });
@@ -1291,10 +1291,10 @@ export class ReportsService {
     const userStats: UserStatsMap = {};
 
     timesheets.forEach((timesheet) => {
-      const userId = timesheet.user_id;
-      if (!userStats[userId]) {
-        userStats[userId] = {
-          user_id: userId,
+      const user_id = timesheet.user_id;
+      if (!userStats[user_id]) {
+        userStats[user_id] = {
+          user_id: user_id,
           total_days: 0,
           total_work_hours: 0,
           total_ot_hours: 0,
@@ -1308,7 +1308,7 @@ export class ReportsService {
         };
       }
 
-      const us = userStats[userId];
+      const us = userStats[user_id];
       us.total_days += 1;
 
       if (!timesheet.late_time || timesheet.late_time === 0) {
@@ -1379,10 +1379,10 @@ export class ReportsService {
     const penaltyByUser: Record<number, PenaltyByUser> = {};
 
     penaltyRecords.forEach((record) => {
-      const userId = record.user_id;
-      if (!penaltyByUser[userId]) {
-        penaltyByUser[userId] = {
-          user_id: userId,
+      const user_id = record.user_id;
+      if (!penaltyByUser[user_id]) {
+        penaltyByUser[user_id] = {
+          user_id: user_id,
           total_penalty: 0,
           late_penalty: 0,
           early_penalty: 0,
@@ -1390,12 +1390,12 @@ export class ReportsService {
         };
       }
 
-      penaltyByUser[userId].total_penalty += 0;
-      penaltyByUser[userId].violation_count += 1;
+      penaltyByUser[user_id].total_penalty += 0;
+      penaltyByUser[user_id].violation_count += 1;
 
       // Ước tính phân bổ phạt
-      if (record.late_time > 0) penaltyByUser[userId].late_penalty += 0;
-      if (record.early_time > 0) penaltyByUser[userId].early_penalty += 0;
+      if (record.late_time > 0) penaltyByUser[user_id].late_penalty += 0;
+      if (record.early_time > 0) penaltyByUser[user_id].early_penalty += 0;
     });
 
     return {

@@ -28,10 +28,10 @@ export class ProjectsService {
     });
   }
 
-  private async getUserManagedDivisions(userId: number): Promise<number[]> {
+  private async getUserManagedDivisions(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -153,17 +153,17 @@ export class ProjectsService {
 
   async findAll(
     paginationDto: ProjectPaginationDto,
-    userId?: number,
+    user_id?: number,
     userRole?: string,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.projectsWhereInput = { deleted_at: null };
 
     // Role-based filtering
-    if (userId && userRole) {
+    if (user_id && userRole) {
       if (userRole === ROLE_NAMES.DIVISION_HEAD) {
         // Division Head chỉ xem projects trong divisions mình quản lý
-        const managedDivisions = await this.getUserManagedDivisions(userId);
+        const managedDivisions = await this.getUserManagedDivisions(user_id);
         if (managedDivisions.length > 0) {
           where.division_id = { in: managedDivisions };
         } else {
@@ -449,12 +449,12 @@ export class ProjectsService {
         : null,
     }));
   }
-  async findMyProjects(paginationDto: ProjectPaginationDto, userId: number) {
+  async findMyProjects(paginationDto: ProjectPaginationDto, user_id: number) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.PROJECT,
         deleted_at: null,
       },

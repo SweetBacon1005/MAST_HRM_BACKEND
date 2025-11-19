@@ -19,7 +19,7 @@ export class DailyReportsController {
   @Post()
   @ApiOperation({ 
     summary: 'Tạo daily report mới',
-    description: 'Tạo báo cáo công việc hàng ngày. Trạng thái mặc định là PENDING.'
+    description: 'Tạo báo cáo công việc hàng ngày. Trạng thái mặc định là PENDING. Chỉ có thể tạo báo cáo cho tuần hiện tại và phải thuộc dự án (hoặc dự án có access type là COMPANY).'
   })
   @ApiResponse({ 
     status: HttpStatus.CREATED, 
@@ -32,10 +32,14 @@ export class DailyReportsController {
   })
   @ApiResponse({ 
     status: HttpStatus.BAD_REQUEST, 
-    description: 'Dữ liệu không hợp lệ' 
+    description: 'Dữ liệu không hợp lệ hoặc ngày làm việc không thuộc tuần hiện tại' 
   })
-  create(@Body() dto: CreateDailyReportDto, @GetCurrentUser('id') userId: number) {
-    return this.service.create(dto, userId);
+  @ApiResponse({ 
+    status: HttpStatus.FORBIDDEN, 
+    description: 'Bạn không thuộc dự án này' 
+  })
+  create(@Body() dto: CreateDailyReportDto, @GetCurrentUser('id') user_id: number) {
+    return this.service.create(dto, user_id);
   }
 
   @Get()
@@ -48,8 +52,8 @@ export class DailyReportsController {
     description: 'Lấy danh sách thành công',
     type: DailyReportPaginatedResponse
   })
-  findAll(@GetCurrentUser('id') userId: number, @Query() p: DailyReportPaginationDto) {
-    return this.service.findAll(p, userId);
+  findAll(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
+    return this.service.findAll(p, user_id);
   }
 
   @Get('my')
@@ -62,8 +66,8 @@ export class DailyReportsController {
     description: 'Lấy danh sách thành công',
     type: DailyReportPaginatedResponse
   })
-  my(@GetCurrentUser('id') userId: number, @Query() p: DailyReportPaginationDto) {
-    return this.service.findMy(userId, p);
+  my(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
+    return this.service.findMy(user_id, p);
   }
 
   @Get(':id')
@@ -88,7 +92,7 @@ export class DailyReportsController {
   @Patch(':id')
   @ApiOperation({ 
     summary: 'Sửa daily report',
-    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED. Sau khi sửa, trạng thái sẽ chuyển về PENDING.'
+    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED. Sau khi sửa, trạng thái sẽ chuyển về PENDING. Ngày làm việc mới phải thuộc tuần hiện tại và user phải thuộc dự án.'
   })
   @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
   @ApiResponse({ 
@@ -102,14 +106,14 @@ export class DailyReportsController {
   })
   @ApiResponse({ 
     status: HttpStatus.FORBIDDEN, 
-    description: 'Không có quyền chỉnh sửa báo cáo này' 
+    description: 'Không có quyền chỉnh sửa báo cáo này hoặc không thuộc dự án' 
   })
   @ApiResponse({ 
     status: HttpStatus.BAD_REQUEST, 
-    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED' 
+    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED hoặc ngày làm việc không thuộc tuần hiện tại' 
   })
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDailyReportDto, @GetCurrentUser('id') userId: number) {
-    return this.service.update(id, dto, userId);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDailyReportDto, @GetCurrentUser('id') user_id: number) {
+    return this.service.update(id, dto, user_id);
   }
 
   @Delete(':id')
@@ -135,8 +139,8 @@ export class DailyReportsController {
     status: HttpStatus.BAD_REQUEST, 
     description: 'Chỉ có thể xóa báo cáo khi trạng thái là PENDING' 
   })
-  remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') userId: number) {
-    return this.service.remove(id, userId);
+  remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number) {
+    return this.service.remove(id, user_id);
   }
 
   @Post(':id/approve')

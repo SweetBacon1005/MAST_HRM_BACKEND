@@ -99,7 +99,7 @@ export class AuthService {
     }
   }
 
-  async register(registerDto: RegisterDto, userId: number): Promise<TokensDto> {
+  async register(registerDto: RegisterDto, user_id: number): Promise<TokensDto> {
     const existingUser = await this.usersService.findByEmail(registerDto.email);
     if (existingUser) {
       throw new BadRequestException(AUTH_ERRORS.EMAIL_ALREADY_EXISTS);
@@ -119,7 +119,7 @@ export class AuthService {
         ...registerDto,
         password: hashedPassword,
       },
-      userId,
+      user_id,
     );
 
     const role = await this.prisma.roles.findFirst({
@@ -162,12 +162,12 @@ export class AuthService {
       },
     );
 
-    const userId = payload.sub;
-    if (!userId) {
+    const user_id = payload.sub;
+    if (!user_id) {
       throw new UnauthorizedException(AUTH_ERRORS.INVALID_REFRESH_TOKEN);
     }
 
-    const user = await this.usersService.findById(Number(userId));
+    const user = await this.usersService.findById(Number(user_id));
     if (!user || user.deleted_at) {
       throw new UnauthorizedException(USER_ERRORS.USER_NOT_FOUND);
     }
@@ -182,18 +182,18 @@ export class AuthService {
     return tokens;
   }
 
-  async logOut(_userId: number): Promise<{ message: string }> {
+  async logOut(_user_id: number): Promise<{ message: string }> {
     return { message: AUTH_ERRORS.LOGOUT_SUCCESS };
   }
 
-  async getProfile(userId: number): Promise<any> {
-    const user = await this.usersService.findById(userId);
+  async getProfile(user_id: number): Promise<any> {
+    const user = await this.usersService.findById(user_id);
     if (!user || user.deleted_at) {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     try {
-      const additionalInfo = await this.getUserAdditionalInfo(userId);
+      const additionalInfo = await this.getUserAdditionalInfo(user_id);
 
       const { password: _, user_division: _user_division, ...result } = user;
       return {
@@ -233,7 +233,7 @@ export class AuthService {
     }
   }
 
-  private async getUserAdditionalInfo(userId: number): Promise<any> {
+  private async getUserAdditionalInfo(user_id: number): Promise<any> {
     const today = new Date();
     const todayStart = new Date(
       today.toISOString().split('T')[0] + 'T00:00:00.000Z',
@@ -252,7 +252,7 @@ export class AuthService {
     ] = await Promise.all([
       this.prisma.user_information.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           deleted_at: null,
         },
         select: {
@@ -268,7 +268,7 @@ export class AuthService {
 
       this.prisma.time_sheets.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           work_date: {
             gte: todayStart,
             lte: todayEnd,
@@ -288,14 +288,14 @@ export class AuthService {
 
       this.prisma.user_leave_balances.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           deleted_at: null,
         },
       }),
 
       this.prisma.assets.findMany({
         where: {
-          assigned_to: userId,
+          assigned_to: user_id,
           status: ASSET_STATUSES.ASSIGNED,
           deleted_at: null,
           category: { in: DEVICE_CATEGORIES as any },
@@ -318,7 +318,7 @@ export class AuthService {
 
       this.prisma.user_role_assignment.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: 'DIVISION',
           deleted_at: null,
           scope_id: { not: null },
@@ -330,7 +330,7 @@ export class AuthService {
       }),
       this.prisma.user_role_assignment.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: 'TEAM',
           deleted_at: null,
           scope_id: { not: null },
@@ -343,7 +343,7 @@ export class AuthService {
 
       this.prisma.user_notifications.count({
         where: {
-          user_id: userId,
+          user_id: user_id,
           is_read: false,
           deleted_at: null,
         },
@@ -363,7 +363,7 @@ export class AuthService {
     }));
 
     // Lấy role assignments của user
-    const userRoles = await this.roleAssignmentService.getUserRoles(userId);
+    const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
 
     // Lấy division_head nếu user có division
     let divisionWithHead: any = null;
@@ -501,7 +501,7 @@ export class AuthService {
   async resetPassword(
     resetPasswordDto: ResetPasswordDto,
   ): Promise<{ message: string }> {
-    const { email, otp, newPassword } = resetPasswordDto;
+    const { email, otp, new_password } = resetPasswordDto;
 
     const user = await this.usersService.findByEmail(email);
     if (!user) {
@@ -512,7 +512,7 @@ export class AuthService {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    this.validatePasswordStrength(newPassword);
+    this.validatePasswordStrength(new_password);
 
     const isValidOTP = await this.otpService.verifyOTP(
       email,
@@ -523,7 +523,7 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(new_password, 12);
 
     await this.usersService.updatePassword(user.id, hashedPassword);
 
@@ -534,7 +534,7 @@ export class AuthService {
 
   async verifyOTP(
     verifyOtpDto: VerifyOtpDto,
-  ): Promise<{ message: string; isValid: boolean; resetToken?: string }> {
+  ): Promise<{ message: string; isValid: boolean; reset_token?: string }> {
     const { email, otp } = verifyOtpDto;
 
     const user = await this.usersService.findByEmail(email);
@@ -559,11 +559,11 @@ export class AuthService {
       };
     }
 
-    const resetToken = this.jwtService.sign(
+    const reset_token = this.jwtService.sign(
       {
         email,
         purpose: 'password_reset',
-        userId: user.id,
+        user_id: user.id,
       },
       {
         secret: this.configService.get('JWT_SECRET'),
@@ -574,17 +574,17 @@ export class AuthService {
     return {
       message: AUTH_ERRORS.OTP_VALID,
       isValid: true,
-      resetToken,
+      reset_token,
     };
   }
 
   async resetPasswordWithToken(
     resetPasswordWithTokenDto: ResetPasswordWithTokenDto,
   ): Promise<{ message: string }> {
-    const { email, resetToken, newPassword } = resetPasswordWithTokenDto;
+    const { email, reset_token, new_password } = resetPasswordWithTokenDto;
 
     try {
-      const decoded = this.jwtService.verify(resetToken, {
+      const decoded = this.jwtService.verify(reset_token, {
         secret: this.configService.get('JWT_SECRET'),
       });
 
@@ -601,9 +601,9 @@ export class AuthService {
         throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
       }
 
-      this.validatePasswordStrength(newPassword);
+      this.validatePasswordStrength(new_password);
 
-      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      const hashedPassword = await bcrypt.hash(new_password, 12);
 
       await this.usersService.updatePassword(user.id, hashedPassword);
 
@@ -622,12 +622,12 @@ export class AuthService {
   }
 
   async changePassword(
-    userId: number,
+    user_id: number,
     changePasswordDto: ChangePasswordDto,
   ): Promise<{ message: string }> {
-    const { currentPassword, newPassword } = changePasswordDto;
+    const { current_password, new_password } = changePasswordDto;
 
-    const user = await this.usersService.findById(userId);
+    const user = await this.usersService.findById(user_id);
     if (!user) {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
@@ -640,24 +640,24 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.ACCOUNT_NO_PASSWORD);
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(
-      currentPassword,
+    const iscurrent_passwordValid = await bcrypt.compare(
+      current_password,
       user.password,
     );
-    if (!isCurrentPasswordValid) {
+    if (!iscurrent_passwordValid) {
       throw new BadRequestException(AUTH_ERRORS.CURRENT_PASSWORD_INCORRECT);
     }
 
-    this.validatePasswordStrength(newPassword);
+    this.validatePasswordStrength(new_password);
 
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    const isSamePassword = await bcrypt.compare(new_password, user.password);
     if (isSamePassword) {
       throw new BadRequestException(AUTH_ERRORS.NEW_PASSWORD_SAME_AS_CURRENT);
     }
 
-    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+    const hashednew_password = await bcrypt.hash(new_password, 12);
 
-    await this.usersService.updatePassword(userId, hashedNewPassword);
+    await this.usersService.updatePassword(user_id, hashednew_password);
 
     return { message: AUTH_ERRORS.PASSWORD_CHANGE_SUCCESS };
   }
@@ -694,7 +694,7 @@ export class AuthService {
   async changePasswordWithOTP(
     email: string,
     otp: string,
-    newPassword: string,
+    new_password: string,
   ): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
@@ -705,7 +705,7 @@ export class AuthService {
       throw new NotFoundException(AUTH_ERRORS.ACCOUNT_DELETED);
     }
 
-    this.validatePasswordStrength(newPassword);
+    this.validatePasswordStrength(new_password);
 
     const isValidOTP = await this.otpService.verifyOTP(
       email,
@@ -716,7 +716,7 @@ export class AuthService {
       throw new BadRequestException(AUTH_ERRORS.OTP_INVALID_OR_EXPIRED);
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(new_password, 12);
 
     await this.usersService.updatePassword(user.id, hashedPassword);
 
@@ -726,14 +726,14 @@ export class AuthService {
   }
 
   private async getTokens(
-    userId: number,
+    user_id: number,
     email: string,
     roles: string[],
   ): Promise<TokensDto> {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
-          sub: userId,
+          sub: user_id,
           email,
           roles,
         },
@@ -744,7 +744,7 @@ export class AuthService {
       ),
       this.jwtService.signAsync(
         {
-          sub: userId,
+          sub: user_id,
           email,
           roles,
         },

@@ -9,11 +9,11 @@ export class CreateUserDivisionDto {
   })
   @Transform(({ value }) => Number(value))
   @IsInt()
-  userId: number;
+  user_id: number;
 
   @ApiHideProperty()
   @IsOptional()
-  assignerId?: number;
+  assigner_id?: number;
 
   @ApiProperty({
     description: 'ID của division (bắt buộc)',
@@ -21,7 +21,7 @@ export class CreateUserDivisionDto {
   })
   @Transform(({ value }) => Number(value))
   @IsOptional()
-  divisionId?: number;
+  division_id?: number;
 
   @ApiPropertyOptional({
     description: 'Mô tả về vai trò của user trong division',
@@ -41,7 +41,7 @@ export class UpdateUserDivisionDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  teamId?: number;
+  team_id?: number;
 
   @ApiPropertyOptional({
     description: 'Mô tả về vai trò của user trong division',
@@ -89,7 +89,7 @@ export class UserDivisionPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  divisionId?: number;
+  division_id?: number;
 
   @ApiPropertyOptional({
     description: 'Lọc theo user ID',
@@ -98,7 +98,7 @@ export class UserDivisionPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  userId?: number;
+  user_id?: number;
 
   @ApiPropertyOptional({
     description: 'Lọc theo team ID',
@@ -107,7 +107,7 @@ export class UserDivisionPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  teamId?: number;
+  team_id?: number;
 
   @ApiPropertyOptional({
     description: 'Lọc theo role ID',
@@ -116,7 +116,7 @@ export class UserDivisionPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  roleId?: number;
+  role_id?: number;
 }
 
 export class UnassignedUsersPaginationDto {
@@ -155,7 +155,7 @@ export class UnassignedUsersPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  positionId?: number;
+  position_id?: number;
 
   @ApiPropertyOptional({
     description: 'Lọc theo level ID',
@@ -164,7 +164,7 @@ export class UnassignedUsersPaginationDto {
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
-  levelId?: number;
+  level_id?: number;
 
   @ApiPropertyOptional({
     description: 'Sắp xếp theo trường nào (name, email, created_at)',
@@ -173,7 +173,7 @@ export class UnassignedUsersPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortBy?: string = 'created_at';
+  sort_by?: string = 'created_at';
 
   @ApiPropertyOptional({
     description: 'Thứ tự sắp xếp (asc, desc)',
@@ -182,5 +182,5 @@ export class UnassignedUsersPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sort_order?: 'asc' | 'desc' = 'desc';
 }

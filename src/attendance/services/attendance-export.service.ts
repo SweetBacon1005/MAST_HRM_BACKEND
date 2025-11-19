@@ -13,11 +13,11 @@ export class AttendanceExportService {
   /**
    * Helper: Lấy user IDs theo division
    */
-  private async getUserIdsByDivision(divisionId: number): Promise<number[]> {
+  private async getuser_idsByDivision(division_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.DIVISION,
-        scope_id: divisionId,
+        scope_id: division_id,
         deleted_at: null,
       },
       select: { user_id: true },
@@ -29,10 +29,10 @@ export class AttendanceExportService {
   /**
    * Helper: Lấy division name cho user
    */
-  private async getDivisionNameForUser(userId: number): Promise<string> {
+  private async getDivisionNameForUser(user_id: number): Promise<string> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
-        user_id: userId,
+        user_id: user_id,
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -58,7 +58,7 @@ export class AttendanceExportService {
   async exportAttendanceLogs(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
   ): Promise<string> {
     const where: any = {};
 
@@ -69,9 +69,9 @@ export class AttendanceExportService {
       };
     }
 
-    if (divisionId) {
-      const userIds = await this.getUserIdsByDivision(divisionId);
-      where.user_id = { in: userIds };
+    if (division_id) {
+      const user_ids = await this.getuser_idsByDivision(division_id);
+      where.user_id = { in: user_ids };
     }
 
     const logs = await this.prisma.attendance_logs.findMany({
@@ -93,12 +93,12 @@ export class AttendanceExportService {
     });
 
     // Lấy division names cho tất cả users
-    const userIds = [...new Set(logs.map((log) => log.user_id))];
+    const user_ids = [...new Set(logs.map((log) => log.user_id))];
     const divisionNamesMap = new Map<number, string>();
     await Promise.all(
-      userIds.map(async (userId) => {
-        const divisionName = await this.getDivisionNameForUser(userId);
-        divisionNamesMap.set(userId, divisionName);
+      user_ids.map(async (user_id) => {
+        const divisionName = await this.getDivisionNameForUser(user_id);
+        divisionNamesMap.set(user_id, divisionName);
       }),
     );
 
@@ -140,7 +140,7 @@ export class AttendanceExportService {
   async exportLeaveRequests(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
     status?: string,
   ): Promise<string> {
     const where: any = {};
@@ -156,9 +156,9 @@ export class AttendanceExportService {
       where.status = status;
     }
 
-    if (divisionId) {
-      const userIds = await this.getUserIdsByDivision(divisionId);
-      where.user_id = { in: userIds };
+    if (division_id) {
+      const user_ids = await this.getuser_idsByDivision(division_id);
+      where.user_id = { in: user_ids };
     }
 
     const leaveRequests = await this.prisma.day_offs.findMany({
@@ -180,12 +180,12 @@ export class AttendanceExportService {
     });
 
     // Lấy division names
-    const userIds = [...new Set(leaveRequests.map((leave) => leave.user_id))];
+    const user_ids = [...new Set(leaveRequests.map((leave) => leave.user_id))];
     const divisionNamesMap = new Map<number, string>();
     await Promise.all(
-      userIds.map(async (userId) => {
-        const divisionName = await this.getDivisionNameForUser(userId);
-        divisionNamesMap.set(userId, divisionName);
+      user_ids.map(async (user_id) => {
+        const divisionName = await this.getDivisionNameForUser(user_id);
+        divisionNamesMap.set(user_id, divisionName);
       }),
     );
 
@@ -226,7 +226,7 @@ export class AttendanceExportService {
   async exportOvertimeRecords(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
     status?: string,
   ): Promise<string> {
     const where: any = {};
@@ -242,9 +242,9 @@ export class AttendanceExportService {
       where.status = status;
     }
 
-    if (divisionId) {
-      const userIds = await this.getUserIdsByDivision(divisionId);
-      where.user_id = { in: userIds };
+    if (division_id) {
+      const user_ids = await this.getuser_idsByDivision(division_id);
+      where.user_id = { in: user_ids };
     }
 
     const overtimeRecords = await this.prisma.over_times_history.findMany({
@@ -269,12 +269,12 @@ export class AttendanceExportService {
     });
 
     // Lấy division names
-    const userIds = [...new Set(overtimeRecords.map((overtime) => overtime.user_id))];
+    const user_ids = [...new Set(overtimeRecords.map((overtime) => overtime.user_id))];
     const divisionNamesMap = new Map<number, string>();
     await Promise.all(
-      userIds.map(async (userId) => {
-        const divisionName = await this.getDivisionNameForUser(userId);
-        divisionNamesMap.set(userId, divisionName);
+      user_ids.map(async (user_id) => {
+        const divisionName = await this.getDivisionNameForUser(user_id);
+        divisionNamesMap.set(user_id, divisionName);
       }),
     );
 
@@ -323,7 +323,7 @@ export class AttendanceExportService {
   async exportLateEarlyRequests(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
   ): Promise<string> {
     const where: any = {};
 
@@ -334,9 +334,9 @@ export class AttendanceExportService {
       };
     }
 
-    if (divisionId) {
-      const userIds = await this.getUserIdsByDivision(divisionId);
-      where.user_id = { in: userIds };
+    if (division_id) {
+      const user_ids = await this.getuser_idsByDivision(division_id);
+      where.user_id = { in: user_ids };
     }
 
     const requests = await this.prisma.late_early_requests.findMany({
@@ -358,12 +358,12 @@ export class AttendanceExportService {
     });
 
     // Lấy division names
-    const userIds = [...new Set(requests.map((request) => request.user_id))];
+    const user_ids = [...new Set(requests.map((request) => request.user_id))];
     const divisionNamesMap = new Map<number, string>();
     await Promise.all(
-      userIds.map(async (userId) => {
-        const divisionName = await this.getDivisionNameForUser(userId);
-        divisionNamesMap.set(userId, divisionName);
+      user_ids.map(async (user_id) => {
+        const divisionName = await this.getDivisionNameForUser(user_id);
+        divisionNamesMap.set(user_id, divisionName);
       }),
     );
 
@@ -400,7 +400,7 @@ export class AttendanceExportService {
   async exportRemoteWorkRequests(
     startDate?: string,
     endDate?: string,
-    divisionId?: number,
+    division_id?: number,
     status?: string,
   ): Promise<string> {
     const where: any = {};
@@ -416,9 +416,9 @@ export class AttendanceExportService {
       where.status = status;
     }
 
-    if (divisionId) {
-      const userIds = await this.getUserIdsByDivision(divisionId);
-      where.user_id = { in: userIds };
+    if (division_id) {
+      const user_ids = await this.getuser_idsByDivision(division_id);
+      where.user_id = { in: user_ids };
     }
 
     const requests = await this.prisma.remote_work_requests.findMany({
@@ -440,12 +440,12 @@ export class AttendanceExportService {
     });
 
     // Lấy division names
-    const userIds = [...new Set(requests.map((request) => request.user_id))];
+    const user_ids = [...new Set(requests.map((request) => request.user_id))];
     const divisionNamesMap = new Map<number, string>();
     await Promise.all(
-      userIds.map(async (userId) => {
-        const divisionName = await this.getDivisionNameForUser(userId);
-        divisionNamesMap.set(userId, divisionName);
+      user_ids.map(async (user_id) => {
+        const divisionName = await this.getDivisionNameForUser(user_id);
+        divisionNamesMap.set(user_id, divisionName);
       }),
     );
 

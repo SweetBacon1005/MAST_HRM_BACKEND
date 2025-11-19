@@ -21,7 +21,7 @@ class ActivityLogQueryDto {
   limit?: number;
   logName?: string;
   event?: string;
-  causerId?: number;
+  causer_id?: number;
   subjectId?: number;
   subjectType?: string;
   startDate?: string;
@@ -106,7 +106,7 @@ export class ActivityLogController {
             total: { type: 'number' },
             page: { type: 'number' },
             limit: { type: 'number' },
-            totalPages: { type: 'number' },
+            total_pages: { type: 'number' },
           },
         },
       },
@@ -118,7 +118,7 @@ export class ActivityLogController {
       limit: query.limit ? parseInt(query.limit.toString()) : 20,
       logName: query.logName,
       event: query.event,
-      causerId: query.causerId ? parseInt(query.causerId.toString()) : undefined,
+      causer_id: query.causer_id ? parseInt(query.causer_id.toString()) : undefined,
       subjectId: query.subjectId ? parseInt(query.subjectId.toString()) : undefined,
       subjectType: query.subjectType,
       startDate: query.startDate ? new Date(query.startDate) : undefined,

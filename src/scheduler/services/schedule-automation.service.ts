@@ -244,17 +244,17 @@ export class ScheduleAutomationService {
         },
       });
 
-      const existingUserIds = new Set(
+      const existinguser_ids = new Set(
         existingTimesheets.map((ts) => ts.user_id),
       );
 
       // Lọc ra những user chưa có timesheet
       const usersNeedTimesheet = activeUsers.filter(
-        (user) => !existingUserIds.has(user.id),
+        (user) => !existinguser_ids.has(user.id),
       );
 
       let createdCount = 0;
-      const skippedCount = existingUserIds.size;
+      const skippedCount = existinguser_ids.size;
 
       if (usersNeedTimesheet.length > 0) {
         // Tạo timesheet hàng loạt
@@ -348,13 +348,13 @@ export class ScheduleAutomationService {
           },
         });
 
-      const existingUserIds = new Set(
+      const existinguser_ids = new Set(
         existingTransactions.map((tx) => tx.user_id),
       );
 
       // Lọc ra những user chưa được cộng phép tháng này
       const usersNeedLeave = activeUsers.filter(
-        (user) => !existingUserIds.has(user.id),
+        (user) => !existinguser_ids.has(user.id),
       );
 
       let updatedCount = 0;

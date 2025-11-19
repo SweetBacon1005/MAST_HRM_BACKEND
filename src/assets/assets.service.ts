@@ -405,7 +405,7 @@ export class AssetsService {
 
   async assignAsset(
     assetId: number,
-    userId: number,
+    user_id: number,
     assignedBy: number,
     notes?: string,
   ) {
@@ -422,7 +422,7 @@ export class AssetsService {
     }
 
     const user = await this.prisma.users.findFirst({
-      where: { id: userId, deleted_at: null },
+      where: { id: user_id, deleted_at: null },
     });
 
     if (!user) {
@@ -433,7 +433,7 @@ export class AssetsService {
       where: { id: assetId },
       data: {
         status: ASSET_STATUSES.ASSIGNED,
-        assigned_to: userId,
+        assigned_to: user_id,
         assigned_date: new Date(),
         notes: notes || asset.notes,
         updated_at: new Date(),
@@ -458,11 +458,11 @@ export class AssetsService {
       subjectType: 'Asset',
       event: 'asset.assigned',
       subjectId: assetId,
-      causerId: assignedBy,
+      causer_id: assignedBy,
       properties: {
         asset_code: asset.asset_code,
         asset_name: asset.name,
-        assigned_to_user_id: userId,
+        assigned_to_user_id: user_id,
         assigned_to_user_name:
           updatedAsset.assigned_user?.user_information?.name,
         notes,
@@ -516,7 +516,7 @@ export class AssetsService {
       subjectType: 'Asset',
       event: 'asset.unassigned',
       subjectId: assetId,
-      causerId: unassignedBy,
+      causer_id: unassignedBy,
       properties: {
         asset_code: asset.asset_code,
         asset_name: asset.name,
@@ -535,10 +535,10 @@ export class AssetsService {
 
   // ===== USER DEVICES FROM ASSETS =====
 
-  async getUserDevices(userId: number) {
+  async getUserDevices(user_id: number) {
     const devices = await this.prisma.assets.findMany({
       where: {
-        assigned_to: userId,
+        assigned_to: user_id,
         status: ASSET_STATUSES.ASSIGNED,
         deleted_at: null,
         category: { in: DEVICE_CATEGORIES as any },
@@ -632,7 +632,7 @@ export class AssetsService {
       subjectType: 'Request',
       event: 'asset_request.created',
       subjectId: request.id,
-      causerId: createAssetRequestDto.user_id!,
+      causer_id: createAssetRequestDto.user_id!,
       properties: {
         request_type: request.request_type,
         category: request.category,
@@ -718,12 +718,12 @@ export class AssetsService {
   }
 
   async findMyAssetRequests(
-    userId: number,
+    user_id: number,
     paginationDto: AssetRequestPaginationDto = {},
   ) {
     const effectiveDto: AssetRequestPaginationDto = {
       ...paginationDto,
-      user_id: userId,
+      user_id: user_id,
     };
     return this.findAllAssetRequests(effectiveDto);
   }
@@ -834,7 +834,7 @@ export class AssetsService {
         subjectType: 'Request',
         event: 'asset_request.approved',
         subjectId: requestId,
-        causerId: reviewBy,
+        causer_id: reviewBy,
         properties: {
           request_type: request.request_type,
           category: request.category,
@@ -869,7 +869,7 @@ export class AssetsService {
         subjectType: 'Request',
         event: 'asset_request.rejected',
         subjectId: requestId,
-        causerId: reviewBy,
+        causer_id: reviewBy,
         properties: {
           request_type: request.request_type,
           category: request.category,
@@ -961,7 +961,7 @@ export class AssetsService {
       subjectType: 'Request',
       event: 'asset_request.fulfilled',
       subjectId: requestId,
-      causerId: fulfilledBy,
+      causer_id: fulfilledBy,
       properties: {
         request_type: request.request_type,
         category: request.category,

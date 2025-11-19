@@ -11,15 +11,15 @@ export class LeaveBalanceService {
   /**
    * Lấy hoặc tạo leave balance cho user
    */
-  async getOrCreateLeaveBalance(userId: number) {
+  async getOrCreateLeaveBalance(user_id: number) {
     let balance = await this.prisma.user_leave_balances.findUnique({
-      where: { user_id: userId },
+      where: { user_id: user_id },
     });
 
     if (!balance) {
       balance = await this.prisma.user_leave_balances.create({
         data: {
-          user_id: userId,
+          user_id: user_id,
           paid_leave_balance: 0,
           unpaid_leave_balance: 0,
           annual_paid_leave_quota: 36, // 3 ngày/tháng * 12 tháng
@@ -27,7 +27,7 @@ export class LeaveBalanceService {
         },
       });
 
-      this.logger.log(`Created leave balance for user ${userId}`);
+      this.logger.log(`Created leave balance for user ${user_id}`);
     }
 
     return balance;
@@ -37,7 +37,7 @@ export class LeaveBalanceService {
    * Cộng ngày phép cho user
    */
   async addLeaveBalance(
-    userId: number,
+    user_id: number,
     amount: number,
     leaveType: DayOffType,
     transactionType: LeaveTransactionType,
@@ -48,11 +48,11 @@ export class LeaveBalanceService {
     return await this.prisma.$transaction(async (tx) => {
       // Lấy balance hiện tại
       const balance = await tx.user_leave_balances.findUnique({
-        where: { user_id: userId },
+        where: { user_id: user_id },
       });
 
       if (!balance) {
-        throw new BadRequestException(`User ${userId} không có leave balance`);
+        throw new BadRequestException(`User ${user_id} không có leave balance`);
       }
 
       // Tính toán balance mới
@@ -67,7 +67,7 @@ export class LeaveBalanceService {
 
       // Cập nhật balance
       const updatedBalance = await tx.user_leave_balances.update({
-        where: { user_id: userId },
+        where: { user_id: user_id },
         data: {
           paid_leave_balance: newPaidBalance,
           unpaid_leave_balance: newUnpaidBalance,
@@ -77,7 +77,7 @@ export class LeaveBalanceService {
       // Tạo transaction record
       await tx.leave_transactions.create({
         data: {
-          user_id: userId,
+          user_id: user_id,
           transaction_type: transactionType,
           leave_type: leaveType,
           amount: amount,
@@ -90,7 +90,7 @@ export class LeaveBalanceService {
       });
 
       this.logger.log(
-        `Added ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
+        `Added ${amount} ${leaveType} leave days for user ${user_id}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
       );
 
       return updatedBalance;
@@ -101,7 +101,7 @@ export class LeaveBalanceService {
    * Trừ ngày phép khi user sử dụng
    */
   async deductLeaveBalance(
-    userId: number,
+    user_id: number,
     amount: number,
     leaveType: DayOffType,
     dayOffId: number,
@@ -110,11 +110,11 @@ export class LeaveBalanceService {
     return await this.prisma.$transaction(async (tx) => {
       // Lấy balance hiện tại
       const balance = await tx.user_leave_balances.findUnique({
-        where: { user_id: userId },
+        where: { user_id: user_id },
       });
 
       if (!balance) {
-        throw new BadRequestException(`User ${userId} không có leave balance`);
+        throw new BadRequestException(`User ${user_id} không có leave balance`);
       }
 
       // Kiểm tra số dư
@@ -141,7 +141,7 @@ export class LeaveBalanceService {
 
       // Cập nhật balance
       const updatedBalance = await tx.user_leave_balances.update({
-        where: { user_id: userId },
+        where: { user_id: user_id },
         data: {
           paid_leave_balance: newPaidBalance,
           unpaid_leave_balance: newUnpaidBalance,
@@ -150,7 +150,7 @@ export class LeaveBalanceService {
 
       const transaction = await tx.leave_transactions.create({
         data: {
-          user_id: userId,
+          user_id: user_id,
           transaction_type: LeaveTransactionType.USED,
           leave_type: leaveType,
           amount: -amount, 
@@ -170,7 +170,7 @@ export class LeaveBalanceService {
       });
 
       this.logger.log(
-        `Deducted ${amount} ${leaveType} leave days for user ${userId}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
+        `Deducted ${amount} ${leaveType} leave days for user ${user_id}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
       );
 
       return { updatedBalance, transaction };
@@ -181,7 +181,7 @@ export class LeaveBalanceService {
    * Hoàn trả ngày phép khi đơn bị từ chối hoặc hủy
    */
   async refundLeaveBalance(
-    userId: number,
+    user_id: number,
     amount: number,
     leaveType: DayOffType,
     dayOffId: number,
@@ -202,7 +202,7 @@ export class LeaveBalanceService {
 
       // Thực hiện refund
       const result = await this.addLeaveBalance(
-        userId,
+        user_id,
         amount,
         leaveType,
         LeaveTransactionType.ADJUSTED,
@@ -228,13 +228,13 @@ export class LeaveBalanceService {
    * Lấy lịch sử giao dịch phép của user
    */
   async getLeaveTransactionHistory(
-    userId: number,
+    user_id: number,
     limit: number = 50,
     offset: number = 0,
   ) {
     return await this.prisma.leave_transactions.findMany({
       where: {
-        user_id: userId,
+        user_id: user_id,
         deleted_at: null,
       },
       orderBy: {
@@ -257,8 +257,8 @@ export class LeaveBalanceService {
   /**
    * Lấy thống kê leave balance của user
    */
-  async getLeaveBalanceStats(userId: number) {
-    const balance = await this.getOrCreateLeaveBalance(userId);
+  async getLeaveBalanceStats(user_id: number) {
+    const balance = await this.getOrCreateLeaveBalance(user_id);
 
     // Lấy thống kê sử dụng trong năm hiện tại
     const currentYear = new Date().getFullYear();
@@ -268,7 +268,7 @@ export class LeaveBalanceService {
     const yearlyStats = await this.prisma.leave_transactions.groupBy({
       by: ['leave_type', 'transaction_type'],
       where: {
-        user_id: userId,
+        user_id: user_id,
         created_at: {
           gte: yearStart,
           lte: yearEnd,
@@ -295,14 +295,14 @@ export class LeaveBalanceService {
   /**
    * Reset leave balance đầu năm
    */
-  async resetAnnualLeaveBalance(userId: number) {
+  async resetAnnualLeaveBalance(user_id: number) {
     return await this.prisma.$transaction(async (tx) => {
       const balance = await tx.user_leave_balances.findUnique({
-        where: { user_id: userId },
+        where: { user_id: user_id },
       });
 
       if (!balance) {
-        throw new BadRequestException(`User ${userId} không có leave balance`);
+        throw new BadRequestException(`User ${user_id} không có leave balance`);
       }
 
       // Tính carry over (tối đa 12 ngày)
@@ -311,7 +311,7 @@ export class LeaveBalanceService {
 
       // Reset balance với carry over
       const updatedBalance = await tx.user_leave_balances.update({
-        where: { user_id: userId },
+        where: { user_id: user_id },
         data: {
           paid_leave_balance: carryOverDays,
           carry_over_days: carryOverDays,
@@ -323,7 +323,7 @@ export class LeaveBalanceService {
       if (carryOverDays > 0) {
         await tx.leave_transactions.create({
           data: {
-            user_id: userId,
+            user_id: user_id,
             transaction_type: LeaveTransactionType.CARRIED_OVER,
             leave_type: DayOffType.PAID,
             amount: carryOverDays,
@@ -338,7 +338,7 @@ export class LeaveBalanceService {
       if (expiredDays > 0) {
         await tx.leave_transactions.create({
           data: {
-            user_id: userId,
+            user_id: user_id,
             transaction_type: LeaveTransactionType.EXPIRED,
             leave_type: DayOffType.PAID,
             amount: -expiredDays,
@@ -349,7 +349,7 @@ export class LeaveBalanceService {
       }
 
       this.logger.log(
-        `Reset annual leave for user ${userId}. Carried over: ${carryOverDays}, Expired: ${expiredDays}`,
+        `Reset annual leave for user ${user_id}. Carried over: ${carryOverDays}, Expired: ${expiredDays}`,
       );
 
       return updatedBalance;

@@ -14,21 +14,21 @@ export class UserQueryService {
    * Lấy danh sách user IDs theo division hoặc team
    * Pattern này được sử dụng rất nhiều trong reports, timesheet, attendance
    */
-  async getUserIdsByDivisionOrTeam(params: {
-    divisionId?: number;
-    teamId?: number;
+  async getuser_idsByDivisionOrTeam(params: {
+    division_id?: number;
+    team_id?: number;
   }): Promise<number[]> {
-    const { divisionId, teamId } = params;
+    const { division_id, team_id } = params;
 
-    if (!divisionId && !teamId) {
+    if (!division_id && !team_id) {
       return [];
     }
 
-    if (teamId) {
+    if (team_id) {
       const teamAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.TEAM,
-          scope_id: Number(teamId),
+          scope_id: Number(team_id),
           deleted_at: null,
         },
         select: { user_id: true },
@@ -37,11 +37,11 @@ export class UserQueryService {
       return teamAssignments.map((assignment) => assignment.user_id);
     }
 
-    if (divisionId) {
+    if (division_id) {
       const divisionAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
-          scope_id: Number(divisionId),
+          scope_id: Number(division_id),
           deleted_at: null,
         },
         select: { user_id: true },
@@ -57,13 +57,13 @@ export class UserQueryService {
    * Lấy thông tin users với division details
    * Sử dụng cho các báo cáo cần hiển thị thông tin user + phòng ban
    */
-  async getUsersWithDivision(userIds: number[]) {
-    if (userIds.length === 0) {
+  async getUsersWithDivision(user_ids: number[]) {
+    if (user_ids.length === 0) {
       return [];
     }
 
     const users = await this.prisma.users.findMany({
-      where: { id: { in: userIds }, deleted_at: null },
+      where: { id: { in: user_ids }, deleted_at: null },
       select: {
         id: true,
         user_information: { select: { name: true, avatar: true } },
@@ -74,7 +74,7 @@ export class UserQueryService {
     // Lấy division info từ user_role_assignment
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: { in: userIds },
+        user_id: { in: user_ids },
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -84,9 +84,9 @@ export class UserQueryService {
       },
     });
 
-    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const division_ids = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
     const divisions = await this.prisma.divisions.findMany({
-      where: { id: { in: divisionIds } },
+      where: { id: { in: division_ids } },
       select: { id: true, name: true },
     });
 
@@ -121,13 +121,13 @@ export class UserQueryService {
    * Lấy basic user info (id, name, email)
    * Sử dụng khi không cần thông tin division
    */
-  async getBasicUserInfo(userIds: number[]) {
-    if (userIds.length === 0) {
+  async getBasicUserInfo(user_ids: number[]) {
+    if (user_ids.length === 0) {
       return [];
     }
 
     return this.prisma.users.findMany({
-      where: { id: { in: userIds }, deleted_at: null },
+      where: { id: { in: user_ids }, deleted_at: null },
       select: {
         id: true,
         user_information: { select: { name: true, avatar: true } },
@@ -140,30 +140,30 @@ export class UserQueryService {
    * Check xem user có thuộc division/team không - TYPE SAFE
    */
   async isUserInDivisionOrTeam(
-    userId: number,
-    divisionId?: number,
-    teamId?: number,
+    user_id: number,
+    division_id?: number,
+    team_id?: number,
   ): Promise<boolean> {
-    if (!divisionId && !teamId) {
+    if (!division_id && !team_id) {
       return false;
     }
 
-    if (teamId) {
+    if (team_id) {
       const assignment = await this.prisma.user_role_assignment.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: ScopeType.TEAM,
-          scope_id: teamId,
+          scope_id: team_id,
           deleted_at: null,
         },
       });
       return !!assignment;
-    } else if (divisionId) {
+    } else if (division_id) {
       const assignment = await this.prisma.user_role_assignment.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           scope_type: ScopeType.DIVISION,
-          scope_id: divisionId,
+          scope_id: division_id,
           deleted_at: null,
         },
       });

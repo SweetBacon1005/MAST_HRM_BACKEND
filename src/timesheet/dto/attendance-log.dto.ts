@@ -151,7 +151,7 @@ export class UpdateAttendanceLogDto {
   @ApiHideProperty()
   @IsOptional()
   @IsInt()
-  userId?: number;
+  user_id?: number;
 
   @ApiPropertyOptional({
     description: 'Trạng thái (0: pending, 1: approved, 2: rejected)',

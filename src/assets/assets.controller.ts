@@ -71,9 +71,9 @@ export class AssetsController {
   })
   createAssetRequest(
     @Body() createAssetRequestDto: CreateAssetRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    createAssetRequestDto.user_id = userId;
+    createAssetRequestDto.user_id = user_id;
     return this.assetsService.createAssetRequest(createAssetRequestDto);
   }
 
@@ -308,8 +308,8 @@ export class AssetsController {
       },
     },
   })
-  getMyDevices(@GetCurrentUser('id') userId: number) {
-    return this.assetsService.getUserDevices(userId);
+  getMyDevices(@GetCurrentUser('id') user_id: number) {
+    return this.assetsService.getUserDevices(user_id);
   }
 
   // ===== ASSET REQUESTS FOR USERS =====
@@ -356,7 +356,7 @@ export class AssetsController {
             total: { type: 'number', example: 50 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 5 },
+            total_pages: { type: 'number', example: 5 },
           },
         },
       },
@@ -403,7 +403,7 @@ export class AssetsController {
             total: { type: 'number', example: 10 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 1 },
+            total_pages: { type: 'number', example: 1 },
           },
         },
       },
@@ -411,9 +411,9 @@ export class AssetsController {
   })
   findMyAssetRequests(
     @Query() paginationDto: AssetRequestPaginationDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.assetsService.findMyAssetRequests(userId, paginationDto);
+    return this.assetsService.findMyAssetRequests(user_id, paginationDto);
   }
 
   @Get('requests/:id')
@@ -617,7 +617,7 @@ export class AssetsController {
             total: { type: 'number', example: 100 },
             page: { type: 'number', example: 1 },
             limit: { type: 'number', example: 10 },
-            totalPages: { type: 'number', example: 10 },
+            total_pages: { type: 'number', example: 10 },
           },
         },
       },

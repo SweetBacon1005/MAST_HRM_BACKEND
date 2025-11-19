@@ -18,7 +18,7 @@ export class MeetingRoomsService {
     private readonly activityLog: ActivityLogService,
   ) {}
 
-  async createBooking(userId: number, dto: CreateBookingDto) {
+  async createBooking(user_id: number, dto: CreateBookingDto) {
     const now = new Date();
     const start = new Date(dto.start_time);
     const end = new Date(dto.end_time);
@@ -60,7 +60,7 @@ export class MeetingRoomsService {
       const organizerConflicting = await tx.room_bookings.findFirst({
         where: {
           deleted_at: null,
-          organizer_id: userId,
+          organizer_id: user_id,
           start_time: { lt: end },
           end_time: { gt: start },
         },
@@ -77,7 +77,7 @@ export class MeetingRoomsService {
           description: dto.description ?? null,
           start_time: start,
           end_time: end,
-          organizer_id: userId,
+          organizer_id: user_id,
         },
         include: { room: true },
       });
@@ -88,7 +88,7 @@ export class MeetingRoomsService {
         subjectType: SubjectType.SYSTEM,
         event: ActivityEvent.NOTIFICATION_CREATED,
         subjectId: booking.id,
-        causerId: userId,
+        causer_id: user_id,
         properties: {
           room_id: dto.room_id,
           title: dto.title,
@@ -187,7 +187,7 @@ export class MeetingRoomsService {
     return booking;
   }
 
-  async updateBooking(id: number, userId: number, dto: UpdateBookingDto) {
+  async updateBooking(id: number, user_id: number, dto: UpdateBookingDto) {
     const booking = await this.prisma.room_bookings.findFirst({ where: { id, deleted_at: null } });
     if (!booking) {
       throw new NotFoundException('Lịch đặt phòng không tồn tại');
@@ -251,14 +251,14 @@ export class MeetingRoomsService {
       subjectType: SubjectType.SYSTEM,
       event: ActivityEvent.NOTIFICATION_UPDATED,
       subjectId: updated.id,
-      causerId: userId,
+      causer_id: user_id,
       properties: { room_id: roomId, title, start_time: start.toISOString(), end_time: end.toISOString() },
     });
 
     return updated;
   }
 
-  async removeBooking(id: number, userId: number) {
+  async removeBooking(id: number, user_id: number) {
     const booking = await this.prisma.room_bookings.findFirst({ where: { id, deleted_at: null }, include: { room: true } });
     if (!booking) {
       throw new NotFoundException('Lịch đặt phòng không tồn tại');
@@ -270,7 +270,7 @@ export class MeetingRoomsService {
       subjectType: SubjectType.SYSTEM,
       event: ActivityEvent.NOTIFICATION_DELETED,
       subjectId: id,
-      causerId: userId,
+      causer_id: user_id,
       properties: { room_id: booking.room_id, title: booking.title },
     });
     return removed;

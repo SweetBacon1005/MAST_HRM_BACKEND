@@ -62,8 +62,8 @@ Controller cho quản lý phân quyền theo cấp bậc.
 - `GET /role-management/assignable-roles` - Lấy roles có thể gán
 - `GET /role-management/hierarchy` - Xem cấu trúc phân cấp
 - `POST /role-management/assign-role` - Gán role (với kiểm tra phân cấp)
-- `GET /role-management/user/:userId/manageable` - Kiểm tra quyền quản lý user
-- `GET /role-management/user/:userId/role-options` - Lấy roles có thể gán cho user cụ thể
+- `GET /role-management/user/:user_id/manageable` - Kiểm tra quyền quản lý user
+- `GET /role-management/user/:user_id/role-options` - Lấy roles có thể gán cho user cụ thể
 
 #### 🔄 Personnel Transfer Management
 

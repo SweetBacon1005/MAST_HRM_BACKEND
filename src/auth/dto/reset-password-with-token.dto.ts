@@ -16,15 +16,15 @@ export class ResetPasswordWithTokenDto {
   })
   @IsString({ message: 'Token phải là chuỗi' })
   @IsNotEmpty({ message: 'Token không được để trống' })
-  resetToken: string;
+  reset_token: string;
 
   @ApiProperty({
     description: 'Mật khẩu mới',
-    example: 'NewPassword123!',
+    example: 'new_password123!',
     minLength: 8,
   })
   @IsString({ message: 'Mật khẩu mới phải là chuỗi' })
   @IsNotEmpty({ message: 'Mật khẩu mới không được để trống' })
   @MinLength(8, { message: 'Mật khẩu mới phải có ít nhất 8 ký tự' })
-  newPassword: string;
+  new_password: string;
 }

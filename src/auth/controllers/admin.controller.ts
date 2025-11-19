@@ -218,11 +218,11 @@ export class AdminController {
           select: { user_id: true },
           distinct: ['user_id'],
         });
-        return { divisionId: division.id, count: assignments.length };
+        return { division_id: division.id, count: assignments.length };
       }),
     );
 
-    const memberCountMap = new Map(memberCounts.map((mc) => [mc.divisionId, mc.count]));
+    const memberCountMap = new Map(memberCounts.map((mc) => [mc.division_id, mc.count]));
 
     return divisionStats.map((division) => ({
       division_id: division.id,
@@ -304,20 +304,20 @@ export class AdminController {
         },
         select: { id: true },
       });
-      const divisionIds = divisions.map((d) => d.id);
-      if (divisionIds.length > 0) {
+      const division_ids = divisions.map((d) => d.id);
+      if (division_ids.length > 0) {
         // Lấy user IDs từ user_role_assignment
         const assignments = await this.prisma.user_role_assignment.findMany({
           where: {
             scope_type: ScopeType.DIVISION,
-            scope_id: { in: divisionIds },
+            scope_id: { in: division_ids },
             deleted_at: null,
           },
           select: { user_id: true },
           distinct: ['user_id'],
         });
-        const userIds = assignments.map((a) => a.user_id);
-        where.id = { in: userIds };
+        const user_ids = assignments.map((a) => a.user_id);
+        where.id = { in: user_ids };
       } else {
         // Không tìm thấy division nào, trả về empty
         where.id = { in: [] };
@@ -364,7 +364,7 @@ export class AdminController {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        total_pages: Math.ceil(total / limit),
       },
     };
   }
@@ -596,14 +596,14 @@ export class AdminController {
   async getActivityLogs(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 50,
-    @Query('user_id') userId?: number,
+    @Query('user_id') user_id?: number,
     @Query('event') event?: string,
   ) {
     const skip = (page - 1) * limit;
     const where: any = {};
 
-    if (userId) {
-      where.OR = [{ causer_id: userId }, { subject_id: userId }];
+    if (user_id) {
+      where.OR = [{ causer_id: user_id }, { subject_id: user_id }];
     }
 
     if (event) {
@@ -650,7 +650,7 @@ export class AdminController {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        total_pages: Math.ceil(total / limit),
       },
     };
   }
@@ -718,11 +718,11 @@ export class AdminController {
       }
     });
 
-    const validUserIds = users
+    const validuser_ids = users
       .map((u) => u.id)
-      .filter((userId) => fromIdMap.has(userId));
+      .filter((user_id) => fromIdMap.has(user_id));
 
-    if (validUserIds.length === 0) {
+    if (validuser_ids.length === 0) {
       throw new Error('Không có user nào có division assignment để điều chuyển');
     }
 
@@ -732,9 +732,9 @@ export class AdminController {
     const result = await this.prisma.$transaction(async (tx) => {
       // Tạo rotation records
       const rotations = await tx.rotation_members.createMany({
-        data: validUserIds.map((userId) => ({
-          user_id: userId,
-          from_id: fromIdMap.get(userId)!,
+        data: validuser_ids.map((user_id) => ({
+          user_id: user_id,
+          from_id: fromIdMap.get(user_id)!,
           to_id: division_id,
           type: type,
           date_rotation: now,
@@ -744,7 +744,7 @@ export class AdminController {
       // Xóa assignments cũ
       await tx.user_role_assignment.updateMany({
         where: {
-          user_id: { in: validUserIds },
+          user_id: { in: validuser_ids },
           scope_type: ScopeType.DIVISION,
           deleted_at: null,
         },
@@ -755,8 +755,8 @@ export class AdminController {
 
       // Tạo assignments mới
       await tx.user_role_assignment.createMany({
-        data: validUserIds.map((userId) => ({
-          user_id: userId,
+        data: validuser_ids.map((user_id) => ({
+          user_id: user_id,
           role_id: employeeRole.id,
           scope_type: ScopeType.DIVISION,
           scope_id: division_id,
@@ -767,7 +767,7 @@ export class AdminController {
       // Lấy rotation records đã tạo để trả về
       const createdRotations = await tx.rotation_members.findMany({
         where: {
-          user_id: { in: validUserIds },
+          user_id: { in: validuser_ids },
           to_id: division_id,
           date_rotation: now,
         },

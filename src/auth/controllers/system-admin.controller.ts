@@ -495,10 +495,10 @@ export class SystemAdminController {
     });
 
     // Lấy division names từ user_role_assignment
-    const userIds = users.map((u) => u.id);
+    const user_ids = users.map((u) => u.id);
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: { in: userIds },
+        user_id: { in: user_ids },
         scope_type: ScopeType.DIVISION,
         deleted_at: null,
         scope_id: { not: null },
@@ -507,9 +507,9 @@ export class SystemAdminController {
       distinct: ['user_id'],
     });
 
-    const divisionIds = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const division_ids = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
     const divisions = await this.prisma.divisions.findMany({
-      where: { id: { in: divisionIds } },
+      where: { id: { in: division_ids } },
       select: { id: true, name: true },
     });
 

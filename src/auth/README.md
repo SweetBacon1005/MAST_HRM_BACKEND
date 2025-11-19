@@ -324,7 +324,7 @@ export class PublicController {
 
 ```typescript
 {
-  "statusCode": 401,
+  "status_code": 401,
   "message": "Email hoặc mật khẩu không đúng",
   "error": "Unauthorized"
 }

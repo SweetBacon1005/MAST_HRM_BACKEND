@@ -77,9 +77,9 @@ export class TimesheetController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   create(
     @Body() createTimesheetDto: CreateTimesheetDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.timesheetService.createTimesheet(createTimesheetDto, userId);
+    return this.timesheetService.createTimesheet(createTimesheetDto, user_id);
   }
 
   @Get('my-timesheets')
@@ -133,18 +133,18 @@ export class TimesheetController {
             total: { type: 'number' },
             page: { type: 'number' },
             limit: { type: 'number' },
-            totalPages: { type: 'number' }
+            total_pages: { type: 'number' }
           }
         }
       }
     }
   })
   findMyTimesheets(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: TimesheetPaginationDto,
   ) {
     return this.timesheetService.findMyTimesheetsPaginated(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -163,9 +163,9 @@ export class TimesheetController {
   @ApiResponse({ status: 400, description: 'Không thể submit' })
   submitTimesheet(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.timesheetService.submitTimesheet(id, userId);
+    return this.timesheetService.submitTimesheet(id, user_id);
   }
 
   @Patch(':id/approve')
@@ -232,10 +232,10 @@ export class TimesheetController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   @UseInterceptors(FileInterceptor('image'))
   registerFace(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @UploadedFile() image: Express.Multer.File,
   ) {
-    return this.timesheetService.registerFace(userId, image);
+    return this.timesheetService.registerFace(user_id, image);
   }
 
   // === CHECK-IN/CHECK-OUT ===
@@ -245,10 +245,10 @@ export class TimesheetController {
   @ApiResponse({ status: 201, description: 'Check-in thành công' })
   @ApiResponse({ status: 400, description: 'Đã check-in hôm nay rồi' })
   async checkin(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() checkinDto: CheckinDto,
   ) {
-    return this.timesheetService.checkin(userId, checkinDto);
+    return this.timesheetService.checkin(user_id, checkinDto);
   }
 
   @Post('checkout')
@@ -256,17 +256,17 @@ export class TimesheetController {
   @ApiResponse({ status: 200, description: 'Check-out thành công' })
   @ApiResponse({ status: 400, description: 'Chưa check-in hoặc đã check-out' })
   checkout(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body() checkoutDto: CheckoutDto,
   ) {
-    return this.timesheetService.checkout(userId, checkoutDto);
+    return this.timesheetService.checkout(user_id, checkoutDto);
   }
 
   @Get('attendance/today')
   @ApiOperation({ summary: 'Lấy thông tin chấm công hôm nay' })
   @ApiResponse({ status: 200, description: 'Lấy thông tin thành công' })
-  getTodayAttendance(@GetCurrentUser('id') userId: number) {
-    return this.timesheetService.getTodayAttendance(userId);
+  getTodayAttendance(@GetCurrentUser('id') user_id: number) {
+    return this.timesheetService.getTodayAttendance(user_id);
   }
 
   // === DAY OFF INFO (Read-only) ===
@@ -276,10 +276,10 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Lấy thông tin nghỉ phép của một ngày' })
   @ApiResponse({ status: 200, description: 'Lấy thông tin thành công' })
   getDayOffInfo(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Param('date', DateValidationPipe) date: string,
   ) {
-    return this.timesheetService.getDayOffInfo(userId, date);
+    return this.timesheetService.getDayOffInfo(user_id, date);
   }
 
   // === OVERTIME INFO (Read-only) ===
@@ -291,21 +291,21 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Xem lịch làm việc cá nhân' })
   @ApiResponse({ status: 200, description: 'Lấy lịch thành công' })
   getPersonalSchedule(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() getScheduleDto: GetScheduleDto,
   ) {
-    return this.timesheetService.getPersonalSchedule(userId, getScheduleDto);
+    return this.timesheetService.getPersonalSchedule(user_id, getScheduleDto);
   }
 
-  @Get('schedule/team/:teamId')
+  @Get('schedule/team/:team_id')
   @ApiOperation({ summary: 'Xem lịch làm việc của team' })
   @ApiResponse({ status: 200, description: 'Lấy lịch team thành công' })
   @Roles('manager', 'team_leader', 'admin')
   getTeamSchedule(
-    @Param('teamId', ParseIntPipe) teamId: number,
+    @Param('team_id', ParseIntPipe) team_id: number,
     @Query() getScheduleDto: GetScheduleDto,
   ) {
-    return this.timesheetService.getTeamSchedule(teamId, getScheduleDto);
+    return this.timesheetService.getTeamSchedule(team_id, getScheduleDto);
   }
 
   // === HOLIDAYS MANAGEMENT ===
@@ -351,8 +351,8 @@ export class TimesheetController {
   @Get('notifications/my')
   @ApiOperation({ summary: 'Lấy thông báo timesheet của tôi' })
   @ApiResponse({ status: 200, description: 'Lấy thông báo thành công' })
-  getMyTimesheetNotifications(@GetCurrentUser('id') userId: number) {
-    return this.timesheetService.getTimesheetNotifications(userId);
+  getMyTimesheetNotifications(@GetCurrentUser('id') user_id: number) {
+    return this.timesheetService.getTimesheetNotifications(user_id);
   }
 
   // === REPORTS & STATISTICS ===
@@ -377,14 +377,14 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Thống kê chấm công' })
   @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
   getAttendanceStatistics(
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
-    @Query('user_id', ParseIntPipe) userId?: number,
+    @Query('user_id', ParseIntPipe) user_id?: number,
   ) {
     // Nếu không phải admin/manager thì chỉ xem được thống kê của mình
-    const targetUserId = userId || currentUserId;
+    const targetuser_id = user_id || currentuser_id;
     return this.timesheetService.getAttendanceStatistics(
-      targetUserId,
+      targetuser_id,
       dateRange.start_date,
       dateRange.end_date,
     );
@@ -394,11 +394,11 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Thống kê chấm công cá nhân' })
   @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
   getMyAttendanceStatistics(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query(DateRangeValidationPipe) dateRange: DateRangeQueryDto,
   ) {
     return this.timesheetService.getAttendanceStatistics(
-      userId,
+      user_id,
       dateRange.start_date,
       dateRange.end_date,
     );
@@ -413,11 +413,11 @@ export class TimesheetController {
   @Roles('admin', 'hr')
   createAttendanceLog(
     @Body() createAttendanceLogDto: CreateAttendanceLogDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
   ) {
     return this.timesheetService.createAttendanceLog(
       createAttendanceLogDto,
-      currentUserId,
+      currentuser_id,
     );
   }
 
@@ -425,12 +425,12 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công của tôi' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   getMyAttendanceLogs(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() queryDto: AttendanceLogQueryDto,
   ) {
-    return this.timesheetService.getAttendanceLogs(userId, {
+    return this.timesheetService.getAttendanceLogs(user_id, {
       ...queryDto,
-      user_id: userId,
+      user_id: user_id,
     });
   }
 
@@ -438,12 +438,12 @@ export class TimesheetController {
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   getAttendanceLogs(
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: AttendanceLogPaginationDto,
   ) {
     return this.timesheetService.getAttendanceLogsPaginated(
-      currentUserId,
+      currentuser_id,
       paginationDto,
       userRoles,
     );
@@ -465,9 +465,9 @@ export class TimesheetController {
   updateAttendanceLog(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateAttendanceLogDto: UpdateAttendanceLogDto,
-    @GetCurrentUser('id') currentUserId: number,
+    @GetCurrentUser('id') currentuser_id: number,
   ) {
-    updateAttendanceLogDto.userId = currentUserId;
+    updateAttendanceLogDto.user_id = currentuser_id;
     return this.timesheetService.updateAttendanceLog(
       id,
       updateAttendanceLogDto,
@@ -490,9 +490,9 @@ export class TimesheetController {
   @ApiResponse({ status: 201, description: 'Tạo timesheet thành công' })
   @ApiResponse({ status: 400, description: 'Timesheet đã tồn tại' })
   createDailyTimesheet(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body(DateRangeValidationPipe) body: SingleDateQueryDto,
   ) {
-    return this.timesheetService.createDailyTimesheet(userId, body.date);
+    return this.timesheetService.createDailyTimesheet(user_id, body.date);
   }
 }

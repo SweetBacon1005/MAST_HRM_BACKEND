@@ -12,13 +12,13 @@ export const DivisionRoles = (...roles: string[]) =>
 
 /**
  * Decorator để kiểm tra quyền trên phòng ban cụ thể
- * @param divisionId - ID phòng ban cần kiểm tra
+ * @param division_id - ID phòng ban cần kiểm tra
  * @param roles - Danh sách role được phép
  * @example @DivisionAccess(1, 'MANAGER', 'TEAM_LEADER')
  */
 export const DIVISION_ACCESS_KEY = 'division_access';
-export const DivisionAccess = (divisionId: number, ...roles: string[]) =>
-  SetMetadata(DIVISION_ACCESS_KEY, { divisionId, roles });
+export const DivisionAccess = (division_id: number, ...roles: string[]) =>
+  SetMetadata(DIVISION_ACCESS_KEY, { division_id, roles });
 
 /**
  * Decorator để kiểm tra quyền team leader

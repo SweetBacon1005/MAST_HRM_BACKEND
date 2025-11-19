@@ -764,7 +764,7 @@ export class AttendanceService {
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
     // Lấy danh sách user theo phòng ban/team
-    let userIds: number[] = [];
+    let user_ids: number[] = [];
     if (team_id) {
       const teamAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -775,7 +775,7 @@ export class AttendanceService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = teamAssignments.map((assignment) => assignment.user_id);
+      user_ids = teamAssignments.map((assignment) => assignment.user_id);
     } else if (division_id) {
       const divisionAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -786,7 +786,7 @@ export class AttendanceService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = divisionAssignments.map((assignment) => assignment.user_id);
+      user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const where: any = {
@@ -797,8 +797,8 @@ export class AttendanceService {
       deleted_at: null,
     };
 
-    if (userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     // Thống kê tổng quan
@@ -827,14 +827,14 @@ export class AttendanceService {
 
     // Top vi phạm
     const violationStats = await this.getViolationStatistics(
-      userIds,
+      user_ids,
       startDate,
       endDate,
     );
 
     // Thống kê nghỉ phép
     const leaveStats = await this.getLeaveStatistics(
-      userIds,
+      user_ids,
       startDate,
       endDate,
     );
@@ -920,7 +920,7 @@ export class AttendanceService {
   }
 
   private async getViolationStatistics(
-    userIds: number[],
+    user_ids: number[],
     startDate: string,
     endDate: string,
   ) {
@@ -932,8 +932,8 @@ export class AttendanceService {
       deleted_at: null,
     };
 
-    if (userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     const violations = await this.prisma.time_sheets.findMany({
@@ -947,10 +947,10 @@ export class AttendanceService {
     const userViolations: { [key: number]: any } = {};
 
     violations.forEach((violation) => {
-      const userId = violation.user_id;
-      if (!userViolations[userId]) {
-        userViolations[userId] = {
-          user_id: userId,
+      const user_id = violation.user_id;
+      if (!userViolations[user_id]) {
+        userViolations[user_id] = {
+          user_id: user_id,
           total_violations: 0,
           late_count: 0,
           early_leave_count: 0,
@@ -960,16 +960,16 @@ export class AttendanceService {
         };
       }
 
-      userViolations[userId].total_violations += 1;
+      userViolations[user_id].total_violations += 1;
       if (violation.late_time && violation.late_time > 0) {
-        userViolations[userId].late_count += 1;
-        userViolations[userId].total_late_minutes += violation.late_time;
+        userViolations[user_id].late_count += 1;
+        userViolations[user_id].total_late_minutes += violation.late_time;
       }
       if (violation.early_time && violation.early_time > 0) {
-        userViolations[userId].early_leave_count += 1;
-        userViolations[userId].total_early_minutes += violation.early_time;
+        userViolations[user_id].early_leave_count += 1;
+        userViolations[user_id].total_early_minutes += violation.early_time;
       }
-      userViolations[userId].total_penalties += 0;
+      userViolations[user_id].total_penalties += 0;
     });
 
     return Object.values(userViolations)
@@ -978,7 +978,7 @@ export class AttendanceService {
   }
 
   private async getLeaveStatistics(
-    userIds: number[],
+    user_ids: number[],
     startDate: string,
     endDate: string,
   ) {
@@ -991,8 +991,8 @@ export class AttendanceService {
       status: ApprovalStatus.APPROVED, // Đã duyệt
     };
 
-    if (userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     const leaves = await this.prisma.day_offs.findMany({ where });
@@ -1086,10 +1086,10 @@ export class AttendanceService {
     const userStats: { [key: number]: any } = {};
 
     timesheets.forEach((timesheet) => {
-      const userId = timesheet.user_id;
-      if (!userStats[userId]) {
-        userStats[userId] = {
-          user_id: userId,
+      const user_id = timesheet.user_id;
+      if (!userStats[user_id]) {
+        userStats[user_id] = {
+          user_id: user_id,
           total_days: 0,
           on_time_days: 0,
           late_days: 0,
@@ -1102,26 +1102,26 @@ export class AttendanceService {
         };
       }
 
-      userStats[userId].total_days += 1;
+      userStats[user_id].total_days += 1;
       if (!timesheet.late_time || timesheet.late_time === 0)
-        userStats[userId].on_time_days += 1;
+        userStats[user_id].on_time_days += 1;
       if (timesheet.late_time && timesheet.late_time > 0) {
-        userStats[userId].late_days += 1;
-        userStats[userId].total_late_minutes += timesheet.late_time;
+        userStats[user_id].late_days += 1;
+        userStats[user_id].total_late_minutes += timesheet.late_time;
       }
       if (timesheet.early_time && timesheet.early_time > 0) {
-        userStats[userId].early_leave_days += 1;
-        userStats[userId].total_early_minutes += timesheet.early_time;
+        userStats[user_id].early_leave_days += 1;
+        userStats[user_id].total_early_minutes += timesheet.early_time;
       }
       if (timesheet.remote === RemoteType.REMOTE)
-        userStats[userId].remote_days += 1;
+        userStats[user_id].remote_days += 1;
 
       const workHours =
         ((timesheet.work_time_morning || 0) +
           (timesheet.work_time_afternoon || 0)) /
         60;
-      userStats[userId].total_work_hours += workHours;
-      userStats[userId].total_penalties += 0;
+      userStats[user_id].total_work_hours += workHours;
+      userStats[user_id].total_penalties += 0;
     });
 
     return {
@@ -1162,10 +1162,10 @@ export class AttendanceService {
     const penaltyByUser: { [key: number]: any } = {};
 
     penaltyRecords.forEach((record) => {
-      const userId = record.user_id;
-      if (!penaltyByUser[userId]) {
-        penaltyByUser[userId] = {
-          user_id: userId,
+      const user_id = record.user_id;
+      if (!penaltyByUser[user_id]) {
+        penaltyByUser[user_id] = {
+          user_id: user_id,
           total_penalty: 0,
           late_penalty: 0,
           early_penalty: 0,
@@ -1173,12 +1173,12 @@ export class AttendanceService {
         };
       }
 
-      penaltyByUser[userId].total_penalty += 0;
-      penaltyByUser[userId].violation_count += 1;
+      penaltyByUser[user_id].total_penalty += 0;
+      penaltyByUser[user_id].violation_count += 1;
 
       // Ước tính phân bổ phạt (có thể cải thiện với dữ liệu chi tiết hơn)
-      if (record.late_time > 0) penaltyByUser[userId].late_penalty += 0;
-      if (record.early_time > 0) penaltyByUser[userId].early_penalty += 0;
+      if (record.late_time > 0) penaltyByUser[user_id].late_penalty += 0;
+      if (record.early_time > 0) penaltyByUser[user_id].early_penalty += 0;
     });
 
     return {

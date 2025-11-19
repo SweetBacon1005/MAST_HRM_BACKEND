@@ -51,7 +51,7 @@ export class NewsPaginationDto {
   @Type(() => Number)
   @IsInt({ message: 'ID tác giả phải là số nguyên' })
   @Min(1, { message: 'ID tác giả phải lớn hơn 0' })
-  authorId?: number;
+  author_id?: number;
 
   @ApiProperty({
     description: 'Tìm kiếm theo tiêu đề',
@@ -71,7 +71,7 @@ export class NewsPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortBy?: string = 'created_at';
+  sort_by?: string = 'created_at';
 
   @ApiProperty({
     description: 'Thứ tự sắp xếp (asc, desc)',
@@ -81,5 +81,5 @@ export class NewsPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sort_order?: 'asc' | 'desc' = 'desc';
 }

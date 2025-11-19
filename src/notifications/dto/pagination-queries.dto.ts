@@ -42,7 +42,7 @@ export class NotificationPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortBy?: 'created_at' | 'updated_at' | 'title' = 'created_at';
+  sort_by?: 'created_at' | 'updated_at' | 'title' = 'created_at';
 
   @ApiPropertyOptional({ 
     description: 'Thứ tự sắp xếp', 
@@ -52,5 +52,5 @@ export class NotificationPaginationDto {
   })
   @IsOptional()
   @IsString()
-  sortOrder?: 'asc' | 'desc' = 'desc';
+  sort_order?: 'asc' | 'desc' = 'desc';
 }

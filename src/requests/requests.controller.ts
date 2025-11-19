@@ -152,7 +152,7 @@ export class RequestsController {
             total: { type: 'number' },
             page: { type: 'number' },
             limit: { type: 'number' },
-            totalPages: { type: 'number' },
+            total_pages: { type: 'number' },
           },
         },
         metadata: {
@@ -192,7 +192,7 @@ export class RequestsController {
     },
   })
   async getAllRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
@@ -200,7 +200,7 @@ export class RequestsController {
     
     return await this.requestsService.getAllRequests(
       paginationDto,
-      userId,
+      user_id,
       primaryRole,
     );
   }
@@ -210,17 +210,17 @@ export class RequestsController {
   @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllMyRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.getAllMyRequests(userId, paginationDto);
+    return await this.requestsService.getAllMyRequests(user_id, paginationDto);
   }
 
   @Get('my/stats')
   @ApiOperation({ summary: 'Thống kê requests của tôi' })
   @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
-  async getMyRequestsStats(@GetCurrentUser('id') userId: number) {
-    return await this.requestsService.getMyRequestsStats(userId);
+  async getMyRequestsStats(@GetCurrentUser('id') user_id: number) {
+    return await this.requestsService.getMyRequestsStats(user_id);
   }
 
   // === REMOTE WORK REQUESTS ===
@@ -231,9 +231,9 @@ export class RequestsController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createRemoteWorkRequest(
     @Body() createRemoteWorkRequestDto: CreateRemoteWorkRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ): Promise<RemoteWorkRequestResponseDto> {
-    createRemoteWorkRequestDto.user_id = userId;
+    createRemoteWorkRequestDto.user_id = user_id;
     return await this.requestsService.createRemoteWorkRequest(
       createRemoteWorkRequestDto,
     );
@@ -248,14 +248,14 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllRemoteWorkRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
     return await this.requestsService.findAllRemoteWorkRequests(
       paginationDto,
-      userId,
+      user_id,
       primaryRole,
     );
   }
@@ -266,11 +266,11 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyRemoteWorkRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
   ) {
     return await this.requestsService.findMyRemoteWorkRequests(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -283,9 +283,9 @@ export class RequestsController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createDayOffRequest(
     @Body() createDayOffRequestDto: CreateDayOffRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ): Promise<DayOffRequestResponseDto> {
-    createDayOffRequestDto.user_id = userId;
+    createDayOffRequestDto.user_id = user_id;
     return await this.requestsService.createDayOffRequest(
       createDayOffRequestDto,
     );
@@ -299,12 +299,12 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllDayOffRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllDayOffRequests(paginationDto, userId, primaryRole);
+    return await this.requestsService.findAllDayOffRequests(paginationDto, user_id, primaryRole);
   }
 
   @Get('day-off/my')
@@ -313,11 +313,11 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyDayOffRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
     return await this.requestsService.findMyDayOffRequests(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -330,9 +330,9 @@ export class RequestsController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createOvertimeRequest(
     @Body() createOvertimeRequestDto: CreateOvertimeRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ): Promise<OvertimeRequestResponseDto> {
-    createOvertimeRequestDto.user_id = userId;
+    createOvertimeRequestDto.user_id = user_id;
     return await this.requestsService.createOvertimeRequest(
       createOvertimeRequestDto,
     );
@@ -346,12 +346,12 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllOvertimeRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllOvertimeRequests(paginationDto, userId, primaryRole);
+    return await this.requestsService.findAllOvertimeRequests(paginationDto, user_id, primaryRole);
   }
 
   @Get('overtime/my')
@@ -360,11 +360,11 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyOvertimeRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
     return await this.requestsService.findMyOvertimeRequests(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -374,8 +374,8 @@ export class RequestsController {
   @Get('leave-balance')
   @ApiOperation({ summary: 'Lấy thông tin leave balance của tôi' })
   @ApiResponse({ status: 200, description: 'Thành công' })
-  async getMyLeaveBalance(@GetCurrentUser('id') userId: number) {
-    return await this.requestsService.getMyLeaveBalance(userId);
+  async getMyLeaveBalance(@GetCurrentUser('id') user_id: number) {
+    return await this.requestsService.getMyLeaveBalance(user_id);
   }
 
   @Get('leave-balance/transactions')
@@ -384,12 +384,12 @@ export class RequestsController {
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLeaveTransactionHistory(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
   ) {
     return await this.requestsService.getMyLeaveTransactionHistory(
-      userId,
+      user_id,
       limit || 50,
       offset || 0,
     );
@@ -416,12 +416,12 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async checkLeaveBalanceAvailability(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Body('leave_type') leaveType: 'PAID' | 'UNPAID',
     @Body('requested_days') requestedDays: number,
   ) {
     return await this.requestsService.checkLeaveBalanceAvailability(
-      userId,
+      user_id,
       leaveType as any,
       requestedDays,
     );
@@ -435,9 +435,9 @@ export class RequestsController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createLateEarlyRequest(
     @Body() dto: CreateLateEarlyRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    dto.user_id = userId;
+    dto.user_id = user_id;
     return await this.requestsService.createLateEarlyRequest(dto);
   }
 
@@ -449,12 +449,12 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async getAllLateEarlyRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllLateEarlyRequests(paginationDto, userId, primaryRole);
+    return await this.requestsService.findAllLateEarlyRequests(paginationDto, user_id, primaryRole);
   }
 
   @Get('late-early/my')
@@ -463,11 +463,11 @@ export class RequestsController {
   })
   @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLateEarlyRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
     return await this.requestsService.findMyLateEarlyRequests(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -585,9 +585,9 @@ export class RequestsController {
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createForgotCheckinRequest(
     @Body() dto: CreateForgotCheckinRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    dto.user_id = userId;
+    dto.user_id = user_id;
     return await this.requestsService.createForgotCheckinRequest(dto);
   }
 
@@ -608,12 +608,12 @@ export class RequestsController {
   @ApiQuery({ name: 'end_date', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllForgotCheckinRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, userId, primaryRole);
+    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, user_id, primaryRole);
   }
 
   @Get('forgot-checkin/my')
@@ -629,11 +629,11 @@ export class RequestsController {
   @ApiQuery({ name: 'end_date', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getMyForgotCheckinRequests(
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
     return await this.requestsService.findMyForgotCheckinRequests(
-      userId,
+      user_id,
       paginationDto,
     );
   }
@@ -690,10 +690,10 @@ export class RequestsController {
   async getRequestById(
     @Param('type') type: string,
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
   ) {
-    return await this.requestsService.getRequestById(id, type, userId, userRoles);
+    return await this.requestsService.getRequestById(id, type, user_id, userRoles);
   }
 
 
@@ -723,85 +723,85 @@ export class RequestsController {
   async updateRemoteWork(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateRemoteWorkRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateRemoteWorkRequest(id, dto, userId);
+    return await this.requestsService.updateRemoteWorkRequest(id, dto, user_id);
   }
 
   @Delete('remote-work/:id')
   async deleteRemoteWork(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteRemoteWorkRequest(id, userId);
+    return await this.requestsService.deleteRemoteWorkRequest(id, user_id);
   }
 
   @Patch('day-off/:id')
   async updateDayOff(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateDayOffRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateDayOffRequest(id, dto, userId);
+    return await this.requestsService.updateDayOffRequest(id, dto, user_id);
   }
 
   @Delete('day-off/:id')
   async deleteDayOff(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteDayOffRequest(id, userId);
+    return await this.requestsService.deleteDayOffRequest(id, user_id);
   }
 
   @Patch('overtime/:id')
   async updateOvertime(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateOvertimeRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateOvertimeRequest(id, dto, userId);
+    return await this.requestsService.updateOvertimeRequest(id, dto, user_id);
   }
 
   @Delete('overtime/:id')
   async deleteOvertime(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteOvertimeRequest(id, userId);
+    return await this.requestsService.deleteOvertimeRequest(id, user_id);
   }
 
   @Patch('late-early/:id')
   async updateLateEarly(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateLateEarlyRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateLateEarlyRequest(id, dto, userId);
+    return await this.requestsService.updateLateEarlyRequest(id, dto, user_id);
   }
 
   @Delete('late-early/:id')
   async deleteLateEarly(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteLateEarlyRequest(id, userId);
+    return await this.requestsService.deleteLateEarlyRequest(id, user_id);
   }
 
   @Patch('forgot-checkin/:id')
   async updateForgotCheckin(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateForgotCheckinRequestDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateForgotCheckinRequest(id, dto, userId);
+    return await this.requestsService.updateForgotCheckinRequest(id, dto, user_id);
   }
 
   @Delete('forgot-checkin/:id')
   async deleteForgotCheckin(
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteForgotCheckinRequest(id, userId);
+    return await this.requestsService.deleteForgotCheckinRequest(id, user_id);
   }}
 
 

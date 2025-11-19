@@ -55,5 +55,5 @@ export class DailyReportPaginatedResponse {
   limit: number;
 
   @ApiProperty({ example: 10, description: 'Tổng số trang' })
-  totalPages: number;
+  total_pages: number;
 }

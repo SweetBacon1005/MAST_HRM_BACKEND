@@ -81,9 +81,9 @@ export class ProjectsController {
   })
   findMy(
     @Query() paginationDto: ProjectPaginationDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
   ) {
-    return this.projectsService.findMyProjects(paginationDto, userId);
+    return this.projectsService.findMyProjects(paginationDto, user_id);
   }
 
   @Get(':id/members')
@@ -126,11 +126,11 @@ export class ProjectsController {
   })
   findAll(
     @Query() paginationDto: ProjectPaginationDto,
-    @GetCurrentUser('id') userId: number,
+    @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
   ) {
     const primaryRole = this.getPrimaryRole(userRoles);
-    return this.projectsService.findAll(paginationDto, userId, primaryRole);
+    return this.projectsService.findAll(paginationDto, user_id, primaryRole);
   }
 
   @Patch(':id/progress')

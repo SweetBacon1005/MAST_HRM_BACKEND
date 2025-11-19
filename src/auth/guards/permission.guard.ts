@@ -43,20 +43,20 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('Không có quyền truy cập');
     }
 
-    const userId = user.id;
+    const user_id = user.id;
 
     try {
       // Kiểm tra RequireAllPermissions trước
       if (requiredAllPermissions && requiredAllPermissions.length > 0) {
         const hasAllPermissions =
           await this.permissionService.hasAllPermissions(
-            userId,
+            user_id,
             requiredAllPermissions,
           );
 
         if (!hasAllPermissions) {
           this.logger.warn(
-            `User ${userId} does not have all required permissions: ${requiredAllPermissions.join(', ')}`,
+            `User ${user_id} does not have all required permissions: ${requiredAllPermissions.join(', ')}`,
           );
           throw new ForbiddenException(
             `Bạn cần có tất cả các quyền: ${requiredAllPermissions.join(', ')}`,
@@ -64,7 +64,7 @@ export class PermissionGuard implements CanActivate {
         }
 
         this.logger.debug(
-          `User ${userId} has all required permissions: ${requiredAllPermissions.join(', ')}`,
+          `User ${user_id} has all required permissions: ${requiredAllPermissions.join(', ')}`,
         );
         return true;
       }
@@ -76,13 +76,13 @@ export class PermissionGuard implements CanActivate {
         if (typeof requiredPermission === 'string') {
           // Single permission
           hasPermission = await this.permissionService.hasPermission(
-            userId,
+            user_id,
             requiredPermission,
           );
 
           if (!hasPermission) {
             this.logger.warn(
-              `User ${userId} does not have required permission: ${requiredPermission}`,
+              `User ${user_id} does not have required permission: ${requiredPermission}`,
             );
             throw new ForbiddenException(
               `Bạn cần có quyền: ${requiredPermission}`,
@@ -91,13 +91,13 @@ export class PermissionGuard implements CanActivate {
         } else if (Array.isArray(requiredPermission)) {
           // Multiple permissions (OR logic)
           hasPermission = await this.permissionService.hasAnyPermission(
-            userId,
+            user_id,
             requiredPermission,
           );
 
           if (!hasPermission) {
             this.logger.warn(
-              `User ${userId} does not have any of required permissions: ${requiredPermission.join(', ')}`,
+              `User ${user_id} does not have any of required permissions: ${requiredPermission.join(', ')}`,
             );
             throw new ForbiddenException(
               `Bạn cần có ít nhất một trong các quyền: ${requiredPermission.join(', ')}`,
@@ -106,7 +106,7 @@ export class PermissionGuard implements CanActivate {
         }
 
         this.logger.debug(
-          `User ${userId} has required permission(s): ${
+          `User ${user_id} has required permission(s): ${
             typeof requiredPermission === 'string'
               ? requiredPermission
               : requiredPermission.join(', ')
@@ -122,7 +122,7 @@ export class PermissionGuard implements CanActivate {
       }
 
       this.logger.error(
-        `Error checking permissions for user ${userId}:`,
+        `Error checking permissions for user ${user_id}:`,
         error,
       );
       throw new ForbiddenException('Lỗi kiểm tra quyền truy cập');

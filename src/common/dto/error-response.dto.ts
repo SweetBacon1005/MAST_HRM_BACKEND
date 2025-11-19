@@ -5,7 +5,7 @@ export class ErrorResponseDto {
     description: 'HTTP status code',
     example: 400
   })
-  statusCode: number;
+  status_code: number;
 
   @ApiProperty({ 
     description: 'Loại lỗi',

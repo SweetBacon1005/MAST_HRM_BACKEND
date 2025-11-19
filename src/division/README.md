@@ -84,13 +84,13 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 ```typescript
 {
   id: number;
-  userId: number;
+  user_id: number;
   user: User;
   role_id?: number;
   role?: Role;
-  divisionId?: number;
+  division_id?: number;
   division?: Division;
-  teamId?: number;
+  team_id?: number;
   team?: Team;
   description?: string;
   teamLeader?: number;
@@ -132,9 +132,9 @@ Module quản lý phòng ban và phân công nhân viên vào phòng ban.
 ### User Division Assignment Pagination
 
 - `search` - Tìm kiếm theo tên user hoặc division
-- `divisionId` - Lọc theo division
-- `userId` - Lọc theo user
-- `teamId` - Lọc theo team
+- `division_id` - Lọc theo division
+- `user_id` - Lọc theo user
+- `team_id` - Lọc theo team
 - `role_id` - Lọc theo role
 
 ## Usage Examples
@@ -163,10 +163,10 @@ GET /divisions/hierarchy?parent_id=1
 ```typescript
 POST /divisions/user-assignments
 {
-  "userId": 5,
-  "divisionId": 1,
+  "user_id": 5,
+  "division_id": 1,
   "role_id": 2,
-  "teamId": 1,
+  "team_id": 1,
   "description": "Developer chính của team",
   "teamLeader": 3
 }

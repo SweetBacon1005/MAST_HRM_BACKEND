@@ -72,7 +72,7 @@ Content-Type: application/json
 // Controller
 @Post('presigned-url')
 async getPresignedUrl(@Body() dto: GetPresignedUrlDto) {
-  return await this.uploadService.getPresignedUrl(userId, dto);
+  return await this.uploadService.getPresignedUrl(user_id, dto);
 }
 ```
 

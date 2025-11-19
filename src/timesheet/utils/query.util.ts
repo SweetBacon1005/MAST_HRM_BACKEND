@@ -58,13 +58,13 @@ export class QueryUtil {
     page: number;
     limit: number;
     total: number;
-    totalPages: number;
+    total_pages: number;
   } {
     return {
       page,
       limit,
       total,
-      totalPages: Math.ceil(total / limit),
+      total_pages: Math.ceil(total / limit),
     };
   }
 }

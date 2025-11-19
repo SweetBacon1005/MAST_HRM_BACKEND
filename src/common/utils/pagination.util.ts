@@ -36,15 +36,15 @@ export function buildPaginationResponse<T>(
   page: number,
   limit: number,
 ) {
-  const totalPages = Math.ceil(total / limit);
+  const total_pages = Math.ceil(total / limit);
   return {
     data,
     pagination: {
       current_page: page,
       per_page: limit,
       total,
-      totalPages: totalPages,
-      has_next_page: page < totalPages,
+      total_pages: total_pages,
+      has_next_page: page < total_pages,
       has_prev_page: page > 1,
     },
   };

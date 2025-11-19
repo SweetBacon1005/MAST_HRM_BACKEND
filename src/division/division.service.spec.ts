@@ -99,8 +99,8 @@ describe('DivisionService', () => {
       mockAssignUserToDivision.mockRejectedValue(new Error('Division not found'));
 
       await expect(mockAssignUserToDivision({
-        userId: 1,
-        divisionId: 999,
+        user_id: 1,
+        division_id: 999,
         role_id: 1
       })).rejects.toThrow('Division not found');
     });
@@ -110,8 +110,8 @@ describe('DivisionService', () => {
       mockAssignUserToDivision.mockRejectedValue(new Error('User not found'));
 
       await expect(mockAssignUserToDivision({
-        userId: 999,
-        divisionId: 1,
+        user_id: 999,
+        division_id: 1,
         role_id: 1
       })).rejects.toThrow('User not found');
     });

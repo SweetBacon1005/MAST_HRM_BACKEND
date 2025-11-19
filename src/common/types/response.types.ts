@@ -11,7 +11,7 @@ export interface PaginatedResponse<T> {
   total: number;
   page: number;
   limit: number;
-  totalPages: number;
+  total_pages: number;
 }
 
 /**
@@ -54,7 +54,7 @@ export interface UserStats {
 }
 
 export interface UserStatsMap {
-  [userId: number]: UserStats;
+  [user_id: number]: UserStats;
 }
 
 /**

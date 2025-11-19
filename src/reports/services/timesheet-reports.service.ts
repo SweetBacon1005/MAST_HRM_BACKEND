@@ -23,7 +23,7 @@ export class TimesheetReportsService {
         .split('T')[0];
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
-    let userIds: number[] = [];
+    let user_ids: number[] = [];
 
     if (Number(team_id)) {
       const teamAssignments = await this.prisma.user_role_assignment.findMany({
@@ -35,7 +35,7 @@ export class TimesheetReportsService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = teamAssignments.map((assignment) => assignment.user_id);
+      user_ids = teamAssignments.map((assignment) => assignment.user_id);
     } else if (Number(division_id)) {
       const divisionAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -46,7 +46,7 @@ export class TimesheetReportsService {
         select: { user_id: true },
         distinct: ['user_id'],
       });
-      userIds = divisionAssignments.map((assignment) => assignment.user_id);
+      user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
     const where: any = {
@@ -57,8 +57,8 @@ export class TimesheetReportsService {
       deleted_at: null,
     };
 
-    if (userIds.length > 0) {
-      where.user_id = { in: userIds };
+    if (user_ids.length > 0) {
+      where.user_id = { in: user_ids };
     }
 
     const timesheets = await this.prisma.time_sheets.findMany({
@@ -150,10 +150,10 @@ export class TimesheetReportsService {
 
     // Group by user
     const userStats = timesheets.reduce((acc: any, timesheet) => {
-      const userId = timesheet.user_id;
-      if (!acc[userId]) {
-        acc[userId] = {
-          user_id: userId,
+      const user_id = timesheet.user_id;
+      if (!acc[user_id]) {
+        acc[user_id] = {
+          user_id: user_id,
           name: timesheet.user?.user_information?.name || '',
           total_days: 0,
           total_work_hours: 0,
@@ -163,14 +163,14 @@ export class TimesheetReportsService {
         };
       }
 
-      acc[userId].total_days += 1;
-      acc[userId].total_work_hours +=
+      acc[user_id].total_days += 1;
+      acc[user_id].total_work_hours +=
         ((timesheet.work_time_morning || 0) +
           (timesheet.work_time_afternoon || 0)) /
         60;
-      acc[userId].total_late_minutes += timesheet.late_time || 0;
-      acc[userId].total_early_minutes += timesheet.early_time || 0;
-      acc[userId].days_remote += timesheet.remote === 'REMOTE' ? 1 : 0;
+      acc[user_id].total_late_minutes += timesheet.late_time || 0;
+      acc[user_id].total_early_minutes += timesheet.early_time || 0;
+      acc[user_id].days_remote += timesheet.remote === 'REMOTE' ? 1 : 0;
 
       return acc;
     }, {});

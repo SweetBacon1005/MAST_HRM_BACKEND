@@ -8,7 +8,7 @@ export interface ActivityLogData {
   subjectType: string;
   event: string;
   subjectId: number;
-  causerId: number;
+  causer_id: number;
   properties?: Record<string, any>;
   batchUuid?: string;
 }
@@ -96,7 +96,7 @@ export class ActivityLogService {
           event: data.event,
           subject_id: data.subjectId,
           causer_type: 'User', // Mặc định là User
-          causer_id: data.causerId,
+          causer_id: data.causer_id,
           properties: data.properties || {},
         },
       });
@@ -121,7 +121,7 @@ export class ActivityLogService {
           event: activity.event,
           subject_id: activity.subjectId,
           causer_type: 'User',
-          causer_id: activity.causerId,
+          causer_id: activity.causer_id,
           properties: activity.properties || {},
         })),
       });
@@ -136,7 +136,7 @@ export class ActivityLogService {
   async logRequestCreated(
     requestType: string,
     requestId: number,
-    userId: number,
+    user_id: number,
     details?: Record<string, any>
   ): Promise<void> {
     await this.log({
@@ -145,7 +145,7 @@ export class ActivityLogService {
       subjectType: SubjectType.REQUEST,
       event: ActivityEvent.REQUEST_CREATED,
       subjectId: requestId,
-      causerId: userId,
+      causer_id: user_id,
       properties: {
         request_type: requestType,
         ...details,
@@ -173,7 +173,7 @@ export class ActivityLogService {
       subjectType: SubjectType.REQUEST,
       event,
       subjectId: requestId,
-      causerId: approverId,
+      causer_id: approverId,
       properties: {
         request_type: requestType,
         action,
@@ -199,7 +199,7 @@ export class ActivityLogService {
         subjectType: SubjectType.REQUEST,
         event: ActivityEvent.REQUEST_VIEWED,
         subjectId: requestId,
-        causerId: viewerId,
+        causer_id: viewerId,
         properties: {
           request_type: requestType,
           request_owner_id: requestOwnerId,
@@ -208,28 +208,28 @@ export class ActivityLogService {
     }
   }
 
-  async logUserLogin(userId: number): Promise<void> {
+  async logUserLogin(user_id: number): Promise<void> {
     await this.log({
       logName: 'Authentication',
       description: 'Đăng nhập hệ thống',
       subjectType: SubjectType.USER,
       event: ActivityEvent.USER_LOGIN,
-      subjectId: userId,
-      causerId: userId,
+      subjectId: user_id,
+      causer_id: user_id,
       properties: {
         login_time: new Date().toISOString(),
       },
     });
   }
 
-  async logUserLogout(userId: number): Promise<void> {
+  async logUserLogout(user_id: number): Promise<void> {
     await this.log({
       logName: 'Authentication',
       description: 'Đăng xuất hệ thống',
       subjectType: SubjectType.USER,
       event: ActivityEvent.USER_LOGOUT,
-      subjectId: userId,
-      causerId: userId,
+      subjectId: user_id,
+      causer_id: user_id,
       properties: {
         logout_time: new Date().toISOString(),
       },
@@ -237,11 +237,11 @@ export class ActivityLogService {
   }
 
   async logRoleAssignment(
-    userId: number,
-    roleId: number,
-    assignerId: number,
+    user_id: number,
+    role_id: number,
+    assigner_id: number,
     action: 'assigned' | 'removed',
-    divisionId?: number
+    division_id?: number
   ): Promise<void> {
     const event = action === 'assigned' 
       ? ActivityEvent.ROLE_ASSIGNED 
@@ -252,18 +252,18 @@ export class ActivityLogService {
       description: `${action === 'assigned' ? 'Gán' : 'Gỡ bỏ'} role cho user`,
       subjectType: SubjectType.USER,
       event,
-      subjectId: userId,
-      causerId: assignerId,
+      subjectId: user_id,
+      causer_id: assigner_id,
       properties: {
-        role_id: roleId,
+        role_id: role_id,
         action,
-        division_id: divisionId,
+        division_id: division_id,
       },
     });
   }
 
   async logTimesheetAction(
-    userId: number,
+    user_id: number,
     action: 'checkin' | 'checkout',
     timesheetId: number,
     location?: { latitude: number; longitude: number }
@@ -278,7 +278,7 @@ export class ActivityLogService {
       subjectType: SubjectType.TIMESHEET,
       event,
       subjectId: timesheetId,
-      causerId: userId,
+      causer_id: user_id,
       properties: {
         action,
         location,
@@ -291,7 +291,7 @@ export class ActivityLogService {
     entityType: string,
     entityId: number,
     operation: 'created' | 'updated' | 'deleted',
-    userId: number,
+    user_id: number,
     changes?: Record<string, any>
   ): Promise<void> {
     await this.log({
@@ -300,7 +300,7 @@ export class ActivityLogService {
       subjectType: entityType as SubjectType,
       event: `${entityType.toLowerCase()}.${operation}` as ActivityEvent,
       subjectId: entityId,
-      causerId: userId,
+      causer_id: user_id,
       properties: {
         operation,
         changes,
@@ -311,8 +311,8 @@ export class ActivityLogService {
   async logNewsOperation(
     operation: 'created' | 'updated' | 'deleted' | 'submitted' | 'approved' | 'rejected' | 'viewed',
     newsId: number,
-    userId: number,
-    newsTitle?: string,
+    user_id: number,
+    news_title?: string,
     details?: Record<string, any>
   ): Promise<void> {
     const eventMap = {
@@ -337,14 +337,14 @@ export class ActivityLogService {
 
     await this.log({
       logName: 'News Management',
-      description: newsTitle ? `${descriptionMap[operation]}: "${newsTitle}"` : descriptionMap[operation],
+      description: news_title ? `${descriptionMap[operation]}: "${news_title}"` : descriptionMap[operation],
       subjectType: SubjectType.NEWS,
       event: eventMap[operation],
       subjectId: newsId,
-      causerId: userId,
+      causer_id: user_id,
       properties: {
         operation,
-        news_title: newsTitle,
+        news_title: news_title,
         ...details,
       },
     });
@@ -356,7 +356,7 @@ export class ActivityLogService {
   async logNotificationOperation(
     operation: 'created' | 'updated' | 'deleted' | 'read' | 'unread' | 'viewed',
     userNotificationId: number,
-    userId: number,
+    user_id: number,
     notificationTitle?: string,
     details?: Record<string, any>
   ): Promise<void> {
@@ -384,7 +384,7 @@ export class ActivityLogService {
       subjectType: SubjectType.NOTIFICATION,
       event: eventMap[operation],
       subjectId: userNotificationId,
-      causerId: userId,
+      causer_id: user_id,
       properties: {
         operation,
         notification_title: notificationTitle,
@@ -401,7 +401,7 @@ export class ActivityLogService {
     limit?: number;
     logName?: string;
     event?: string;
-    causerId?: number;
+    causer_id?: number;
     subjectId?: number;
     subjectType?: string;
     startDate?: Date;
@@ -414,7 +414,7 @@ export class ActivityLogService {
 
     if (filters.logName) where.log_name = { contains: filters.logName };
     if (filters.event) where.event = filters.event;
-    if (filters.causerId) where.causer_id = filters.causerId;
+    if (filters.causer_id) where.causer_id = filters.causer_id;
     if (filters.subjectId) where.subject_id = filters.subjectId;
     if (filters.subjectType) where.subject_type = filters.subjectType;
     
@@ -464,7 +464,7 @@ export class ActivityLogService {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        total_pages: Math.ceil(total / limit),
       },
     };
   }

@@ -2,18 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 
-export interface IpValidationResult {
+export interface ip_validationResult {
   isValid: boolean;
-  isOfficeNetwork: boolean;
-  clientIp: string;
-  allowedIps: string[];
-  hasApprovedRemoteRequest: boolean;
+  is_office_network: boolean;
+  client_ip: string;
+  allowed_ips: string[];
+  has_approved_remote_request: boolean;
   message?: string;
 }
 
 @Injectable()
-export class IpValidationService {
-  private readonly logger = new Logger(IpValidationService.name);
+export class ip_validationService {
+  private readonly logger = new Logger(ip_validationService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -22,48 +22,48 @@ export class IpValidationService {
 
   /**
    * Kiểm tra IP có được phép check in/out không
-   * @param userId ID của user
-   * @param clientIp IP của client
+   * @param user_id ID của user
+   * @param client_ip IP của client
    * @param workDate Ngày làm việc (YYYY-MM-DD)
    * @returns Kết quả validation
    */
   async validateIpForAttendance(
-    userId: number,
-    clientIp: string,
+    user_id: number,
+    client_ip: string,
     workDate: string,
-  ): Promise<IpValidationResult> {
+  ): Promise<ip_validationResult> {
     try {
       // Lấy danh sách IP văn phòng được phép
-      const allowedIps = await this.getOfficeIpAddresses();
+      const allowed_ips = await this.getOfficeIpAddresses();
       
       // Kiểm tra IP có trong danh sách văn phòng không
-      const isOfficeNetwork = this.isIpInAllowedList(clientIp, allowedIps);
+      const is_office_network = this.isIpInAllowedList(client_ip, allowed_ips);
 
       // Nếu đang ở văn phòng thì cho phép
-      if (isOfficeNetwork) {
+      if (is_office_network) {
         return {
           isValid: true,
-          isOfficeNetwork: true,
-          clientIp,
-          allowedIps,
-          hasApprovedRemoteRequest: false,
+          is_office_network: true,
+          client_ip,
+          allowed_ips,
+          has_approved_remote_request: false,
           message: 'Check in/out từ văn phòng được phép',
         };
       }
 
       // Nếu không ở văn phòng, kiểm tra có remote work request được duyệt không
-      const hasApprovedRemoteRequest = await this.checkApprovedRemoteRequest(
-        userId,
+      const has_approved_remote_request = await this.checkApprovedRemoteRequest(
+        user_id,
         workDate,
       );
 
-      if (hasApprovedRemoteRequest) {
+      if (has_approved_remote_request) {
         return {
           isValid: true,
-          isOfficeNetwork: false,
-          clientIp,
-          allowedIps,
-          hasApprovedRemoteRequest: true,
+          is_office_network: false,
+          client_ip,
+          allowed_ips,
+          has_approved_remote_request: true,
           message: 'Check in/out từ xa được phép do có đơn remote work đã duyệt',
         };
       }
@@ -71,25 +71,25 @@ export class IpValidationService {
       // Không được phép check in/out
       return {
         isValid: false,
-        isOfficeNetwork: false,
-        clientIp,
-        allowedIps,
-        hasApprovedRemoteRequest: false,
+        is_office_network: false,
+        client_ip,
+        allowed_ips,
+        has_approved_remote_request: false,
         message: 'Không được phép check in/out từ ngoài văn phòng. Vui lòng tạo đơn xin làm việc từ xa và chờ phê duyệt.',
       };
     } catch (error) {
       this.logger.error(
-        `Lỗi khi kiểm tra IP validation cho user ${userId}: ${error.message}`,
+        `Lỗi khi kiểm tra IP validation cho user ${user_id}: ${error.message}`,
         error.stack,
       );
       
       // Trong trường hợp lỗi, cho phép check in/out để không ảnh hưởng đến hoạt động
       return {
         isValid: true,
-        isOfficeNetwork: false,
-        clientIp,
-        allowedIps: [],
-        hasApprovedRemoteRequest: false,
+        is_office_network: false,
+        client_ip,
+        allowed_ips: [],
+        has_approved_remote_request: false,
         message: 'Lỗi hệ thống khi kiểm tra IP, tạm thời cho phép check in/out',
       };
     }
@@ -113,9 +113,9 @@ export class IpValidationService {
   /**
    * Kiểm tra IP có trong danh sách cho phép không
    */
-  private isIpInAllowedList(clientIp: string, allowedIps: string[]): boolean {
-    for (const allowedIp of allowedIps) {
-      if (this.isIpMatch(clientIp, allowedIp)) {
+  private isIpInAllowedList(client_ip: string, allowed_ips: string[]): boolean {
+    for (const allowedIp of allowed_ips) {
+      if (this.isIpMatch(client_ip, allowedIp)) {
         return true;
       }
     }
@@ -125,21 +125,21 @@ export class IpValidationService {
   /**
    * Kiểm tra IP có khớp với pattern không (hỗ trợ CIDR và wildcard)
    */
-  private isIpMatch(clientIp: string, pattern: string): boolean {
+  private isIpMatch(client_ip: string, pattern: string): boolean {
     // Exact match
-    if (clientIp === pattern) {
+    if (client_ip === pattern) {
       return true;
     }
 
     // CIDR notation (e.g., 192.168.1.0/24)
     if (pattern.includes('/')) {
-      return this.isIpInCidr(clientIp, pattern);
+      return this.isIpInCidr(client_ip, pattern);
     }
 
     // Wildcard pattern (e.g., 192.168.1.*)
     if (pattern.includes('*')) {
       const regex = new RegExp('^' + pattern.replace(/\*/g, '\\d+') + '$');
-      return regex.test(clientIp);
+      return regex.test(client_ip);
     }
 
     return false;
@@ -174,14 +174,14 @@ export class IpValidationService {
    * Kiểm tra có remote work request được duyệt cho ngày cụ thể không
    */
   private async checkApprovedRemoteRequest(
-    userId: number,
+    user_id: number,
     workDate: string,
   ): Promise<boolean> {
     try {
       // Kiểm tra trong bảng time_sheets có remote work được duyệt không
       const approvedRemoteWork = await this.prisma.time_sheets.findFirst({
         where: {
-          user_id: userId,
+          user_id: user_id,
           work_date: new Date(workDate),
           remote: 'REMOTE',
           status: 'APPROVED',
@@ -199,7 +199,7 @@ export class IpValidationService {
       return false;
     } catch (error) {
       this.logger.error(
-        `Lỗi khi kiểm tra approved remote request cho user ${userId}, ngày ${workDate}:`,
+        `Lỗi khi kiểm tra approved remote request cho user ${user_id}, ngày ${workDate}:`,
         error,
       );
       return false;
@@ -209,11 +209,11 @@ export class IpValidationService {
   /**
    * Lấy IP thực của client từ request headers
    */
-  getClientIp(request: any): string {
+  getclient_ip(request: any): string {
     // Kiểm tra các headers phổ biến cho IP thực
     const xForwardedFor = request.headers['x-forwarded-for'];
     const xRealIp = request.headers['x-real-ip'];
-    const xClientIp = request.headers['x-client-ip'];
+    const xclient_ip = request.headers['x-client-ip'];
     const cfConnectingIp = request.headers['cf-connecting-ip']; // Cloudflare
 
     if (xForwardedFor) {
@@ -225,8 +225,8 @@ export class IpValidationService {
       return xRealIp;
     }
 
-    if (xClientIp) {
-      return xClientIp;
+    if (xclient_ip) {
+      return xclient_ip;
     }
 
     if (cfConnectingIp) {
