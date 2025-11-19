@@ -69,8 +69,11 @@ export class RoleAssignmentService {
       );
     }
 
-    const updateAssignments = await this.prisma.user_role_assignment.updateMany(
-      {
+    // Xóa role cũ chỉ khi:
+    // - Scope có scope_id (DIVISION, PROJECT, TEAM) => chỉ được 1 role per scope_id
+    // - COMPANY scope => không xóa, cho phép nhiều role
+    if (data.scope_id !== null && data.scope_id !== undefined) {
+      await this.prisma.user_role_assignment.updateMany({
         where: {
           user_id: data.user_id,
           scope_id: data.scope_id,
@@ -78,8 +81,8 @@ export class RoleAssignmentService {
           deleted_at: null,
         },
         data: { deleted_at: new Date() },
-      },
-    );
+      });
+    }
 
     const newAssignment = await this.prisma.user_role_assignment.create({
       data: {

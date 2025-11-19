@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
-import { ROLE_IDS, ROLE_NAMES } from 'src/auth/constants/role.constants';
+import { ROLE_IDS, ROLE_NAMES } from '../auth/constants/role.constants';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import {

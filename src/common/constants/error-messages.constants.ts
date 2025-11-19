@@ -74,7 +74,7 @@ export const ASSET_ERRORS = {
 // === DIVISION ERRORS ===
 export const DIVISION_ERRORS = {
   NOT_MANAGED_IN_DIVISION: 'Người dùng không quản lí phòng ban này',
-  NOT_MANAGED_IN_TEAM: 'Người dùng không quản lí team này',
+  NOT_MANAGED_IN_TEAM: 'Người dùng không quản lí nhóm này',
   NOT_MANAGED_IN_PROJECT: 'Người dùng không quản lí dự án này',
   NOT_MANAGED_IN_USER: 'Người dùng không quản lí người dùng này',
   DIVISION_NOT_FOUND: 'Không tìm thấy phòng ban',
@@ -90,12 +90,12 @@ export const DIVISION_ERRORS = {
   ROTATION_ALREADY_EXISTS: 'Người dùng đã có lịch sử điều chuyển đến phòng ban này',
   CANNOT_TRANSFER_EMPLOYEE: 'Bạn không có quyền điều chuyển nhân viên này',
   ROTATION_NOT_FOUND: 'Không tìm thấy bản ghi điều chuyển',
-  DIVISION_ID_REQUIRED: 'Division ID là bắt buộc',
-  USER_ALREADY_IN_DIVISION: 'User đã được gán vào phòng ban',
-  USER_DIVISION_ASSIGNMENT_NOT_FOUND: 'Không tìm thấy user division assignment',
-  USER_DIVISION_NOT_FOUND: 'Không tìm thấy user division',
-  USER_NO_ASSIGNMENT_IN_DIVISION: 'User không có assignment trong division này',
-  USER_MULTIPLE_DIVISION_ASSIGNMENTS: 'User có nhiều hơn 1 assignment trong division',
+  DIVISION_ID_REQUIRED: 'ID phòng ban là bắt buộc',
+  USER_ALREADY_IN_DIVISION: 'Người dùng đã được gán vào phòng ban',
+  USER_DIVISION_ASSIGNMENT_NOT_FOUND: 'Không tìm thấy phân công người dùng trong phòng ban',
+  USER_DIVISION_NOT_FOUND: 'Không tìm thấy người dùng trong phòng ban',
+  USER_NO_ASSIGNMENT_IN_DIVISION: 'Người dùng không có phân công trong phòng ban này',
+  USER_MULTIPLE_DIVISION_ASSIGNMENTS: 'Người dùng có nhiều hơn 1 phân công trong phòng ban',
 } as const;
 
 // === REQUEST ERRORS ===
@@ -149,9 +149,9 @@ export const PROJECT_ERRORS = {
   INVALID_PROJECT_STATUS: 'Trạng thái dự án không hợp lệ',
   PROJECT_DEADLINE_PASSED: 'Thời hạn dự án đã qua',
   DIVISION_NOT_FOUND: 'Phòng ban không tồn tại',
-  TEAM_NOT_FOUND: 'Team không tồn tại',
+  TEAM_NOT_FOUND: 'Nhóm không tồn tại',
   START_DATE_AFTER_END_DATE: 'Ngày bắt đầu phải nhỏ hơn ngày kết thúc',
-  INVALID_PROGRESS_VALUE: 'Progress phải trong khoảng 0-100',
+  INVALID_PROGRESS_VALUE: 'Tiến độ phải trong khoảng 0-100',
 } as const;
 
 // === ROLE ERRORS ===
@@ -236,10 +236,10 @@ export const SUCCESS_MESSAGES = {
   EMAIL_SENT: 'Gửi email thành công',
   DATA_EXPORTED: 'Xuất dữ liệu thành công',
   DATA_IMPORTED: 'Nhập dữ liệu thành công',
-  USER_ADDED_TO_DIVISION: 'Thêm user vào division thành công',
-  USER_DIVISION_UPDATED: 'Cập nhật user division assignment thành công',
-  USER_REMOVED_FROM_DIVISION: 'Xóa user khỏi division thành công',
-  TEAM_DELETED: 'Xóa team thành công',
+  USER_ADDED_TO_DIVISION: 'Thêm người dùng vào phòng ban thành công',
+  USER_DIVISION_UPDATED: 'Cập nhật phân công người dùng trong phòng ban thành công',
+  USER_REMOVED_FROM_DIVISION: 'Xóa người dùng khỏi phòng ban thành công',
+  TEAM_DELETED: 'Xóa nhóm thành công',
 } as const;
 
 // Export all error types for type safety
@@ -257,15 +257,33 @@ export type NotificationError = typeof NOTIFICATION_ERRORS[keyof typeof NOTIFICA
 export type ValidationError = typeof VALIDATION_ERRORS[keyof typeof VALIDATION_ERRORS];
 export type SystemError = typeof SYSTEM_ERRORS[keyof typeof SYSTEM_ERRORS];
 export const TEAM_ERRORS = {
-  TEAM_NOT_FOUND: 'Không tìm thấy team',
-  TEAM_NAME_EXISTS: 'Tên team đã tồn tại',
-  TEAM_NAME_EXISTS_IN_DIVISION: 'Tên team đã tồn tại trong phòng ban này',
-  TEAM_CANNOT_DELETE_WITH_MEMBERS: 'Không thể xóa team vì còn thành viên',
-  TEAM_CANNOT_DELETE_WITH_PROJECTS: 'Không thể xóa team vì còn dự án',
-  TEAM_INVALID_DIVISION: 'Bạn không có quyền thao tác với team ngoài phòng ban của bạn',
-  TEAM_DIVISION_REQUIRED: 'Cần cung cấp phòng ban cho team',
+  TEAM_NOT_FOUND: 'Không tìm thấy nhóm',
+  TEAM_NAME_EXISTS: 'Tên nhóm đã tồn tại',
+  TEAM_NAME_EXISTS_IN_DIVISION: 'Tên nhóm đã tồn tại trong phòng ban này',
+  TEAM_CANNOT_DELETE_WITH_MEMBERS: 'Không thể xóa nhóm vì còn thành viên',
+  TEAM_CANNOT_DELETE_WITH_PROJECTS: 'Không thể xóa nhóm vì còn dự án',
+  TEAM_INVALID_DIVISION: 'Bạn không có quyền thao tác với nhóm ngoài phòng ban của bạn',
+  TEAM_DIVISION_REQUIRED: 'Cần cung cấp phòng ban cho nhóm',
   USER_DIVISION_NOT_FOUND: 'Không xác định được phòng ban của bạn',
-  TEAM_NOT_IN_DIVISION: 'Team không tồn tại hoặc không thuộc division này',
+  TEAM_NOT_IN_DIVISION: 'Nhóm không tồn tại hoặc không thuộc phòng ban này',
 } as const;
 
+// === DAILY REPORT ERRORS ===
+export const DAILY_REPORT_ERRORS = {
+  DAILY_REPORT_NOT_FOUND: 'Không tìm thấy báo cáo công việc hàng ngày',
+  UNAUTHORIZED_ACCESS: 'Bạn không có quyền truy cập báo cáo này',
+  UNAUTHORIZED_UPDATE: 'Bạn không có quyền cập nhật báo cáo này',
+  UNAUTHORIZED_DELETE: 'Bạn không có quyền xóa báo cáo này',
+  UNAUTHORIZED_APPROVE: 'Bạn không có quyền duyệt báo cáo này',
+  CANNOT_UPDATE_NOT_REJECTED: 'Chỉ có thể cập nhật báo cáo ở trạng thái BỊ TỪ CHỐI',
+  CANNOT_DELETE_NOT_PENDING: 'Chỉ có thể xóa báo cáo ở trạng thái CHỜ DUYỆT',
+  CANNOT_APPROVE_NOT_PENDING: 'Chỉ có thể duyệt báo cáo ở trạng thái CHỜ DUYỆT',
+  CANNOT_REJECT_NOT_PENDING: 'Chỉ có thể từ chối báo cáo ở trạng thái CHỜ DUYỆT',
+  CANNOT_APPROVE_OWN_REPORT: 'Không thể duyệt báo cáo của chính mình',
+  PROJECT_NOT_FOUND: 'Dự án không tồn tại',
+  INVALID_WORK_DATE: 'Ngày làm việc không hợp lệ',
+  INVALID_ACTUAL_TIME: 'Thời gian thực tế không hợp lệ',
+} as const;
+
+export type DailyReportError = typeof DAILY_REPORT_ERRORS[keyof typeof DAILY_REPORT_ERRORS];
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];
