@@ -1,11 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IndustryType, ProjectStatus, ProjectType } from '@prisma/client';
-import { Type, Transform } from 'class-transformer';
+import { ProjectStatus, ProjectAccessType, ProjectType, IndustryType } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsString,
   IsInt,
   IsOptional,
-  IsNumber,
   IsDateString,
   MaxLength,
   Min,
@@ -72,14 +71,14 @@ export class CreateProjectDto {
   project_type?: ProjectType;
 
   @ApiProperty({
-    description: 'Xếp hạng',
-    example: 1,
+    description: 'Loại truy cập dự án',
+    example: ProjectAccessType.RESTRICTED,
+    enum: ProjectAccessType,
     required: false,
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'Rank phải là số nguyên' })
-  rank?: number;
+  @IsEnum(ProjectAccessType)
+  project_access_type?: ProjectAccessType;
 
   @ApiProperty({
     description: 'Ngành công nghiệp',
@@ -92,15 +91,6 @@ export class CreateProjectDto {
   industry?: IndustryType;
 
   @ApiProperty({
-    description: 'Phạm vi dự án',
-    example: 'Phát triển website từ đầu',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  scope?: string;
-
-  @ApiProperty({
     description: 'Mô tả dự án',
     example: 'Dự án phát triển website thương mại điện tử',
     required: false,
@@ -108,33 +98,6 @@ export class CreateProjectDto {
   @IsOptional()
   @IsString()
   description?: string;
-
-  @ApiProperty({
-    description: 'Thông tin hợp đồng',
-    example: 'Hợp đồng số 001/2024',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  contract_information?: string;
-
-  @ApiProperty({
-    description: 'Mức độ quan trọng',
-    example: 'HIGH',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  critical?: string;
-
-  @ApiProperty({
-    description: 'Ghi chú',
-    example: 'Dự án ưu tiên cao',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
 
   @ApiProperty({
     description: 'Ngày bắt đầu (YYYY-MM-DD)',

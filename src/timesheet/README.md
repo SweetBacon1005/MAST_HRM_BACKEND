@@ -1,257 +1,683 @@
-# Timesheet Module
+# Module Timesheet
 
-Module quản lý chấm công và timesheet cho hệ thống HRM.
+## Mô tả
+Module Timesheet quản lý bảng chấm công, check-in/out, ca làm việc, ngày lễ và lịch làm việc của nhân viên. Module tích hợp với các module khác để tính toán thời gian làm việc, phạt đi muộn/về sớm.
 
-## Tổng quan
-
-Timesheet Module cung cấp các chức năng:
-
-- ✅ Quản lý timesheet hàng ngày
-- ✅ Check-in/Check-out với GPS và ảnh
-- ✅ Quản lý đơn nghỉ phép (Day-off requests)
-- ✅ Quản lý làm thêm giờ (Overtime)
-- ✅ Quản lý ngày lễ (Holidays)
-- ✅ Báo cáo và thống kê
-- ✅ Workflow duyệt timesheet
-- ✅ Lịch làm việc cá nhân và team
-
-## Cấu trúc thư mục
-
-```
-src/timesheet/
-├── dto/                          # Data Transfer Objects
-│   ├── attendance-log.dto.ts     # DTO cho attendance logs
-│   ├── checkin-checkout.dto.ts   # DTO cho check-in/out
-│   ├── create-day-off-request.dto.ts
-│   ├── create-holiday.dto.ts
-│   ├── create-overtime-request.dto.ts
-│   ├── create-timesheet.dto.ts
-│   ├── get-schedule.dto.ts
-│   ├── pagination-queries.dto.ts
-│   ├── timesheet-report.dto.ts
-│   └── update-timesheet.dto.ts
-├── enums/                        # Enumerations
-│   ├── day-off.enum.ts          # Enum cho nghỉ phép
-│   └── timesheet-state.enum.ts  # Enum cho trạng thái timesheet
-├── utils/                        # Utilities
-│   ├── enum-converter.util.ts   # Chuyển đổi enum
-│   └── query.util.ts           # Query helpers
-├── timesheet.controller.ts       # API Controller
-├── timesheet.service.ts         # Business Logic Service
-├── timesheet.module.ts          # NestJS Module
-└── TIMESHEET_API.md             # API Documentation
-```
-
-## Các chức năng chính
+## Nghiệp vụ chính
 
 ### 1. Quản lý Timesheet
-
-#### Tạo timesheet
-
-```typescript
-POST /timesheet
-{
-  "work_date": "2024-01-15",
-  "checkin": "2024-01-15T01:00:00Z", // 8:00 AM +7
-  "checkout": "2024-01-15T10:30:00Z", // 5:30 PM +7
-  "note": "Làm việc bình thường"
-}
-```
-
-#### Workflow trạng thái
-
-- **DRAFT** (Bản nháp) → **PENDING** (Chờ duyệt)
-- **PENDING** → **APPROVED** (Đã duyệt) hoặc **REJECTED** (Từ chối)
-- **APPROVED** → **LOCKED** (Đã khóa - sau khi tính lương)
-- **REJECTED** → **PENDING** (Có thể submit lại)
+- Tạo timesheet hàng ngày (tự động/thủ công)
+- Xem danh sách timesheets kèm requests trong ngày
+- Xem chi tiết timesheet
+- Cập nhật timesheet
+- Xóa timesheet (soft delete)
 
 ### 2. Check-in/Check-out
+- Check-in vào làm
+- Check-out sau khi làm
+- Đăng ký khuôn mặt cho chấm công
+- Xem thông tin chấm công hôm nay
 
-#### Check-in
+### 3. Timesheet Workflow
+- Submit timesheet để chờ duyệt
+- Duyệt timesheet (Manager/HR)
+- Từ chối timesheet với lý do
+- Khóa timesheet sau tính lương (Admin/HR)
 
-```typescript
-POST /timesheet/checkin
-{
-  "location_type": "office",
-  "gps_latitude": 10.762622,
-  "gps_longitude": 106.660172,
-  "photo_url": "https://example.com/checkin-photo.jpg",
-  "ip_address": "192.168.1.100",
-  "device_info": "iPhone 14 Pro"
-}
-```
+### 4. Work Shifts
+- Tạo ca làm việc
+- Xem danh sách ca làm việc
+- Cập nhật ca làm việc
 
-#### Tính năng:
+### 5. Holidays
+- Tạo ngày lễ
+- Xem danh sách ngày lễ
+- Cập nhật/Xóa ngày lễ
 
-- ✅ Idempotency (tránh check-in/out trùng lặp)
-- ✅ Tự động tính late time (muộn)
-- ✅ Tự động tính early leave (về sớm)
-- ✅ Tự động tính total work time
-- ✅ Validation với nghỉ phép nửa ngày
+### 6. Schedule Management
+- Xem lịch làm việc cá nhân
+- Xem lịch làm việc của team
 
-### 3. Quản lý nghỉ phép
+### 7. Reports & Statistics
+- Báo cáo timesheet
+- Báo cáo giờ làm việc
+- Thống kê chấm công
 
-#### Tạo đơn nghỉ phép
-
-```typescript
-POST /timesheet/day-off-requests
-{
-  "start_date": "2024-01-20",
-  "end_date": "2024-01-22",
-  "duration": "FULL_DAY",
-  "type": "PAID",
-  "reason": "Nghỉ phép năm",
-  "leave_type": "annual_leave"
-}
-```
-
-#### Loại nghỉ phép:
-
-- **PAID_LEAVE**: Nghỉ phép có lương
-- **UNPAID_LEAVE**: Nghỉ phép không lương
-- **SICK_LEAVE**: Nghỉ ốm
-- **MATERNITY_LEAVE**: Nghỉ thai sản
-- **PERSONAL_LEAVE**: Nghỉ việc riêng
-- **COMPENSATORY_LEAVE**: Nghỉ bù
-
-#### Thời gian nghỉ:
-
-- **FULL_DAY**: Cả ngày
-- **MORNING**: Buổi sáng
-- **AFTERNOON**: Buổi chiều
-
-### 4. Làm thêm giờ
-
-```typescript
-POST /timesheet/overtime-requests
-{
-  "date": "2024-01-15",
-  "start_time": "2024-01-15T11:00:00Z", // 6:00 PM +7
-  "end_time": "2024-01-15T13:00:00Z", // 8:00 PM +7
-  "reason": "Hoàn thành dự án urgent",
-  "project_id": 123
-}
-```
-
-### 5. Báo cáo và thống kê
-
-#### Báo cáo timesheet
-
-```typescript
-GET /timesheet/reports?start_date=2024-01-01&end_date=2024-01-31&team_id=5
-```
-
-#### Báo cáo thời gian làm việc
-
-```typescript
-GET /timesheet/working-time-report?month=2024-01&user_id=10
-```
-
-#### Thống kê attendance
-
-```typescript
-GET /timesheet/attendance-statistics?user_id=10&start_date=2024-01-01&end_date=2024-01-31
-```
-
-## Enums và Constants
-
-### TimesheetState
-
-```typescript
-enum TimesheetState {
-  DRAFT = 0, // Bản nháp
-  PENDING = 1, // Chờ duyệt
-  APPROVED = 2, // Đã duyệt
-  REJECTED = 3, // Từ chối
-  LOCKED = 4, // Đã khóa
-}
-```
-
-### DayOffType
-
-```typescript
-enum DayOffType {
-  PAID_LEAVE = 1, // Nghỉ phép có lương
-  UNPAID_LEAVE = 2, // Nghỉ phép không lương
-  SICK_LEAVE = 3, // Nghỉ ốm
-  MATERNITY_LEAVE = 4, // Nghỉ thai sản
-  PERSONAL_LEAVE = 5, // Nghỉ việc riêng
-  COMPENSATORY_LEAVE = 6, // Nghỉ bù
-}
-```
-
-## Business Rules
-
-### Check-in/Check-out
-
-1. Chỉ được check-in/out một lần mỗi ngày
-2. Phải check-in trước khi check-out
-3. Giờ làm việc chuẩn: 8:00 - 17:30 (nghỉ trưa 1 tiếng)
-4. Tự động tính late time nếu check-in sau 8:00
-5. Tự động tính early leave nếu check-out trước 17:30
-
-### Nghỉ phép
-
-1. Không được tạo đơn nghỉ phép trùng lặp thời gian
-2. Ngày bắt đầu không được sau ngày kết thúc
-3. Nghỉ nửa ngày vẫn cần check-in/out cho nửa ngày còn lại
-4. Tự động tạo timesheet khi duyệt nghỉ phép
-
-### Workflow
-
-1. Chỉ có thể sửa timesheet ở trạng thái DRAFT hoặc REJECTED
-2. Chỉ manager/HR mới có thể duyệt/từ chối timesheet
-3. Timesheet LOCKED không thể sửa/xóa
-
-## Utilities
-
-### Date Utilities
-
-- Sử dụng UTC (GMT+0) cho tất cả timestamp
-- `new Date().toISOString().split('T')[0]`: Lấy ngày hiện tại
-- Thời gian làm việc: 1:30-10:30 UTC (8:30-17:30 UTC+7)
-
-### EnumConverter
-
-- Chuyển đổi giữa enum numbers và string values cho Prisma
-- Hỗ trợ tất cả enum trong module
-
-### QueryUtil
-
-- `onlyActive()`: Filter chỉ lấy records chưa bị xóa
-- `workDateRange()`: Filter theo khoảng thời gian làm việc
+### 8. Attendance Logs
+- Tạo log chấm công thủ công
+- Xem danh sách logs chấm công
+- Cập nhật/Xóa logs chấm công
 
 ## API Endpoints
 
-Xem chi tiết tại [TIMESHEET_API.md](./TIMESHEET_API.md)
+### Timesheet Management
 
-## Dependencies
+#### POST /timesheet
+**Mô tả:** Tạo timesheet mới
 
-- `@nestjs/common`: NestJS core
-- `prisma`: Database ORM
-- `class-validator`: Validation
-- `class-transformer`: Data transformation
+**Permission required:** `timesheet.create`
 
-## Testing
+**Headers:** `Authorization: Bearer <access_token>`
 
-```bash
-# Unit tests
-npm run test src/timesheet
-
-# E2E tests
-npm run test:e2e timesheet
+**Request Body:**
+```json
+{
+  "user_id": 5,
+  "work_date": "2024-01-25",
+  "work_shift_id": 1,
+  "checkin": "08:00:00",
+  "checkout": "17:30:00",
+  "status": "DRAFT"
+}
 ```
 
-## Performance Notes
+**Response:**
+```json
+{
+  "id": 1,
+  "user_id": 5,
+  "work_date": "2024-01-25T00:00:00Z",
+  "work_shift_id": 1,
+  "checkin": "2024-01-25T08:00:00Z",
+  "checkout": "2024-01-25T17:30:00Z",
+  "total_work_time": 540,
+  "late_time": 0,
+  "early_time": 0,
+  "status": "DRAFT",
+  "is_complete": false,
+  "created_at": "2024-01-25T17:30:00Z"
+}
+```
 
-1. Sử dụng database transactions cho check-in/out để tránh race conditions
-2. Implement idempotency cho các operations quan trọng
-3. Index được tạo trên các fields thường query: `user_id`, `work_date`, `status`
-4. Pagination được implement cho tất cả list APIs
+---
 
-## Security
+#### GET /timesheet/my-timesheets
+**Mô tả:** Lấy danh sách timesheet của tôi kèm requests trong ngày
 
-1. Authorization: Chỉ user được phép xem/sửa timesheet của mình
-2. Manager/HR có quyền xem/duyệt timesheet của team/company
-3. Audit log: Tất cả thay đổi được ghi log
-4. Validation: Input được validate nghiêm ngặt
+**Permission required:** `timesheet.read`
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `page` (optional): Số trang (default: 1)
+- `limit` (optional): Số bản ghi trên trang (default: 10)
+- `start_date` (optional): Từ ngày
+- `end_date` (optional): Đến ngày
+- `status` (optional): DRAFT, PENDING, APPROVED, REJECTED, LOCKED
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "user_id": 5,
+      "work_date": "2024-01-25",
+      "checkin": "2024-01-25T08:00:00Z",
+      "checkout": "2024-01-25T17:30:00Z",
+      "total_work_time": 540,
+      "late_time": 0,
+      "early_time": 0,
+      "status": "APPROVED",
+      "is_complete": true,
+      "requests": [
+        {
+          "id": 1,
+          "request_type": "remote_work",
+          "status": "APPROVED",
+          "reason": "Làm việc từ xa",
+          "created_at": "2024-01-25T07:00:00Z",
+          "approved_at": "2024-01-25T08:00:00Z",
+          "approved_by": 3
+        }
+      ]
+    }
+  ],
+  "pagination": {
+    "total": 50,
+    "page": 1,
+    "limit": 10,
+    "total_pages": 5
+  }
+}
+```
+
+**Lưu ý:** Response bao gồm tất cả requests trong ngày đó:
+- remote_work
+- day_off
+- overtime
+- late_early
+- forgot_checkin
+
+---
+
+#### GET /timesheet/:id
+**Mô tả:** Lấy chi tiết timesheet
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+---
+
+#### PATCH /timesheet/:id
+**Mô tả:** Cập nhật timesheet
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+---
+
+#### DELETE /timesheet/:id
+**Mô tả:** Xóa timesheet
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+---
+
+### Timesheet Workflow
+
+#### PATCH /timesheet/:id/submit
+**Mô tả:** Submit timesheet để chờ duyệt
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "id": 1,
+  "status": "PENDING",
+  "submitted_at": "2024-01-25T18:00:00Z"
+}
+```
+
+---
+
+#### PATCH /timesheet/:id/approve
+**Mô tả:** Duyệt timesheet (Manager/HR only)
+
+**Roles:** manager, admin, hr
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "id": 1,
+  "status": "APPROVED",
+  "approved_by": 3,
+  "approved_at": "2024-01-25T19:00:00Z"
+}
+```
+
+---
+
+#### PATCH /timesheet/:id/reject
+**Mô tả:** Từ chối timesheet (Manager/HR only)
+
+**Roles:** manager, admin, hr
+
+**Request Body:**
+```json
+{
+  "reason": "Thiếu thông tin check-out"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "status": "REJECTED",
+  "rejected_by": 3,
+  "rejected_at": "2024-01-25T19:00:00Z",
+  "rejected_reason": "Thiếu thông tin check-out"
+}
+```
+
+---
+
+#### PATCH /timesheet/:id/lock
+**Mô tả:** Khóa timesheet sau tính lương (Admin/HR only)
+
+**Roles:** admin, hr
+
+**Response:**
+```json
+{
+  "id": 1,
+  "status": "LOCKED",
+  "locked_by": 2,
+  "locked_at": "2024-02-01T10:00:00Z"
+}
+```
+
+**Lưu ý:** Timesheet bị khóa không thể sửa/xóa
+
+---
+
+### Check-in/Check-out
+
+#### POST /timesheet/register-face
+**Mô tả:** Đăng ký khuôn mặt cho chấm công
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request:** Multipart/form-data với file `image`
+
+**Response:**
+```json
+{
+  "message": "Đăng ký khuôn mặt thành công",
+  "face_data": {
+    "encoding": "..."
+  }
+}
+```
+
+---
+
+#### POST /timesheet/checkin
+**Mô tả:** Check-in vào làm
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "checkin_time": "2024-01-25T08:00:00Z",
+  "location": "Văn phòng"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "user_id": 5,
+  "work_date": "2024-01-25",
+  "checkin": "2024-01-25T08:00:00Z",
+  "late_time": 0,
+  "status": "PENDING",
+  "message": "Check-in thành công"
+}
+```
+
+**Business Rules:**
+- Chỉ check-in 1 lần/ngày
+- Tự động tính late_time nếu checkin sau giờ quy định
+
+---
+
+#### POST /timesheet/checkout
+**Mô tả:** Check-out sau khi làm
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Request Body:**
+```json
+{
+  "checkout_time": "2024-01-25T17:30:00Z"
+}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "user_id": 5,
+  "work_date": "2024-01-25",
+  "checkin": "2024-01-25T08:00:00Z",
+  "checkout": "2024-01-25T17:30:00Z",
+  "total_work_time": 540,
+  "early_time": 0,
+  "status": "PENDING",
+  "is_complete": true,
+  "message": "Check-out thành công"
+}
+```
+
+**Business Rules:**
+- Phải check-in trước khi check-out
+- Chỉ check-out 1 lần/ngày
+- Tự động tính early_time nếu checkout trước giờ quy định
+- Tự động tính total_work_time
+
+---
+
+#### GET /timesheet/attendance/today
+**Mô tả:** Lấy thông tin chấm công hôm nay
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
+{
+  "id": 1,
+  "user_id": 5,
+  "work_date": "2024-01-25",
+  "checkin": "2024-01-25T08:00:00Z",
+  "checkout": "2024-01-25T17:30:00Z",
+  "total_work_time": 540,
+  "late_time": 0,
+  "early_time": 0,
+  "status": "PENDING",
+  "is_complete": true
+}
+```
+
+---
+
+### Work Shifts
+
+#### POST /timesheet/work-shifts
+**Mô tả:** Tạo ca làm việc mới
+
+**Roles:** admin, hr, manager
+
+**Request Body:**
+```json
+{
+  "name": "Ca hành chính",
+  "start_time": "08:00:00",
+  "end_time": "17:00:00",
+  "break_start": "12:00:00",
+  "break_end": "13:00:00",
+  "is_default": true
+}
+```
+
+---
+
+#### GET /timesheet/work-shifts
+**Mô tả:** Lấy danh sách ca làm việc
+
+**Query Parameters:**
+- `page`, `limit`, `sortBy`, `sortOrder`
+
+---
+
+#### PATCH /timesheet/work-shifts/:id
+**Mô tả:** Cập nhật ca làm việc
+
+**Roles:** admin, hr, manager
+
+---
+
+### Holidays
+
+#### POST /timesheet/holidays
+**Mô tả:** Tạo ngày lễ mới
+
+**Roles:** admin, hr
+
+**Request Body:**
+```json
+{
+  "name": "Tết Nguyên Đán",
+  "start_date": "2024-02-10",
+  "end_date": "2024-02-16",
+  "is_paid": true,
+  "description": "Nghỉ Tết"
+}
+```
+
+---
+
+#### GET /timesheet/holidays
+**Mô tả:** Lấy danh sách ngày lễ
+
+**Query Parameters:**
+- `page`, `limit`, `year`
+
+---
+
+#### PATCH /timesheet/holidays/:id
+**Mô tả:** Cập nhật ngày lễ
+
+**Roles:** admin, hr
+
+---
+
+#### DELETE /timesheet/holidays/:id
+**Mô tả:** Xóa ngày lễ
+
+**Roles:** admin, hr
+
+---
+
+### Schedule Management
+
+#### GET /timesheet/schedule/personal
+**Mô tả:** Xem lịch làm việc cá nhân
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Query Parameters:**
+- `start_date`, `end_date`
+
+**Response:**
+```json
+{
+  "user_id": 5,
+  "start_date": "2024-01-22",
+  "end_date": "2024-01-28",
+  "schedule": [
+    {
+      "date": "2024-01-22",
+      "day_of_week": "Monday",
+      "work_shift": {
+        "name": "Ca hành chính",
+        "start_time": "08:00:00",
+        "end_time": "17:00:00"
+      },
+      "timesheets": [
+        {
+          "id": 1,
+          "checkin": "2024-01-22T08:00:00Z",
+          "checkout": "2024-01-22T17:30:00Z",
+          "status": "APPROVED"
+        }
+      ],
+      "requests": [
+        {
+          "type": "remote_work",
+          "status": "APPROVED"
+        }
+      ],
+      "is_holiday": false,
+      "is_weekend": false
+    }
+  ]
+}
+```
+
+---
+
+#### GET /timesheet/schedule/team/:team_id
+**Mô tả:** Xem lịch làm việc của team
+
+**Roles:** manager, team_leader, admin
+
+**Query Parameters:**
+- `start_date`, `end_date`
+
+---
+
+### Reports & Statistics
+
+#### GET /timesheet/reports/timesheet
+**Mô tả:** Báo cáo timesheet
+
+**Roles:** manager, admin, hr
+
+**Query Parameters:**
+- `user_ids`, `division_id`, `team_id`
+- `start_date`, `end_date`
+
+---
+
+#### GET /timesheet/reports/working-time
+**Mô tả:** Báo cáo giờ làm việc
+
+**Roles:** manager, admin, hr
+
+---
+
+#### GET /timesheet/statistics/attendance
+**Mô tả:** Thống kê chấm công
+
+**Query Parameters:**
+- `user_id` (optional)
+- `start_date`, `end_date`
+
+**Response:**
+```json
+{
+  "user_id": 5,
+  "period": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  },
+  "total_work_days": 22,
+  "total_work_hours": 176,
+  "total_late_minutes": 30,
+  "total_early_minutes": 0,
+  "total_overtime_hours": 10,
+  "total_absent_days": 0,
+  "attendance_rate": 100
+}
+```
+
+---
+
+#### GET /timesheet/statistics/my-attendance
+**Mô tả:** Thống kê chấm công cá nhân
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+---
+
+### Attendance Logs
+
+#### POST /timesheet/attendance-logs
+**Mô tả:** Tạo log chấm công thủ công (Admin only)
+
+**Roles:** admin, hr
+
+**Request Body:**
+```json
+{
+  "user_id": 5,
+  "log_type": "CHECKIN",
+  "log_time": "2024-01-25T08:00:00Z",
+  "location": "Văn phòng",
+  "notes": "Bổ sung chấm công"
+}
+```
+
+---
+
+#### GET /timesheet/attendance-logs/my
+**Mô tả:** Lấy danh sách logs chấm công của tôi
+
+---
+
+#### GET /timesheet/attendance-logs
+**Mô tả:** Lấy danh sách logs chấm công có phân trang
+
+**Query Parameters:**
+- `page`, `limit`
+- `user_id`, `start_date`, `end_date`
+- `log_type`
+
+---
+
+#### GET /timesheet/attendance-logs/:id
+**Mô tả:** Lấy chi tiết log chấm công
+
+---
+
+#### PATCH /timesheet/attendance-logs/:id
+**Mô tả:** Cập nhật log chấm công
+
+**Roles:** admin, hr, manager
+
+---
+
+#### DELETE /timesheet/attendance-logs/:id
+**Mô tả:** Xóa log chấm công (Admin only)
+
+**Roles:** admin
+
+---
+
+### Daily Timesheet Creation
+
+#### POST /timesheet/daily/create
+**Mô tả:** Tạo timesheet hàng ngày (tự động hoặc thủ công)
+
+**Request Body:**
+```json
+{
+  "date": "2024-01-25"
+}
+```
+
+---
+
+## Enums
+
+### TimesheetStatus
+- `DRAFT`: Nháp
+- `PENDING`: Chờ duyệt
+- `APPROVED`: Đã duyệt
+- `REJECTED`: Bị từ chối
+- `LOCKED`: Đã khóa (sau tính lương)
+
+### AttendanceLogType
+- `CHECKIN`: Check-in
+- `CHECKOUT`: Check-out
+- `BREAK_START`: Bắt đầu nghỉ
+- `BREAK_END`: Kết thúc nghỉ
+
+## Business Rules
+
+### 1. Check-in/Check-out
+- Chỉ check-in/check-out 1 lần/ngày
+- Phải check-in trước khi check-out
+- Tự động tính late_time và early_time
+- Tự động tính total_work_time
+
+### 2. Timesheet Workflow
+```
+DRAFT → PENDING → APPROVED/REJECTED → LOCKED
+```
+
+### 3. Late/Early Calculation
+- Late time: Nếu checkin sau work_shift.start_time
+- Early time: Nếu checkout trước work_shift.end_time
+- Không tính break time vào late/early
+
+### 4. Total Work Time
+```
+total_work_time = checkout - checkin - break_time
+```
+
+### 5. Lock Rules
+- Chỉ Admin/HR có thể lock
+- Timesheet locked không thể sửa/xóa
+- Thường lock sau khi tính lương tháng
+
+## Integration với Requests Module
+
+Timesheet được hiển thị kèm các requests trong cùng ngày:
+- Remote work requests
+- Day off requests
+- Overtime requests
+- Late/early requests
+- Forgot checkin requests
+
+## Liên kết với các module khác
+- **Requests Module**: Quản lý các đơn từ liên quan đến chấm công
+- **Attendance Module**: Tính toán chi tiết chấm công
+- **Users Module**: Thông tin nhân viên
+- **Division Module**: Lịch làm việc theo team
+- **Notifications Module**: Thông báo về timesheet

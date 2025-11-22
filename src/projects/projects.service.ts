@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, ProjectStatus, ProjectType, ScopeType } from '@prisma/client';
+import { Prisma, ProjectStatus, ScopeType, ProjectAccessType, ProjectType } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { PROJECT_ERRORS } from '../common/constants/error-messages.constants';
 import {
@@ -14,10 +14,14 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly roleAssignmentService: RoleAssignmentService,
+  ) {}
   private async getProjectMemberCount(projectId: number): Promise<number> {
     return await this.prisma.user_role_assignment.count({
       where: {
@@ -127,7 +131,9 @@ export class ProjectsService {
       start_date: startDate,
       end_date: endDate,
       status: createProjectDto.status,
-      project_type: rest.project_type as ProjectType | null | undefined,
+      project_type: createProjectDto.project_type,
+      project_access_type: createProjectDto.project_access_type || ProjectAccessType.RESTRICTED,
+      industry: createProjectDto.industry,
       description: rest.description,
       progress: 0,
       division: createProjectDto.division_id
@@ -159,24 +165,65 @@ export class ProjectsService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.projectsWhereInput = { deleted_at: null };
 
-    // Role-based filtering
     if (user_id && userRole) {
-      if (userRole === ROLE_NAMES.DIVISION_HEAD) {
-        // Division Head chỉ xem projects trong divisions mình quản lý
-        const managedDivisions = await this.getUserManagedDivisions(user_id);
-        if (managedDivisions.length > 0) {
-          where.division_id = { in: managedDivisions };
+      const { roles } = await this.roleAssignmentService.getUserRoles(user_id);
+
+      if (userRole !== ROLE_NAMES.ADMIN) {
+        const divisionIds = roles
+          .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
+          .map((r) => r.scope_id as number);
+
+        const teamIds = roles
+          .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
+          .map((r) => r.scope_id as number);
+
+        const projectManagerIds = roles
+          .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
+          .map((r) => r.scope_id as number);
+
+        const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
+          where: {
+            user_id,
+            scope_type: ScopeType.TEAM,
+            deleted_at: null,
+          },
+          select: { scope_id: true },
+        });
+
+        const memberTeamIds = teamMemberAssignments
+          .map((a) => a.scope_id)
+          .filter((id): id is number => id !== null);
+
+        const allTeamIds = [...new Set([...teamIds, ...memberTeamIds])];
+
+        const restrictedWhere: any[] = [];
+
+        if (divisionIds.length > 0) {
+          restrictedWhere.push({ division_id: { in: divisionIds } });
+        }
+
+        if (allTeamIds.length > 0) {
+          restrictedWhere.push({ team_id: { in: allTeamIds } });
+        }
+
+        if (projectManagerIds.length > 0) {
+          restrictedWhere.push({ id: { in: projectManagerIds } });
+        }
+
+        if (restrictedWhere.length > 0) {
+          where.OR = [
+            { project_access_type: 'COMPANY' },
+            {
+              AND: [
+                { project_access_type: 'RESTRICTED' },
+                { OR: restrictedWhere },
+              ],
+            },
+          ];
         } else {
-          // Không quản lý division nào, return empty
-          return buildPaginationResponse(
-            [],
-            0,
-            paginationDto.page || 1,
-            paginationDto.limit || 10,
-          );
+          where.project_access_type = 'COMPANY';
         }
       }
-      // Admin có thể lọc theo division_id hoặc xem tất cả
     }
 
     // Filters
@@ -197,10 +244,6 @@ export class ProjectsService {
 
     if (paginationDto.team_id) {
       where.team_id = paginationDto.team_id;
-    }
-
-    if (paginationDto.project_type) {
-      where.project_type = paginationDto.project_type as any;
     }
 
     const [data, total] = await Promise.all([
@@ -325,7 +368,7 @@ export class ProjectsService {
       }
     }
 
-    const { start_date, end_date, status, project_type, ...rest } =
+    const { start_date, end_date, status, project_type, project_access_type, industry, ...rest } =
       updateProjectDto;
     const updateData: Prisma.projectsUpdateInput = { ...rest };
 
@@ -333,8 +376,16 @@ export class ProjectsService {
       updateData.status = status as ProjectStatus;
     }
 
-    if (project_type) {
+    if (project_type !== undefined) {
       updateData.project_type = project_type as ProjectType;
+    }
+
+    if (project_access_type !== undefined) {
+      updateData.project_access_type = project_access_type as ProjectAccessType;
+    }
+
+    if (industry !== undefined) {
+      updateData.industry = industry;
     }
 
     if (start_date) {

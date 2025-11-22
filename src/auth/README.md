@@ -1,383 +1,428 @@
-# Authentication Module
+# Module Auth
 
-Module xác thực và phân quyền cho hệ thống HRM.
+## Mô tả
+Module Auth quản lý xác thực và phân quyền người dùng trong hệ thống HRM, bao gồm đăng nhập, đăng ký, quản lý token, đổi mật khẩu và quên mật khẩu.
 
-## Tổng quan
+## Nghiệp vụ chính
 
-Auth Module cung cấp các chức năng:
+### 1. Xác thực người dùng
+- Đăng nhập bằng email/password
+- Đăng ký tài khoản mới (tự động gán role EMPLOYEE)
+- Refresh access token khi hết hạn
+- Đăng xuất
 
-- ✅ Đăng nhập/Đăng ký với JWT
-- ✅ Refresh token mechanism
-- ✅ Role-based access control (RBAC)
-- ✅ Password hashing với bcrypt
-- ✅ Guards và Decorators
-- ✅ Multiple authentication strategies
-- ✅ Session management
+### 2. Quản lý mật khẩu
+- Quên mật khẩu (gửi OTP qua email)
+- Đặt lại mật khẩu với OTP
+- Đổi mật khẩu (yêu cầu mật khẩu cũ)
+- Đổi mật khẩu với OTP (không cần mật khẩu cũ)
 
-## Cấu trúc thư mục
+### 3. Quản lý OTP
+- Gửi OTP cho reset password
+- Gửi OTP cho change password
+- Xác thực OTP
+- Giới hạn số lần gửi OTP (rate limiting)
 
-```
-src/auth/
-├── dto/                          # Data Transfer Objects
-│   ├── login.dto.ts             # DTO cho đăng nhập
-│   ├── register.dto.ts          # DTO cho đăng ký
-│   ├── refresh-token.dto.ts     # DTO cho refresh token
-│   └── tokens.dto.ts            # DTO cho token response
-├── decorators/                   # Custom Decorators
-│   ├── get-current-user.decorator.ts  # Lấy user hiện tại
-│   ├── public.decorator.ts      # Đánh dấu endpoint public
-│   └── roles.decorator.ts       # Đánh dấu roles required
-├── guards/                       # Authentication Guards
-│   ├── global-auth.guard.ts     # Global authentication guard
-│   ├── jwt-auth.guard.ts        # JWT authentication guard
-│   ├── local-auth.guard.ts      # Local authentication guard
-│   └── roles.guard.ts           # Role-based authorization guard
-├── strategies/                   # Passport Strategies
-│   ├── jwt.strategy.ts          # JWT strategy
-│   ├── jwt-refresh.strategy.ts  # JWT refresh strategy
-│   └── local.strategy.ts        # Local (email/password) strategy
-├── auth.controller.ts            # API Controller
-├── auth.service.ts              # Business Logic Service
-└── auth.module.ts               # NestJS Module
-```
+### 4. Phân quyền
+- Gán role cho user
+- Kiểm tra permissions
+- Quản lý role assignments theo scope (COMPANY, DIVISION, TEAM, PROJECT)
 
-## Các chức năng chính
+## API Endpoints
 
-### 1. Đăng nhập
+### Authentication APIs
 
-```typescript
-POST /auth/login
+#### POST /auth/login
+**Mô tả:** Đăng nhập vào hệ thống
+
+**Request Body:**
+```json
 {
   "email": "user@example.com",
-  "password": "password123"
-}
-
-Response:
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_in": 3600,
-  "token_type": "Bearer"
+  "password": "YourPassword123"
 }
 ```
 
-### 2. Đăng ký
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-```typescript
-POST /auth/register
+**Error Responses:**
+- 401: Email hoặc mật khẩu không đúng
+
+---
+
+#### POST /auth/register
+**Mô tả:** Đăng ký tài khoản mới
+
+**Request Body:**
+```json
 {
   "email": "newuser@example.com",
-  "password": "password123",
-  "name": "Nguyễn Văn A",
-  "phone": "0123456789"
-}
-
-Response:
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_in": 3600,
-  "token_type": "Bearer"
+  "password": "StrongPassword123",
+  "name": "Nguyen Van A"
 }
 ```
 
-### 3. Refresh Token
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-```typescript
-POST /auth/refresh
+**Validation:**
+- Email phải hợp lệ và chưa tồn tại
+- Mật khẩu tối thiểu 8 ký tự, có chữ hoa, chữ thường và số
+- Không chứa ký tự đặc biệt nguy hiểm (<, >, ', ", &)
+
+**Error Responses:**
+- 400: Email đã tồn tại hoặc mật khẩu không đủ mạnh
+
+---
+
+#### POST /auth/refresh
+**Mô tả:** Làm mới access token
+
+**Request Body:**
+```json
 {
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
+```
 
-Response:
+**Response:**
+```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expires_in": 3600,
-  "token_type": "Bearer"
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-### 4. Đăng xuất
+**Error Responses:**
+- 401: Refresh token không hợp lệ hoặc đã hết hạn
 
-```typescript
-POST /auth/logout
-Authorization: Bearer <access_token>
+---
 
-Response:
+#### POST /auth/logout
+**Mô tả:** Đăng xuất khỏi hệ thống
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
 {
   "message": "Đăng xuất thành công"
 }
 ```
 
-### 5. Lấy thông tin user hiện tại
+---
 
-```typescript
-GET /auth/me
-Authorization: Bearer <access_token>
+#### POST /auth/me
+**Mô tả:** Lấy thông tin user hiện tại kèm thông tin bổ sung
 
-Response:
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Response:**
+```json
 {
   "id": 1,
   "email": "user@example.com",
-  "name": "Nguyễn Văn A",
-  "role": "employee",
-  "permissions": ["read:timesheet", "write:timesheet"]
-}
-```
-
-## Strategies
-
-### 1. Local Strategy
-
-- Xác thực bằng email/password
-- Sử dụng cho endpoint `/auth/login`
-- Validate credentials và return user object
-
-### 2. JWT Strategy
-
-- Xác thực bằng JWT access token
-- Extract user từ token payload
-- Sử dụng cho các protected endpoints
-
-### 3. JWT Refresh Strategy
-
-- Xác thực bằng JWT refresh token
-- Sử dụng để generate access token mới
-- Có thời hạn dài hơn access token
-
-## Guards
-
-### 1. GlobalAuthGuard
-
-- Guard mặc định cho toàn bộ application
-- Tự động protect tất cả endpoints trừ những endpoint có `@Public()` decorator
-- Kế thừa từ `JwtAuthGuard`
-
-### 2. JwtAuthGuard
-
-- Xác thực JWT access token
-- Sử dụng JWT Strategy
-- Có thể bypass với `@Public()` decorator
-
-### 3. LocalAuthGuard
-
-- Xác thực email/password
-- Sử dụng Local Strategy
-- Chỉ dùng cho login endpoint
-
-### 4. RolesGuard
-
-- Kiểm tra quyền truy cập dựa trên roles
-- Sử dụng với `@Roles()` decorator
-- Chạy sau authentication guard
-
-## Decorators
-
-### 1. @Public()
-
-```typescript
-@Public()
-@Get('/public-endpoint')
-async getPublicData() {
-  return 'This is public data';
-}
-```
-
-### 2. @Roles()
-
-```typescript
-@Roles('admin', 'hr')
-@Get('/admin-only')
-async getAdminData() {
-  return 'This is admin data';
-}
-```
-
-### 3. @GetCurrentUser()
-
-```typescript
-@Get('/profile')
-async getProfile(@GetCurrentUser() user: any) {
-  return user;
-}
-```
-
-## JWT Configuration
-
-### Access Token
-
-- **Thời hạn**: 1 giờ (3600 seconds)
-- **Algorithm**: HS256
-- **Secret**: Từ environment variable `JWT_SECRET`
-
-### Refresh Token
-
-- **Thời hạn**: 7 ngày (604800 seconds)
-- **Algorithm**: HS256
-- **Secret**: Từ environment variable `JWT_REFRESH_SECRET`
-
-## Password Security
-
-### Hashing
-
-- Sử dụng `bcryptjs` với salt rounds = 10
-- Passwords được hash trước khi lưu database
-- So sánh password bằng `bcrypt.compare()`
-
-### Validation Rules
-
-- Minimum length: 6 characters
-- Phải có ít nhất 1 chữ cái và 1 số
-- Không được chứa khoảng trắng
-
-## Role-Based Access Control
-
-### Roles
-
-- **admin**: Toàn quyền hệ thống
-- **hr**: Quản lý nhân sự
-- **manager**: Quản lý team
-- **employee**: Nhân viên thường
-
-### Permission Matrix
-
-```typescript
-const PERMISSIONS = {
-  admin: ['*'], // Tất cả permissions
-  hr: [
-    'read:users',
-    'write:users',
-    'read:timesheet',
-    'write:timesheet',
-    'approve:timesheet',
-    'read:dayoff',
-    'write:dayoff',
-    'approve:dayoff',
+  "user_information": {
+    "name": "Nguyen Van A",
+    "avatar": "https://...",
+    "position_id": 1,
+    "level_id": 2
+  },
+  "join_date": "2024-01-15",
+  "today_attendance": {
+    "checkin": "2024-01-20T08:00:00Z",
+    "checkout": null,
+    "total_work_time": 0,
+    "status": "PENDING",
+    "late_time": 0,
+    "early_time": 0,
+    "is_complete": false,
+    "has_attendance": true
+  },
+  "remaining_leave_days": 96,
+  "annual_leave_quota": 96,
+  "used_leave_days": 1,
+  "assigned_devices": [
+    {
+      "id": 1,
+      "name": "Laptop Dell XPS 13",
+      "type": "laptop",
+      "code": "LAPTOP-001",
+      "brand": "Dell",
+      "model": "XPS 13 9320",
+      "serial": "SN123456",
+      "assigned_date": "2024-01-15T00:00:00Z",
+      "notes": "Thiết bị mới"
+    }
   ],
-  manager: [
-    'read:team-timesheet',
-    'approve:team-timesheet',
-    'read:team-dayoff',
-    'approve:team-dayoff',
-  ],
-  employee: [
-    'read:own-timesheet',
-    'write:own-timesheet',
-    'read:own-dayoff',
-    'write:own-dayoff',
-  ],
-};
-```
-
-## Usage Examples
-
-### Protected Controller
-
-```typescript
-@Controller('protected')
-@UseGuards(JwtAuthGuard)
-export class ProtectedController {
-  @Get()
-  async getData(@GetCurrentUser() user: any) {
-    return `Hello ${user.name}`;
-  }
+  "organization": {
+    "division": {
+      "id": 1,
+      "name": "Phòng Phát triển",
+      "division_head": {
+        "id": 5,
+        "email": "head@example.com",
+        "name": "Tran Van B",
+        "avatar": "https://...",
+        "phone": "+84901234567"
+      }
+    },
+    "team": {
+      "id": 1,
+      "name": "Team Frontend",
+      "division_id": 1,
+      "founding_date": "2023-01-01T00:00:00Z"
+    }
+  },
+  "unread_notifications": 5,
+  "role_assignments": [
+    {
+      "role_id": 3,
+      "name": "employee",
+      "scope_type": "COMPANY",
+      "scope_id": null
+    }
+  ]
 }
 ```
 
-### Role-based Endpoint
+---
 
-```typescript
-@Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class AdminController {
-  @Get('/users')
-  @Roles('admin', 'hr')
-  async getAllUsers() {
-    return this.usersService.findAll();
-  }
-}
-```
+### Password Management APIs
 
-### Public Endpoint
+#### POST /auth/forgot-password
+**Mô tả:** Gửi OTP để đặt lại mật khẩu
 
-```typescript
-@Controller('public')
-export class PublicController {
-  @Get('/health')
-  @Public()
-  async healthCheck() {
-    return { status: 'OK' };
-  }
-}
-```
-
-## Error Handling
-
-### Common Errors
-
-- **401 Unauthorized**: Token không hợp lệ hoặc hết hạn
-- **403 Forbidden**: Không đủ quyền truy cập
-- **400 Bad Request**: Dữ liệu đầu vào không hợp lệ
-
-### Error Messages
-
-```typescript
+**Request Body:**
+```json
 {
-  "status_code": 401,
-  "message": "Email hoặc mật khẩu không đúng",
-  "error": "Unauthorized"
+  "email": "user@example.com"
 }
 ```
 
-## Environment Variables
-
-```bash
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key
-JWT_REFRESH_SECRET=your-super-secret-refresh-key
-JWT_EXPIRES_IN=3600
-JWT_REFRESH_EXPIRES_IN=604800
-
-# Password Configuration
-BCRYPT_SALT_ROUNDS=10
+**Response:**
+```json
+{
+  "message": "Nếu email tồn tại, mã OTP đã được gửi đến email của bạn"
+}
 ```
 
-## Security Best Practices
+**Lưu ý:**
+- OTP có thời hạn 10 phút
+- Giới hạn gửi OTP: tối đa 3 lần trong 15 phút
 
-1. **Token Storage**:
-   - Access token trong memory/localStorage
-   - Refresh token trong httpOnly cookie (recommended)
+**Error Responses:**
+- 400: Gửi quá nhiều yêu cầu
 
-2. **Token Rotation**:
-   - Refresh token được rotate mỗi lần sử dụng
-   - Invalidate old tokens
+---
 
-3. **Rate Limiting**:
-   - Limit login attempts
-   - Implement account lockout
+#### POST /auth/verify-otp
+**Mô tả:** Xác thực OTP cho forgot password
 
-4. **HTTPS Only**:
-   - Chỉ sử dụng HTTPS trong production
-   - Set secure flags cho cookies
-
-## Testing
-
-```bash
-# Unit tests
-npm run test src/auth
-
-# E2E tests
-npm run test:e2e auth
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456"
+}
 ```
 
-## Dependencies
+**Response:**
+```json
+{
+  "message": "Mã OTP hợp lệ",
+  "isValid": true,
+  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-- `@nestjs/jwt`: JWT implementation
-- `@nestjs/passport`: Passport integration
-- `passport`: Authentication middleware
-- `passport-local`: Local strategy
-- `passport-jwt`: JWT strategy
-- `bcryptjs`: Password hashing
-- `class-validator`: Input validation
-- `class-transformer`: Data transformation
+**Lưu ý:**
+- reset_token có thời hạn 15 phút
+
+**Error Responses:**
+- 400: Mã OTP không hợp lệ hoặc đã hết hạn
+- 404: Email không tồn tại
+
+---
+
+#### POST /auth/reset-password
+**Mô tả:** Đặt lại mật khẩu với OTP
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456",
+  "new_password": "NewStrongPassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Đặt lại mật khẩu thành công"
+}
+```
+
+**Error Responses:**
+- 400: Mã OTP không hợp lệ hoặc mật khẩu không đủ mạnh
+- 404: Email không tồn tại
+
+---
+
+#### POST /auth/reset-password-with-token
+**Mô tả:** Đặt lại mật khẩu với reset token từ verify OTP
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "reset_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "new_password": "NewStrongPassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Đặt lại mật khẩu thành công"
+}
+```
+
+**Error Responses:**
+- 400: Token không hợp lệ hoặc đã hết hạn
+- 404: Email không tồn tại
+
+---
+
+#### POST /auth/change-password
+**Mô tả:** Đổi mật khẩu (yêu cầu mật khẩu hiện tại)
+
+**Headers:** `Authorization: Bearer <access_token>`
+
+**Permission required:** `user.profile.update`
+
+**Request Body:**
+```json
+{
+  "current_password": "OldPassword123",
+  "new_password": "NewStrongPassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Thay đổi mật khẩu thành công"
+}
+```
+
+**Error Responses:**
+- 400: Mật khẩu hiện tại không đúng hoặc mật khẩu mới trùng với mật khẩu cũ
+- 401: Token không hợp lệ
+
+---
+
+#### POST /auth/send-change-password-otp
+**Mô tả:** Gửi OTP để thay đổi mật khẩu (không cần mật khẩu hiện tại)
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Nếu email tồn tại, mã OTP đã được gửi đến email của bạn"
+}
+```
+
+**Error Responses:**
+- 400: Gửi quá nhiều yêu cầu
+
+---
+
+#### POST /auth/change-password-with-otp
+**Mô tả:** Thay đổi mật khẩu với OTP
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456",
+  "new_password": "NewStrongPassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Thay đổi mật khẩu thành công"
+}
+```
+
+**Error Responses:**
+- 400: Mã OTP không hợp lệ hoặc đã hết hạn
+- 404: Email không tồn tại
+
+---
+
+## Guards và Decorators
+
+### JwtAuthGuard
+Bảo vệ các route yêu cầu xác thực
+
+### PermissionGuard
+Kiểm tra quyền truy cập theo permission
+
+### Decorators
+- `@Public()`: Đánh dấu route không yêu cầu xác thực
+- `@GetCurrentUser()`: Lấy thông tin user hiện tại
+- `@RequirePermission(permission)`: Yêu cầu permission cụ thể
+
+## Security Features
+
+### Password Validation
+- Tối thiểu 8 ký tự
+- Phải có chữ hoa
+- Phải có chữ thường
+- Phải có số
+- Không chứa ký tự nguy hiểm: `<`, `>`, `'`, `"`, `&`
+
+### OTP Management
+- OTP 6 chữ số
+- Thời hạn: 10 phút
+- Rate limiting: tối đa 3 lần gửi trong 15 phút
+- Tự động cleanup OTP hết hạn
+
+### Token Management
+- Access token: thời hạn cấu hình trong env (mặc định 15 phút)
+- Refresh token: thời hạn cấu hình trong env (mặc định 7 ngày)
+- Reset token: thời hạn 15 phút
+
+## Activity Logging
+Module tự động ghi log các hoạt động:
+- Đăng nhập thành công
+- Đăng ký tài khoản mới
+- Thay đổi mật khẩu
+- Đặt lại mật khẩu
+
+## Liên kết với các module khác
+- **Users Module**: Quản lý thông tin user
+- **Notifications Module**: Gửi thông báo qua email
+- **Database Module**: Truy xuất dữ liệu
+- **Activity Log Service**: Ghi log hoạt động

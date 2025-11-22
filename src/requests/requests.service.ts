@@ -2930,54 +2930,77 @@ export class RequestsService {
   private async canApproveRequest(
     approverId: number,
     approverRole: string,
-    requestuser_id: number,
+    requestUserId: number,
   ): Promise<boolean> {
-    if (approverId === requestuser_id) {
+    if (approverId === requestUserId) {
       return approverRole === ROLE_NAMES.ADMIN;
     }
 
-    const accessScope = await this.determineAccessScope(
-      approverId,
-      approverRole,
-    );
+    const [approverRoles, ownerRoles] = await Promise.all([
+      this.roleAssignmentService.getUserRoles(approverId),
+      this.roleAssignmentService.getUserRoles(requestUserId),
+    ]);
 
-    if (
-      accessScope.type === 'DIVISION_ONLY' &&
-      accessScope.division_ids &&
-      accessScope.division_ids.length > 0
-    ) {
-      const divisionuser_ids = await this.getDivisionuser_ids(
-        accessScope.division_ids,
+    const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    if (isAdmin) {
+      const isOwnerDivisionHead = ownerRoles.roles.some(
+        (r) => r.name === ROLE_NAMES.DIVISION_HEAD,
       );
-      return divisionuser_ids.includes(requestuser_id);
+      return isOwnerDivisionHead;
     }
 
-    if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getuser_idsByRole(
-        ROLE_NAMES.DIVISION_HEAD,
+    const approverDivisions = approverRoles.roles
+      .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
+      .map((r) => r.scope_id);
+
+    if (approverDivisions.length > 0) {
+      const ownerInSameDivision = ownerRoles.roles.some(
+        (r) => r.scope_type === 'DIVISION' && approverDivisions.includes(r.scope_id),
       );
-      return (
-        requestuser_id === approverId ||
-        divisionHeaduser_ids.includes(requestuser_id)
-      );
+      if (ownerInSameDivision) {
+        return true;
+      }
     }
 
-    if (
-      accessScope.type === 'TEAM_ONLY' &&
-      accessScope.team_ids &&
-      accessScope.team_ids.length > 0
-    ) {
-      const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
-      return teamuser_ids.includes(requestuser_id);
+    const approverTeams = approverRoles.roles
+      .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
+      .map((r) => r.scope_id);
+
+    if (approverTeams.length > 0) {
+      const ownerInSameTeam = ownerRoles.roles.some(
+        (r) => r.scope_type === 'TEAM' && approverTeams.includes(r.scope_id),
+      );
+      if (ownerInSameTeam) {
+        return true;
+      }
     }
 
-    if (
-      accessScope.type === 'PROJECT_ONLY' &&
-      accessScope.projectIds &&
-      accessScope.projectIds.length > 0
-    ) {
-      const projectuser_ids = await this.getProjectuser_ids(accessScope.projectIds);
-      return projectuser_ids.includes(requestuser_id);
+    const approverProjects = approverRoles.roles
+      .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
+      .map((r) => r.scope_id)
+      .filter((id): id is number => id !== undefined);
+
+    if (approverProjects.length > 0) {
+      const projects = await this.prisma.projects.findMany({
+        where: {
+          id: { in: approverProjects },
+          deleted_at: null,
+        },
+        select: { team_id: true },
+      });
+
+      const projectTeamIds = projects
+        .map((p) => p.team_id)
+        .filter((id): id is number => id !== null);
+
+      if (projectTeamIds.length > 0) {
+        const ownerInProjectTeam = ownerRoles.roles.some(
+          (r) => r.scope_type === 'TEAM' && r.scope_id !== undefined && projectTeamIds.includes(r.scope_id),
+        );
+        if (ownerInProjectTeam) {
+          return true;
+        }
+      }
     }
 
     return false;
@@ -3248,23 +3271,49 @@ export class RequestsService {
     return assignments.map((a) => a.user_id);
   }
 
-  /**
-   * Lấy danh sách user IDs làm việc trong projects (từ role assignments)
-   */
   private async getProjectuser_ids(projectIds: number[]): Promise<number[]> {
-    const assignments = await this.prisma.user_role_assignment.findMany({
+    if (projectIds.length === 0) return [];
+
+    const userIds: Set<number> = new Set();
+
+    const pmAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.PROJECT,
         scope_id: { in: projectIds },
+        role: { name: ROLE_NAMES.PROJECT_MANAGER },
         deleted_at: null,
       },
-      select: {
-        user_id: true,
-      },
-      distinct: ['user_id'],
+      select: { user_id: true },
     });
 
-    return assignments.map((a) => a.user_id);
+    pmAssignments.forEach((a) => userIds.add(a.user_id));
+
+    const projects = await this.prisma.projects.findMany({
+      where: {
+        id: { in: projectIds },
+        deleted_at: null,
+      },
+      select: { team_id: true },
+    });
+
+    const teamIds = projects
+      .map((p) => p.team_id)
+      .filter((id): id is number => id !== null);
+
+    if (teamIds.length > 0) {
+      const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: { in: teamIds },
+          deleted_at: null,
+        },
+        select: { user_id: true },
+      });
+
+      teamMemberAssignments.forEach((a) => userIds.add(a.user_id));
+    }
+
+    return Array.from(userIds);
   }
 
   /**

@@ -104,197 +104,114 @@ export class DailyReportsService {
     return roles.some((r) => r.name === ROLE_NAMES.ADMIN);
   }
 
-  private async buildAccessWhere(user_id: number): Promise<any> {
-    if (await this.isAdmin(user_id)) {
+  private async buildAccessWhere(userId: number): Promise<any> {
+    if (await this.isAdmin(userId)) {
       return {};
     }
 
+    const { roles } = await this.roleAssignment.getUserRoles(userId);
     const whereConditions: any[] = [];
 
-    const [team_ids, projectIds, division_ids] = await Promise.all([
-      this.getManagedTeams(user_id),
-      this.getManagedProjects(user_id),
-      this.getManagedDivisions(user_id),
-    ]);
+    const divisionIds = roles
+      .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
+      .map((r) => r.scope_id as number);
 
-    if (team_ids.length > 0) {
-      const memberIds = await this.getTeamMembers(team_ids);
-      if (memberIds.length > 0) {
-        whereConditions.push({ user_id: { in: memberIds } });
-      }
+    if (divisionIds.length > 0) {
+      whereConditions.push({
+        project: { division_id: { in: divisionIds } },
+      });
     }
+
+    const teamIds = roles
+      .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
+      .map((r) => r.scope_id as number);
+
+    if (teamIds.length > 0) {
+      whereConditions.push({
+        project: { team_id: { in: teamIds } },
+      });
+    }
+
+    const projectIds = roles
+      .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
+      .map((r) => r.scope_id as number);
 
     if (projectIds.length > 0) {
-      const projects = await this.prisma.projects.findMany({
-        where: { id: { in: projectIds }, deleted_at: null },
-        select: { id: true, team_id: true },
+      whereConditions.push({
+        project_id: { in: projectIds },
       });
-
-      const validProjectIds = projects.map((p) => p.id);
-      if (validProjectIds.length > 0) {
-        whereConditions.push({ project_id: { in: validProjectIds } });
-      }
-
-      const projectteam_ids = projects
-        .map((p) => p.team_id)
-        .filter((id): id is number => id !== null);
-
-      if (projectteam_ids.length > 0) {
-        const teamMemberIds = await this.getTeamMembers(projectteam_ids);
-        const allowedRoleUsers = await this.getUsersWithRoles([
-          ROLE_NAMES.TEAM_LEADER,
-          ROLE_NAMES.EMPLOYEE,
-        ]);
-        const allowedMembers = teamMemberIds.filter((id) =>
-          allowedRoleUsers.includes(id),
-        );
-        if (allowedMembers.length > 0) {
-          whereConditions.push({ user_id: { in: allowedMembers } });
-        }
-      }
-    }
-
-    if (division_ids.length > 0) {
-      const divisionMemberIds = await this.getDivisionMembers(division_ids);
-      const allowedRoleUsers = await this.getUsersWithRoles([
-        ROLE_NAMES.PROJECT_MANAGER,
-        ROLE_NAMES.TEAM_LEADER,
-        ROLE_NAMES.EMPLOYEE,
-      ]);
-      const allowedMembers = divisionMemberIds
-        .filter((id) => allowedRoleUsers.includes(id))
-        .filter((id) => id !== user_id);
-
-      if (allowedMembers.length > 0) {
-        whereConditions.push({ user_id: { in: allowedMembers } });
-      }
-
-      const divisionProjects = await this.prisma.projects.findMany({
-        where: { division_id: { in: division_ids }, deleted_at: null },
-        select: { id: true },
-      });
-      const divisionProjectIds = divisionProjects.map((p) => p.id);
-      if (divisionProjectIds.length > 0) {
-        whereConditions.push({ project_id: { in: divisionProjectIds } });
-      }
     }
 
     if (whereConditions.length === 0) {
-      return { user_id: user_id };
+      return { user_id: userId };
     }
+
+    whereConditions.push({ user_id: userId });
 
     return { OR: whereConditions };
   }
 
   private async canApprove(
     approverId: number,
-    ownerId: number,
+    reportOwnerId: number,
     projectId: number,
   ): Promise<boolean> {
-    if (await this.isAdmin(approverId)) {
+    const project = await this.prisma.projects.findUnique({
+      where: { id: projectId, deleted_at: null },
+      select: { team_id: true, division_id: true },
+    });
+
+    if (!project) {
+      return false;
+    }
+
+    const [approverRoles, ownerRoles] = await Promise.all([
+      this.roleAssignment.getUserRoles(approverId),
+      this.roleAssignment.getUserRoles(reportOwnerId),
+    ]);
+
+    const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    if (isAdmin) {
+      if (approverId === reportOwnerId) {
+        return true;
+      }
+      const isOwnerDivisionHead = ownerRoles.roles.some(
+        (r) => r.name === ROLE_NAMES.DIVISION_HEAD,
+      );
+      return isOwnerDivisionHead;
+    }
+
+    const isProjectManagerOfThisProject = approverRoles.roles.some(
+      (r) =>
+        r.name === ROLE_NAMES.PROJECT_MANAGER &&
+        r.scope_type === 'PROJECT' &&
+        r.scope_id === projectId,
+    );
+    if (isProjectManagerOfThisProject) {
       return true;
     }
 
-    const [approverRolesData, ownerRolesData] = await Promise.all([
-      this.roleAssignment.getUserRoles(approverId),
-      this.roleAssignment.getUserRoles(ownerId),
-    ]);
-
-    const approverRoles = approverRolesData.roles;
-    const ownerRoleNames = ownerRolesData.roles.map((r) => r.name);
-
-    const isTeamLeader = approverRoles.some(
-      (r) => r.name === ROLE_NAMES.TEAM_LEADER,
-    );
-    const isProjectManager = approverRoles.some(
-      (r) => r.name === ROLE_NAMES.PROJECT_MANAGER,
-    );
-    const isDivisionHead = approverRoles.some(
-      (r) => r.name === ROLE_NAMES.DIVISION_HEAD,
-    );
-
-    if (isTeamLeader) {
-      const teamLeaderteam_ids = approverRoles
-        .filter(
-          (r) =>
-            r.name === ROLE_NAMES.TEAM_LEADER &&
-            r.scope_type === 'TEAM' &&
-            r.scope_id !== null,
-        )
-        .map((r) => r.scope_id as number);
-
-      if (teamLeaderteam_ids.length > 0) {
-        const teamMemberIds = await this.getTeamMembers(teamLeaderteam_ids);
-        if (teamMemberIds.includes(ownerId)) {
-          return true;
-        }
+    if (project.team_id) {
+      const isTeamLeaderOfThisTeam = approverRoles.roles.some(
+        (r) =>
+          r.name === ROLE_NAMES.TEAM_LEADER &&
+          r.scope_type === 'TEAM' &&
+          r.scope_id === project.team_id,
+      );
+      if (isTeamLeaderOfThisTeam) {
+        return true;
       }
     }
 
-    if (isProjectManager) {
-      const projectManagerProjectIds = approverRoles
-        .filter(
-          (r) =>
-            r.name === ROLE_NAMES.PROJECT_MANAGER &&
-            r.scope_type === 'PROJECT' &&
-            r.scope_id !== null,
-        )
-        .map((r) => r.scope_id as number);
-
-      if (projectManagerProjectIds.includes(projectId)) {
-        if (
-          ownerRoleNames.includes(ROLE_NAMES.TEAM_LEADER) ||
-          ownerRoleNames.includes(ROLE_NAMES.EMPLOYEE)
-        ) {
-          return true;
-        }
-      }
-
-      if (projectManagerProjectIds.length > 0) {
-        const projects = await this.prisma.projects.findMany({
-          where: { id: { in: projectManagerProjectIds }, deleted_at: null },
-          select: { team_id: true },
-        });
-
-        const projectteam_ids = projects
-          .map((p) => p.team_id)
-          .filter((id): id is number => id !== null);
-
-        if (projectteam_ids.length > 0) {
-          const teamMemberIds = await this.getTeamMembers(projectteam_ids);
-          if (
-            teamMemberIds.includes(ownerId) &&
-            (ownerRoleNames.includes(ROLE_NAMES.TEAM_LEADER) ||
-              ownerRoleNames.includes(ROLE_NAMES.EMPLOYEE))
-          ) {
-            return true;
-          }
-        }
-      }
-    }
-
-    if (isDivisionHead) {
-      const divisionHeaddivision_ids = approverRoles
-        .filter(
-          (r) =>
-            r.name === ROLE_NAMES.DIVISION_HEAD &&
-            r.scope_type === 'DIVISION' &&
-            r.scope_id !== null,
-        )
-        .map((r) => r.scope_id as number);
-
-      if (divisionHeaddivision_ids.length > 0) {
-        const divisionMemberIds = await this.getDivisionMembers(
-          divisionHeaddivision_ids,
-        );
-        if (
-          divisionMemberIds.includes(ownerId) &&
-          (ownerRoleNames.includes(ROLE_NAMES.PROJECT_MANAGER) ||
-            ownerRoleNames.includes(ROLE_NAMES.TEAM_LEADER) ||
-            ownerRoleNames.includes(ROLE_NAMES.EMPLOYEE))
-        ) {
-          return true;
-        }
+    if (project.division_id) {
+      const isDivisionHeadOfThisDivision = approverRoles.roles.some(
+        (r) =>
+          r.name === ROLE_NAMES.DIVISION_HEAD &&
+          r.scope_type === 'DIVISION' &&
+          r.scope_id === project.division_id,
+      );
+      if (isDivisionHeadOfThisDivision) {
+        return true;
       }
     }
 

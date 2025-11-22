@@ -47,14 +47,5 @@ export class ProjectPaginationDto extends PaginationDto {
   })
   @IsInt()
   team_id?: number;
-
-  @ApiProperty({
-    description: 'Lọc theo loại dự án',
-    example: 'WEB_DEVELOPMENT',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  project_type?: string;
 }
 
