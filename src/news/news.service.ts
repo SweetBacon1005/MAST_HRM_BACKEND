@@ -70,7 +70,6 @@ export class NewsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.logNewsOperation(
       'created',
       news.id,
@@ -192,7 +191,6 @@ export class NewsService {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
     }
 
-    // Log activity nếu có viewerId và không phải là author
     if (viewerId && viewerId !== news.author_id) {
       await this.activityLogService.logNewsOperation(
         'viewed',
@@ -243,7 +241,6 @@ export class NewsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.logNewsOperation(
       'updated',
       updatedNews.id,
@@ -288,7 +285,6 @@ export class NewsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.logNewsOperation(
       'submitted',
       updatedNews.id,
@@ -381,7 +377,6 @@ export class NewsService {
     const now = new Date();
 
     await this.prisma.$transaction([
-      // Soft delete user_notifications trước khi soft delete notifications
       this.prisma.user_notifications.updateMany({
         where: {
           notification: {
@@ -392,7 +387,6 @@ export class NewsService {
         },
         data: { deleted_at: now },
       }),
-      // Sau đó soft delete notifications
       this.prisma.notifications.updateMany({
         where: { 
           news_id: id,
@@ -400,7 +394,6 @@ export class NewsService {
         },
         data: { deleted_at: now },
       }),
-      // Cuối cùng soft delete news
       this.prisma.news.update({
         where: { id },
         data: { deleted_at: now },

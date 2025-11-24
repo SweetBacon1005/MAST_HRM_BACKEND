@@ -538,3 +538,4 @@ export class AttendanceController {
     return csv;
   }
 }
+

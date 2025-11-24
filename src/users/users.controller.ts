@@ -38,12 +38,10 @@ export class UsersController {
   @ApiOperation({ summary: 'Tạo user mới' })
   @ApiResponse({
     status: 201,
-    description: 'Tạo user thành công',
-  })
+    })
   @ApiResponse({
     status: 400,
-    description: 'Dữ liệu không hợp lệ',
-  })
+    })
   create(
     @Body() createUserDto: CreateUserDto,
     @GetCurrentUser('id') assignedBy: number,
@@ -56,23 +54,20 @@ export class UsersController {
   @ApiOperation({ summary: 'Lấy danh sách users có phân trang' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách users có phân trang',
-  })
+    })
   findAll(@Query() paginationDto: UsersPaginationDto) {
     return this.usersService.findAllPaginated(paginationDto);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Lấy thông tin user theo ID' })
-  @ApiParam({ name: 'id', description: 'ID của user' })
+  @ApiParam({ name: 'id', })
   @ApiResponse({
     status: 200,
-    description: 'Thông tin user',
-  })
+    })
   @ApiResponse({
     status: 404,
-    description: 'User không tồn tại',
-  })
+    })
   async findOne(@Param('id', ParseIntPipe) id: number) {
     const user = await this.usersService.findById(id);
     const { password, ...safeUser } = user;
@@ -83,15 +78,13 @@ export class UsersController {
   @Patch(':id')
   @RequirePermission('user.update')
   @ApiOperation({ summary: 'Cập nhật thông tin user' })
-  @ApiParam({ name: 'id', description: 'ID của user' })
+  @ApiParam({ name: 'id', })
   @ApiResponse({
     status: 200,
-    description: 'Cập nhật thành công',
-  })
+    })
   @ApiResponse({
     status: 404,
-    description: 'User không tồn tại',
-  })
+    })
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(+id, updateUserDto);
   }
@@ -99,16 +92,15 @@ export class UsersController {
   @Delete(':id')
   @RequirePermission('user.delete')
   @ApiOperation({ summary: 'Xóa user' })
-  @ApiParam({ name: 'id', description: 'ID của user' })
+  @ApiParam({ name: 'id', })
   @ApiResponse({
     status: 200,
-    description: 'Xóa thành công',
-  })
+    })
   @ApiResponse({
     status: 404,
-    description: 'User không tồn tại',
-  })
+    })
   remove(@Param('id') id: string) {
     return this.usersService.remove(+id);
   }
 }
+

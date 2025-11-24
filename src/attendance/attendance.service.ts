@@ -40,9 +40,7 @@ export class AttendanceService {
 
   constructor(private prisma: PrismaService) {}
 
-  // === TÍNH TOÁN THỜI GIAN CHI TIẾT ===
-
-  async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
+    async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
     const {
       user_id,
       checkin_time,
@@ -52,7 +50,6 @@ export class AttendanceService {
       note: _note,
     } = attendanceDto;
 
-    // Validation: Kiểm tra người dùng tồn tại
     const user = await this.prisma.users.findUnique({
       where: { id: user_id, deleted_at: null },
     });
@@ -65,7 +62,6 @@ export class AttendanceService {
     const checkin = new Date(checkin_time);
     const checkout = new Date(checkout_time);
 
-    // Validation: Kiểm tra thời gian hợp lệ
     if (checkin >= checkout) {
       throw new BadRequestException(
         'Thời gian check-out phải sau thời gian check-in',
@@ -75,7 +71,6 @@ export class AttendanceService {
     const workDate = checkin.toISOString().split('T')[0];
     const today = new Date().toISOString().split('T')[0];
 
-    // Validation: Không cho phép chấm công quá 30 ngày trước
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     if (checkin < thirtyDaysAgo) {
@@ -84,14 +79,12 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Không cho phép chấm công ngày tương lai (trừ hôm nay)
     if (workDate > today) {
       throw new BadRequestException(
         'Không thể chấm công cho ngày trong tương lai',
       );
     }
 
-    // Validation: Kiểm tra thời gian làm việc hợp lý (tối đa 16 giờ/ngày)
     const workDurationHours =
       (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60);
     if (workDurationHours > 16) {
@@ -103,7 +96,6 @@ export class AttendanceService {
       throw new BadRequestException('Thời gian làm việc phải ít nhất 30 phút');
     }
 
-    // Lấy thông tin ca làm việc
     let workShift;
     if (shift_id) {
       workShift = await this.prisma.schedule_works.findUnique({
@@ -115,7 +107,6 @@ export class AttendanceService {
         );
       }
     } else {
-      // Lấy ca làm việc mặc định
       workShift = await this.prisma.schedule_works.findFirst({
         where: {
           start_date: { lte: new Date(workDate) },
@@ -133,14 +124,12 @@ export class AttendanceService {
       );
     }
 
-    // Tính toán thời gian làm việc
     const calculations = this.calculateWorkingTime(
       checkin,
       checkout,
       workShift,
     );
 
-    // Kiểm tra xem đã có bản ghi chấm công hôm nay chưa
     const existingAttendance = await this.prisma.time_sheets.findFirst({
       where: {
         user_id,
@@ -152,7 +141,6 @@ export class AttendanceService {
       },
     });
 
-    // Log thông tin tính toán
     this.logger.log(
       `Tính toán chấm công cho user ${user_id}, ngày ${workDate}`,
     );
@@ -175,7 +163,6 @@ export class AttendanceService {
 
     try {
       if (existingAttendance) {
-        // Cập nhật bản ghi hiện tại
         const result = await this.prisma.time_sheets.update({
           where: { id: existingAttendance.id },
           data: attendanceData,
@@ -183,7 +170,6 @@ export class AttendanceService {
         this.logger.log(`Cập nhật chấm công thành công cho user ${user_id}`);
         return result;
       } else {
-        // Tạo bản ghi mới
         const result = await this.prisma.time_sheets.create({
           data: attendanceData,
         });
@@ -204,7 +190,6 @@ export class AttendanceService {
     const afternoonStart = new Date(workShift.hour_start_afternoon);
     const afternoonEnd = new Date(workShift.hour_end_afternoon);
 
-    // Set cùng ngày để so sánh
     const _workDate = checkin.toISOString().split('T')[0];
     morningStart.setFullYear(
       checkin.getFullYear(),
@@ -227,13 +212,11 @@ export class AttendanceService {
       checkin.getDate(),
     );
 
-    // Tính đi muộn
     const late_minutes =
       checkin > morningStart
         ? Math.floor((checkin.getTime() - morningStart.getTime()) / (1000 * 60))
         : 0;
 
-    // Tính về sớm
     const early_minutes =
       checkout < afternoonEnd
         ? Math.floor(
@@ -241,7 +224,6 @@ export class AttendanceService {
           )
         : 0;
 
-    // Tính thời gian làm việc buổi sáng
     const actualMorningStart = checkin > morningStart ? checkin : morningStart;
     const actualMorningEnd = checkout < morningEnd ? checkout : morningEnd;
     const morning_minutes =
@@ -252,7 +234,6 @@ export class AttendanceService {
           )
         : 0;
 
-    // Tính thời gian làm việc buổi chiều
     const actualAfternoonStart =
       checkin > afternoonStart ? checkin : afternoonStart;
     const actualAfternoonEnd =
@@ -274,9 +255,7 @@ export class AttendanceService {
     };
   }
 
-  // === QUẢN LÝ CA LÀM VIỆC ===
-
-  async createWorkShift(workShiftDto: WorkShiftDto) {
+    async createWorkShift(workShiftDto: WorkShiftDto) {
     const {
       name,
       morning_start,
@@ -286,7 +265,6 @@ export class AttendanceService {
       type,
     } = workShiftDto;
 
-    // Validation: Kiểm tra tên ca làm việc duy nhất
     const existingShift = await this.prisma.schedule_works.findFirst({
       where: {
         name: {
@@ -300,7 +278,6 @@ export class AttendanceService {
       throw new ConflictException(`Ca làm việc với tên "${name}" đã tồn tại`);
     }
 
-    // Validation: Kiểm tra thời gian hợp lệ
     const morningStart = new Date(morning_start);
     const morningEnd = new Date(morning_end);
     const afternoonStart = new Date(afternoon_start);
@@ -360,7 +337,6 @@ export class AttendanceService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: any = { deleted_at: null };
 
-    // Thêm filter theo shift_name
     if (paginationDto.shift_name) {
       where.name = {
         contains: paginationDto.shift_name,
@@ -368,12 +344,10 @@ export class AttendanceService {
       };
     }
 
-    // Thêm filter theo status
     if (paginationDto.status) {
       where.status = paginationDto.status;
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.schedule_works.findMany({
         where,
@@ -421,9 +395,7 @@ export class AttendanceService {
     });
   }
 
-  // === QUẢN LÝ NGHỈ PHÉP NÂNG CAO ===
-
-  async createLeaveRequest(leaveRequestDto: CreateLeaveRequestDto) {
+    async createLeaveRequest(leaveRequestDto: CreateLeaveRequestDto) {
     const {
       user_id,
       leave_type,
@@ -437,7 +409,6 @@ export class AttendanceService {
       note: _note,
     } = leaveRequestDto;
 
-    // Validation: Kiểm tra người dùng tồn tại
     const user = await this.prisma.users.findUnique({
       where: { id: user_id, deleted_at: null },
     });
@@ -447,7 +418,6 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Kiểm tra ngày hợp lệ
     const startDateObj = new Date(start_date);
     const endDateObj = new Date(end_date);
     const today = new Date();
@@ -463,7 +433,6 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Kiểm tra số ngày nghỉ hợp lý
     const daysDiff =
       Math.ceil(
         (endDateObj.getTime() - startDateObj.getTime()) / (1000 * 60 * 60 * 24),
@@ -474,7 +443,6 @@ export class AttendanceService {
       );
     }
 
-    // Kiểm tra số dư phép năm nếu là phép năm hoặc phép có lương
     if (
       leave_type === DayOffType.COMPENSATORY ||
       leave_type === DayOffType.PAID
@@ -490,7 +458,6 @@ export class AttendanceService {
       }
     }
 
-    // Kiểm tra trùng lịch nghỉ
     const conflictingLeave = await this.prisma.day_offs.findFirst({
       where: {
         user_id,
@@ -518,8 +485,6 @@ export class AttendanceService {
     }
 
     try {
-      // Note: This method needs to be refactored for single-day requests
-      // For now, create a day-off for the start date only
       const result = await this.prisma.day_offs.create({
         data: {
           user_id,
@@ -557,7 +522,6 @@ export class AttendanceService {
       end_time,
     } = remoteWorkDto;
 
-    // Validation: Kiểm tra người dùng tồn tại
     const user = await this.prisma.users.findUnique({
       where: { id: user_id, deleted_at: null },
     });
@@ -567,7 +531,6 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Kiểm tra ngày làm việc
     const workDateObj = new Date(work_date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -586,7 +549,6 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Nếu không làm cả ngày, kiểm tra thời gian
     if (!is_full_day) {
       if (!start_time || !end_time) {
         throw new BadRequestException(
@@ -617,7 +579,6 @@ export class AttendanceService {
       }
     }
 
-    // Kiểm tra xem đã có yêu cầu remote work cho ngày này chưa
     const existingRequest = await this.prisma.time_sheets.findFirst({
       where: {
         user_id,
@@ -634,7 +595,6 @@ export class AttendanceService {
       throw new ConflictException('Đã có yêu cầu làm việc từ xa cho ngày này');
     }
 
-    // Tạo bản ghi timesheet cho remote work
     const checkin = is_full_day
       ? new Date(work_date + 'T08:00:00.000Z')
       : new Date(start_time!);
@@ -681,7 +641,6 @@ export class AttendanceService {
     user_id: number,
     year: number,
   ): Promise<LeaveBalanceDto> {
-    // Validation: Kiểm tra người dùng tồn tại
     const user = await this.prisma.users.findUnique({
       where: { id: user_id, deleted_at: null },
     });
@@ -691,17 +650,13 @@ export class AttendanceService {
       );
     }
 
-    // Validation: Kiểm tra năm hợp lệ
     const currentYear = new Date().getFullYear();
     if (year < 2020 || year > currentYear + 1) {
       throw new BadRequestException(`Năm phải từ 2020 đến ${currentYear + 1}`);
     }
 
-    // Lấy tổng số ngày phép trong năm (mặc định 12 ngày)
-    // Có thể tính toán dựa trên thâm niên, chức vụ, etc.
     const total_annual_leave = 12;
 
-    // Tính số ngày phép đã sử dụng
     const used_leaves = await this.prisma.day_offs.findMany({
       where: {
         user_id,
@@ -720,7 +675,6 @@ export class AttendanceService {
       0,
     );
 
-    // Tính số ngày nghỉ ốm đã sử dụng
     const sick_leaves = await this.prisma.day_offs.findMany({
       where: {
         user_id,
@@ -750,9 +704,7 @@ export class AttendanceService {
     };
   }
 
-  // === DASHBOARD VÀ BÁO CÁO ===
-
-  async getAttendanceDashboard(dashboardDto: AttendanceDashboardDto) {
+    async getAttendanceDashboard(dashboardDto: AttendanceDashboardDto) {
     const { start_date, end_date, division_id, team_id, period_type } =
       dashboardDto;
 
@@ -763,7 +715,6 @@ export class AttendanceService {
         .split('T')[0];
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
-    // Lấy danh sách user theo phòng ban/team
     let user_ids: number[] = [];
     if (team_id) {
       const teamAssignments = await this.prisma.user_role_assignment.findMany({
@@ -801,7 +752,6 @@ export class AttendanceService {
       where.user_id = { in: user_ids };
     }
 
-    // Thống kê tổng quan
     const timesheets = await this.prisma.time_sheets.findMany({ where });
 
     const totalRecords = timesheets.length;
@@ -819,20 +769,17 @@ export class AttendanceService {
     ).length;
     const totalPenalties = 0;
 
-    // Thống kê theo ngày
     const dailyStats = this.groupAttendanceByPeriod(
       timesheets,
       period_type || 'daily',
     );
 
-    // Top vi phạm
     const violationStats = await this.getViolationStatistics(
       user_ids,
       startDate,
       endDate,
     );
 
-    // Thống kê nghỉ phép
     const leaveStats = await this.getLeaveStatistics(
       user_ids,
       startDate,
@@ -943,7 +890,6 @@ export class AttendanceService {
       },
     });
 
-    // Group by user_id
     const userViolations: { [key: number]: any } = {};
 
     violations.forEach((violation) => {
@@ -1176,7 +1122,6 @@ export class AttendanceService {
       penaltyByUser[user_id].total_penalty += 0;
       penaltyByUser[user_id].violation_count += 1;
 
-      // Ước tính phân bổ phạt (có thể cải thiện với dữ liệu chi tiết hơn)
       if (record.late_time > 0) penaltyByUser[user_id].late_penalty += 0;
       if (record.early_time > 0) penaltyByUser[user_id].early_penalty += 0;
     });

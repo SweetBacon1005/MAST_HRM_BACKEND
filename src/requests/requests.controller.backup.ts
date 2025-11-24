@@ -52,34 +52,52 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy requests theo phân quyền role với enhanced filtering',
-    })
+    description: `
+      Role-based access control:
+      - Division Head: Chỉ thấy requests trong division của mình, có thể filter theo team
+      - Admin/Super Admin: Thấy tất cả requests, có thể filter leads_only=true cho requests quan trọng
+      - Project Manager/Team Leader: Chỉ thấy requests từ team members
+      - Employee: Chỉ thấy requests của chính mình
+      
+      Enhanced filtering options:
+      - leads_only: Chỉ requests từ leadership roles (Division Head, Project Manager, Team Leader, HR Manager)
+      - team_id: Filter theo team cụ thể (Division Head có thể filter teams trong division)
+      - high_priority_only: Chỉ requests có priority cao (từ leadership hoặc urgent criteria)
+    `,
+  })
   @ApiQuery({
     name: 'division_id',
     required: false,
+    description: 'Lọc theo division ID (chỉ dành cho admin)',
     type: Number,
   })
   @ApiQuery({
     name: 'leads_only',
     required: false,
+    description: 'Chỉ lấy requests từ các lead (team_leader, division_head, project_manager, hr_manager)',
     type: Boolean,
   })
   @ApiQuery({
     name: 'requester_role',
     required: false,
+    description: 'Lọc theo role của người tạo request',
     enum: Object.values(ROLE_NAMES),
   })
   @ApiQuery({
     name: 'team_id',
     required: false,
+    description: 'Lọc theo team ID (Division Head có thể filter teams trong division)',
     type: Number,
   })
   @ApiQuery({
     name: 'high_priority_only',
     required: false,
+    description: 'Chỉ lấy requests có priority cao (từ leadership roles hoặc urgent requests)',
     type: Boolean,
   })
   @ApiResponse({ 
     status: 200, 
+    description: 'Lấy danh sách thành công',
     schema: {
       type: 'object',
       properties: {
@@ -143,15 +161,18 @@ export class RequestsController {
             access_scope: { 
               type: 'string',
               enum: ['DIVISION_ONLY', 'ALL_ACCESS', 'TEAM_ONLY', 'SELF_ONLY'],
-              },
+              description: 'Phạm vi truy cập của user hiện tại'
+            },
             managed_divisions: {
               type: 'array',
               items: { type: 'number' },
-              },
+              description: 'Danh sách division IDs mà user quản lý (nếu là Division Head)'
+            },
             managed_teams: {
               type: 'array', 
               items: { type: 'number' },
-              },
+              description: 'Danh sách team IDs mà user quản lý (nếu là Team Leader/Project Manager)'
+            },
             filters_applied: {
               type: 'object',
               properties: {
@@ -162,9 +183,11 @@ export class RequestsController {
                 team_id: { type: 'number' },
                 requester_role: { type: 'string' },
               },
-              }
+              description: 'Các filters đã được áp dụng'
+            }
           },
-          },
+          description: 'Metadata về phạm vi truy cập và filters áp dụng'
+        },
       },
     },
   })
@@ -185,7 +208,7 @@ export class RequestsController {
   @Get('my/all')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllMyRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -195,7 +218,7 @@ export class RequestsController {
 
   @Get('my/stats')
   @ApiOperation({ summary: 'Thống kê requests của tôi' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy thống kê thành công' })
   async getMyRequestsStats(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getMyRequestsStats(user_id);
   }
@@ -204,8 +227,8 @@ export class RequestsController {
 
   @Post('remote-work')
   @ApiOperation({ summary: 'Tạo đơn xin làm việc từ xa' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createRemoteWorkRequest(
     @Body() createRemoteWorkRequestDto: CreateRemoteWorkRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -221,8 +244,9 @@ export class RequestsController {
   @ApiOperation({
     summary:
       'Lấy danh sách tất cả đơn remote work (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head. Manager xem tất cả.',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllRemoteWorkRequests(
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
@@ -240,7 +264,7 @@ export class RequestsController {
   @ApiOperation({
     summary: 'Lấy danh sách đơn remote work của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyRemoteWorkRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
@@ -255,8 +279,8 @@ export class RequestsController {
 
   @Post('day-off')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createDayOffRequest(
     @Body() createDayOffRequestDto: CreateDayOffRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -271,8 +295,9 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy danh sách tất cả đơn nghỉ phép (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllDayOffRequests(
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
@@ -286,7 +311,7 @@ export class RequestsController {
   @ApiOperation({
     summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyDayOffRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -301,8 +326,8 @@ export class RequestsController {
 
   @Post('overtime')
   @ApiOperation({ summary: 'Tạo đơn xin làm thêm giờ' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201, description: 'Tạo đơn thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createOvertimeRequest(
     @Body() createOvertimeRequestDto: CreateOvertimeRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -317,8 +342,9 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy danh sách tất cả đơn làm thêm giờ (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
+  })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findAllOvertimeRequests(
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
@@ -332,7 +358,7 @@ export class RequestsController {
   @ApiOperation({
     summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async findMyOvertimeRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -347,7 +373,7 @@ export class RequestsController {
 
   @Get('leave-balance')
   @ApiOperation({ summary: 'Lấy thông tin leave balance của tôi' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLeaveBalance(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getMyLeaveBalance(user_id);
   }
@@ -356,7 +382,7 @@ export class RequestsController {
   @ApiOperation({ summary: 'Lấy lịch sử giao dịch leave balance' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
   @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLeaveTransactionHistory(
     @GetCurrentUser('id') user_id: number,
     @Query('limit') limit?: number,
@@ -388,7 +414,7 @@ export class RequestsController {
       required: ['leave_type', 'requested_days'],
     },
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async checkLeaveBalanceAvailability(
     @GetCurrentUser('id') user_id: number,
     @Body('leave_type') leaveType: 'PAID' | 'UNPAID',
@@ -405,8 +431,8 @@ export class RequestsController {
 
   @Post('late-early')
   @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201, description: 'Tạo thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createLateEarlyRequest(
     @Body() dto: CreateLateEarlyRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -419,8 +445,9 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy danh sách tất cả late/early requests (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
+  })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getAllLateEarlyRequests(
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
@@ -434,7 +461,7 @@ export class RequestsController {
   @ApiOperation({
     summary: 'Lấy danh sách late/early requests của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Thành công' })
   async getMyLateEarlyRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -451,9 +478,11 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.APPROVE)
   @ApiOperation({
     summary: 'Duyệt request (tất cả loại)',
-    })
+    description: 'Division Head duyệt requests trong division. Admin duyệt requests của mình và division_head. Team Leader duyệt requests trong team.',
+  })
   @ApiParam({
     name: 'type',
+    description: 'Loại request',
     enum: [
       'remote-work',
       'day-off',
@@ -463,9 +492,9 @@ export class RequestsController {
     ],
     example: 'day-off',
   })
-  @ApiParam({ name: 'id', example: 1 })
-  @ApiResponse({ status: 200, })
-  @ApiResponse({ status: 404, })
+  @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
+  @ApiResponse({ status: 200, description: 'Duyệt thành công' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async approveRequest(
     @Param('type')
     type:
@@ -491,9 +520,11 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.REJECT)
   @ApiOperation({
     summary: 'Từ chối request (tất cả loại)',
-    })
+    description: 'Division Head từ chối requests trong division. Admin từ chối requests của mình và division_head. Team Leader từ chối requests trong team.',
+  })
   @ApiParam({
     name: 'type',
+    description: 'Loại request',
     enum: [
       'remote-work',
       'day-off',
@@ -503,7 +534,7 @@ export class RequestsController {
     ],
     example: 'day-off',
   })
-  @ApiParam({ name: 'id', example: 1 })
+  @ApiParam({ name: 'id', description: 'ID của request', example: 1 })
   @ApiBody({
     schema: {
       type: 'object',
@@ -516,8 +547,8 @@ export class RequestsController {
       required: ['rejected_reason'],
     },
   })
-  @ApiResponse({ status: 200, })
-  @ApiResponse({ status: 404, })
+  @ApiResponse({ status: 200, description: 'Từ chối thành công' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
   async rejectRequest(
     @Param('type')
     type:
@@ -548,9 +579,10 @@ export class RequestsController {
   @ApiBody({ type: CreateForgotCheckinRequestDto })
   @ApiResponse({
     status: 201,
+    description: 'Tạo đơn thành công',
     type: ForgotCheckinRequestResponseDto,
   })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async createForgotCheckinRequest(
     @Body() dto: CreateForgotCheckinRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -563,7 +595,8 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Division Head/Manager)',
-    })
+    description: 'Division Head chỉ xem requests trong division. Admin xem requests của mình và division_head.',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({
@@ -573,7 +606,7 @@ export class RequestsController {
   })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getAllForgotCheckinRequests(
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
@@ -594,7 +627,7 @@ export class RequestsController {
   })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200, description: 'Lấy danh sách thành công' })
   async getMyForgotCheckinRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -612,14 +645,17 @@ export class RequestsController {
   })
   @ApiParam({
     name: 'type',
+    description: 'Loại request',
     enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin'],
   })
   @ApiParam({
     name: 'id',
+    description: 'ID của request',
     type: Number,
   })
   @ApiResponse({
     status: 200,
+    description: 'Lấy chi tiết request thành công',
     schema: {
       type: 'object',
       properties: {
@@ -649,8 +685,8 @@ export class RequestsController {
       },
     },
   })
-  @ApiResponse({ status: 404, })
-  @ApiResponse({ status: 403, })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy request' })
+  @ApiResponse({ status: 403, description: 'Không có quyền truy cập request này' })
   async getRequestById(
     @Param('type') type: string,
     @Param('id', ParseIntPipe) id: number,
@@ -767,6 +803,5 @@ export class RequestsController {
   ) {
     return await this.requestsService.deleteForgotCheckinRequest(id, user_id);
   }}
-
 
 

@@ -52,7 +52,9 @@ export class RequestsService {
     private readonly roleAssignmentService: RoleAssignmentService,
   ) {}
 
-    private async validateUser(user_id: number): Promise<void> {
+  // === COMMON UTILITIES ===
+
+  private async validateUser(user_id: number): Promise<void> {
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
     });
@@ -77,7 +79,9 @@ export class RequestsService {
     }
   }
 
-    async createRemoteWorkRequest(
+  // === REMOTE WORK REQUESTS ===
+
+  async createRemoteWorkRequest(
     dto: CreateRemoteWorkRequestDto,
   ): Promise<RemoteWorkRequestResponseDto> {
     await this.validateUser(dto.user_id);
@@ -85,6 +89,7 @@ export class RequestsService {
     const workDate = new Date(dto.work_date);
     this.validateFutureDate(workDate, false);
 
+    // Check existing request
     const existingRequest = await this.prisma.remote_work_requests.findFirst({
       where: {
         user_id: dto.user_id,
@@ -97,6 +102,7 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
+    // Check day-off conflict
     const dayOff = await this.prisma.day_offs.findFirst({
       where: {
         user_id: dto.user_id,
@@ -114,6 +120,7 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
 
+    // Tìm hoặc tạo timesheet cho ngày đó
     let timesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: dto.user_id,
@@ -132,6 +139,7 @@ export class RequestsService {
       });
     }
 
+    // Cập nhật timesheet để đánh dấu có đơn xin làm từ xa
     await this.prisma.time_sheets.update({
       where: { id: timesheet.id },
       data: { has_remote_work_request: true },
@@ -150,6 +158,7 @@ export class RequestsService {
       },
     });
 
+    // Log activity
     await this.activityLogService.logRequestCreated(
       'remote_work',
       request.id,
@@ -181,6 +190,7 @@ export class RequestsService {
         user_idsFilter = [];
       }
     } else if (accessScope.type === 'ADMIN_ACCESS') {
+      // Admin - own requests + division_head requests
       const divisionHeaduser_ids = await this.getuser_idsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
@@ -191,8 +201,10 @@ export class RequestsService {
 
     const where: Prisma.remote_work_requestsWhereInput = { deleted_at: null };
 
+    // Apply user filter based on role
     if (user_idsFilter !== undefined) {
       if (user_idsFilter.length === 0) {
+        // No users in scope, return empty
         return buildPaginationResponse(
           [],
           0,
@@ -298,13 +310,16 @@ export class RequestsService {
     );
   }
 
-    async createDayOffRequest(
+  // === DAY OFF REQUESTS ===
+
+  async createDayOffRequest(
     dto: CreateDayOffRequestDto,
   ): Promise<DayOffRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
     const workDate = new Date(dto.work_date);
 
+    // Check overlapping
     const existingDayOff = await this.prisma.day_offs.findFirst({
       where: {
         user_id: dto.user_id,
@@ -318,8 +333,10 @@ export class RequestsService {
       throw new BadRequestException('Đã có đơn nghỉ phép trong ngày này');
     }
 
+    // Tính số ngày nghỉ dựa trên duration
     const dayOffAmount = dto.duration === 'FULL_DAY' ? 1 : 0.5;
 
+    // Kiểm tra leave balance cho phép có lương
     if (dto.type === DayOffType.PAID) {
       const leaveBalance =
         await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
@@ -463,13 +480,16 @@ export class RequestsService {
     );
   }
 
-    async createOvertimeRequest(
+  // === OVERTIME REQUESTS ===
+
+  async createOvertimeRequest(
     dto: CreateOvertimeRequestDto,
   ): Promise<OvertimeRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
     const workDate = new Date(dto.work_date);
 
+    // Validate project (bắt buộc theo UI)
     const project = await this.prisma.projects.findFirst({
       where: { id: dto.project_id, deleted_at: null },
     });
@@ -477,6 +497,7 @@ export class RequestsService {
       throw new BadRequestException('Không tìm thấy dự án được chọn');
     }
 
+    // Check existing overtime request for the same date
     const existingOvertime = await this.prisma.over_times_history.findFirst({
       where: {
         user_id: dto.user_id,
@@ -490,12 +511,14 @@ export class RequestsService {
       throw new BadRequestException('Đã có đơn làm tăng ca cho ngày này');
     }
 
+    // Calculate total hours from time strings
     const [startHour, startMinute] = dto.start_time.split(':').map(Number);
     const [endHour, endMinute] = dto.end_time.split(':').map(Number);
     const startMinutes = startHour * 60 + startMinute;
     const endMinutes = endHour * 60 + endMinute;
     const totalHours = (endMinutes - startMinutes) / 60;
 
+    // Validate working hours (không thể làm tăng ca trong giờ hành chính)
     const normalWorkStart = 8 * 60; // 08:00
     const normalWorkEnd = 17 * 60; // 17:00
 
@@ -505,6 +528,7 @@ export class RequestsService {
       );
     }
 
+    // Tạm thời không tính toán rate phức tạp, để null hoặc 0
     const hourlyRate = null;
     const totalAmount = null;
 
@@ -528,6 +552,7 @@ export class RequestsService {
       },
     });
 
+    // Convert start_time and end_time from Date to string for response
     return {
       ...result,
       start_time: result.start_time.toTimeString().slice(0, 5), // HH:mm format
@@ -655,15 +680,19 @@ export class RequestsService {
     );
   }
 
-    /**
+  // === OVERVIEW METHODS ===
+
+  /**
    * Lấy requests cho Division Head (chỉ trong division mình quản lý)
    */
   async getDivisionRequests(
     divisionHeadId: number,
     paginationDto: RequestPaginationDto = {},
   ) {
+    // 1. Validate user là Division Head
     await this.validateDivisionHead(divisionHeadId);
 
+    // 2. Lấy division IDs của Division Head
     const division_ids = await this.getUserDivisions(divisionHeadId);
 
     if (division_ids.length === 0) {
@@ -675,8 +704,10 @@ export class RequestsService {
       );
     }
 
+    // 3. Lấy tất cả user trong divisions
     const divisionuser_ids = await this.getDivisionuser_ids(division_ids);
 
+    // 4. Query requests với filter division users
     return await this.getRequestsByuser_ids(divisionuser_ids, paginationDto);
   }
 
@@ -699,8 +730,10 @@ export class RequestsService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const whereConditions = this.buildWhereConditions(paginationDto);
 
+    // Add user filter
     const userFilter = { user_id: { in: user_ids } };
 
+    // Get all requests from different tables with unified structure
     const [
       remoteWorkData,
       dayOffData,
@@ -870,6 +903,7 @@ export class RequestsService {
       }),
     ]);
 
+    // Transform and combine all requests
     const allRequests = [
       ...remoteWorkData.map((req) => ({
         ...req,
@@ -893,11 +927,13 @@ export class RequestsService {
       })),
     ];
 
+    // Sort by created_at desc
     allRequests.sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
 
+    // Apply pagination
     const paginatedRequests = allRequests.slice(skip, skip + take);
 
     return buildPaginationResponse(
@@ -1029,6 +1065,7 @@ export class RequestsService {
       throw new NotFoundException('Không tìm thấy request');
     }
 
+    // Kiểm tra quyền truy cập
     if (requesterId && requesterRoles) {
       const context = await this.permissionChecker.createUserContext(
         requesterId,
@@ -1044,6 +1081,7 @@ export class RequestsService {
         throw new ForbiddenException('Không có quyền truy cập request này');
       }
 
+      // Log request view activity
       await this.activityLogService.logRequestView(
         requestType,
         requestId,
@@ -1105,6 +1143,7 @@ export class RequestsService {
         user_ids = divisionuser_ids;
       }
     } else if (accessScope.type === 'TEAM_ONLY') {
+      // Team Leader chỉ xem requests từ team members
       if (accessScope.team_ids && accessScope.team_ids.length > 0) {
         const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
         user_ids = teamuser_ids;
@@ -1112,6 +1151,7 @@ export class RequestsService {
         user_ids = [requesterId!]; // Fallback to self-only
       }
     } else if (accessScope.type === 'PROJECT_ONLY') {
+      // Project Manager chỉ xem requests từ project members
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
         const projectuser_ids = await this.getProjectuser_ids(accessScope.projectIds);
         user_ids = projectuser_ids;
@@ -1119,9 +1159,11 @@ export class RequestsService {
         user_ids = [requesterId!]; // Fallback to self-only
       }
     } else {
+      // SELF_ONLY - chỉ xem requests của chính mình
       user_ids = [requesterId!];
     }
 
+    // Filter theo role của requester nếu có
     if (paginationDto.requester_role) {
       const roleuser_ids = await this.getuser_idsByRole(
         paginationDto.requester_role,
@@ -1151,6 +1193,7 @@ export class RequestsService {
         },
       };
     } else if (user_ids && user_ids.length === 0) {
+      // Không có user nào match filter
       return {
         ...buildPaginationResponse(
           [],
@@ -1172,6 +1215,7 @@ export class RequestsService {
       };
     }
 
+    // Fallback: return empty result if no conditions match
     return {
       ...buildPaginationResponse(
         [],
@@ -1193,6 +1237,7 @@ export class RequestsService {
     };
   }
 
+  // ==================== EXISTING METHODS ====================
 
   async getAllMyRequests(
     user_id: number,
@@ -1200,6 +1245,7 @@ export class RequestsService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
+    // Build where conditions for filtering
     const whereConditions: any = { user_id: user_id, deleted_at: null };
 
     if (paginationDto.status) {
@@ -1214,6 +1260,7 @@ export class RequestsService {
           }
         : undefined;
 
+    // Get all requests from different tables with unified structure
     const [
       remoteWorkData,
       dayOffData,
@@ -1274,6 +1321,7 @@ export class RequestsService {
       }),
     ]);
 
+    // Combine and format all requests with type information
     const allRequests = [
       ...remoteWorkData.map((req) => ({
         ...req,
@@ -1301,6 +1349,7 @@ export class RequestsService {
       })),
     ];
 
+    // Sort by created_at desc (or other criteria)
     const sortField =
       orderBy && typeof orderBy === 'object' && orderBy.created_at
         ? 'created_at'
@@ -1316,6 +1365,7 @@ export class RequestsService {
       return sort_order === 'asc' ? aDate - bDate : bDate - aDate;
     });
 
+    // Apply pagination to the combined results
     const total = allRequests.length;
     const paginatedRequests = allRequests.slice(skip, skip + take);
 
@@ -1409,7 +1459,9 @@ export class RequestsService {
     };
   }
 
-    private async approveRemoteWorkRequest(
+  // === PRIVATE APPROVAL METHODS ===
+
+  private async approveRemoteWorkRequest(
     id: number,
     approverId: number,
     approverRole: string,
@@ -1531,7 +1583,9 @@ export class RequestsService {
       throw new ForbiddenException('Bạn không có quyền duyệt request này');
     }
 
+    // Sử dụng transaction để đảm bảo data consistency
     return await this.prisma.$transaction(async (tx) => {
+      // Cập nhật request status
       const updatedRequest = await tx.day_offs.update({
         where: { id },
         data: {
@@ -1541,6 +1595,7 @@ export class RequestsService {
         },
       });
 
+      // Trừ leave balance cho phép có lương
       if (request.type === DayOffType.PAID) {
         const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
         await this.leaveBalanceService.deductLeaveBalance(
@@ -1552,6 +1607,7 @@ export class RequestsService {
         );
       }
 
+      // Auto create timesheets
       await this.createTimesheetsForDayOff(updatedRequest);
 
       return {
@@ -1595,7 +1651,9 @@ export class RequestsService {
       throw new ForbiddenException('Bạn không có quyền từ chối request này');
     }
 
+    // Sử dụng transaction để đảm bảo data consistency
     return await this.prisma.$transaction(async (tx) => {
+      // Cập nhật request status
       const updatedRequest = await tx.day_offs.update({
         where: { id },
         data: {
@@ -1605,6 +1663,7 @@ export class RequestsService {
         },
       });
 
+      // Hoàn trả leave balance nếu đã được duyệt trước đó (và đã trừ balance)
       if (
         request.status === ApprovalStatus.APPROVED &&
         request.type === DayOffType.PAID
@@ -1718,15 +1777,19 @@ export class RequestsService {
     };
   }
 
-    private async updateTimesheetRemoteType(
+  // === HELPER METHODS ===
+
+  private async updateTimesheetRemoteType(
     request: RemoteWorkRequestResponseDto,
   ) {
+    // Tìm timesheet thông qua liên kết trực tiếp
     const remoteRequest = await this.prisma.remote_work_requests.findFirst({
       where: { id: request.id, deleted_at: null },
       include: { timesheet: true },
     });
 
     if (remoteRequest?.timesheet) {
+      // Cập nhật timesheet với thông tin remote work đã được duyệt
       await this.prisma.time_sheets.update({
         where: { id: remoteRequest.timesheet.id },
         data: {
@@ -1735,6 +1798,7 @@ export class RequestsService {
         },
       });
     } else {
+      // Fallback: tìm theo user_id và work_date (trường hợp cũ)
       let timesheet = await this.prisma.time_sheets.findFirst({
         where: {
           user_id: request.user_id,
@@ -1765,6 +1829,7 @@ export class RequestsService {
         });
       }
 
+      // Cập nhật remote request với timesheet_id
       await this.prisma.remote_work_requests.update({
         where: { id: request.id },
         data: { timesheet_id: timesheet.id },
@@ -1783,6 +1848,7 @@ export class RequestsService {
       },
     });
 
+    // Calculate work hours based on duration
     const workHours =
       dayOff.duration === 'FULL_DAY'
         ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
@@ -1802,6 +1868,7 @@ export class RequestsService {
           work_time_afternoon: workHours.afternoonHours,
           total_work_time: workHours.totalHours,
           is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
+          // paid_leave và unpaid_leave info được lấy từ day_off relation
         },
       });
     } else {
@@ -1812,12 +1879,15 @@ export class RequestsService {
           work_time_morning: workHours.morningHours,
           work_time_afternoon: workHours.afternoonHours,
           total_work_time: workHours.totalHours,
+          // paid_leave và unpaid_leave info được lấy từ day_off relation
         },
       });
     }
   }
 
-    /**
+  // === LEAVE BALANCE METHODS ===
+
+  /**
    * Lấy thông tin leave balance của user
    */
   async getMyLeaveBalance(user_id: number) {
@@ -1881,13 +1951,16 @@ export class RequestsService {
     };
   }
 
-    async createLateEarlyRequest(
+  // === LATE/EARLY REQUEST METHODS ===
+
+  async createLateEarlyRequest(
     dto: CreateLateEarlyRequestDto,
   ): Promise<LateEarlyRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
     const workDate = new Date(dto.work_date);
 
+    // Check existing request for the same date
     const existingRequest = await this.prisma.late_early_requests.findFirst({
       where: {
         user_id: dto.user_id,
@@ -1902,6 +1975,7 @@ export class RequestsService {
       );
     }
 
+    // Validate minutes based on request type
     if (dto.request_type === 'LATE' && !dto.late_minutes) {
       throw new BadRequestException('Số phút đi muộn là bắt buộc');
     }
@@ -1917,6 +1991,7 @@ export class RequestsService {
       );
     }
 
+    // Tìm và cập nhật timesheet để đánh dấu có đơn xin đi muộn về sớm
     const timesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: dto.user_id,
@@ -2153,6 +2228,7 @@ export class RequestsService {
   private async updateTimesheetWithApprovedLateEarly(
     request: any,
   ): Promise<void> {
+    // Tìm timesheet tương ứng
     const timesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: request.user_id,
@@ -2162,6 +2238,7 @@ export class RequestsService {
     });
 
     if (timesheet) {
+      // Cập nhật approved late/early time
       const updateData: any = {};
 
       if (request.late_minutes) {
@@ -2172,6 +2249,7 @@ export class RequestsService {
         updateData.early_time_approved = request.early_minutes;
       }
 
+      // Đánh dấu đơn đi muộn về sớm đã được duyệt
       updateData.late_early_approved = true;
 
       if (Object.keys(updateData).length > 0) {
@@ -2181,6 +2259,7 @@ export class RequestsService {
         });
       }
 
+      // Link request với timesheet
       await this.prisma.late_early_requests.update({
         where: { id: request.id },
         data: { timesheet_id: timesheet.id },
@@ -2188,7 +2267,9 @@ export class RequestsService {
     }
   }
 
-    async approveRequest(
+  // === UNIVERSAL APPROVE/REJECT METHODS ===
+
+  async approveRequest(
     type: RequestType,
     id: number,
     approverId: number,
@@ -2266,6 +2347,7 @@ export class RequestsService {
     }
   }
 
+  // ==================== FORGOT CHECKIN REQUESTS ====================
 
   async createForgotCheckinRequest(
     dto: CreateForgotCheckinRequestDto,
@@ -2275,6 +2357,7 @@ export class RequestsService {
     const workDate = new Date(dto.work_date);
     this.validatePastOrCurrentDate(workDate);
 
+    // Kiểm tra đơn đã tồn tại
     const existingRequest = await this.prisma.forgot_checkin_requests.findFirst(
       {
         where: {
@@ -2289,6 +2372,7 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
+    // Validate thời gian checkin/checkout
     if (dto.checkin_time && dto.checkout_time) {
       const checkin_time = new Date(
         `${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`,
@@ -2302,6 +2386,7 @@ export class RequestsService {
       }
     }
 
+    // Tìm timesheet của ngày đó
     const timesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: dto.user_id,
@@ -2309,6 +2394,7 @@ export class RequestsService {
       },
     });
 
+    // Cập nhật timesheet để đánh dấu có đơn xin bổ sung chấm công
     if (timesheet) {
       await this.prisma.time_sheets.update({
         where: { id: timesheet.id },
@@ -2543,6 +2629,7 @@ export class RequestsService {
     }
 
     await this.prisma.$transaction(async (prisma) => {
+      // Cập nhật trạng thái đơn
       await prisma.forgot_checkin_requests.update({
         where: { id },
         data: {
@@ -2552,6 +2639,7 @@ export class RequestsService {
         },
       });
 
+      // Cập nhật timesheet nếu có
       if (
         request.timesheet_id &&
         (request.checkin_time || request.checkout_time)
@@ -2636,7 +2724,9 @@ export class RequestsService {
     }
   }
 
-    /**
+  // === ROLE-BASED ACCESS HELPER METHODS ===
+
+  /**
    * Validate user là Division Head
    */
   private async validateDivisionHead(user_id: number): Promise<void> {
@@ -2706,12 +2796,15 @@ export class RequestsService {
 
     const whereConditions: any = {
       deleted_at: null,
+      // role: { name: { in: leadRoles } }, // TODO: Update to use role assignments
       user: {
         deleted_at: null,
       },
     };
 
+    // Nếu có filter theo division
     if (division_id) {
+      // Lấy user IDs từ user_role_assignment
       const assignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.DIVISION,
@@ -2765,6 +2858,7 @@ export class RequestsService {
     return whereConditions;
   }
 
+  // ==================== ENHANCED HELPER METHODS ====================
 
   private async getUserManagedDivisions(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
@@ -2846,6 +2940,7 @@ export class RequestsService {
     approverRole: string,
     requestUserId: number,
   ): Promise<boolean> {
+    // Không thể tự duyệt request của mình (trừ Admin)
     if (approverId === requestUserId) {
       return approverRole === ROLE_NAMES.ADMIN;
     }
@@ -2855,6 +2950,7 @@ export class RequestsService {
       this.roleAssignmentService.getUserRoles(requestUserId),
     ]);
 
+    // 1. Admin chỉ duyệt requests của Division Head
     const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
     if (isAdmin) {
       const isOwnerDivisionHead = ownerRoles.roles.some(
@@ -2863,6 +2959,7 @@ export class RequestsService {
       return isOwnerDivisionHead;
     }
 
+    // 2. Division Head duyệt requests trong division
     const approverDivisions = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
       .map((r) => r.scope_id);
@@ -2876,6 +2973,7 @@ export class RequestsService {
       }
     }
 
+    // 3. Team Leader duyệt requests của team members
     const approverTeams = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
       .map((r) => r.scope_id);
@@ -2889,12 +2987,15 @@ export class RequestsService {
       }
     }
 
+    // 4. Project Manager duyệt requests của team members
+    // Vì project-team là 1-1, nên PM có thể duyệt tất cả members của team đó
     const approverProjects = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
       .map((r) => r.scope_id)
       .filter((id): id is number => id !== undefined);
 
     if (approverProjects.length > 0) {
+      // Lấy team_id từ projects (quan hệ 1-1)
       const projects = await this.prisma.projects.findMany({
         where: {
           id: { in: approverProjects },
@@ -2907,6 +3008,7 @@ export class RequestsService {
         .map((p) => p.team_id)
         .filter((id): id is number => id !== null);
 
+      // Kiểm tra owner có trong team của project không
       if (projectTeamIds.length > 0) {
         const ownerInProjectTeam = ownerRoles.roles.some(
           (r) => r.scope_type === 'TEAM' && r.scope_id !== undefined && projectTeamIds.includes(r.scope_id),
@@ -3120,6 +3222,7 @@ export class RequestsService {
         whereConditions.user_id = { in: user_ids };
       }
 
+      // Admin can filter by team_id
       if (filters.team_id) {
         whereConditions.user = {
           ...whereConditions.user,
@@ -3135,6 +3238,7 @@ export class RequestsService {
     return whereConditions;
   }
   private isHighPriorityRequest(request: any): boolean {
+    // 1. Requests từ leadership roles
     if (
       this.getLeadershipRoles().includes(
         request.user?.role_assignments.map((role) => role.name?.toLowerCase()),
@@ -3143,14 +3247,17 @@ export class RequestsService {
       return true;
     }
 
+    // 2. Day off > 3 ngày
     if (request.type === 'day_off' && request.duration_days >= 3) {
       return true;
     }
 
+    // 3. Overtime > 4 giờ
     if (request.type === 'overtime' && request.duration_hours >= 4) {
       return true;
     }
 
+    // 4. Requests pending > 3 ngày
     if (request.status === 'PENDING') {
       const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
       if (new Date(request.created_at) <= threeDaysAgo) {
@@ -3189,6 +3296,7 @@ export class RequestsService {
 
     const userIds: Set<number> = new Set();
 
+    // 1. Lấy tất cả Project Managers của projects
     const pmAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.PROJECT,
@@ -3200,6 +3308,7 @@ export class RequestsService {
 
     pmAssignments.forEach((a) => userIds.add(a.user_id));
 
+    // 2. Lấy team_id của từng project (quan hệ 1-1)
     const projects = await this.prisma.projects.findMany({
       where: {
         id: { in: projectIds },
@@ -3212,6 +3321,7 @@ export class RequestsService {
       .map((p) => p.team_id)
       .filter((id): id is number => id !== null);
 
+    // 3. Lấy TẤT CẢ members của team (không chỉ Team Leader)
     if (teamIds.length > 0) {
       const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -3240,15 +3350,18 @@ export class RequestsService {
       return result;
     }
 
+    // Filter requests based on high priority criteria
     const highPriorityRequests = result.data.filter((request: any) =>
       this.isHighPriorityRequest(request),
     );
 
+    // Rebuild pagination with filtered data
     const filteredTotal = highPriorityRequests.length;
     const page = paginationDto.page || 1;
     const limit = paginationDto.limit || 10;
     const total_pages = Math.ceil(filteredTotal / limit);
 
+    // Apply pagination to filtered results
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedData = highPriorityRequests.slice(startIndex, endIndex);

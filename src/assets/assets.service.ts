@@ -34,10 +34,8 @@ export class AssetsService {
     private readonly activityLogService: ActivityLogService,
   ) {}
 
-  // ===== ASSET CRUD FOR HR =====
 
   async createAsset(createAssetDto: CreateAssetDto, createdBy: number) {
-    // Check if asset_code already exists
     const existingAsset = await this.prisma.assets.findFirst({
       where: {
         asset_code: createAssetDto.asset_code,
@@ -86,7 +84,6 @@ export class AssetsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.logCrudOperation(
       'Asset',
       asset.id,
@@ -112,7 +109,6 @@ export class AssetsService {
       deleted_at: null,
     };
 
-    // Build search conditions
     if (paginationDto.search) {
       whereConditions.OR = [
         { name: { contains: paginationDto.search } },
@@ -232,7 +228,6 @@ export class AssetsService {
       throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
-    // Check asset_code uniqueness if changed
     if (
       updateAssetDto.asset_code &&
       updateAssetDto.asset_code !== existingAsset.asset_code
@@ -250,7 +245,6 @@ export class AssetsService {
       }
     }
 
-    // Check serial_number uniqueness if changed
     if (
       updateAssetDto.serial_number &&
       updateAssetDto.serial_number !== existingAsset.serial_number
@@ -268,7 +262,6 @@ export class AssetsService {
       }
     }
 
-    // Validate assigned_to if provided
     if (updateAssetDto.assigned_to) {
       const user = await this.prisma.users.findFirst({
         where: { id: updateAssetDto.assigned_to, deleted_at: null },
@@ -278,12 +271,10 @@ export class AssetsService {
         throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_FOUND);
       }
 
-      // Auto set assigned_date if assigning to someone
       if (!updateAssetDto.assigned_date) {
         updateAssetDto.assigned_date = new Date().toISOString().split('T')[0];
       }
 
-      // Auto set status to ASSIGNED if not specified
       if (!updateAssetDto.status) {
         updateAssetDto.status = 'ASSIGNED';
       }
@@ -334,7 +325,6 @@ export class AssetsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.logCrudOperation(
       'Asset',
       id,
@@ -361,12 +351,10 @@ export class AssetsService {
       throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
-    // Check if asset is assigned
     if (asset.status === 'ASSIGNED' && asset.assigned_to) {
       throw new BadRequestException(ASSET_ERRORS.CANNOT_DELETE_ASSIGNED_ASSET);
     }
 
-    // Check if there are pending requests for this asset
     const pendingRequests = await this.prisma.asset_requests.count({
       where: {
         asset_id: id,
@@ -384,7 +372,6 @@ export class AssetsService {
       data: { deleted_at: new Date() },
     });
 
-    // Log activity
     await this.activityLogService.logCrudOperation(
       'Asset',
       id,
@@ -401,7 +388,6 @@ export class AssetsService {
     };
   }
 
-  // ===== ASSET ASSIGNMENT =====
 
   async assignAsset(
     assetId: number,
@@ -451,7 +437,6 @@ export class AssetsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.log({
       logName: 'Asset Management',
       description: `Gán tài sản ${asset.name} cho user`,
@@ -509,7 +494,6 @@ export class AssetsService {
       },
     });
 
-    // Log activity
     await this.activityLogService.log({
       logName: 'Asset Management',
       description: `Thu hồi tài sản ${asset.name} từ user`,
@@ -533,7 +517,6 @@ export class AssetsService {
     };
   }
 
-  // ===== USER DEVICES FROM ASSETS =====
 
   async getUserDevices(user_id: number) {
     const devices = await this.prisma.assets.findMany({
@@ -827,7 +810,6 @@ export class AssetsService {
         },
       });
 
-      // Log activity
       await this.activityLogService.log({
         logName: 'Asset Request',
         description: `Phê duyệt request tài sản`,
@@ -850,7 +832,6 @@ export class AssetsService {
         data: updatedRequest,
       };
     } else {
-      // REJECT
       const updatedRequest = await this.prisma.asset_requests.update({
         where: { id: requestId },
         data: {
@@ -926,9 +907,7 @@ export class AssetsService {
       throw new BadRequestException('Tài sản không ở trạng thái có sẵn');
     }
 
-    // Use transaction to ensure consistency
     const result = await this.prisma.$transaction(async (tx) => {
-      // Update request status
       const updatedRequest = await tx.asset_requests.update({
         where: { id: requestId },
         data: {
@@ -940,7 +919,6 @@ export class AssetsService {
         },
       });
 
-      // Assign asset to user
       await tx.assets.update({
         where: { id: fulfillDto.asset_id },
         data: {
@@ -954,7 +932,6 @@ export class AssetsService {
       return updatedRequest;
     });
 
-    // Log activity
     await this.activityLogService.log({
       logName: 'Asset Request',
       description: `Giao tài sản cho user theo request`,
@@ -980,7 +957,6 @@ export class AssetsService {
     };
   }
 
-  // ===== STATISTICS =====
 
   async getAssetStatistics() {
     const [

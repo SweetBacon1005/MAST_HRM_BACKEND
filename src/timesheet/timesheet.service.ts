@@ -60,13 +60,10 @@ export class TimesheetService {
     @Inject(REQUEST) private request: Request,
   ) {}
 
-  // === TIMESHEET MANAGEMENT ===
-
-  async createTimesheet(
+    async createTimesheet(
     createTimesheetDto: CreateTimesheetDto,
     user_id: number,
   ) {
-    // Kiểm tra user tồn tại
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
     });
@@ -74,7 +71,6 @@ export class TimesheetService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Kiểm tra xem có day-off được duyệt cho ngày này không
     const approvedDayOff = await this.prisma.day_offs.findFirst({
       where: {
         user_id: user_id,
@@ -84,7 +80,6 @@ export class TimesheetService {
       },
     });
 
-    // Nếu có day-off được duyệt, cần kiểm tra xem có cần attendance không
     if (approvedDayOff) {
       const needsAttendance = DayOffCalculator.needsAttendance(
         approvedDayOff.duration as DayOffDuration,
@@ -96,13 +91,11 @@ export class TimesheetService {
         );
       }
 
-      // Nếu là nghỉ nửa ngày, cho phép tạo timesheet nhưng link với day-off
       console.log(
         `Tạo timesheet cho nghỉ phép nửa ngày: ${approvedDayOff.duration}`,
       );
     }
 
-    // Kiểm tra đã tồn tại timesheet cho ngày này chưa
     const existingTimesheet = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: user_id,
@@ -145,7 +138,6 @@ export class TimesheetService {
       deleted_at: null,
     };
 
-    // Sử dụng work_date thay vì checkin để lọc
     if (startDate && endDate) {
       Object.assign(where, QueryUtil.workDateRange(startDate, endDate));
     }
@@ -166,7 +158,6 @@ export class TimesheetService {
       deleted_at: null,
     };
 
-    // Thêm filter theo ngày
     if (paginationDto.start_date && paginationDto.end_date) {
       Object.assign(
         where,
@@ -177,12 +168,10 @@ export class TimesheetService {
       );
     }
 
-    // Thêm filter theo status
     if (paginationDto.status) {
       where.status = paginationDto.status;
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.time_sheets.findMany({
         where,
@@ -198,7 +187,6 @@ export class TimesheetService {
       this.prisma.time_sheets.count({ where }),
     ]);
 
-    // Thêm requests cho mỗi timesheet
     const enhancedData = await Promise.all(
       data.map(async (timesheet) => {
         const requests = await this.getRequestsForDate(
@@ -235,7 +223,6 @@ export class TimesheetService {
   async updateTimesheet(id: number, updateTimesheetDto: UpdateTimesheetDto) {
     const timesheet = await this.findTimesheetById(id);
 
-    // Kiểm tra xem timesheet có thể chỉnh sửa không
     const currentState = timesheet.status
       ? timesheet.status
       : ApprovalStatus.PENDING;
@@ -269,7 +256,6 @@ export class TimesheetService {
   async removeTimesheet(id: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    // Kiểm tra xem timesheet có thể xóa không
     const currentState = timesheet.status
       ? timesheet.status
       : ApprovalStatus.PENDING;
@@ -285,12 +271,9 @@ export class TimesheetService {
     });
   }
 
-  // === CHECK-IN/CHECK-OUT ===
-
-  async registerFace(user_id: number, image: Express.Multer.File) {
+    async registerFace(user_id: number, image: Express.Multer.File) {
     if (image) {
       try {
-        // Tạo form-data
         const formData = new FormData();
         formData.append('image', image.buffer, {
           filename: image.originalname,
@@ -298,7 +281,6 @@ export class TimesheetService {
         } as any);
         formData.append('user_id', user_id.toString());
 
-        // Gửi request
         const response = await this.httpService.axiosRef.post(
           process.env.FACE_IDENTIFICATION_URL + '/add_user',
           formData,
@@ -324,10 +306,8 @@ export class TimesheetService {
     const today = new Date().toISOString().split('T')[0];
     const checkin_time = new Date();
 
-    // Lấy IP của client
     const client_ip = this.ip_validationService.getclient_ip(this.request);
     
-    // Kiểm tra IP validation
     const ip_validation = await this.ip_validationService.validateIpForAttendance(
       user_id,
       client_ip,
@@ -350,7 +330,6 @@ export class TimesheetService {
           throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
-        // FE must verify face and upload image, then pass photo_url here
         if (!checkinDto?.photo_url) {
           throw new BadRequestException('Thiếu photo_url sau khi xác thực ảnh');
         }
@@ -371,7 +350,6 @@ export class TimesheetService {
           throw new BadRequestException('Bạn đã check-in hôm nay rồi');
         }
 
-        // Kiểm tra session đang mở
         const openSession = await tx.attendance_sessions.findFirst({
           where: {
             user_id: user_id,
@@ -386,7 +364,6 @@ export class TimesheetService {
           );
         }
 
-        // Tìm hoặc tạo timesheet cho hôm nay
         let timesheet = await tx.time_sheets.findFirst({
           where: {
             user_id: user_id,
@@ -407,7 +384,6 @@ export class TimesheetService {
           });
         }
 
-        // Tính toán late time (8:30 AM UTC+7 = 1:30 AM UTC)
         const workStartTime = new Date(today + 'T01:30:00.000Z');
         const lateTime =
           checkin_time > workStartTime
@@ -416,7 +392,6 @@ export class TimesheetService {
               )
             : 0;
 
-        // Tạo session mới
         const newSession = await tx.attendance_sessions.create({
           data: {
             user_id: user_id,
@@ -430,7 +405,6 @@ export class TimesheetService {
           },
         });
 
-        // Tạo attendance log
         const attendanceLog = await tx.attendance_logs.create({
           data: {
             user_id: user_id,
@@ -445,7 +419,6 @@ export class TimesheetService {
           },
         });
 
-        // Cập nhật timesheet với thông tin check-in
         const updatedTimesheet = await tx.time_sheets.update({
           where: { id: timesheet.id },
           data: {
@@ -481,10 +454,8 @@ export class TimesheetService {
     const today = new Date().toISOString().split('T')[0];
     const checkout_time = new Date();
 
-    // Lấy IP của client
     const client_ip = this.ip_validationService.getclient_ip(this.request);
     
-    // Kiểm tra IP validation
     const ip_validation = await this.ip_validationService.validateIpForAttendance(
       user_id,
       client_ip,
@@ -495,12 +466,10 @@ export class TimesheetService {
       throw new BadRequestException(ip_validation.message);
     }
 
-    // Tạo idempotency key dựa trên user_id và ngày (không dùng timestamp để tránh duplicate)
     const idempotencyKey = `checkout_${user_id}_${today}`;
 
     return this.prisma.$transaction(
       async (tx) => {
-        // Kiểm tra user tồn tại
         const user = await tx.users.findFirst({
           where: { id: user_id, deleted_at: null },
         });
@@ -509,12 +478,10 @@ export class TimesheetService {
           throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
         }
 
-        // FE must verify face and upload image, then pass photo_url here
         if (!checkoutDto?.photo_url) {
           throw new BadRequestException('Thiếu photo_url sau khi xác thực ảnh');
         }
 
-        // Kiểm tra đã check-in hôm nay chưa
         const existingCheckin = await tx.attendance_logs.findFirst({
           where: {
             user_id: user_id,
@@ -528,7 +495,6 @@ export class TimesheetService {
           throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
         }
 
-        // Kiểm tra đã check-out chưa
         const existingCheckout = await tx.attendance_logs.findFirst({
           where: {
             user_id: user_id,
@@ -544,7 +510,6 @@ export class TimesheetService {
           );
         }
 
-        // Tìm session đang mở để checkout
         const openSession = await tx.attendance_sessions.findFirst({
           where: {
             user_id: user_id,
@@ -558,7 +523,6 @@ export class TimesheetService {
           throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
         }
 
-        // Tìm timesheet hôm nay
         const todayTimesheet = await tx.time_sheets.findFirst({
           where: {
             user_id: user_id,
@@ -575,7 +539,6 @@ export class TimesheetService {
           throw new BadRequestException(TIMESHEET_ERRORS.INVALID_WORK_TIME);
         }
 
-        // Tính toán thời gian làm việc
         const workEndTime = new Date(today + 'T10:30:00.000Z'); // 5:30 PM UTC+7 = 10:30 AM UTC
         const earlyTime =
           checkout_time < workEndTime
@@ -584,21 +547,17 @@ export class TimesheetService {
               )
             : 0;
 
-        // Tính tổng thời gian làm việc (phút)
         const total_work_minutes = Math.floor(
           (checkout_time.getTime() - todayTimesheet.checkin.getTime()) /
             (1000 * 60),
         );
 
-        // Trừ thời gian nghỉ trưa (60 phút mặc định)
         const breakTime = 60;
         const netWorkMinutes = Math.max(0, total_work_minutes - breakTime);
 
-        // Phân chia thời gian sáng/chiều (4 giờ sáng = 240 phút)
         const workTimeMorning = Math.min(240, netWorkMinutes);
         const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
 
-        // Cập nhật session với thông tin checkout
         await tx.attendance_sessions.update({
           where: { id: openSession.id },
           data: {
@@ -608,7 +567,6 @@ export class TimesheetService {
           },
         });
 
-        // Tạo attendance log
         const attendanceLog = await tx.attendance_logs.create({
           data: {
             user_id: user_id,
@@ -623,7 +581,6 @@ export class TimesheetService {
           },
         });
 
-        // Cập nhật timesheet với thông tin checkout và thời gian làm việc
         const updatedTimesheet = await tx.time_sheets.update({
           where: { id: todayTimesheet.id },
           data: {
@@ -728,12 +685,8 @@ export class TimesheetService {
     };
   }
 
-  // === OVERTIME INFO (Read-only methods) ===
-  // Note: Overtime request creation/management moved to /requests module
 
-  // === HOLIDAYS MANAGEMENT ===
-
-  async createHoliday(createHolidayDto: CreateHolidayDto) {
+    async createHoliday(createHolidayDto: CreateHolidayDto) {
     const holiday = await this.prisma.holidays.findFirst({
       where: { name: createHolidayDto.name, deleted_at: null },
     });
@@ -760,7 +713,6 @@ export class TimesheetService {
 
     if (year && !isNaN(Number(year)) && year.length === 4) {
       const yearNumber = Number(year);
-      // Lấy tất cả holiday giao cắt với năm X (kể cả kỳ lễ kéo dài qua năm)
       const yearStart = new Date(`${yearNumber}-01-01`);
       const yearEnd = new Date(`${yearNumber}-12-31`);
       if (
@@ -773,21 +725,18 @@ export class TimesheetService {
       }
 
       where.OR = [
-        // Holiday bắt đầu trong năm
         {
           start_date: {
             gte: yearStart,
             lte: yearEnd,
           },
         },
-        // Holiday kết thúc trong năm
         {
           end_date: {
             gte: yearStart,
             lte: yearEnd,
           },
         },
-        // Holiday bao trùm cả năm
         {
           AND: [
             { start_date: { lte: yearStart } },
@@ -808,26 +757,22 @@ export class TimesheetService {
     const where: Prisma.holidaysWhereInput = { deleted_at: null };
 
     if (paginationDto.year) {
-      // Lấy tất cả holiday giao cắt với năm X (kể cả kỳ lễ kéo dài qua năm)
       const yearStart = new Date(`${paginationDto.year}-01-01`);
       const yearEnd = new Date(`${paginationDto.year}-12-31`);
 
       where.OR = [
-        // Holiday bắt đầu trong năm
         {
           start_date: {
             gte: yearStart,
             lte: yearEnd,
           },
         },
-        // Holiday kết thúc trong năm
         {
           end_date: {
             gte: yearStart,
             lte: yearEnd,
           },
         },
-        // Holiday bao trùm cả năm
         {
           AND: [
             { start_date: { lte: yearStart } },
@@ -836,7 +781,6 @@ export class TimesheetService {
         },
       ];
     }
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.holidays.findMany({
         where,
@@ -893,9 +837,7 @@ export class TimesheetService {
     });
   }
 
-  // === SCHEDULE MANAGEMENT ===
-
-  async getPersonalSchedule(user_id: number, getScheduleDto: GetScheduleDto) {
+    async getPersonalSchedule(user_id: number, getScheduleDto: GetScheduleDto) {
     const { start_date, end_date } = getScheduleDto;
     const startDate = start_date || new Date().toISOString().split('T')[0];
     const endDate =
@@ -904,7 +846,6 @@ export class TimesheetService {
         .toISOString()
         .split('T')[0];
 
-    // Lấy timesheet - sử dụng work_date thay vì checkin
     const timesheets = await this.prisma.time_sheets.findMany({
       where: {
         user_id: user_id,
@@ -917,7 +858,6 @@ export class TimesheetService {
       orderBy: { work_date: 'asc' },
     });
 
-    // Lấy ngày nghỉ phép
     const dayOffs = await this.prisma.day_offs.findMany({
       where: {
         user_id: user_id,
@@ -926,7 +866,6 @@ export class TimesheetService {
       },
     });
 
-    // Lấy lịch làm thêm giờ
     const overtimes = await this.prisma.over_times_history.findMany({
       where: {
         user_id: user_id,
@@ -939,7 +878,6 @@ export class TimesheetService {
       orderBy: { work_date: 'asc' },
     });
 
-    // Lấy ngày lễ
     const holidays = await this.prisma.holidays.findMany({
       where: {
         start_date: {
@@ -970,7 +908,6 @@ export class TimesheetService {
         .toISOString()
         .split('T')[0];
 
-    // Lấy danh sách thành viên team từ user_role_assignment
     const teamAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.TEAM,
@@ -983,7 +920,6 @@ export class TimesheetService {
 
     const user_ids = teamAssignments.map((assignment) => assignment.user_id);
 
-    // Lấy timesheet của tất cả thành viên - sử dụng work_date
     const timesheets = await this.prisma.time_sheets.findMany({
       where: {
         user_id: { in: user_ids },
@@ -996,7 +932,6 @@ export class TimesheetService {
       orderBy: { work_date: 'asc' },
     });
 
-    // Lấy ngày nghỉ phép của team
     const dayOffs = await this.prisma.day_offs.findMany({
       where: {
         user_id: { in: user_ids },
@@ -1005,7 +940,6 @@ export class TimesheetService {
       },
     });
 
-    // Lấy user info cho team members
     const teamUsers = await this.prisma.users.findMany({
       where: { id: { in: user_ids }, deleted_at: null },
       select: {
@@ -1027,9 +961,7 @@ export class TimesheetService {
     };
   }
 
-  // === NOTIFICATIONS ===
-
-  async getTimesheetNotifications(user_id: number) {
+    async getTimesheetNotifications(user_id: number) {
     const today = new Date();
     const notifications: Array<{
       type: string;
@@ -1045,7 +977,6 @@ export class TimesheetService {
         created_at: today,
       });
     } else if (!todayCheckin.checkout) {
-      // Kiểm tra checkout == null thay vì sentinel date
       notifications.push({
         type: 'info',
         message: 'Đừng quên check-out khi kết thúc làm việc',
@@ -1053,7 +984,6 @@ export class TimesheetService {
       });
     }
 
-    // Kiểm tra đơn nghỉ phép chờ duyệt
     const pendingDayOffs = await this.prisma.day_offs.count({
       where: {
         user_id: user_id,
@@ -1070,7 +1000,6 @@ export class TimesheetService {
       });
     }
 
-    // Kiểm tra timesheet bị từ chối
     const rejectedTimesheets = await this.prisma.time_sheets.count({
       where: {
         user_id: user_id,
@@ -1090,9 +1019,7 @@ export class TimesheetService {
     return notifications;
   }
 
-  // === REPORTS & STATISTICS ===
-
-  async getTimesheetReport(reportDto: TimesheetReportDto) {
+    async getTimesheetReport(reportDto: TimesheetReportDto) {
     const { start_date, end_date, division_id, team_id } = reportDto;
     const startDate =
       start_date ||
@@ -1144,7 +1071,6 @@ export class TimesheetService {
       orderBy: { work_date: 'desc' },
     });
 
-    // Lấy thông tin user nếu có user_ids
     if (user_ids.length > 0) {
       await this.prisma.users.findMany({
         where: { id: { in: user_ids } },
@@ -1155,7 +1081,6 @@ export class TimesheetService {
       });
     }
 
-    // Thống kê tổng hợp
     const stats = {
       total_records: timesheets.length,
       total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
@@ -1189,7 +1114,6 @@ export class TimesheetService {
     const reportYear =
       typeof year === 'string' ? Number(year) : currentDate.getFullYear();
 
-    // Chuẩn hóa month - có thể là số (1-12) hoặc string "YYYY-MM"
     let reportMonth: string;
     if (typeof month === 'number') {
       reportMonth = `${reportYear}-${String(month).padStart(2, '0')}`;
@@ -1224,7 +1148,6 @@ export class TimesheetService {
       where,
     });
 
-    // Group by user
     const userStats = timesheets.reduce((acc: any, timesheet) => {
       const user_id = timesheet.user_id;
       if (!acc[user_id]) {
@@ -1464,7 +1387,6 @@ export class TimesheetService {
     const currentDate = new Date(start);
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
-      // 0 = Sunday, 6 = Saturday
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         workingDays++;
       }
@@ -1473,13 +1395,10 @@ export class TimesheetService {
 
     return workingDays;
   }
-  // === ATTENDANCE LOGS MANAGEMENT ===
-
-  async createAttendanceLog(
+    async createAttendanceLog(
     createAttendanceLogDto: CreateAttendanceLogDto,
     currentuser_id: number,
   ) {
-    // Kiểm tra nếu có timesheet_id, đảm bảo nó thuộc về user hiện tại
     if (createAttendanceLogDto.timesheet_id) {
       const timesheet = await this.prisma.time_sheets.findFirst({
         where: {
@@ -1492,7 +1411,6 @@ export class TimesheetService {
         throw new NotFoundException('Không tìm thấy timesheet');
       }
 
-      // Chỉ cho phép tạo log cho timesheet của mình (trừ admin/HR)
       if (timesheet.user_id !== currentuser_id) {
         throw new BadRequestException(
           'Bạn không có quyền tạo log cho timesheet của user khác',
@@ -1500,7 +1418,6 @@ export class TimesheetService {
       }
     }
 
-    // Tìm hoặc tạo timesheet cho ngày làm việc
     const workDate = new Date(createAttendanceLogDto.work_date);
     let timesheet = await this.prisma.time_sheets.findFirst({
       where: {
@@ -1513,14 +1430,12 @@ export class TimesheetService {
     });
 
     if (!timesheet && !createAttendanceLogDto.timesheet_id) {
-      // Tạo timesheet mới nếu chưa tồn tại
       timesheet = await this.createDailyTimesheet(
         currentuser_id,
         createAttendanceLogDto.work_date,
       );
     }
 
-    // Đảm bảo work_date khớp với timesheet
     if (
       timesheet &&
       workDate.toISOString().split('T')[0] !==
@@ -1567,9 +1482,7 @@ export class TimesheetService {
 
     const where: any = { deleted_at: null };
 
-    // Chỉ admin/manager mới được xem log của user khác
     if (user_id && user_id !== currentuser_id) {
-      // Kiểm tra quyền truy cập
       const canViewOtherUsers = userRoles?.some((role) =>
         ['admin', 'hr', 'manager'].includes(role.toLowerCase()),
       );
@@ -1637,7 +1550,6 @@ export class TimesheetService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: any = { deleted_at: null };
 
-    // Chỉ admin/manager mới được xem log của user khác
     if (paginationDto.user_id && paginationDto.user_id !== currentuser_id) {
       const canViewOtherUsers = userRoles?.some((role) =>
         ['admin', 'hr', 'manager'].includes(role.toLowerCase()),
@@ -1654,7 +1566,6 @@ export class TimesheetService {
       where.user_id = currentuser_id;
     }
 
-    // Thêm filter theo ngày
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -1662,12 +1573,10 @@ export class TimesheetService {
       };
     }
 
-    // Thêm filter theo log_type
     if (paginationDto.log_type) {
       where.action_type = paginationDto.log_type;
     }
 
-    // Lấy dữ liệu và đếm tổng
     const [data, total] = await Promise.all([
       this.prisma.attendance_logs.findMany({
         where,
@@ -1746,12 +1655,9 @@ export class TimesheetService {
     });
   }
 
-  // === DAILY TIMESHEET CREATION ===
-
-  async createDailyTimesheet(user_id: number, workDate?: string) {
+    async createDailyTimesheet(user_id: number, workDate?: string) {
     const targetDate = workDate ? new Date(workDate) : new Date();
 
-    // Kiểm tra đã tồn tại chưa
     const existing = await this.prisma.time_sheets.findFirst({
       where: {
         user_id: user_id,
@@ -1774,20 +1680,16 @@ export class TimesheetService {
     });
   }
 
-  // === TIMESHEET STATE MANAGEMENT ===
-
-  /**
+    /**
    * Submit timesheet để chờ duyệt
    */
   async submitTimesheet(id: number, user_id: number) {
     const timesheet = await this.findTimesheetById(id);
 
-    // Kiểm tra quyền sở hữu
     if (timesheet.user_id !== user_id) {
       throw new BadRequestException('Bạn không có quyền submit timesheet này');
     }
 
-    // Kiểm tra có thể chuyển trạng thái không
     if (
       !ApprovalStatusManager.canTransition(
         timesheet.status || ApprovalStatus.PENDING,
@@ -1827,7 +1729,6 @@ export class TimesheetService {
       where: { id },
       data: {
         status: 'APPROVED',
-        // Có thể thêm trường approved_by: approverId nếu cần
       },
     });
   }
@@ -1854,7 +1755,6 @@ export class TimesheetService {
       where: { id },
       data: {
         status: 'REJECTED',
-        // Có thể thêm trường rejected_by: rejectorId, reject_reason: reason nếu cần
       },
     });
   }
@@ -1881,7 +1781,6 @@ export class TimesheetService {
       where: { id },
       data: {
         status: 'APPROVED', // LOCKED maps to APPROVED in new schema
-        // Có thể thêm trường locked_by: lockerId, locked_at: new Date() nếu cần
       },
     });
   }
@@ -1892,7 +1791,6 @@ export class TimesheetService {
   private async getRequestsForDate(user_id: number, workDate: Date) {
     const dateStr = workDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
     
-    // Lấy tất cả các loại requests trong ngày đó
     const [
       remoteWorkRequests,
       dayOffRequests,
@@ -1900,7 +1798,6 @@ export class TimesheetService {
       lateEarlyRequests,
       forgotCheckinRequests,
     ] = await Promise.all([
-      // Remote work requests
       this.prisma.remote_work_requests.findMany({
         where: {
           user_id: user_id,
@@ -1918,7 +1815,6 @@ export class TimesheetService {
         },
       }),
 
-      // Day off requests
       this.prisma.day_offs.findMany({
         where: {
           user_id: user_id,
@@ -1938,7 +1834,6 @@ export class TimesheetService {
         },
       }),
 
-      // Overtime requests
       this.prisma.over_times_history.findMany({
         where: {
           user_id: user_id,
@@ -1958,7 +1853,6 @@ export class TimesheetService {
         },
       }),
 
-      // Late/Early requests
       this.prisma.late_early_requests.findMany({
         where: {
           user_id: user_id,
@@ -1978,7 +1872,6 @@ export class TimesheetService {
         },
       }),
 
-      // Forgot checkin requests
       this.prisma.forgot_checkin_requests.findMany({
         where: {
           user_id: user_id,
@@ -1998,7 +1891,6 @@ export class TimesheetService {
       }),
     ]);
 
-    // Combine và format tất cả requests với type identifier
     const allRequests = [
       ...remoteWorkRequests.map((req) => ({
         ...req,
@@ -2013,7 +1905,6 @@ export class TimesheetService {
         ...req,
         duration_hours: req.total_hours, // Map total_hours to duration_hours for consistency
         request_type: 'overtime' as const,
-        // Format time fields
         start_time: req.start_time?.toTimeString().slice(0, 5),
         end_time: req.end_time?.toTimeString().slice(0, 5),
       })),
@@ -2025,13 +1916,11 @@ export class TimesheetService {
       ...forgotCheckinRequests.map((req) => ({
         ...req,
         request_type: 'forgot_checkin' as const,
-        // Format time fields
         checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
         checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
       })),
     ];
 
-    // Sort by created_at desc
     return allRequests.sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),

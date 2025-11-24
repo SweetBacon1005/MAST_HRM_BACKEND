@@ -102,7 +102,6 @@ export class ProjectsService {
       throw new BadRequestException(PROJECT_ERRORS.PROJECT_CODE_EXISTS);
     }
 
-    // Validate manager exists
     const manager = await this.prisma.users.findUnique({
       where: { id: manager_id, deleted_at: null },
     });
@@ -166,7 +165,6 @@ export class ProjectsService {
       },
     });
 
-    // Assign PROJECT_MANAGER role to the manager
     await this.prisma.user_role_assignment.create({
       data: {
         user_id: manager_id,
@@ -250,7 +248,6 @@ export class ProjectsService {
       }
     }
 
-    // Filters
     if (paginationDto.search) {
       where.OR = [
         { name: { contains: paginationDto.search } },
@@ -392,7 +389,6 @@ export class ProjectsService {
       }
     }
 
-    // Handle manager change
     if (updateProjectDto.manager_id !== undefined) {
       const newManager = await this.prisma.users.findUnique({
         where: { id: updateProjectDto.manager_id, deleted_at: null },
@@ -402,7 +398,6 @@ export class ProjectsService {
         throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
       }
 
-      // Remove old PROJECT_MANAGER role assignments
       await this.prisma.user_role_assignment.updateMany({
         where: {
           scope_type: ScopeType.PROJECT,
@@ -415,7 +410,6 @@ export class ProjectsService {
         },
       });
 
-      // Assign new PROJECT_MANAGER
       await this.prisma.user_role_assignment.create({
         data: {
           user_id: updateProjectDto.manager_id,
@@ -615,7 +609,6 @@ export class ProjectsService {
       this.prisma.projects.count({ where }),
     ]);
 
-    // Lấy member count cho tất cả projects trong 1 query
     const dataProjectIds = data.map((p) => p.id);
     const memberCounts =
       dataProjectIds.length > 0

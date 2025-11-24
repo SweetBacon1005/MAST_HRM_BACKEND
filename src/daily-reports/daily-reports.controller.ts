@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards, HttpStatus } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
@@ -17,200 +17,88 @@ export class DailyReportsController {
   constructor(private readonly service: DailyReportsService) {}
 
   @Post()
-  @ApiOperation({ 
-    summary: 'Tạo daily report mới',
-    description: 'Tạo báo cáo công việc hàng ngày. Trạng thái mặc định là PENDING. Chỉ có thể tạo báo cáo cho tuần hiện tại và phải thuộc dự án (hoặc dự án có access type là COMPANY).'
-  })
-  @ApiResponse({ 
-    status: HttpStatus.CREATED, 
-    description: 'Tạo daily report thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy dự án' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Dữ liệu không hợp lệ hoặc ngày làm việc không thuộc tuần hiện tại' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Bạn không thuộc dự án này' 
-  })
+  @ApiOperation({ summary: 'Tạo daily report mới' })
+  @ApiResponse({ status: HttpStatus.CREATED, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy dự án' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không thuộc dự án' })
   create(@Body() dto: CreateDailyReportDto, @GetCurrentUser('id') user_id: number) {
     return this.service.create(dto, user_id);
   }
 
   @Get()
-  @ApiOperation({ 
-    summary: 'Lấy danh sách daily report',
-    description: 'Lấy danh sách báo cáo theo quyền: Admin xem tất cả, Team Leader xem team, Project Manager xem project, Division Head xem division.'
-  })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Lấy danh sách thành công',
-    type: DailyReportPaginatedResponse
-  })
+  @ApiOperation({ summary: 'Lấy danh sách daily report' })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportPaginatedResponse })
   findAll(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
     return this.service.findAll(p, user_id);
   }
 
   @Get('my')
-  @ApiOperation({ 
-    summary: 'Lấy danh sách daily report của tôi',
-    description: 'Lấy tất cả báo cáo của người dùng hiện tại.'
-  })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Lấy danh sách thành công',
-    type: DailyReportPaginatedResponse
-  })
+  @ApiOperation({ summary: 'Lấy danh sách daily report của tôi' })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportPaginatedResponse })
   my(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
     return this.service.findMy(user_id, p);
   }
 
   @Get(':id')
-  @ApiOperation({ 
-    summary: 'Lấy chi tiết daily report',
-    description: 'Lấy thông tin chi tiết của một báo cáo theo ID.'
-  })
+  @ApiOperation({ summary: 'Lấy chi tiết daily report' })
   @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Lấy chi tiết thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy daily report' 
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ 
-    summary: 'Sửa daily report',
-    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED. Sau khi sửa, trạng thái sẽ chuyển về PENDING. Ngày làm việc mới phải thuộc tuần hiện tại và user phải thuộc dự án.'
-  })
-  @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Cập nhật thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy daily report' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Không có quyền chỉnh sửa báo cáo này hoặc không thuộc dự án' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Chỉ có thể sửa báo cáo khi trạng thái là REJECTED hoặc ngày làm việc không thuộc tuần hiện tại' 
-  })
+  @ApiOperation({ summary: 'Sửa daily report' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ sửa được khi REJECTED' })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDailyReportDto, @GetCurrentUser('id') user_id: number) {
     return this.service.update(id, dto, user_id);
   }
 
   @Delete(':id')
-  @ApiOperation({ 
-    summary: 'Xóa daily report',
-    description: 'Chỉ có thể xóa báo cáo khi trạng thái là PENDING.'
-  })
-  @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Xóa thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy daily report' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Không có quyền xóa báo cáo này' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Chỉ có thể xóa báo cáo khi trạng thái là PENDING' 
-  })
+  @ApiOperation({ summary: 'Xóa daily report' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ xóa được khi PENDING' })
   remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number) {
     return this.service.remove(id, user_id);
   }
 
   @Post(':id/approve')
-  @ApiOperation({ 
-    summary: 'Duyệt daily report',
-    description: 'Phê duyệt báo cáo. Quyền duyệt: Team Leader duyệt member, Project Manager duyệt team/member, Division Head duyệt PM/TL/member.'
-  })
-  @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Duyệt thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy daily report' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Không có quyền duyệt báo cáo này' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Chỉ có thể duyệt báo cáo khi trạng thái là PENDING' 
-  })
+  @ApiOperation({ summary: 'Duyệt daily report' })
+  @ApiParam({ name: 'id', example: 1 })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền duyệt' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ duyệt được khi PENDING' })
   approve(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') approverId: number) {
     return this.service.approve(id, approverId);
   }
 
   @Post(':id/reject')
-  @ApiOperation({ 
-    summary: 'Từ chối daily report',
-    description: 'Từ chối báo cáo và ghi lý do. Quyền từ chối tương tự quyền duyệt.'
-  })
-  @ApiParam({ name: 'id', description: 'ID của daily report', example: 1 })
+  @ApiOperation({ summary: 'Từ chối daily report' })
+  @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ 
     schema: { 
       type: 'object', 
       properties: { 
-        reject_reason: { 
-          type: 'string', 
-          example: 'Thiếu mô tả chi tiết công việc',
-          description: 'Lý do từ chối báo cáo'
-        } 
+        reject_reason: { type: 'string', example: 'Thiếu mô tả chi tiết' } 
       }, 
       required: ['reject_reason'] 
     } 
   })
-  @ApiResponse({ 
-    status: HttpStatus.OK, 
-    description: 'Từ chối thành công',
-    type: DailyReportEntity
-  })
-  @ApiResponse({ 
-    status: HttpStatus.NOT_FOUND, 
-    description: 'Không tìm thấy daily report' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.FORBIDDEN, 
-    description: 'Không có quyền từ chối báo cáo này' 
-  })
-  @ApiResponse({ 
-    status: HttpStatus.BAD_REQUEST, 
-    description: 'Chỉ có thể từ chối báo cáo khi trạng thái là PENDING' 
-  })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền từ chối' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ từ chối được khi PENDING' })
   reject(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') approverId: number, @Body('reject_reason') reason: string) {
     return this.service.reject(id, approverId, reason);
   }
 }
-
-
-
-

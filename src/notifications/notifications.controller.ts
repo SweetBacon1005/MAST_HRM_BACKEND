@@ -172,3 +172,4 @@ export class NotificationsController {
     return this.notificationsService.remove(notificationId, user_id);
   }
 }
+
