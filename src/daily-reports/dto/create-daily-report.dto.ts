@@ -1,29 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString, Min, Max } from 'class-validator';
 
 export class CreateDailyReportDto {
-  @ApiProperty({ description: 'ID d? �n', example: 12 })
+  @ApiProperty({ description: 'ID dự án', example: 12 })
   @IsNotEmpty()
   @IsNumber()
   project_id!: number;
 
-  @ApiProperty({ description: 'Ng�y l�m vi?c (YYYY-MM-DD)', example: '2025-01-15' })
+  @ApiProperty({ description: 'Ngày làm việc (YYYY-MM-DD)', example: '2025-01-15' })
   @IsNotEmpty()
   @IsDateString()
   work_date!: string;
 
-  @ApiProperty({ description: 'Th?i gian th?c t? (gi?)', example: 7.5 })
+  @ApiProperty({ description: 'Thời gian thực tế (giờ)', example: 7.5 })
   @IsNotEmpty()
   @IsNumber()
-  @Min(0)
+  @Min(0, { message: 'Thời gian làm việc không được âm' })
+  @Max(24, { message: 'Thời gian làm việc không được vượt quá 24 giờ' })
   actual_time!: number;
 
-  @ApiPropertyOptional({ description: 'Ti�u d?', example: 'Fix bug v� review code' })
+  @ApiPropertyOptional({ description: 'Tiêu đề', example: 'Fix bug và review code' })
   @IsOptional()
   @IsString()
   title?: string;
 
-  @ApiPropertyOptional({ description: 'M� t? chi ti?t c�ng vi?c', example: 'S?a c�c l?i priority P1, vi?t unit test' })
+  @ApiPropertyOptional({ description: 'Mô tả chi tiết công việc', example: 'Sửa các lỗi priority P1, viết unit test' })
   @IsOptional()
   @IsString()
   description?: string;

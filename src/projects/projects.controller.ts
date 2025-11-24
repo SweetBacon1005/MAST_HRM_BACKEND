@@ -21,7 +21,7 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
+import { getHighestRole } from '../auth/constants/role.constants';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
 import { UpdateProjectProgressDto } from './dto/update-progress.dto';
@@ -35,7 +35,6 @@ import { ProjectsService } from './projects.service';
 export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
-    private readonly roleHierarchy: RoleHierarchyService,
   ) {}
 
   @Post()
@@ -110,8 +109,8 @@ export class ProjectsController {
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
   ) {
-    const primaryRole = this.roleHierarchy.getPrimaryRole(userRoles);
-    return this.projectsService.findAll(paginationDto, user_id, primaryRole);
+    const primaryRole = getHighestRole(userRoles);
+    return this.projectsService.findAll(paginationDto, user_id, primaryRole || undefined);
   }
 
   @Patch(':id/progress')

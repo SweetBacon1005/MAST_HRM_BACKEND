@@ -285,6 +285,7 @@ export const DAILY_REPORT_ERRORS = {
   INVALID_ACTUAL_TIME: 'Thời gian thực tế không hợp lệ',
   WORK_DATE_NOT_IN_CURRENT_WEEK: 'Chỉ có thể tạo báo cáo cho tuần hiện tại',
   USER_NOT_IN_PROJECT: 'Bạn không thuộc dự án này',
+  DUPLICATE_REPORT: 'Báo cáo cho dự án và ngày này đã tồn tại',
 } as const;
 
 export type DailyReportError = typeof DAILY_REPORT_ERRORS[keyof typeof DAILY_REPORT_ERRORS];

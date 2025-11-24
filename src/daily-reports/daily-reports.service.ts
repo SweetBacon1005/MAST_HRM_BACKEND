@@ -313,6 +313,21 @@ export class DailyReportsService {
       throw new ForbiddenException(DAILY_REPORT_ERRORS.USER_NOT_IN_PROJECT);
     }
 
+    // Check duplicate report for same user, project, and work_date
+    const existingReport = await this.prisma.daily_reports.findFirst({
+      where: {
+        user_id: user_id,
+        project_id: dto.project_id,
+        work_date: workDate,
+      },
+    });
+
+    if (existingReport) {
+      throw new BadRequestException(
+        DAILY_REPORT_ERRORS.DUPLICATE_REPORT,
+      );
+    }
+
     return await this.prisma.daily_reports.create({
       data: {
         user_id: user_id,

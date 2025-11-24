@@ -32,12 +32,11 @@ export class CreateTeamDto {
   @ApiProperty({
     description: 'ID người lãnh đạo team (user_id)',
     example: 1,
-    required: false,
   })
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  leader_id?: number;
+  @IsNotEmpty({ message: 'ID người lãnh đạo team không được để trống' })
+  leader_id: number;
 
   @ApiProperty({
     description: 'Ngày thành lập team',

@@ -2927,11 +2927,20 @@ export class RequestsService {
     return undefined;
   }
 
+  /**
+   * Kiểm tra quyền duyệt request
+   * Logic:
+   * - Admin: Chỉ duyệt requests của mình hoặc Division Head
+   * - Division Head: Duyệt requests trong division được quản lý
+   * - Team Leader: Duyệt requests của team members
+   * - Project Manager: Duyệt requests của team members (vì project-team là 1-1)
+   */
   private async canApproveRequest(
     approverId: number,
     approverRole: string,
     requestUserId: number,
   ): Promise<boolean> {
+    // Không thể tự duyệt request của mình (trừ Admin)
     if (approverId === requestUserId) {
       return approverRole === ROLE_NAMES.ADMIN;
     }
@@ -2941,6 +2950,7 @@ export class RequestsService {
       this.roleAssignmentService.getUserRoles(requestUserId),
     ]);
 
+    // 1. Admin chỉ duyệt requests của Division Head
     const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
     if (isAdmin) {
       const isOwnerDivisionHead = ownerRoles.roles.some(
@@ -2949,6 +2959,7 @@ export class RequestsService {
       return isOwnerDivisionHead;
     }
 
+    // 2. Division Head duyệt requests trong division
     const approverDivisions = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
       .map((r) => r.scope_id);
@@ -2962,6 +2973,7 @@ export class RequestsService {
       }
     }
 
+    // 3. Team Leader duyệt requests của team members
     const approverTeams = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
       .map((r) => r.scope_id);
@@ -2975,12 +2987,15 @@ export class RequestsService {
       }
     }
 
+    // 4. Project Manager duyệt requests của team members
+    // Vì project-team là 1-1, nên PM có thể duyệt tất cả members của team đó
     const approverProjects = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
       .map((r) => r.scope_id)
       .filter((id): id is number => id !== undefined);
 
     if (approverProjects.length > 0) {
+      // Lấy team_id từ projects (quan hệ 1-1)
       const projects = await this.prisma.projects.findMany({
         where: {
           id: { in: approverProjects },
@@ -2993,6 +3008,7 @@ export class RequestsService {
         .map((p) => p.team_id)
         .filter((id): id is number => id !== null);
 
+      // Kiểm tra owner có trong team của project không
       if (projectTeamIds.length > 0) {
         const ownerInProjectTeam = ownerRoles.roles.some(
           (r) => r.scope_type === 'TEAM' && r.scope_id !== undefined && projectTeamIds.includes(r.scope_id),
@@ -3271,16 +3287,20 @@ export class RequestsService {
     return assignments.map((a) => a.user_id);
   }
 
+  /**
+   * Lấy tất cả user IDs trong projects
+   * Lưu ý: Project và Team có quan hệ 1-1, nên cần lấy cả team members
+   */
   private async getProjectuser_ids(projectIds: number[]): Promise<number[]> {
     if (projectIds.length === 0) return [];
 
     const userIds: Set<number> = new Set();
 
+    // 1. Lấy tất cả Project Managers của projects
     const pmAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.PROJECT,
         scope_id: { in: projectIds },
-        role: { name: ROLE_NAMES.PROJECT_MANAGER },
         deleted_at: null,
       },
       select: { user_id: true },
@@ -3288,6 +3308,7 @@ export class RequestsService {
 
     pmAssignments.forEach((a) => userIds.add(a.user_id));
 
+    // 2. Lấy team_id của từng project (quan hệ 1-1)
     const projects = await this.prisma.projects.findMany({
       where: {
         id: { in: projectIds },
@@ -3300,6 +3321,7 @@ export class RequestsService {
       .map((p) => p.team_id)
       .filter((id): id is number => id !== null);
 
+    // 3. Lấy TẤT CẢ members của team (không chỉ Team Leader)
     if (teamIds.length > 0) {
       const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
@@ -3308,6 +3330,7 @@ export class RequestsService {
           deleted_at: null,
         },
         select: { user_id: true },
+        distinct: ['user_id'],
       });
 
       teamMemberAssignments.forEach((a) => userIds.add(a.user_id));
