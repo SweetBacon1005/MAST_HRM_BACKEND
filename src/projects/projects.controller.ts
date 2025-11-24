@@ -21,7 +21,7 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { RoleHierarchyService } from '../auth/services/role-hierarchy.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
 import { UpdateProjectProgressDto } from './dto/update-progress.dto';
@@ -33,29 +33,10 @@ import { ProjectsService } from './projects.service';
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
-
-  private getPrimaryRole(userRoles: string[] | undefined): string {
-    if (!userRoles || userRoles.length === 0) {
-      return ROLE_NAMES.EMPLOYEE;
-    }
-
-    const rolePriority = [
-      ROLE_NAMES.ADMIN,
-      ROLE_NAMES.DIVISION_HEAD,
-      ROLE_NAMES.TEAM_LEADER,
-      ROLE_NAMES.PROJECT_MANAGER,
-      ROLE_NAMES.EMPLOYEE,
-    ];
-
-    for (const role of rolePriority) {
-      if (userRoles.includes(role)) {
-        return role;
-      }
-    }
-
-    return ROLE_NAMES.EMPLOYEE;
-  }
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly roleHierarchy: RoleHierarchyService,
+  ) {}
 
   @Post()
   @RequirePermission('project.create')
@@ -129,7 +110,7 @@ export class ProjectsController {
     @GetCurrentUser('id') user_id: number,
     @GetCurrentUser('roles') userRoles: string[],
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
+    const primaryRole = this.roleHierarchy.getPrimaryRole(userRoles);
     return this.projectsService.findAll(paginationDto, user_id, primaryRole);
   }
 

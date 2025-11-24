@@ -39,6 +39,15 @@ export class CreateProjectDto {
   status?: ProjectStatus;
 
   @ApiProperty({
+    description: 'ID người quản lý dự án (Project Manager)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'ID người quản lý dự án phải là số nguyên' })
+  @Min(1, { message: 'ID người quản lý dự án phải lớn hơn 0' })
+  manager_id: number;
+
+  @ApiProperty({
     description: 'ID phòng ban',
     example: 1,
     required: false,

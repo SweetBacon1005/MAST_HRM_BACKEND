@@ -4,8 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, ProjectStatus, ScopeType, ProjectAccessType, ProjectType } from '@prisma/client';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { ROLE_NAMES, ROLE_IDS } from '../auth/constants/role.constants';
 import { PROJECT_ERRORS } from '../common/constants/error-messages.constants';
+import { USER_ERRORS } from '../common/constants/error-messages.constants';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -88,7 +89,7 @@ export class ProjectsService {
   }
 
   async create(createProjectDto: CreateProjectDto) {
-    const { start_date, end_date, ...rest } = createProjectDto;
+    const { start_date, end_date, manager_id, ...rest } = createProjectDto;
 
     const existingProject = await this.prisma.projects.findFirst({
       where: {
@@ -99,6 +100,15 @@ export class ProjectsService {
 
     if (existingProject) {
       throw new BadRequestException(PROJECT_ERRORS.PROJECT_CODE_EXISTS);
+    }
+
+    // Validate manager exists
+    const manager = await this.prisma.users.findUnique({
+      where: { id: manager_id, deleted_at: null },
+    });
+
+    if (!manager) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     if (createProjectDto.division_id) {
@@ -144,7 +154,7 @@ export class ProjectsService {
         : undefined,
     };
 
-    return await this.prisma.projects.create({
+    const project = await this.prisma.projects.create({
       data: createData,
       include: {
         division: {
@@ -155,6 +165,20 @@ export class ProjectsService {
         },
       },
     });
+
+    // Assign PROJECT_MANAGER role to the manager
+    await this.prisma.user_role_assignment.create({
+      data: {
+        user_id: manager_id,
+        role_id: ROLE_IDS.PROJECT_MANAGER,
+        scope_type: ScopeType.PROJECT,
+        scope_id: project.id,
+        assigned_by: manager_id, // Manager assigns themselves initially
+        created_at: new Date(),
+      },
+    });
+
+    return project;
   }
 
   async findAll(
@@ -368,7 +392,43 @@ export class ProjectsService {
       }
     }
 
-    const { start_date, end_date, status, project_type, project_access_type, industry, ...rest } =
+    // Handle manager change
+    if (updateProjectDto.manager_id !== undefined) {
+      const newManager = await this.prisma.users.findUnique({
+        where: { id: updateProjectDto.manager_id, deleted_at: null },
+      });
+
+      if (!newManager) {
+        throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+      }
+
+      // Remove old PROJECT_MANAGER role assignments
+      await this.prisma.user_role_assignment.updateMany({
+        where: {
+          scope_type: ScopeType.PROJECT,
+          scope_id: id,
+          role_id: ROLE_IDS.PROJECT_MANAGER,
+          deleted_at: null,
+        },
+        data: {
+          deleted_at: new Date(),
+        },
+      });
+
+      // Assign new PROJECT_MANAGER
+      await this.prisma.user_role_assignment.create({
+        data: {
+          user_id: updateProjectDto.manager_id,
+          role_id: ROLE_IDS.PROJECT_MANAGER,
+          scope_type: ScopeType.PROJECT,
+          scope_id: id,
+          assigned_by: updateProjectDto.manager_id,
+          created_at: new Date(),
+        },
+      });
+    }
+
+    const { start_date, end_date, status, project_type, project_access_type, industry, manager_id: _manager_id, ...rest } =
       updateProjectDto;
     const updateData: Prisma.projectsUpdateInput = { ...rest };
 
