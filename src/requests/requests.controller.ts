@@ -48,140 +48,6 @@ import { RequestsService } from './requests.service';
 export class RequestsController {
   constructor(private readonly requestsService: RequestsService) {}
 
-  @Get()
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary: 'Lấy requests theo phân quyền role với enhanced filtering',
-    })
-  @ApiQuery({
-    name: 'division_id',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'leads_only',
-    required: false,
-    type: Boolean,
-  })
-  @ApiQuery({
-    name: 'requester_role',
-    required: false,
-    enum: Object.values(ROLE_NAMES),
-  })
-  @ApiQuery({
-    name: 'team_id',
-    required: false,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'high_priority_only',
-    required: false,
-    type: Boolean,
-  })
-  @ApiResponse({ 
-    status: 200, 
-    schema: {
-      type: 'object',
-      properties: {
-        data: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              type: { 
-                type: 'string',
-                enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
-              },
-              user_id: { type: 'number' },
-              status: { type: 'string' },
-              work_date: { type: 'string', format: 'date' },
-              created_at: { type: 'string', format: 'date-time' },
-              user: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  email: { type: 'string' },
-                  user_information: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      position: { type: 'string' },
-                    },
-                  },
-                  user_roles: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        role: {
-                          type: 'object',
-                          properties: {
-                            name: { type: 'string' },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        pagination: {
-          type: 'object',
-          properties: {
-            total: { type: 'number' },
-            page: { type: 'number' },
-            limit: { type: 'number' },
-            total_pages: { type: 'number' },
-          },
-        },
-        metadata: {
-          type: 'object',
-          properties: {
-            access_scope: { 
-              type: 'string',
-              enum: ['DIVISION_ONLY', 'ALL_ACCESS', 'TEAM_ONLY', 'SELF_ONLY'],
-              },
-            managed_divisions: {
-              type: 'array',
-              items: { type: 'number' },
-              },
-            managed_teams: {
-              type: 'array', 
-              items: { type: 'number' },
-              },
-            filters_applied: {
-              type: 'object',
-              properties: {
-                leads_only: { type: 'boolean' },
-                division_restriction: { type: 'boolean' },
-                team_restriction: { type: 'boolean' },
-                division_id: { type: 'number' },
-                team_id: { type: 'number' },
-                requester_role: { type: 'string' },
-              },
-              }
-          },
-          },
-      },
-    },
-  })
-  async getAllRequests(
-    @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    
-    return await this.requestsService.getAllRequests(
-      paginationDto,
-      user_id,
-      primaryRole,
-    );
-  }
-
   @Get('my/all')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
@@ -658,6 +524,141 @@ export class RequestsController {
     @GetCurrentUser('roles') userRoles: string[],
   ) {
     return await this.requestsService.getRequestById(id, type, user_id, userRoles);
+  }
+
+  // Generic route - MUST be last to avoid blocking specific routes
+  @Get()
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
+  @ApiOperation({
+    summary: 'Lấy requests theo phân quyền role với enhanced filtering',
+    })
+  @ApiQuery({
+    name: 'division_id',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'leads_only',
+    required: false,
+    type: Boolean,
+  })
+  @ApiQuery({
+    name: 'requester_role',
+    required: false,
+    enum: Object.values(ROLE_NAMES),
+  })
+  @ApiQuery({
+    name: 'team_id',
+    required: false,
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'high_priority_only',
+    required: false,
+    type: Boolean,
+  })
+  @ApiResponse({ 
+    status: 200, 
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              type: { 
+                type: 'string',
+                enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+              },
+              user_id: { type: 'number' },
+              status: { type: 'string' },
+              work_date: { type: 'string', format: 'date' },
+              created_at: { type: 'string', format: 'date-time' },
+              user: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  email: { type: 'string' },
+                  user_information: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string' },
+                      position: { type: 'string' },
+                    },
+                  },
+                  user_roles: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        role: {
+                          type: 'object',
+                          properties: {
+                            name: { type: 'string' },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        pagination: {
+          type: 'object',
+          properties: {
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total_pages: { type: 'number' },
+          },
+        },
+        metadata: {
+          type: 'object',
+          properties: {
+            access_scope: { 
+              type: 'string',
+              enum: ['DIVISION_ONLY', 'ALL_ACCESS', 'TEAM_ONLY', 'SELF_ONLY'],
+              },
+            managed_divisions: {
+              type: 'array',
+              items: { type: 'number' },
+              },
+            managed_teams: {
+              type: 'array', 
+              items: { type: 'number' },
+              },
+            filters_applied: {
+              type: 'object',
+              properties: {
+                leads_only: { type: 'boolean' },
+                division_restriction: { type: 'boolean' },
+                team_restriction: { type: 'boolean' },
+                division_id: { type: 'number' },
+                team_id: { type: 'number' },
+                requester_role: { type: 'string' },
+              },
+              }
+          },
+          },
+      },
+    },
+  })
+  async getAllRequests(
+    @GetCurrentUser('id') user_id: number,
+    @GetCurrentUser('roles') userRoles: string[],
+    @Query() paginationDto: RequestPaginationDto,
+  ) {
+    const primaryRole = this.getPrimaryRole(userRoles);
+    
+    return await this.requestsService.getAllRequests(
+      paginationDto,
+      user_id,
+      primaryRole,
+    );
   }
 
 

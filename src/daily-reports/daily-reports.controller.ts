@@ -26,13 +26,6 @@ export class DailyReportsController {
     return this.service.create(dto, user_id);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Lấy danh sách daily report' })
-  @ApiResponse({ status: HttpStatus.OK, type: DailyReportPaginatedResponse })
-  findAll(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
-    return this.service.findAll(p, user_id);
-  }
-
   @Get('my')
   @ApiOperation({ summary: 'Lấy danh sách daily report của tôi' })
   @ApiResponse({ status: HttpStatus.OK, type: DailyReportPaginatedResponse })
@@ -47,6 +40,13 @@ export class DailyReportsController {
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Lấy danh sách daily report' })
+  @ApiResponse({ status: HttpStatus.OK, type: DailyReportPaginatedResponse })
+  findAll(@GetCurrentUser('id') user_id: number, @Query() p: DailyReportPaginationDto) {
+    return this.service.findAll(p, user_id);
   }
 
   @Patch(':id')

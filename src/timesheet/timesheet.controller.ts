@@ -146,14 +146,6 @@ export class TimesheetController {
     );
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Lấy chi tiết timesheet' })
-  @ApiResponse({ status: 200, })
-  @ApiResponse({ status: 404, })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.timesheetService.findTimesheetById(id);
-  }
-
   @Patch(':id/submit')
   @ApiOperation({ summary: 'Submit timesheet để chờ duyệt' })
   @ApiResponse({ status: 200, })
@@ -444,6 +436,18 @@ export class TimesheetController {
       paginationDto,
       userRoles,
     );
+  }
+
+
+  // Param route - after all named routes
+
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Lấy chi tiết timesheet' })
+  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 404, })
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.timesheetService.findTimesheetById(id);
   }
 
   @Get('attendance-logs/:id')
