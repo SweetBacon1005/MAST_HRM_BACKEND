@@ -44,14 +44,6 @@ export class RevokeRoleDto {
   @IsInt()
   role_id: number;
 
-  @ApiProperty({ 
-    description: 'Loại scope', 
-    enum: ScopeType 
-  })
-  @IsString()
-  @IsEnum(ScopeType)
-  scope_type: ScopeType;
-
   @ApiPropertyOptional({ description: 'ID của scope' })
   @IsOptional()
   @IsInt()

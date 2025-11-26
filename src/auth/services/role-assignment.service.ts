@@ -125,19 +125,43 @@ export class RoleAssignmentService {
   async revokeRole(
     user_id: number,
     role_id: number,
-    scopeType: ScopeType,
-    revokedBy: number,
-    scopeId?: number,
+    revoked_by: number,
+    scope_id?: number,
   ) {
+    let scope_type: ScopeType;
+    const role = await this.prisma.roles.findFirst({
+      where: { id: role_id, deleted_at: null },
+    });
+    console.log(role);
+    
+    switch (role?.name) {
+      case 'division_head':
+        scope_type = ScopeType.DIVISION;
+        break;
+      case 'project_manager':
+        scope_type = ScopeType.PROJECT;
+        break;
+      case 'team_leader':
+        scope_type = ScopeType.TEAM;
+        break;
+      case 'employee':
+        scope_type = ScopeType.COMPANY;
+        break;
+      default:
+        throw new BadRequestException('Role không hợp lệ');
+    }
+
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: user_id,
         role_id: role_id,
-        scope_type: scopeType,
-        scope_id: scopeId,
-        deleted_at: { not: null },
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
       },
     });
+    console.log(assignment);
+    
 
     if (!assignment) {
       throw new NotFoundException('Role assignment không tồn tại');
@@ -146,7 +170,7 @@ export class RoleAssignmentService {
     const newAssignment = await this.prisma.user_role_assignment.update({
       where: { id: assignment.id },
       data: {
-        assigned_by: revokedBy,
+        assigned_by: revoked_by,
         role_id: ROLE_IDS.EMPLOYEE,
       },
     });
@@ -179,14 +203,14 @@ export class RoleAssignmentService {
 
   async getUserRolesByScope(
     user_id: number,
-    scopeType: ScopeType,
-    scopeId?: number,
+    scope_type: ScopeType,
+    scope_id?: number,
   ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: user_id,
-        scope_type: scopeType,
-        scope_id: scopeId,
+        scope_type: scope_type,
+        scope_id: scope_id,
         deleted_at: null,
       },
       include: {
@@ -204,14 +228,14 @@ export class RoleAssignmentService {
 
   async getUserPrimaryRole(
     user_id: number,
-    scopeType: ScopeType,
-    scopeId?: number,
+    scope_type: ScopeType,
+    scope_id?: number,
   ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: user_id,
-        scope_type: scopeType,
-        scope_id: scopeId,
+        scope_type: scope_type,
+        scope_id: scope_id,
         deleted_at: null,
       },
       include: { role: true },
@@ -239,18 +263,18 @@ export class RoleAssignmentService {
 
   async hasRole(
     user_id: number,
-    roleName: string,
-    scopeType: ScopeType,
-    scopeId?: number,
+    role_name: string,
+    scope_type: ScopeType,
+    scope_id?: number,
   ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: user_id,
-        scope_type: scopeType,
-        scope_id: scopeId,
+        scope_type: scope_type,
+        scope_id: scope_id,
         deleted_at: null,
         role: {
-          name: roleName,
+          name: role_name,
           deleted_at: null,
         },
       },
@@ -261,18 +285,18 @@ export class RoleAssignmentService {
 
   async hasAnyRole(
     user_id: number,
-    roleNames: string[],
-    scopeType: ScopeType,
-    scopeId?: number,
+    role_names: string[],
+    scope_type: ScopeType,
+    scope_id?: number,
   ): Promise<boolean> {
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: user_id,
-        scope_type: scopeType,
-        scope_id: scopeId,
+        scope_type: scope_type,
+        scope_id: scope_id,
         deleted_at: null,
         role: {
-          name: { in: roleNames },
+          name: { in: role_names },
           deleted_at: null,
         },
       },
@@ -282,17 +306,17 @@ export class RoleAssignmentService {
   }
 
   async getUsersByRole(
-    roleName: string,
-    scopeType: ScopeType,
-    scopeId?: number,
+    role_name: string,
+    scope_type: ScopeType,
+    scope_id?: number,
   ) {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        scope_type: scopeType,
-        scope_id: scopeId,
+        scope_type: scope_type,
+        scope_id: scope_id,
         deleted_at: null,
         role: {
-          name: roleName,
+          name: role_name,
           deleted_at: null,
         },
       },
@@ -345,17 +369,17 @@ export class RoleAssignmentService {
     return results;
   }
 
-  private async validateScope(scopeType: ScopeType, scopeId?: number) {
-    switch (scopeType) {
+  private async validateScope(scope_type: ScopeType, scope_id?: number) {
+    switch (scope_type) {
       case ScopeType.COMPANY:
         break;
 
       case ScopeType.DIVISION: {
-        if (!scopeId) {
+        if (!scope_id) {
           throw new BadRequestException('Division scope cần scope_id');
         }
         const division = await this.prisma.divisions.findFirst({
-          where: { id: scopeId, deleted_at: null },
+          where: { id: scope_id, deleted_at: null },
         });
         if (!division) {
           throw new NotFoundException('Division không tồn tại');
@@ -364,11 +388,11 @@ export class RoleAssignmentService {
       }
 
       case ScopeType.TEAM: {
-        if (!scopeId) {
+        if (!scope_id) {
           throw new BadRequestException('Team scope cần scope_id');
         }
         const team = await this.prisma.teams.findFirst({
-          where: { id: scopeId, deleted_at: null },
+          where: { id: scope_id, deleted_at: null },
         });
         if (!team) {
           throw new NotFoundException('Team không tồn tại');
@@ -377,11 +401,11 @@ export class RoleAssignmentService {
       }
 
       case ScopeType.PROJECT: {
-        if (!scopeId) {
+        if (!scope_id) {
           throw new BadRequestException('Project scope cần scope_id');
         }
         const project = await this.prisma.projects.findFirst({
-          where: { id: scopeId, deleted_at: null },
+          where: { id: scope_id, deleted_at: null },
         });
         if (!project) {
           throw new NotFoundException('Project không tồn tại');
@@ -396,13 +420,13 @@ export class RoleAssignmentService {
 
   async getRoleHierarchy(
     user_id: number,
-    scopeType: ScopeType,
-    scopeId?: number,
+    scope_type: ScopeType,
+    scope_id?: number,
   ) {
     const userRoles = await this.getUserRolesByScope(
       user_id,
-      scopeType,
-      scopeId,
+      scope_type,
+      scope_id,
     );
 
     const roleHierarchy = {
@@ -435,7 +459,7 @@ export class RoleAssignmentService {
     roleHierarchy: Record<string, number>,
   ) {
     return Object.keys(roleHierarchy)
-      .filter((roleName) => roleHierarchy[roleName] <= userLevel)
+      .filter((role_name) => roleHierarchy[role_name] <= userLevel)
       .sort((a, b) => roleHierarchy[b] - roleHierarchy[a]);
   }
 
@@ -937,25 +961,25 @@ export class RoleAssignmentService {
     },
   ) {
     // Xác định scope
-    let scopeType: ScopeType = ScopeType.COMPANY;
-    let scopeId: number | undefined = undefined;
+    let scope_type: ScopeType = ScopeType.COMPANY;
+    let scope_id: number | undefined = undefined;
 
     if (context?.projectId) {
-      scopeType = ScopeType.PROJECT;
-      scopeId = context.projectId;
+      scope_type = ScopeType.PROJECT;
+      scope_id = context.projectId;
     } else if (context?.team_id) {
-      scopeType = ScopeType.TEAM;
-      scopeId = context.team_id;
+      scope_type = ScopeType.TEAM;
+      scope_id = context.team_id;
     } else if (context?.division_id) {
-      scopeType = ScopeType.DIVISION;
-      scopeId = context.division_id;
+      scope_type = ScopeType.DIVISION;
+      scope_id = context.division_id;
     }
 
     return await this.assignRole({
       user_id: user_id,
       role_id: role_id,
-      scope_type: scopeType,
-      scope_id: scopeId,
+      scope_type: scope_type,
+      scope_id: scope_id,
       assigned_by: assignedBy,
     });
   }
