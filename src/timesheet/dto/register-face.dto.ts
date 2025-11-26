@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, IsPositive, IsString, IsUrl } from 'class-validator';
 
 export class RegisterFaceDto {
@@ -6,9 +7,12 @@ export class RegisterFaceDto {
     description: 'ID của user cần đăng ký khuôn mặt',
     example: 123,
   })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsNotEmpty({ message: 'user_id là bắt buộc' })
   @IsNumber({}, { message: 'user_id phải là số' })
-  @IsPositive({ message: 'user_id phải là số dương' })
   user_id: number;
 
   @ApiProperty({
@@ -17,6 +21,5 @@ export class RegisterFaceDto {
   })
   @IsNotEmpty({ message: 'photo_url là bắt buộc' })
   @IsString()
-  @IsUrl({}, { message: 'photo_url phải là URL hợp lệ' })
   photo_url: string;
 }

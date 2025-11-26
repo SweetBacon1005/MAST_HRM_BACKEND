@@ -73,9 +73,6 @@ export class UploadService {
     }
   }
 
-  /**
-   * Xác thực URL ảnh từ Cloudinary
-   */
   validateCloudinaryUrl(url: string): boolean {
     const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
     const cloudinaryPattern = new RegExp(
@@ -84,21 +81,14 @@ export class UploadService {
     return cloudinaryPattern.test(url);
   }
 
-  /**
-   * Xóa ảnh từ Cloudinary
-   */
   async deleteImage(publicId: string): Promise<void> {
     try {
       await cloudinary.uploader.destroy(publicId);
     } catch (error) {
       console.error('Lỗi khi xóa ảnh từ Cloudinary:', error);
-      // Không throw error để không ảnh hưởng đến flow chính
     }
   }
 
-  /**
-   * Lấy URL ảnh đã được tối ưu hóa
-   */
   getOptimizedImageUrl(
     publicId: string,
     options: {
