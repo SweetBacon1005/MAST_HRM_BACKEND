@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -33,7 +32,6 @@ import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
   CreateRotationMemberDto,
   RotationMemberPaginationDto,
-  UpdateRotationMemberDto,
 } from './dto/rotation-member.dto';
 import { StatisticsQueryDto } from './dto/statistics-query.dto';
 import {
@@ -49,7 +47,6 @@ import {
   UserDivisionPaginationDto,
 } from './dto/user-division.dto';
 import { WorkInfoQueryDto } from './dto/work-info-query.dto';
-import { DIVISION_ERRORS } from 'src/common/constants/error-messages.constants';
 
 @ApiTags('divisions')
 @Controller('divisions')
@@ -65,14 +62,17 @@ export class DivisionController {
   @ApiOperation({ summary: 'Tạo phòng ban mới' })
   @ApiResponse({
     status: 201,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
-  create(@Body() createDivisionDto: CreateDivisionDto, @GetCurrentUser('id') currentuser_id: number) {
+  })
+  create(
+    @Body() createDivisionDto: CreateDivisionDto,
+    @GetCurrentUser('id') currentuser_id: number,
+  ) {
     createDivisionDto.creator_id = currentuser_id;
     return this.divisionService.create(createDivisionDto);
   }
@@ -82,7 +82,7 @@ export class DivisionController {
   @ApiOperation({ summary: 'Lấy danh sách phòng ban có phân trang' })
   @ApiResponse({
     status: 200,
-    })
+  })
   findAll(@Query() paginationDto: DivisionPaginationDto) {
     return this.divisionService.findAll(paginationDto);
   }
@@ -94,7 +94,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiQuery({
     name: 'parent_id',
     required: false,
@@ -109,7 +109,7 @@ export class DivisionController {
   @ApiOperation({ summary: 'Lấy danh sách điều chuyển nhân sự có phân trang' })
   @ApiResponse({
     status: 200,
-    })
+  })
   findAllRotationMembers(
     @Query() paginationDto: RotationMemberPaginationDto,
     @GetCurrentUser('id') currentuser_id: number,
@@ -134,13 +134,13 @@ export class DivisionController {
   @Get('rotation-members/:id')
   @RequirePermission('personnel.transfer.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết điều chuyển nhân sự' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   findOneRotationMember(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.findOneRotationMember(id);
   }
@@ -215,10 +215,10 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   createUserDivision(
     @Body() createUserDivisionDto: CreateUserDivisionDto,
     @GetCurrentUser('id') currentuser_id: number,
@@ -350,36 +350,36 @@ export class DivisionController {
           items: {
             type: 'object',
             properties: {
-              id: { type: 'number', example: 5, },
+              id: { type: 'number', example: 5 },
               email: {
                 type: 'string',
                 example: 'user@example.com',
-                },
+              },
               name: {
                 type: 'string',
                 example: 'Nguyễn Văn A',
-                },
+              },
               code: {
                 type: 'string',
                 example: 'NV001',
-                },
+              },
               avatar: {
                 type: 'string',
                 example: 'avatar.jpg',
-                },
+              },
               birthday: {
                 type: 'string',
                 format: 'date',
                 example: '1990-01-01',
-                },
+              },
               phone: {
                 type: 'string',
                 example: '+84901234567',
-                },
+              },
               address: {
                 type: 'string',
                 example: '123 Main St',
-                },
+              },
               position: {
                 type: 'object',
                 nullable: true,
@@ -387,7 +387,7 @@ export class DivisionController {
                   id: { type: 'number', example: 1 },
                   name: { type: 'string', example: 'Developer' },
                 },
-                },
+              },
               level: {
                 type: 'object',
                 nullable: true,
@@ -396,7 +396,7 @@ export class DivisionController {
                   name: { type: 'string', example: 'Junior' },
                   coefficient: { type: 'number', example: 1.2 },
                 },
-                },
+              },
               role: {
                 type: 'object',
                 nullable: true,
@@ -404,11 +404,11 @@ export class DivisionController {
                   id: { type: 'number', example: 3 },
                   name: { type: 'string', example: 'Employee' },
                 },
-                },
+              },
               created_at: {
                 type: 'string',
                 format: 'date-time',
-                },
+              },
             },
           },
         },
@@ -418,16 +418,16 @@ export class DivisionController {
             total: {
               type: 'number',
               example: 25,
-              },
-            page: { type: 'number', example: 1, },
+            },
+            page: { type: 'number', example: 1 },
             limit: {
               type: 'number',
               example: 10,
-              },
+            },
             total_pages: {
               type: 'number',
               example: 3,
-              },
+            },
           },
         },
       },
@@ -440,13 +440,13 @@ export class DivisionController {
   @Get('user-assignments/:user_id')
   @RequirePermission('division.assignment.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết user division' })
-  @ApiParam({ name: 'user_id', })
+  @ApiParam({ name: 'user_id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   findOneUserDivision(@Param('user_id', ParseIntPipe) user_id: number) {
     return this.divisionService.findOneUserDivision(user_id);
   }
@@ -454,16 +454,16 @@ export class DivisionController {
   @Patch('user-assignments/:user_id')
   @RequirePermission('division.assignment.update')
   @ApiOperation({ summary: 'Cập nhật user division assignment' })
-  @ApiParam({ name: 'user_id', })
+  @ApiParam({ name: 'user_id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   updateUserDivision(
     @Param('user_id', ParseIntPipe) user_id: number,
     @Body() updateUserDivisionDto: UpdateUserDivisionDto,
@@ -477,15 +477,23 @@ export class DivisionController {
   @Delete('user-assignments/:user_id')
   @RequirePermission('division.assignment.delete')
   @ApiOperation({ summary: 'Xóa user khỏi division' })
-  @ApiParam({ name: 'user_id', })
+  @ApiParam({ name: 'user_id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
-  removeUserDivision(@Param('user_id', ParseIntPipe) user_id: number, @GetCurrentUser('id') currentuser_id: number, @GetCurrentUser('roles') roles: string[]) {
-    return this.divisionService.removeUserDivision(user_id, currentuser_id, roles);
+  })
+  removeUserDivision(
+    @Param('user_id', ParseIntPipe) user_id: number,
+    @GetCurrentUser('id') currentuser_id: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    return this.divisionService.removeUserDivision(
+      user_id,
+      currentuser_id,
+      roles,
+    );
   }
 
   @Get('teams')
@@ -502,8 +510,8 @@ export class DivisionController {
             type: 'object',
             properties: {
               id: { type: 'number' },
-              name: { type: 'string', },
-              division_id: { type: 'number', },
+              name: { type: 'string' },
+              division_id: { type: 'number' },
               manager: {
                 type: 'object',
                 nullable: true,
@@ -513,21 +521,21 @@ export class DivisionController {
                   email: { type: 'string' },
                   avatar: { type: 'string' },
                 },
-                },
+              },
               member_count: {
                 type: 'number',
-                },
+              },
               resource_by_level: {
                 type: 'object',
                 additionalProperties: { type: 'number' },
               },
               active_projects: {
                 type: 'string',
-                },
+              },
               founding_date: {
                 type: 'string',
                 format: 'date',
-                },
+              },
               created_at: { type: 'string', format: 'date-time' },
             },
           },
@@ -567,13 +575,13 @@ export class DivisionController {
   @Get('teams/:id')
   @RequirePermission('team.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết team' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   findOneTeam(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.findOneTeam(id);
   }
@@ -581,7 +589,7 @@ export class DivisionController {
   @Get(':id/members')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy danh sách thành viên của phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -592,42 +600,42 @@ export class DivisionController {
           items: {
             type: 'object',
             properties: {
-              user_id: { type: 'number', },
-              code: { type: 'string', },
-              name: { type: 'string', },
-              email: { type: 'string', },
-              avatar: { type: 'string', },
+              user_id: { type: 'number' },
+              code: { type: 'string' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              avatar: { type: 'string' },
               birthday: {
                 type: 'string',
                 format: 'date',
-                },
-              team: { type: 'string', },
-              team_id: { type: 'number', },
+              },
+              team: { type: 'string' },
+              team_id: { type: 'number' },
               join_date: {
                 type: 'string',
                 format: 'date',
-                },
+              },
               months_of_service: {
                 type: 'number',
-                },
-              position: { type: 'string', },
-              position_id: { type: 'number', },
+              },
+              position: { type: 'string' },
+              position_id: { type: 'number' },
               skills: {
                 type: 'string',
-                },
-              level: { type: 'string', },
-              level_id: { type: 'number', },
-              coefficient: { type: 'number', },
+              },
+              level: { type: 'string' },
+              level_id: { type: 'number' },
+              coefficient: { type: 'number' },
             },
           },
         },
         meta: {
           type: 'object',
           properties: {
-            total: { type: 'number', },
-            page: { type: 'number', },
-            limit: { type: 'number', },
-            total_pages: { type: 'number', },
+            total: { type: 'number' },
+            page: { type: 'number' },
+            limit: { type: 'number' },
+            total_pages: { type: 'number' },
           },
         },
       },
@@ -647,7 +655,7 @@ export class DivisionController {
   @Get(':id/dashboard')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy dữ liệu dashboard cho phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -667,11 +675,11 @@ export class DivisionController {
           properties: {
             total_members: {
               type: 'number',
-              },
+            },
             working_count: {
               type: 'number',
-              },
-            work_date: { type: 'string', },
+            },
+            work_date: { type: 'string' },
           },
         },
         leave_requests: {
@@ -679,17 +687,17 @@ export class DivisionController {
           properties: {
             paid_leave_count: {
               type: 'number',
-              },
+            },
             unpaid_leave_count: {
               type: 'number',
-              },
+            },
           },
         },
         late_info: {
           type: 'object',
           properties: {
-            late_count: { type: 'number', },
-            early_count: { type: 'number', },
+            late_count: { type: 'number' },
+            early_count: { type: 'number' },
           },
         },
         recent_birthday_employees: {
@@ -706,7 +714,7 @@ export class DivisionController {
               birthday_month: { type: 'number' },
               days_until_birthday: {
                 type: 'number',
-                },
+              },
             },
           },
         },
@@ -716,13 +724,13 @@ export class DivisionController {
             type: 'object',
             properties: {
               month: { type: 'number' },
-              late_hours: { type: 'number', },
+              late_hours: { type: 'number' },
               actual_late_hours: {
                 type: 'number',
-                },
+              },
               overtime_hours: {
                 type: 'number',
-                },
+              },
             },
           },
         },
@@ -731,7 +739,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    })
+  })
   getDashboard(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: DivisionDashboardQueryDto,
@@ -742,7 +750,7 @@ export class DivisionController {
   @Get(':id/birthday-employees')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy danh sách nhân viên có sinh nhật trong tháng' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -775,7 +783,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    })
+  })
   getBirthdayEmployees(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: BirthdayQueryDto,
@@ -786,7 +794,7 @@ export class DivisionController {
   @Get(':id/work-info')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy thông tin làm việc của phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -881,7 +889,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    })
+  })
   getWorkInfo(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: WorkInfoQueryDto,
@@ -892,7 +900,7 @@ export class DivisionController {
   @Get(':id/statistics')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy thống kê chấm công theo năm của phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -923,7 +931,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    })
+  })
   getStatistics(
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: StatisticsQueryDto,
@@ -934,7 +942,7 @@ export class DivisionController {
   @Get(':id/users')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy danh sách users trong division' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
     schema: {
@@ -1016,7 +1024,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    })
+  })
   getUsersByDivision(
     @Param('id', ParseIntPipe) id: number,
     @Query() paginationDto: UserDivisionPaginationDto,
@@ -1027,13 +1035,13 @@ export class DivisionController {
   @Get(':id')
   @RequirePermission('division.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.findOne(id);
   }
@@ -1041,16 +1049,16 @@ export class DivisionController {
   @Patch(':id')
   @RequirePermission('division.update')
   @ApiOperation({ summary: 'Cập nhật thông tin phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDivisionDto: UpdateDivisionDto,
@@ -1061,16 +1069,16 @@ export class DivisionController {
   @Delete(':id')
   @RequirePermission('division.delete')
   @ApiOperation({ summary: 'Xóa phòng ban' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.remove(id);
   }
@@ -1082,13 +1090,13 @@ export class DivisionController {
   @ApiOperation({ summary: 'Tạo điều chuyển nhân sự' })
   @ApiResponse({
     status: 201,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   createRotationMember(
     @Body() createRotationDto: CreateRotationMemberDto,
     @GetCurrentUser('id') requesterId: number,
@@ -1097,7 +1105,7 @@ export class DivisionController {
     return this.divisionService.createRotationMember(
       createRotationDto,
       requesterId,
-      roles
+      roles,
     );
   }
 
@@ -1108,30 +1116,33 @@ export class DivisionController {
   @ApiOperation({ summary: 'Tạo team mới' })
   @ApiResponse({
     status: 201,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
-  createTeam(@Body() createTeamDto: CreateTeamDto, @GetCurrentUser('id') assignedBy: number) {
+  })
+  createTeam(
+    @Body() createTeamDto: CreateTeamDto,
+    @GetCurrentUser('id') assignedBy: number,
+  ) {
     return this.divisionService.createTeam(createTeamDto, assignedBy);
   }
 
   @Patch('teams/:id')
   @RequirePermission('team.update')
   @ApiOperation({ summary: 'Cập nhật thông tin team' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   updateTeam(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateTeamDto: UpdateTeamDto,
@@ -1142,18 +1153,17 @@ export class DivisionController {
   @Delete('teams/:id')
   @RequirePermission('team.delete')
   @ApiOperation({ summary: 'Xóa team' })
-  @ApiParam({ name: 'id', })
+  @ApiParam({ name: 'id' })
   @ApiResponse({
     status: 200,
-    })
+  })
   @ApiResponse({
     status: 400,
-    })
+  })
   @ApiResponse({
     status: 404,
-    })
+  })
   removeTeam(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.removeTeam(id);
   }
 }
-

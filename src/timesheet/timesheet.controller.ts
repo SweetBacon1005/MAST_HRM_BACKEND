@@ -8,11 +8,8 @@ import {
   Patch,
   Post,
   Query,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -51,6 +48,10 @@ import {
   HolidayPaginationDto,
   TimesheetPaginationDto,
 } from './dto/pagination-queries.dto';
+import {
+  RegisterFaceDto,
+  ConfirmRegisterFaceDto,
+} from './dto/register-face.dto';
 import {
   TimesheetReportDto,
   WorkingTimeReportDto,
@@ -216,15 +217,46 @@ export class TimesheetController {
   // Face registeration for check-in/out
 
   @Post('register-face')
-  @ApiOperation({ summary: 'Đăng ký khuôn mặt cho chấm công' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
-  @UseInterceptors(FileInterceptor('image'))
+  @ApiOperation({ 
+    summary: 'Bước 1: Lấy presigned URL để đăng ký khuôn mặt',
+    description: `
+      Endpoint này trả về presigned URL để upload ảnh khuôn mặt lên Cloudinary.
+      Luồng hoạt động:
+      1. Gọi API này để lấy presigned URL
+      2. Upload ảnh lên Cloudinary sử dụng URL đó
+      3. Gọi API confirm-register-face với URL ảnh từ Cloudinary
+    `
+  })
+  @ApiResponse({ 
+    status: 201,
+    description: 'Tạo presigned URL thành công',
+  })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy user' })
   registerFace(
-    @GetCurrentUser('id') user_id: number,
-    @UploadedFile() image: Express.Multer.File,
+    @Body() registerFaceDto: RegisterFaceDto,
   ) {
-    return this.timesheetService.registerFace(user_id, image);
+    return this.timesheetService.registerFace(registerFaceDto.user_id);
+  }
+
+  @Post('confirm-register-face')
+  @ApiOperation({ 
+    summary: 'Bước 2: Xác nhận đăng ký khuôn mặt sau khi upload ảnh lên Cloudinary',
+    description: `
+      Endpoint này xác nhận đăng ký khuôn mặt sau khi ảnh đã được upload lên Cloudinary.
+      Sẽ gửi ảnh đến face identification service để xử lý.
+    `
+  })
+  @ApiResponse({ 
+    status: 200,
+    description: 'Đăng ký khuôn mặt thành công',
+  })
+  @ApiResponse({ status: 400, description: 'URL ảnh không hợp lệ hoặc đăng ký thất bại' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy user' })
+  confirmRegisterFace(
+    @Body() confirmDto: ConfirmRegisterFaceDto,
+  ) {
+    return this.timesheetService.confirmRegisterFace(confirmDto.user_id, confirmDto.photo_url);
   }
 
   // === CHECK-IN/CHECK-OUT ===

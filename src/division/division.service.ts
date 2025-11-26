@@ -463,10 +463,12 @@ export class DivisionService {
     }
 
     if (queryDto.skill_id) {
-      userWhere.user_skills = {
-        some: {
-          skill_id: queryDto.skill_id,
-          deleted_at: null,
+      userWhere.user_information = {
+        user_skills: {
+          some: {
+            skill_id: queryDto.skill_id,
+            deleted_at: null,
+          },
         },
       };
     }
@@ -504,13 +506,20 @@ export class DivisionService {
               level: {
                 select: { id: true, name: true, coefficient: true },
               },
-            },
-          },
-          user_skills: {
-            where: { deleted_at: null },
-            include: {
-              skill: {
+              education: {
                 select: { id: true, name: true },
+              },
+              experience: {
+                where: { deleted_at: null },
+                orderBy: { start_date: 'desc' },
+              },
+              user_skills: {
+                where: { deleted_at: null },
+                include: {
+                  skill: {
+                    select: { id: true, name: true },
+                  },
+                },
               },
             },
           },
@@ -543,7 +552,8 @@ export class DivisionService {
         (ura) => ura.scope_type === ScopeType.TEAM && ura.scope_id !== null,
       );
 
-      const skills = user.user_skills?.map((us) => us.skill.name) || [];
+      const skills =
+        user.user_information?.user_skills?.map((us) => us.skill.name) || [];
 
       return {
         user_id: user.id,
@@ -815,7 +825,7 @@ export class DivisionService {
     };
   }
 
-    async getBirthdayEmployees(division_id: number, month?: number) {
+  async getBirthdayEmployees(division_id: number, month?: number) {
     const division = await this.prisma.divisions.findUnique({
       where: { id: division_id, deleted_at: null },
     });
@@ -1527,8 +1537,8 @@ export class DivisionService {
       const startOfMonth = new Date(year, month - 1, 1);
       const endOfMonth = new Date(year, month, 0);
 
-      const [late_minutes, actuallate_minutes, overtimeHours] = await Promise.all(
-        [
+      const [late_minutes, actuallate_minutes, overtimeHours] =
+        await Promise.all([
           this.prisma.time_sheets.aggregate({
             where: {
               user_id: { in: user_ids },
@@ -1571,8 +1581,7 @@ export class DivisionService {
               total_hours: true,
             },
           }),
-        ],
-      );
+        ]);
 
       stats.push({
         month,
@@ -2465,14 +2474,16 @@ export class DivisionService {
       });
     }
 
-    const divisionAssignment = await this.prisma.user_role_assignment.findFirst({
-      where: {
-        user_id: user_id,
-        scope_type: ScopeType.DIVISION,
-        deleted_at: null,
-        scope_id: { not: null},
+    const divisionAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: user_id,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
       },
-    });
+    );
 
     if (!divisionAssignment) {
       throw new NotFoundException(DIVISION_ERRORS.USER_DIVISION_NOT_FOUND);

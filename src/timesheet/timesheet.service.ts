@@ -50,6 +50,8 @@ import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { DayOffCalculator } from './enums/day-off.enum';
 import { ApprovalStatusManager } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
+import { UploadService } from '../upload/upload.service';
+import { PresignedUrlResponseDto } from '../upload/dto/presigned-url-response.dto';
 
 @Injectable()
 export class TimesheetService {
@@ -57,6 +59,7 @@ export class TimesheetService {
     private prisma: PrismaService,
     private httpService: HttpService,
     private ip_validationService: ip_validationService,
+    private uploadService: UploadService,
     @Inject(REQUEST) private request: Request,
   ) {}
 
@@ -271,31 +274,78 @@ export class TimesheetService {
     });
   }
 
-    async registerFace(user_id: number, image: Express.Multer.File) {
-    if (image) {
-      try {
-        const formData = new FormData();
-        formData.append('image', image.buffer, {
-          filename: image.originalname,
-          contentType: image.mimetype,
-        } as any);
-        formData.append('user_id', user_id.toString());
+  /**
+   * Bước 1: Tạo presigned URL để upload ảnh khuôn mặt
+   * Frontend sẽ upload ảnh lên Cloudinary với URL này
+   */
+  async registerFace(user_id: number): Promise<PresignedUrlResponseDto> {
+    // Kiểm tra user tồn tại
+    const user = await this.prisma.users.findFirst({
+      where: { id: user_id, deleted_at: null },
+    });
 
-        const response = await this.httpService.axiosRef.post(
-          process.env.FACE_IDENTIFICATION_URL + '/add_user',
-          formData,
-          { headers: formData.getHeaders() },
-        );
+    if (!user) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    }
 
-        return response.data;
-      } catch (error) {
-        console.error(error);
-        throw new BadRequestException(
-          error.response?.data?.error || 'Đăng ký khuôn mặt không thành công',
-        );
-      }
-    } else {
-      throw new BadRequestException('Ảnh khuôn mặt là bắt buộc');
+    // Tạo presigned URL với folder 'faces'
+    return await this.uploadService.getPresignedUrl(user_id, {
+      file_type: 'image/jpeg',
+      folder: 'faces',
+    });
+  }
+
+  /**
+   * Bước 2: Xác nhận đăng ký khuôn mặt sau khi upload ảnh lên Cloudinary
+   * Gửi ảnh từ Cloudinary đến face identification service
+   */
+  async confirmRegisterFace(user_id: number, photo_url: string) {
+    // Kiểm tra user tồn tại
+    const user = await this.prisma.users.findFirst({
+      where: { id: user_id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    }
+
+    // Validate Cloudinary URL
+    if (!this.uploadService.validateCloudinaryUrl(photo_url)) {
+      throw new BadRequestException('URL ảnh không hợp lệ hoặc không phải từ Cloudinary');
+    }
+
+    try {
+      // Download ảnh từ Cloudinary
+      const imageResponse = await this.httpService.axiosRef.get(photo_url, {
+        responseType: 'arraybuffer',
+      });
+
+      // Tạo FormData để gửi đến face identification service
+      const formData = new FormData();
+      formData.append('image', Buffer.from(imageResponse.data), {
+        filename: `user_${user_id}_face.jpg`,
+        contentType: 'image/jpeg',
+      } as any);
+      formData.append('user_id', user_id.toString());
+
+      // Gửi request đến face identification service
+      const response = await this.httpService.axiosRef.post(
+        process.env.FACE_IDENTIFICATION_URL + '/add_user',
+        formData,
+        { headers: formData.getHeaders() },
+      );
+
+      return {
+        success: true,
+        message: 'Đăng ký khuôn mặt thành công',
+        data: response.data,
+        photo_url,
+      };
+    } catch (error) {
+      console.error('Lỗi khi đăng ký khuôn mặt:', error);
+      throw new BadRequestException(
+        error.response?.data?.error || 'Đăng ký khuôn mặt không thành công',
+      );
     }
   }
 

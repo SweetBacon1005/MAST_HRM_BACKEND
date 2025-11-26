@@ -44,34 +44,34 @@ model room_bookings {
 }
 
 model education {
-    id          Int       @id @default(autoincrement())
-    user_id     Int
-    user        users     @relation(fields: [user_id], references: [id])
-    name        String    @db.VarChar(255)
-    major       String    @db.VarChar(255)
-    description String    @db.VarChar(255)
-    start_date  DateTime  @db.Date
-    end_date    DateTime  @db.Date
-    created_at  DateTime  @default(now())
-    updated_at  DateTime  @updatedAt
-    deleted_at  DateTime? @db.DateTime()
+    id           Int              @id @default(autoincrement())
+    name         String           @db.VarChar(255)
+    user_info_id Int
+    user_info    user_information @relation(fields: [user_info_id], references: [id])
+    major        String           @db.VarChar(255)
+    description  String           @db.VarChar(255)
+    start_date   DateTime         @db.Date
+    end_date     DateTime         @db.Date
+    created_at   DateTime         @default(now())
+    updated_at   DateTime         @updatedAt
+    deleted_at   DateTime?        @db.DateTime()
 
-    @@index([user_id])
+    @@index([user_info_id])
 }
 
 model experience {
-    id         Int       @id @default(autoincrement())
-    user_id    Int
-    user       users     @relation(fields: [user_id], references: [id])
-    job_title  String    @db.VarChar(255)
-    company    String    @db.VarChar(255)
-    start_date DateTime  @db.Date
-    end_date   DateTime  @db.Date
-    created_at DateTime  @default(now())
-    updated_at DateTime  @updatedAt
-    deleted_at DateTime? @db.DateTime()
+    id           Int              @id @default(autoincrement())
+    user_info_id Int
+    user_info    user_information @relation(fields: [user_info_id], references: [id])
+    job_title    String           @db.VarChar(255)
+    company      String           @db.VarChar(255)
+    start_date   DateTime         @db.Date
+    end_date     DateTime         @db.Date
+    created_at   DateTime         @default(now())
+    updated_at   DateTime         @updatedAt
+    deleted_at   DateTime?        @db.DateTime()
 
-    @@index([user_id])
+    @@index([user_info_id])
 }
 
 model divisions {
@@ -157,31 +157,34 @@ model skills {
 }
 
 model user_information {
-    id             Int        @id @default(autoincrement())
-    user_id        Int        @unique
-    user           users      @relation(fields: [user_id], references: [id])
-    personal_email String?    @db.VarChar(255)
-    nationality    String?    @db.VarChar(255)
-    name           String?    @db.VarChar(255)
-    code           String?    @db.VarChar(255)
-    avatar         String?    @db.VarChar(255)
-    gender         String?    @db.VarChar(255)
-    marital        String?    @db.VarChar(255)
-    birthday       DateTime?  @db.Date()
+    id             Int           @id @default(autoincrement())
+    user_id        Int           @unique
+    user           users         @relation(fields: [user_id], references: [id])
+    personal_email String?       @db.VarChar(255)
+    nationality    String?       @db.VarChar(255)
+    name           String?       @db.VarChar(255)
+    code           String?       @db.VarChar(255)
+    avatar         String?       @db.VarChar(255)
+    gender         String?       @db.VarChar(255)
+    marital        String?       @db.VarChar(255)
+    birthday       DateTime?     @db.Date()
     position_id    Int?
-    position       positions? @relation(fields: [position_id], references: [id])
-    address        String?    @db.VarChar(255)
-    temp_address   String?    @db.VarChar(255)
-    phone          String?    @db.VarChar(255)
-    tax_code       String?    @db.VarChar(255)
+    position       positions?    @relation(fields: [position_id], references: [id])
+    address        String?       @db.VarChar(255)
+    temp_address   String?       @db.VarChar(255)
+    phone          String?       @db.VarChar(255)
+    tax_code       String?       @db.VarChar(255)
     level_id       Int?
-    level          levels?    @relation(fields: [level_id], references: [id])
-    expertise      String?    @db.VarChar(255)
+    level          levels?       @relation(fields: [level_id], references: [id])
+    expertise      String?       @db.VarChar(255)
     language_id    Int?
-    language       languages? @relation(fields: [language_id], references: [id])
-    created_at     DateTime   @default(now())
-    updated_at     DateTime   @updatedAt
-    deleted_at     DateTime?  @db.DateTime(6)
+    language       languages?    @relation(fields: [language_id], references: [id])
+    created_at     DateTime      @default(now())
+    updated_at     DateTime      @updatedAt
+    deleted_at     DateTime?     @db.DateTime(6)
+    education      education[]
+    experience     experience[]
+    user_skills    user_skills[]
 
     @@index([user_id])
     @@index([position_id])
@@ -201,19 +204,19 @@ model languages {
 }
 
 model user_skills {
-    id                Int       @id @default(autoincrement()) @db.UnsignedInt
+    id                Int              @id @default(autoincrement()) @db.UnsignedInt
     skill_id          Int
-    skill             skills    @relation(fields: [skill_id], references: [id])
-    user_id           Int
-    user              users     @relation(fields: [user_id], references: [id])
+    skill             skills           @relation(fields: [skill_id], references: [id])
+    user_info_id      Int
+    user_info         user_information @relation(fields: [user_info_id], references: [id])
     experience        Int
     months_experience Int
-    is_main           Boolean   @default(false)
-    created_at        DateTime  @default(now())
-    updated_at        DateTime  @updatedAt
-    deleted_at        DateTime? @db.DateTime(6)
+    is_main           Boolean          @default(false)
+    created_at        DateTime         @default(now())
+    updated_at        DateTime         @updatedAt
+    deleted_at        DateTime?        @db.DateTime(6)
 
-    @@index([user_id])
+    @@index([user_info_id])
     @@index([skill_id])
 }
 
@@ -338,10 +341,7 @@ model users {
     updated_at                       DateTime                  @updatedAt
     deleted_at                       DateTime?                 @db.DateTime()
     status                           UserInformationStatus     @default(ACTIVE)
-    education                        education[]
-    experience                       experience[]
     user_information                 user_information?
-    user_skills                      user_skills[]
     rotation_members                 rotation_members[]
     attendance_logs                  attendance_logs[]
     attendance_sessions              attendance_sessions[]
@@ -381,7 +381,7 @@ model day_offs {
     user                     users                @relation("user", fields: [user_id], references: [id])
     work_date                DateTime             @db.Date
     duration                 DayOffDuration       @default(FULL_DAY)
-    status                   ApprovalStatus         @default(PENDING)
+    status                   ApprovalStatus       @default(PENDING)
     type                     DayOffType           @default(PAID)
     title                    String               @db.VarChar(255)
     reason                   String?              @db.Text

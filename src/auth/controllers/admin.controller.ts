@@ -18,14 +18,14 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { RotationType, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
-import { GetCurrentUser } from '../decorators/get-current-user.decorator';
-import { RotationType, ScopeType } from '@prisma/client';
 export class CreateUserDto {
   name: string;
   email: string;
@@ -111,8 +111,8 @@ export class AdminController {
         orderBy: { created_at: 'desc' },
         include: {
           causer: {
-            select: { 
-              id: true, 
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -122,8 +122,8 @@ export class AdminController {
             },
           },
           subject: {
-            select: { 
-              id: true, 
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -222,7 +222,9 @@ export class AdminController {
       }),
     );
 
-    const memberCountMap = new Map(memberCounts.map((mc) => [mc.division_id, mc.count]));
+    const memberCountMap = new Map(
+      memberCounts.map((mc) => [mc.division_id, mc.count]),
+    );
 
     return divisionStats.map((division) => ({
       division_id: division.id,
@@ -385,6 +387,10 @@ export class AdminController {
           include: {
             position: true,
             level: true,
+            education: true,
+            experience: true,
+            user_skills: true,
+            language: true,
           },
         },
         user_role_assignments: {
@@ -401,12 +407,6 @@ export class AdminController {
             },
           },
           orderBy: { created_at: 'desc' },
-        },
-        user_skills: {
-          where: { deleted_at: null },
-          include: {
-            skill: true,
-          },
         },
       },
     });
@@ -440,7 +440,7 @@ export class AdminController {
             data: {
               name: updateUserDto.name,
             },
-          }
+          },
         },
         email: updateUserDto.email,
       },
@@ -501,9 +501,7 @@ export class AdminController {
     status: 200,
     description: 'Xóa người dùng thành công',
   })
-  async deleteUser(
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  async deleteUser(@Param('id', ParseIntPipe) id: number) {
     await this.prisma.users.update({
       where: { id },
       data: { deleted_at: new Date() },
@@ -577,7 +575,7 @@ export class AdminController {
 
     return roles.map((role) => ({
       ...role,
-      permissions: role.permission_role.map(pr => pr.permission),
+      permissions: role.permission_role.map((pr) => pr.permission),
       user_count: role._count.user_role_assignment,
     }));
   }
@@ -618,8 +616,8 @@ export class AdminController {
         orderBy: { created_at: 'desc' },
         include: {
           causer: {
-            select: { 
-              id: true, 
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -629,8 +627,8 @@ export class AdminController {
             },
           },
           subject: {
-            select: { 
-              id: true, 
+            select: {
+              id: true,
               email: true,
               user_information: {
                 select: {
@@ -655,8 +653,6 @@ export class AdminController {
     };
   }
 
-
-
   @Post('bulk/transfer-division')
   @RequirePermission('personnel.transfer.create')
   @ApiOperation({
@@ -667,37 +663,39 @@ export class AdminController {
     description: 'Điều chuyển hàng loạt thành công',
   })
   async bulkTransferDivision(
-    @Body() data: { user_ids: number[]; division_id: number; type?: RotationType },
+    @Body()
+    data: { user_ids: number[]; division_id: number; type?: RotationType },
     @GetCurrentUser('id') adminId: number,
   ) {
     const { user_ids, division_id, type = RotationType.TEMPORARY } = data;
 
-    const [division, users, employeeRole, currentAssignments] = await Promise.all([
-      this.prisma.divisions.findUnique({
-        where: { id: division_id, deleted_at: null },
-        select: { id: true, name: true },
-      }),
-      this.prisma.users.findMany({
-        where: {
-          id: { in: user_ids },
-          deleted_at: null,
-        },
-        select: { id: true },
-      }),
-      this.prisma.roles.findFirst({
-        where: { name: 'employee', deleted_at: null },
-        select: { id: true },
-      }),
-      this.prisma.user_role_assignment.findMany({
-        where: {
-          user_id: { in: user_ids },
-          scope_type: ScopeType.DIVISION,
-          deleted_at: null,
-          scope_id: { not: null },
-        },
-        select: { user_id: true, scope_id: true },
-      }),
-    ]);
+    const [division, users, employeeRole, currentAssignments] =
+      await Promise.all([
+        this.prisma.divisions.findUnique({
+          where: { id: division_id, deleted_at: null },
+          select: { id: true, name: true },
+        }),
+        this.prisma.users.findMany({
+          where: {
+            id: { in: user_ids },
+            deleted_at: null,
+          },
+          select: { id: true },
+        }),
+        this.prisma.roles.findFirst({
+          where: { name: 'employee', deleted_at: null },
+          select: { id: true },
+        }),
+        this.prisma.user_role_assignment.findMany({
+          where: {
+            user_id: { in: user_ids },
+            scope_type: ScopeType.DIVISION,
+            deleted_at: null,
+            scope_id: { not: null },
+          },
+          select: { user_id: true, scope_id: true },
+        }),
+      ]);
 
     if (!division) {
       throw new Error('Phòng ban không tồn tại');
@@ -723,7 +721,9 @@ export class AdminController {
       .filter((user_id) => fromIdMap.has(user_id));
 
     if (validuser_ids.length === 0) {
-      throw new Error('Không có user nào có division assignment để điều chuyển');
+      throw new Error(
+        'Không có user nào có division assignment để điều chuyển',
+      );
     }
 
     const now = new Date();

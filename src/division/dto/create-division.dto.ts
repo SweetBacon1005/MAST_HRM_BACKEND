@@ -1,16 +1,14 @@
 import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { DivisionStatus, DivisionType } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
-  IsString,
-  IsOptional,
-  IsInt,
-  IsDateString,
-  Min,
-  MaxLength,
-  IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateDivisionDto {
@@ -33,6 +31,7 @@ export class CreateDivisionDto {
   leader_id: number;
 
   @ApiHideProperty()
+  @IsOptional()
   @Transform(({ value }) => Number(value))
   creator_id: number;
 

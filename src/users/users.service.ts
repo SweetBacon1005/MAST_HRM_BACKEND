@@ -293,22 +293,23 @@ export class UsersService {
           include: {
             position: true,
             level: true,
-          },
-        },
-        education: {
-          where: { deleted_at: null },
-          orderBy: { start_date: 'desc' },
-        },
-        experience: {
-          where: { deleted_at: null },
-          orderBy: { start_date: 'desc' },
-        },
-        user_skills: {
-          where: { deleted_at: null },
-          include: {
-            skill: {
+            language: true,
+            education: {
+              where: { deleted_at: null },
+              orderBy: { start_date: 'desc' },
+            },
+            experience: {
+              where: { deleted_at: null },
+              orderBy: { start_date: 'desc' },
+            },
+            user_skills: {
+              where: { deleted_at: null },
               include: {
-                position: true,
+                skill: {
+                  include: {
+                    position: true,
+                  },
+                },
               },
             },
           },

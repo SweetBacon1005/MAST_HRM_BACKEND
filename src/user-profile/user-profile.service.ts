@@ -25,7 +25,6 @@ import { UpdateExperienceDto } from './dto/update-experience.dto';
 import { UpdateUserInformationDto } from './dto/update-user-information.dto';
 import { UpdateUserSkillDto } from './dto/update-user-skill.dto';
 
-// CRUD DTOs
 import { CreateLanguageDto } from './languages/dto/create-language.dto';
 import { LanguagePaginationDto } from './languages/dto/language-pagination.dto';
 import { UpdateLanguageDto } from './languages/dto/update-language.dto';
@@ -42,22 +41,33 @@ import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 @Injectable()
 export class UserProfileService {
   constructor(private prisma: PrismaService) {}
+  private async getUserInfoId(user_id: number | undefined): Promise<number | null> {
+    if (!user_id) return null;
+    const userInfo = await this.prisma.user_information.findFirst({
+      where: { user_id: user_id, deleted_at: null },
+      select: { id: true },
+    });
+    return userInfo?.id || null;
+  }
 
   async getUserProfile(user_id: number) {
     const userProfile = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
       include: {
-        user_information: true,
-        education: {
-          where: { deleted_at: null },
-        },
-        experience: {
-          where: { deleted_at: null },
-        },
-        user_skills: {
-          where: { deleted_at: null },
+        user_information: {
           include: {
-            skill: true,
+            education: {
+              where: { deleted_at: null },
+            },
+            experience: {
+              where: { deleted_at: null },
+            },
+            user_skills: {
+              where: { deleted_at: null },
+              include: {
+                skill: true,
+              },
+            },
           },
         },
       },
@@ -158,6 +168,9 @@ export class UserProfileService {
   ) {
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
+      include: { user_information: {
+        select: { id: true }
+      } },
     });
 
     if (!user) {
@@ -188,7 +201,7 @@ export class UserProfileService {
     const { position_id, level_id, language_id, ...rest } = updateDto;
 
     const existingInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: user_id, ...{ deleted_at: null } },
+      where: { user_id: user?.user_information?.id, deleted_at: null },
     });
 
     if (existingInfo) {
@@ -251,9 +264,17 @@ export class UserProfileService {
 
   // Quản lý học vấn
   async createEducation(createDto: CreateEducationDto) {
+    const userInfoId = await this.getUserInfoId(createDto.user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     return await this.prisma.education.create({
       data: {
-        ...createDto,
+        user_info_id: userInfoId,
+        name: createDto.name,
+        major: createDto.major,
+        description: createDto.description,
         start_date: new Date(createDto.start_date),
         end_date: new Date(createDto.end_date),
       },
@@ -261,9 +282,12 @@ export class UserProfileService {
   }
 
   async getEducations(user_id: number) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) return [];
+
     return await this.prisma.education.findMany({
       where: {
-        user_id: user_id,
+        user_info_id: userInfoId,
         ...{ deleted_at: null },
       },
       orderBy: { start_date: 'desc' },
@@ -274,9 +298,22 @@ export class UserProfileService {
     user_id: number,
     paginationDto: EducationPaginationDto,
   ) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) {
+      return {
+        data: [],
+        pagination: {
+          total: 0,
+          page: paginationDto.page || 1,
+          limit: paginationDto.limit || 10,
+          total_pages: 0,
+        },
+      };
+    }
+
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: Prisma.educationWhereInput = {
-      user_id: user_id,
+      user_info_id: userInfoId,
       deleted_at: null,
     };
 
@@ -311,11 +348,16 @@ export class UserProfileService {
   }
 
   async updateEducation(educationId: number, updateDto: UpdateEducationDto) {
+    const userInfoId = await this.getUserInfoId(updateDto.user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     const education = await this.prisma.education.findFirst({
       where: {
         id: educationId,
-        ...{ deleted_at: null },
-        user_id: updateDto.user_id,
+        user_info_id: userInfoId,
+        deleted_at: null,
       },
     });
 
@@ -323,17 +365,12 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin học vấn');
     }
 
-    const user = await this.prisma.users.findFirst({
-      where: { id: updateDto.user_id, ...{ deleted_at: null } },
-    });
-    if (!user) {
-      throw new NotFoundException('Không tìm thấy người dùng');
-    }
-
     return await this.prisma.education.update({
       where: { id: educationId },
       data: {
-        ...updateDto,
+        name: updateDto.name,
+        major: updateDto.major,
+        description: updateDto.description,
         start_date: updateDto.start_date
           ? new Date(updateDto.start_date).toISOString()
           : undefined,
@@ -345,8 +382,13 @@ export class UserProfileService {
   }
 
   async deleteEducation(educationId: number, user_id: number) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     const education = await this.prisma.education.findFirst({
-      where: { id: educationId, user_id: user_id, deleted_at: null },
+      where: { id: educationId, user_info_id: userInfoId, deleted_at: null },
     });
 
     if (!education) {
@@ -362,9 +404,16 @@ export class UserProfileService {
   }
 
   async createExperience(createDto: CreateExperienceDto) {
+    const userInfoId = await this.getUserInfoId(createDto.user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     return await this.prisma.experience.create({
       data: {
-        ...createDto,
+        user_info_id: userInfoId,
+        job_title: createDto.job_title,
+        company: createDto.company,
         start_date: new Date(createDto.start_date),
         end_date: new Date(createDto.end_date),
       },
@@ -372,21 +421,29 @@ export class UserProfileService {
   }
 
   async getExperiences(user_id: number) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) return [];
+
     return await this.prisma.experience.findMany({
       where: {
-        user_id: user_id,
-        ...{ deleted_at: null },
+        user_info_id: userInfoId,
+        deleted_at: null,
       },
       orderBy: { start_date: 'desc' },
     });
   }
 
   async updateExperience(experienceId: number, updateDto: UpdateExperienceDto) {
+    const userInfoId = await this.getUserInfoId(updateDto.user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     const experience = await this.prisma.experience.findFirst({
       where: {
         id: experienceId,
-        ...{ deleted_at: null },
-        user_id: updateDto.user_id,
+        user_info_id: userInfoId,
+        deleted_at: null,
       },
     });
 
@@ -397,7 +454,8 @@ export class UserProfileService {
     return await this.prisma.experience.update({
       where: { id: experienceId },
       data: {
-        ...updateDto,
+        job_title: updateDto.job_title,
+        company: updateDto.company,
         start_date: updateDto.start_date
           ? new Date(updateDto.start_date).toISOString()
           : undefined,
@@ -409,8 +467,13 @@ export class UserProfileService {
   }
 
   async deleteExperience(experienceId: number, user_id: number) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
     const experience = await this.prisma.experience.findFirst({
-      where: { id: experienceId, user_id: user_id, deleted_at: null },
+      where: { id: experienceId, user_info_id: userInfoId, deleted_at: null },
     });
 
     if (!experience) {
@@ -436,16 +499,17 @@ export class UserProfileService {
 
     const user = await this.prisma.users.findFirst({
       where: { id: createDto.user_id, deleted_at: null },
+      include: { user_information: { select: { id: true } } },
     });
 
-    if (!user) {
+    if (!user || !user.user_information) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
     return await this.prisma.user_skills.create({
       data: {
         ...createDto,
-        user_id: createDto.user_id,
+        user_info_id: user.user_information?.id,
         skill_id: createDto.skill_id,
       },
       include: {
@@ -459,9 +523,11 @@ export class UserProfileService {
   }
 
   async getUserSkills(user_id: number) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) return [];
     return await this.prisma.user_skills.findMany({
       where: {
-        user_id: user_id,
+        user_info_id: userInfoId,
         ...{ deleted_at: null },
       },
       include: {
@@ -484,7 +550,8 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
     }
 
-    if (userSkill.user_id !== updateDto.user_id) {
+    const userInfoId = await this.getUserInfoId(updateDto.user_id);
+    if (userSkill.user_info_id !== userInfoId) {
       throw new ForbiddenException(
         'Bạn không có quyền cập nhật thông tin kỹ năng',
       );
@@ -524,7 +591,8 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy thông tin kỹ năng');
     }
 
-    if (userSkill.user_id !== user_id) {
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (userSkill.user_info_id !== userInfoId) {
       throw new ForbiddenException('Bạn không có quyền xóa thông tin kỹ năng');
     }
 
@@ -569,14 +637,15 @@ export class UserProfileService {
   async updateAvatar(user_id: number, avatarUrl: string) {
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, ...{ deleted_at: null } },
+      include: { user_information: { select: { id: true } } },
     });
 
-    if (!user) {
+    if (!user || !user.user_information) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
 
     const userInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: user_id, ...{ deleted_at: null } },
+      where: { id: user.user_information?.id, deleted_at: null },
     });
 
     if (userInfo) {
@@ -615,19 +684,20 @@ export class UserProfileService {
     }
   }
 
-  // === PAGINATION METHODS ===
-
   async getExperiencesPaginated(
     user_id: number,
     paginationDto: ExperiencePaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) return{
+
+    }
     const where: Prisma.experienceWhereInput = {
-      user_id: user_id,
+      user_info_id: userInfoId,
       deleted_at: null,
     };
 
-    // Thêm filter theo tên công ty
     if (paginationDto.company_name) {
       where.company = {
         contains: paginationDto.company_name,
@@ -677,8 +747,16 @@ export class UserProfileService {
     paginationDto: UserSkillPaginationDto,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const userInfoId = await this.getUserInfoId(user_id);
+    if (!userInfoId) return{
+      data: [],
+      total: 0,
+      page: paginationDto.page || 1,
+      limit: paginationDto.limit || 10,
+    };
+
     const where: Prisma.user_skillsWhereInput = {
-      user_id: user_id,
+      user_info_id: userInfoId,
       deleted_at: null,
     };
 
