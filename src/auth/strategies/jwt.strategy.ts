@@ -30,9 +30,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       const userRoles = await this.roleAssignmentService.getUserRoles(
         payload.sub,
       );
-      const roleNames = userRoles.roles.map((role) => role.name);
+      const role_names = userRoles.roles.map((role) => role.name);
 
-      const sortedRoles = roleNames.sort(
+      const sortedRoles = role_names.sort(
         (a, b) => getRoleLevel(b) - getRoleLevel(a),
       );
 

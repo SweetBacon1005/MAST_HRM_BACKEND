@@ -119,14 +119,14 @@ export class RoleAssignmentController {
     status: 404,
     description: 'Role assignment không tồn tại',
   })
-  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto, @GetCurrentUser('id') assignedBy: number): Promise<void> {
-    await this.roleAssignmentService.revokeRole(
+  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto, @GetCurrentUser('id') revoked_by: number): Promise<string> {
+    const result = await this.roleAssignmentService.revokeRole(
       revokeRoleDto.user_id,
       revokeRoleDto.role_id,
-      revokeRoleDto.scope_type as ScopeType,
-      assignedBy,
+      revoked_by,
       revokeRoleDto.scope_id,
     );
+    return "Gỡ vai trò thành công";
   }
 
   @Get('users/:user_id/roles')

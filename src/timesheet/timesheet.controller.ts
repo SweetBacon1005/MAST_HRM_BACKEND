@@ -48,10 +48,7 @@ import {
   HolidayPaginationDto,
   TimesheetPaginationDto,
 } from './dto/pagination-queries.dto';
-import {
-  RegisterFaceDto,
-  ConfirmRegisterFaceDto,
-} from './dto/register-face.dto';
+import { RegisterFaceDto } from './dto/register-face.dto';
 import {
   TimesheetReportDto,
   WorkingTimeReportDto,
@@ -218,45 +215,38 @@ export class TimesheetController {
 
   @Post('register-face')
   @ApiOperation({ 
-    summary: 'Bước 1: Lấy presigned URL để đăng ký khuôn mặt',
+    summary: 'Đăng ký khuôn mặt cho chấm công',
     description: `
-      Endpoint này trả về presigned URL để upload ảnh khuôn mặt lên Cloudinary.
+      Endpoint này đăng ký khuôn mặt của user với Face ID Service.
       Luồng hoạt động:
-      1. Gọi API này để lấy presigned URL
-      2. Upload ảnh lên Cloudinary sử dụng URL đó
-      3. Gọi API confirm-register-face với URL ảnh từ Cloudinary
+      1. Frontend gọi /upload/presigned-url để lấy presigned URL
+      2. Frontend upload ảnh lên Cloudinary
+      3. Frontend gọi API này với user_id và photo_url từ Cloudinary
+      4. Backend download ảnh từ Cloudinary và gửi đến Face ID Service
     `
   })
   @ApiResponse({ 
     status: 201,
-    description: 'Tạo presigned URL thành công',
+    description: 'Đăng ký khuôn mặt thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Đăng ký khuôn mặt thành công' },
+        data: { type: 'object' },
+        photo_url: { type: 'string' }
+      }
+    }
   })
-  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ hoặc URL ảnh không phải từ Cloudinary' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy user' })
   registerFace(
     @Body() registerFaceDto: RegisterFaceDto,
   ) {
-    return this.timesheetService.registerFace(registerFaceDto.user_id);
-  }
-
-  @Post('confirm-register-face')
-  @ApiOperation({ 
-    summary: 'Bước 2: Xác nhận đăng ký khuôn mặt sau khi upload ảnh lên Cloudinary',
-    description: `
-      Endpoint này xác nhận đăng ký khuôn mặt sau khi ảnh đã được upload lên Cloudinary.
-      Sẽ gửi ảnh đến face identification service để xử lý.
-    `
-  })
-  @ApiResponse({ 
-    status: 200,
-    description: 'Đăng ký khuôn mặt thành công',
-  })
-  @ApiResponse({ status: 400, description: 'URL ảnh không hợp lệ hoặc đăng ký thất bại' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy user' })
-  confirmRegisterFace(
-    @Body() confirmDto: ConfirmRegisterFaceDto,
-  ) {
-    return this.timesheetService.confirmRegisterFace(confirmDto.user_id, confirmDto.photo_url);
+    return this.timesheetService.registerFace(
+      registerFaceDto.user_id, 
+      registerFaceDto.photo_url
+    );
   }
 
   // === CHECK-IN/CHECK-OUT ===

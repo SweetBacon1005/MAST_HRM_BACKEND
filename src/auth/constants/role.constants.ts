@@ -1,12 +1,12 @@
 import { ProjectStatus } from '@prisma/client';
 
 export const ROLE_IDS = {
-  EMPLOYEE: 7,
-  TEAM_LEADER: 6,
-  DIVISION_HEAD: 5,
-  PROJECT_MANAGER: 4,
-  HR_MANAGER: 3,
-  ADMIN: 2,
+  EMPLOYEE: 6,
+  TEAM_LEADER: 5,
+  DIVISION_HEAD: 4,
+  PROJECT_MANAGER: 3,
+  HR_MANAGER: 2,
+  ADMIN: 1,
 } as const;
 
 export const ROLE_NAMES = {
@@ -70,8 +70,8 @@ export const ROLE_HIERARCHY = {
   [ROLE_NAMES.EMPLOYEE]: 10,
 } as const;
 
-export const getRoleLevel = (roleName: string): number => {
-  return ROLE_HIERARCHY[roleName as keyof typeof ROLE_HIERARCHY] || 0;
+export const getRoleLevel = (role_name: string): number => {
+  return ROLE_HIERARCHY[role_name as keyof typeof ROLE_HIERARCHY] || 0;
 };
 
 // Helper function để lấy role cao nhất từ danh sách roles

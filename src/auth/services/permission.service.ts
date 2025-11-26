@@ -15,7 +15,7 @@ export class PermissionService {
     private readonly roleAssignmentService: RoleAssignmentService,
   ) {}
 
-  async hasPermission(user_id: number, permission: string, scopeType?: string, scopeId?: number): Promise<boolean> {
+  async hasPermission(user_id: number, permission: string, scope_type?: string, scope_id?: number): Promise<boolean> {
     try {
       const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
       

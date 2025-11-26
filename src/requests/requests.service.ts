@@ -2735,11 +2735,11 @@ export class RequestsService {
     return [...new Set(leadUsers.map((lu) => lu.user_id))];
   }
 
-  private async getuser_idsByRole(roleName: string): Promise<number[]> {
+  private async getuser_idsByRole(role_name: string): Promise<number[]> {
     const roleUsers = await this.prisma.user_role_assignment.findMany({
       where: {
         role: {
-          name: roleName,
+          name: role_name,
           deleted_at: null,
         },
         deleted_at: null,
@@ -3187,7 +3187,7 @@ export class RequestsService {
   private async getProjectuser_ids(projectIds: number[]): Promise<number[]> {
     if (projectIds.length === 0) return [];
 
-    const userIds: Set<number> = new Set();
+    const user_ids: Set<number> = new Set();
 
     const pmAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
@@ -3198,7 +3198,7 @@ export class RequestsService {
       select: { user_id: true },
     });
 
-    pmAssignments.forEach((a) => userIds.add(a.user_id));
+    pmAssignments.forEach((a) => user_ids.add(a.user_id));
 
     const projects = await this.prisma.projects.findMany({
       where: {
@@ -3223,10 +3223,10 @@ export class RequestsService {
         distinct: ['user_id'],
       });
 
-      teamMemberAssignments.forEach((a) => userIds.add(a.user_id));
+      teamMemberAssignments.forEach((a) => user_ids.add(a.user_id));
     }
 
-    return Array.from(userIds);
+    return Array.from(user_ids);
   }
 
   /**

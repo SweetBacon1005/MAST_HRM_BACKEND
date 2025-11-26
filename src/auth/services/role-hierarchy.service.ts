@@ -60,7 +60,7 @@ export class RoleHierarchyService {
       ],
     },
   ];
-  Hierarchy(roleName: string): RoleHierarchy | null {
-    return this.roleHierarchy.find((role) => role.name === roleName) || null;
+  Hierarchy(role_name: string): RoleHierarchy | null {
+    return this.roleHierarchy.find((role) => role.name === role_name) || null;
   }
 }

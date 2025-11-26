@@ -1,20 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsString, IsBoolean, IsOptional, IsArray, IsEnum } from 'class-validator';
 import { ScopeType } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsArray, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 
 export class AssignRoleDto {
   @ApiProperty({ description: 'ID của user' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsInt()
   user_id: number;
 
   @ApiProperty({ description: 'ID của role' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsInt()
   role_id: number;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Loại scope',
     example: ScopeType.COMPANY,
-    enum: ScopeType 
+    enum: ScopeType,
   })
   @IsString()
   @IsEnum(ScopeType)
@@ -22,14 +31,18 @@ export class AssignRoleDto {
 
   @ApiPropertyOptional({ description: 'ID của scope (null cho company)' })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsInt()
   scope_id?: number;
 }
 
 export class BulkAssignRoleDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Danh sách role assignments',
-    type: [AssignRoleDto]
+    type: [AssignRoleDto],
   })
   @IsArray()
   assignments: AssignRoleDto[];
@@ -37,23 +50,35 @@ export class BulkAssignRoleDto {
 
 export class RevokeRoleDto {
   @ApiProperty({ description: 'ID của user' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsInt()
   user_id: number;
 
   @ApiProperty({ description: 'ID của role' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsInt()
   role_id: number;
 
   @ApiPropertyOptional({ description: 'ID của scope' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return Number(value);
+  })
   @IsOptional()
   @IsInt()
   scope_id?: number;
 }
 
 export class GetUserRolesByScopeDto {
-  @ApiProperty({ 
-    description: 'Loại scope', 
-    enum: ScopeType 
+  @ApiProperty({
+    description: 'Loại scope',
+    enum: ScopeType,
   })
   @IsString()
   @IsEnum(ScopeType)
@@ -120,8 +145,8 @@ export class UserRoleContextResponseDto {
         name: { type: 'string' },
         scope_type: { type: 'enum', enum: Object.values(ScopeType) },
         scope_id: { type: 'number', nullable: true },
-      }
-    }
+      },
+    },
   })
   roles: {
     id: number;

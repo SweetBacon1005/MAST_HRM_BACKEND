@@ -232,28 +232,28 @@ describe('RoleAssignmentService', () => {
     it('should return true when user has the role', async () => {
       // Arrange
       const user_id = 1;
-      const roleName = 'Manager';
-      const scopeType = ScopeType.COMPANY;
+      const role_name = 'Manager';
+      const scope_type = ScopeType.COMPANY;
 
       mockPrismaService.user_role_assignment.findFirst.mockResolvedValue({
         id: 1,
         user_id: user_id,
-        role: { name: roleName },
+        role: { name: role_name },
       });
 
       // Act
-      const result = await service.hasRole(user_id, roleName, scopeType);
+      const result = await service.hasRole(user_id, role_name, scope_type);
 
       // Assert
       expect(result).toBe(true);
       expect(mockPrismaService.user_role_assignment.findFirst).toHaveBeenCalledWith({
         where: {
           user_id: user_id,
-          scope_type: scopeType,
+          scope_type: scope_type,
           scope_id: undefined,
           deleted_at: null,
           role: {
-            name: roleName,
+            name: role_name,
             deleted_at: null,
           },
         },
@@ -263,13 +263,13 @@ describe('RoleAssignmentService', () => {
     it('should return false when user does not have the role', async () => {
       // Arrange
       const user_id = 1;
-      const roleName = 'Manager';
-      const scopeType = ScopeType.COMPANY;
+      const role_name = 'Manager';
+      const scope_type = ScopeType.COMPANY;
 
       mockPrismaService.user_role_assignment.findFirst.mockResolvedValue(null);
 
       // Act
-      const result = await service.hasRole(user_id, roleName, scopeType);
+      const result = await service.hasRole(user_id, role_name, scope_type);
 
       // Assert
       expect(result).toBe(false);
@@ -281,12 +281,12 @@ describe('RoleAssignmentService', () => {
       // Arrange
       const user_id = 1;
       const role_id = 2;
-      const scopeType = ScopeType.COMPANY;
+      const scope_type = ScopeType.COMPANY;
       const mockAssignment = {
         id: 1,
         user_id: user_id,
         role_id: role_id,
-        scope_type: scopeType,
+        scope_type: scope_type,
         deleted_at: null,
       };
 
@@ -299,7 +299,7 @@ describe('RoleAssignmentService', () => {
       mockPrismaService.user_role_assignment.update.mockResolvedValue(revokedAssignment);
 
       // Act
-      const result = await service.revokeRole(user_id, role_id, scopeType);
+      const result = await service.revokeRole(user_id, role_id, scope_type);
 
       // Assert
       expect(result.deleted_at).toBeDefined();
@@ -310,12 +310,12 @@ describe('RoleAssignmentService', () => {
       // Arrange
       const user_id = 1;
       const role_id = 2;
-      const scopeType = ScopeType.COMPANY;
+      const scope_type = ScopeType.COMPANY;
 
       mockPrismaService.user_role_assignment.findFirst.mockResolvedValue(null);
 
       // Act & Assert
-      await expect(service.revokeRole(user_id, role_id, scopeType)).rejects.toThrow(
+      await expect(service.revokeRole(user_id, role_id, scope_type)).rejects.toThrow(
         new NotFoundException('Role assignment không tồn tại'),
       );
     });
