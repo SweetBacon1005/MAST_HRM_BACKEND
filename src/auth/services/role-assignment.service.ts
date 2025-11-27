@@ -125,32 +125,10 @@ export class RoleAssignmentService {
   async revokeRole(
     user_id: number,
     role_id: number,
+    scope_type: ScopeType,
     revoked_by: number,
     scope_id?: number,
   ) {
-    let scope_type: ScopeType;
-    const role = await this.prisma.roles.findFirst({
-      where: { id: role_id, deleted_at: null },
-    });
-    console.log(role);
-    
-    switch (role?.name) {
-      case 'division_head':
-        scope_type = ScopeType.DIVISION;
-        break;
-      case 'project_manager':
-        scope_type = ScopeType.PROJECT;
-        break;
-      case 'team_leader':
-        scope_type = ScopeType.TEAM;
-        break;
-      case 'employee':
-        scope_type = ScopeType.COMPANY;
-        break;
-      default:
-        throw new BadRequestException('Role không hợp lệ');
-    }
-
     const assignment = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: user_id,
@@ -160,8 +138,6 @@ export class RoleAssignmentService {
         deleted_at: null,
       },
     });
-    console.log(assignment);
-    
 
     if (!assignment) {
       throw new NotFoundException('Role assignment không tồn tại');
@@ -732,7 +708,11 @@ export class RoleAssignmentService {
         if (!context?.team_id) {
           throw new BadRequestException('Role team_leader yêu cầu team_id');
         }
-        return await this.assignTeamLeader(context.team_id, user_id, assignedBy);
+        return await this.assignTeamLeader(
+          context.team_id,
+          user_id,
+          assignedBy,
+        );
 
       case 'division_head':
         if (!context?.division_id) {

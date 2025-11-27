@@ -16,7 +16,7 @@ import {
   UpdateNotificationResponseDto,
 } from './dto/notification-action-response.dto';
 import { NotificationListResponseDto } from './dto/notification-list-response.dto';
-import { NotificationPaginationDto } from './dto/pagination-queries.dto';
+import { AdminNotificationPaginationDto, UserNotificationPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import {
   UserNotificationDetailResponseDto,
@@ -71,37 +71,71 @@ export class NotificationsService {
     );
   }
 
-  async findAll(user_id: number): Promise<UserNotificationResponseDto[]> {
-    const notifications = await this.prisma.user_notifications.findMany({
-      where: {
-        user_id: user_id,
+  async findAll(
+    user_id: number,
+    paginationDto: UserNotificationPaginationDto,
+  ): Promise<{
+    data: UserNotificationResponseDto[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+  }> {
+    const {
+      page = 1,
+      limit = 10,
+      sort_by = 'created_at',
+      sort_order = 'desc',
+    } = paginationDto;
+
+    const skip = (page - 1) * limit;
+
+    const whereConditions: Prisma.user_notificationsWhereInput = {
+      user_id: user_id,
+      deleted_at: null,
+      notification: {
         deleted_at: null,
-        notification: {
-          deleted_at: null,
-        },
       },
-      include: {
-        notification: {
-          include: {
-            creator: {
-              select: {
-                id: true,
-                email: true,
-                user_information: { select: { name: true } },
+    };
+
+    const orderBy: Prisma.user_notificationsOrderByWithRelationInput = {};
+    if (sort_by === 'title') {
+      orderBy.notification = { title: sort_order };
+    } else if (sort_by === 'updated_at') {
+      orderBy.updated_at = sort_order;
+    } else {
+      orderBy.created_at = sort_order;
+    }
+
+    const [user_notifications, total] = await Promise.all([
+      this.prisma.user_notifications.findMany({
+        where: whereConditions,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          notification: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  email: true,
+                  user_information: { select: { name: true } },
+                },
               },
-            },
-            news: {
-              select: { id: true, title: true },
+              news: {
+                select: { id: true, title: true },
+              },
             },
           },
         },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+      }),
+      this.prisma.user_notifications.count({ where: whereConditions }),
+    ]);
 
-    return notifications.map((un) => ({
+    const data = user_notifications.map((un) => ({
       id: un.id,
       notification_id: un.notification_id,
       title: un.notification.title,
@@ -117,10 +151,20 @@ export class NotificationsService {
       news_title: un.notification.news?.title || null,
       news_id: un.notification.news_id,
     }));
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findAllForAdmin(
-    paginationDto: NotificationPaginationDto,
+    paginationDto: AdminNotificationPaginationDto,
   ): Promise<NotificationListResponseDto> {
     const {
       page = 1,

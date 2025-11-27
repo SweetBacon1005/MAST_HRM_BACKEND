@@ -73,6 +73,10 @@ export class RevokeRoleDto {
   @IsOptional()
   @IsInt()
   scope_id?: number;
+
+  @ApiProperty({ example: ScopeType.COMPANY, description: 'Loại scope' })
+  @IsEnum(ScopeType)
+  scope_type: ScopeType;
 }
 
 export class GetUserRolesByScopeDto {

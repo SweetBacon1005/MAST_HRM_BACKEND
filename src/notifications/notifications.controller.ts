@@ -27,7 +27,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { MarkReadDto } from './dto/mark-read.dto';
-import { NotificationPaginationDto } from './dto/pagination-queries.dto';
+import { AdminNotificationPaginationDto, UserNotificationPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { NotificationsService } from './notifications.service';
 
@@ -55,15 +55,18 @@ export class NotificationsController {
     return this.notificationsService.create(createNotificationDto, creatorId);
   }
 
-  @Get()
+  @Get('/my')
   @RequirePermission('notification.read')
-  @ApiOperation({ summary: 'Lấy danh sách thông báo cho user' })
+  @ApiOperation({ summary: 'Lấy danh sách thông báo cho user có phân trang' })
   @ApiResponse({
     status: 200,
     description: 'Lấy danh sách thông báo thành công',
   })
-  async findAll(@GetCurrentUser('id') user_id: number) {
-    return this.notificationsService.findAll(user_id);
+  async findAll(
+    @GetCurrentUser('id') user_id: number,
+    @Query() paginationDto: UserNotificationPaginationDto,
+  ) {
+    return this.notificationsService.findAll(user_id, paginationDto);
   }
 
   @Get('/admin')
@@ -76,7 +79,7 @@ export class NotificationsController {
     description: 'Lấy danh sách thông báo thành công',
   })
   async findAllForAdmin(
-    @Query() paginationDto: NotificationPaginationDto,
+    @Query() paginationDto: AdminNotificationPaginationDto,
     @GetCurrentUser('roles') roles: string[],
   ) {
     if (!roles.includes(ROLE_NAMES.ADMIN)) {

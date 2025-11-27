@@ -123,6 +123,7 @@ export class RoleAssignmentController {
     const result = await this.roleAssignmentService.revokeRole(
       revokeRoleDto.user_id,
       revokeRoleDto.role_id,
+      revokeRoleDto.scope_type,
       revoked_by,
       revokeRoleDto.scope_id,
     );
