@@ -40,7 +40,7 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'leave.approve', description: 'Duyệt đơn nghỉ phép' },
     { name: 'leave.balance.manage', description: 'Quản lý số dư nghỉ phép' },
     
-    // Request Management (Remote, Overtime, Late/Early)
+    // Request Management (Remote, Overtime, Late/Early, Forgot Checkin)
     { name: 'request.read', description: 'Xem các đơn yêu cầu' },
     { name: 'request.create', description: 'Tạo đơn yêu cầu' },
     { name: 'request.approve', description: 'Duyệt đơn yêu cầu' },
@@ -55,21 +55,18 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'division.assignment.create', description: 'Tạo phân công phòng ban' },
     { name: 'division.assignment.update', description: 'Cập nhật phân công phòng ban' },
     { name: 'division.assignment.delete', description: 'Xóa phân công phòng ban' },
+    { name: 'division.manage', description: 'Quản lý phòng ban' },
     
     // Report & Analytics
     { name: 'report.read', description: 'Xem báo cáo' },
     { name: 'report.export', description: 'Xuất báo cáo' },
-    { name: 'analytics.view', description: 'Xem phân tích dữ liệu' },
     
     // System Administration
     { name: 'system.admin', description: 'Quản trị hệ thống' },
-    { name: 'system.config', description: 'Cấu hình hệ thống' },
-    { name: 'system.backup', description: 'Sao lưu dữ liệu' },
+    { name: 'system.config.read', description: 'Xem cấu hình hệ thống' },
     
     // Organization Management
     { name: 'organization.read', description: 'Xem cơ cấu tổ chức' },
-    { name: 'organization.manage', description: 'Quản lý cơ cấu tổ chức' },
-    { name: 'division.manage', description: 'Quản lý phòng ban' },
     
     // Team Management
     { name: 'team.read', description: 'Xem thông tin team' },
@@ -108,12 +105,6 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'asset.request.approve', description: 'Duyệt/từ chối yêu cầu tài sản' },
     { name: 'asset.request.reject', description: 'Từ chối yêu cầu tài sản' },
     
-    // Contract & Device Management (Legacy - sẽ được thay thế bởi Asset Management)
-    { name: 'contract.read', description: 'Xem hợp đồng' },
-    { name: 'contract.manage', description: 'Quản lý hợp đồng' },
-    { name: 'device.read', description: 'Xem thiết bị (legacy)' },
-    { name: 'device.manage', description: 'Quản lý thiết bị (legacy)' },
-    
     // Personnel Transfer Management
     { name: 'personnel.transfer.read', description: 'Xem đơn điều chuyển nhân sự' },
     { name: 'personnel.transfer.create', description: 'Tạo đơn điều chuyển nhân sự' },
@@ -122,15 +113,29 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'personnel.transfer.reject', description: 'Từ chối đơn điều chuyển nhân sự' },
     { name: 'personnel.transfer.delete', description: 'Xóa đơn điều chuyển nhân sự' },
     
-    // Role Management with Hierarchy
+    // Role Management
     { name: 'role.view', description: 'Xem thông tin vai trò' },
-    { name: 'role.manage.employee', description: 'Quản lý vai trò nhân viên' },
-    { name: 'role.manage.team_leader', description: 'Quản lý vai trò trưởng nhóm' },
-    { name: 'role.manage.division_head', description: 'Quản lý vai trò trưởng phòng ban' },
-    { name: 'role.manage.project_manager', description: 'Quản lý vai trò quản lý dự án' },
-    { name: 'role.manage.hr_manager', description: 'Quản lý vai trò quản lý nhân sự' },
-    { name: 'role.manage.admin', description: 'Quản lý vai trò quản trị viên' },
-    { name: 'role.manage.all', description: 'Quản lý tất cả vai trò' },
+    { name: 'role.assign', description: 'Gán vai trò cho người dùng' },
+    { name: 'role.revoke', description: 'Thu hồi vai trò từ người dùng' },
+    
+    // Meeting Room Management
+    { name: 'meeting_room.create', description: 'Tạo phòng họp' },
+    { name: 'meeting_room.read', description: 'Xem phòng họp' },
+    { name: 'meeting_room.update', description: 'Cập nhật phòng họp' },
+    { name: 'meeting_room.delete', description: 'Xóa phòng họp' },
+    { name: 'meeting_room.booking.create', description: 'Đặt phòng họp' },
+    { name: 'meeting_room.booking.read', description: 'Xem lịch đặt phòng' },
+    { name: 'meeting_room.booking.update', description: 'Cập nhật lịch đặt phòng' },
+    { name: 'meeting_room.booking.delete', description: 'Xóa lịch đặt phòng' },
+    
+    // Daily Report Management
+    { name: 'daily.read', description: 'Xem daily report' },
+    { name: 'daily.create', description: 'Tạo daily report' },
+    { name: 'daily.update', description: 'Cập nhật daily report' },
+    { name: 'daily.remove', description: 'Xóa daily report' },
+    { name: 'daily.submit', description: 'Gửi daily report' },
+    { name: 'daily.approve', description: 'Duyệt daily report' },
+    { name: 'daily.reject', description: 'Từ chối daily report' },
   ];
 
   await prisma.permissions.createMany({
@@ -175,26 +180,27 @@ export async function seedRBAC(prisma: PrismaClient) {
     {
       role: 'admin',
       permissions: [
-        'user.read', 'user.create', 'user.update', 'user.delete',
+        'user.read', 'user.create', 'user.update', 'user.delete', 'user.profile.update',
         'project.read', 'project.create', 'project.update', 'project.delete', 'project.assign',
         'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.delete', 'timesheet.approve', 'timesheet.statistics',
         'attendance.read', 'attendance.manage', 'attendance.statistics',
         'leave.read', 'leave.create', 'leave.approve', 'leave.balance.manage',
         'request.read', 'request.create', 'request.approve', 'request.reject',
-        'division.read', 'division.create', 'division.update', 'division.delete',
+        'division.read', 'division.create', 'division.update', 'division.delete', 'division.manage',
         'division.assignment.read', 'division.assignment.create', 'division.assignment.update', 'division.assignment.delete',
-        'report.read', 'report.export', 'analytics.view',
-        'organization.read', 'organization.manage', 'division.manage',
+        'report.read', 'report.export',
+        'organization.read',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
         'notification.read', 'notification.create', 'notification.update', 'notification.delete', 'notification.manage',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
-        'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
-        'role.view', 'role.assign',
-        'system.admin',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
+        'role.view', 'role.assign', 'role.revoke',
+        'meeting_room.create', 'meeting_room.read', 'meeting_room.update', 'meeting_room.delete',
+        'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
+        'system.admin', 'system.config.read',
       ],
     },
 
@@ -207,18 +213,20 @@ export async function seedRBAC(prisma: PrismaClient) {
         'attendance.read', 'attendance.manage', 'attendance.statistics',
         'leave.read', 'leave.approve', 'leave.balance.manage',
         'request.read', 'request.approve', 'request.reject',
-        'division.read', 'division.create', 'division.update', 'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
+        'division.read', 'division.create', 'division.update', 'division.manage',
+        'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
         'report.read', 'report.export',
-        'organization.read', 'division.manage',
+        'organization.read',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit',
         'notification.read', 'notification.delete',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
-        'contract.read', 'contract.manage', 'device.read', 'device.manage',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject', 'personnel.transfer.delete',
-        'role.view',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
+        'role.view', 'role.assign', 'role.revoke',
+        'meeting_room.create', 'meeting_room.read', 'meeting_room.update', 'meeting_room.delete',
+        'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit',
       ],
     },
 
@@ -233,14 +241,16 @@ export async function seedRBAC(prisma: PrismaClient) {
         'leave.read', 'leave.approve',
         'request.read', 'request.approve', 'request.reject',
         'division.read',
-        'report.read', 'report.export', 'analytics.view',
+        'report.read', 'report.export',
         'organization.read',
+        'team.read',
+        'news.read',
+        'notification.read', 'notification.delete',
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
-        'notification.read', 'notification.delete',
-        'role.view', 'role.assign',
-        'news.read',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
+        'role.view', 'role.assign', 'role.revoke',
+        'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
       ],
     },
 
@@ -254,18 +264,19 @@ export async function seedRBAC(prisma: PrismaClient) {
         'attendance.read', 'attendance.manage', 'attendance.statistics',
         'leave.read', 'leave.create', 'leave.approve',
         'request.read', 'request.create', 'request.approve', 'request.reject',
-        'division.read', 'division.update', 'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
-        'report.read', 'report.export', 'analytics.view',
-        'organization.read', 'division.manage',
+        'division.read', 'division.update', 'division.manage',
+        'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
+        'report.read', 'report.export',
+        'organization.read',
         'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'news.read',
+        'notification.read', 'notification.delete',
         'asset.read', 'asset.assign', 'asset.unassign', 'asset.statistics',
         'asset.request.create', 'asset.request.read', 'asset.request.approve', 'asset.request.reject',
-        'contract.read', 'device.read',
         'personnel.transfer.read', 'personnel.transfer.create', 'personnel.transfer.update', 'personnel.transfer.approve', 'personnel.transfer.reject',
-        'notification.read', 'notification.delete',
-        'role.view', 'role.assign',
-        'news.read',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve','daily.reject'
+        'role.view', 'role.assign', 'role.revoke',
+        'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
       ],
     },
 
@@ -283,11 +294,13 @@ export async function seedRBAC(prisma: PrismaClient) {
         'report.read',
         'organization.read',
         'team.read', 'team.update', 'team.manage',
+        'news.read',
+        'notification.read', 'notification.delete',
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read', 'personnel.transfer.create',
-        'notification.read', 'notification.delete',
         'role.view',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
+        'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
       ],
     },
 
@@ -304,12 +317,13 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read',
         'organization.read',
         'team.read',
-        'asset.read', 'asset.request.create',
-        'personnel.transfer.read',
-        'notification.read', 'notification.delete',
-        'role.view',
         'news.read',
-        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit'
+        'notification.read', 'notification.delete',
+        'asset.read', 'asset.request.create', 'asset.request.read',
+        'personnel.transfer.read',
+        'role.view',
+        'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit',
       ],
     },
   ];

@@ -104,6 +104,32 @@ export class DivisionController {
     return this.divisionService.getDivisionHierarchy(parentId);
   }
 
+  // === ROTATION MEMBERS (PERSONNEL TRANSFER) ===
+
+  @Post('rotation-members')
+  @RequirePermission('personnel.transfer.create')
+  @ApiOperation({ summary: 'Tạo điều chuyển nhân sự' })
+  @ApiResponse({
+    status: 201,
+  })
+  @ApiResponse({
+    status: 400,
+  })
+  @ApiResponse({
+    status: 404,
+  })
+  createRotationMember(
+    @Body() createRotationDto: CreateRotationMemberDto,
+    @GetCurrentUser('id') requesterId: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    return this.divisionService.createRotationMember(
+      createRotationDto,
+      requesterId,
+      roles,
+    );
+  }
+
   @Get('rotation-members')
   @RequirePermission('personnel.transfer.read')
   @ApiOperation({ summary: 'Lấy danh sách điều chuyển nhân sự có phân trang' })
@@ -572,6 +598,27 @@ export class DivisionController {
     return this.divisionService.findAllTeams(paginationDto);
   }
 
+  // === TEAM MANAGEMENT ===
+
+  @Post('teams')
+  @RequirePermission('team.create')
+  @ApiOperation({ summary: 'Tạo team mới' })
+  @ApiResponse({
+    status: 201,
+  })
+  @ApiResponse({
+    status: 400,
+  })
+  @ApiResponse({
+    status: 404,
+  })
+  createTeam(
+    @Body() createTeamDto: CreateTeamDto,
+    @GetCurrentUser('id') assignedBy: number,
+  ) {
+    return this.divisionService.createTeam(createTeamDto, assignedBy);
+  }
+
   @Get('teams/:id')
   @RequirePermission('team.read')
   @ApiOperation({ summary: 'Lấy thông tin chi tiết team' })
@@ -585,6 +632,45 @@ export class DivisionController {
   findOneTeam(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.findOneTeam(id);
   }
+
+  @Patch('teams/:id')
+  @RequirePermission('team.update')
+  @ApiOperation({ summary: 'Cập nhật thông tin team' })
+  @ApiParam({ name: 'id' })
+  @ApiResponse({
+    status: 200,
+  })
+  @ApiResponse({
+    status: 400,
+  })
+  @ApiResponse({
+    status: 404,
+  })
+  updateTeam(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateTeamDto: UpdateTeamDto,
+  ) {
+    return this.divisionService.updateTeam(id, updateTeamDto);
+  }
+
+  @Delete('teams/:id')
+  @RequirePermission('team.delete')
+  @ApiOperation({ summary: 'Xóa team' })
+  @ApiParam({ name: 'id' })
+  @ApiResponse({
+    status: 200,
+  })
+  @ApiResponse({
+    status: 400,
+  })
+  @ApiResponse({
+    status: 404,
+  })
+  removeTeam(@Param('id', ParseIntPipe) id: number) {
+    return this.divisionService.removeTeam(id);
+  }
+
+  // === DIVISION DETAIL ENDPOINTS (WITH PARAM :id) ===
 
   @Get(':id/members')
   @RequirePermission('division.read')
@@ -1081,89 +1167,5 @@ export class DivisionController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.divisionService.remove(id);
-  }
-
-  // === ROTATION MEMBERS (PERSONNEL TRANSFER) ===
-
-  @Post('rotation-members')
-  @RequirePermission('personnel.transfer.create')
-  @ApiOperation({ summary: 'Tạo điều chuyển nhân sự' })
-  @ApiResponse({
-    status: 201,
-  })
-  @ApiResponse({
-    status: 400,
-  })
-  @ApiResponse({
-    status: 404,
-  })
-  createRotationMember(
-    @Body() createRotationDto: CreateRotationMemberDto,
-    @GetCurrentUser('id') requesterId: number,
-    @GetCurrentUser('roles') roles: string[],
-  ) {
-    return this.divisionService.createRotationMember(
-      createRotationDto,
-      requesterId,
-      roles,
-    );
-  }
-
-  // === TEAM MANAGEMENT ===
-
-  @Post('teams')
-  @RequirePermission('team.create')
-  @ApiOperation({ summary: 'Tạo team mới' })
-  @ApiResponse({
-    status: 201,
-  })
-  @ApiResponse({
-    status: 400,
-  })
-  @ApiResponse({
-    status: 404,
-  })
-  createTeam(
-    @Body() createTeamDto: CreateTeamDto,
-    @GetCurrentUser('id') assignedBy: number,
-  ) {
-    return this.divisionService.createTeam(createTeamDto, assignedBy);
-  }
-
-  @Patch('teams/:id')
-  @RequirePermission('team.update')
-  @ApiOperation({ summary: 'Cập nhật thông tin team' })
-  @ApiParam({ name: 'id' })
-  @ApiResponse({
-    status: 200,
-  })
-  @ApiResponse({
-    status: 400,
-  })
-  @ApiResponse({
-    status: 404,
-  })
-  updateTeam(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateTeamDto: UpdateTeamDto,
-  ) {
-    return this.divisionService.updateTeam(id, updateTeamDto);
-  }
-
-  @Delete('teams/:id')
-  @RequirePermission('team.delete')
-  @ApiOperation({ summary: 'Xóa team' })
-  @ApiParam({ name: 'id' })
-  @ApiResponse({
-    status: 200,
-  })
-  @ApiResponse({
-    status: 400,
-  })
-  @ApiResponse({
-    status: 404,
-  })
-  removeTeam(@Param('id', ParseIntPipe) id: number) {
-    return this.divisionService.removeTeam(id);
   }
 }

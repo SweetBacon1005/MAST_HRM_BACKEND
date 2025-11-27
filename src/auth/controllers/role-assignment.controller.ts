@@ -108,7 +108,6 @@ export class RoleAssignmentController {
 
   @Delete('revoke')
   @RequirePermission('role.revoke')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Thu hồi role assignment' })
   @ApiBody({ type: RevokeRoleDto })
   @ApiResponse({

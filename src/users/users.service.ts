@@ -283,13 +283,11 @@ export class UsersService {
       return {
         ...user,
         user_division: division
-          ? [
-              {
-                division,
-                team: team || null,
-              },
-            ]
-          : [],
+          ? {
+              division,
+              team: team || null,
+            }
+          : null,
       };
     });
 
