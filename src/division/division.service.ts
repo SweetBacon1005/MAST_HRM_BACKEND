@@ -1676,6 +1676,8 @@ export class DivisionService {
       orderBy = { [paginationDto.sort_by]: paginationDto.sort_order || 'desc' };
     }
 
+    console.log("whereCondition", whereConditions);
+    
     const [teams, total] = await Promise.all([
       this.prisma.teams.findMany({
         where: whereConditions,

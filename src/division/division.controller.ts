@@ -142,7 +142,7 @@ export class DivisionController {
     @GetCurrentUser('roles') roles: string[],
   ) {
     // Nếu là division_head: ép division_id theo division hiện tại của user
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -250,7 +250,7 @@ export class DivisionController {
     @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -346,7 +346,7 @@ export class DivisionController {
     @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -583,7 +583,7 @@ export class DivisionController {
     @GetCurrentUser('id') currentuser_id: number,
     @GetCurrentUser('roles') roles: string[],
   ) {
-    if (Array.isArray(roles) && roles.includes(ROLE_NAMES.DIVISION_HEAD)) {
+    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
