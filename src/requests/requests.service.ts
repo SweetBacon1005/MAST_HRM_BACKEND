@@ -3208,15 +3208,15 @@ export class RequestsService {
       select: { team_id: true },
     });
 
-    const teamIds = projects
+    const team_ids = projects
       .map((p) => p.team_id)
       .filter((id): id is number => id !== null);
 
-    if (teamIds.length > 0) {
+    if (team_ids.length > 0) {
       const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
         where: {
           scope_type: ScopeType.TEAM,
-          scope_id: { in: teamIds },
+          scope_id: { in: team_ids },
           deleted_at: null,
         },
         select: { user_id: true },

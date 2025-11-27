@@ -2,7 +2,7 @@ import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 
-export enum DivisionMemberssort_byEnum {
+export enum DivisionMembersSortByEnum {
   NAME = 'name',
   BIRTHDAY = 'birthday',
   JOIN_DATE = 'join_date',
@@ -88,12 +88,12 @@ export class DivisionMembersQueryDto {
 
   @ApiProperty({
     description: 'Sắp xếp theo trường (name, birthday, join_date)',
-    example: DivisionMemberssort_byEnum.NAME,
-    enum: DivisionMemberssort_byEnum,
+    example: DivisionMembersSortByEnum.NAME,
+    enum: DivisionMembersSortByEnum,
     required: false,
   })
   @IsOptional()
-  sort_by?: DivisionMemberssort_byEnum;
+  sort_by?: DivisionMembersSortByEnum;
 
   @ApiProperty({
     description: 'Thứ tự sắp xếp (asc, desc)',

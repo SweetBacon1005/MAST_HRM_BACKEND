@@ -140,20 +140,26 @@ export class UsersService {
 
     let user_idsForDivisionFilter: number[] | undefined;
     if (paginationDto.division_id) {
-      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
-        where: {
-          scope_type: ScopeType.DIVISION,
-          scope_id: paginationDto.division_id,
-          deleted_at: null,
-        },
-        select: { user_id: true },
-      });
+      const divisionAssignments =
+        await this.prisma.user_role_assignment.findMany({
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: paginationDto.division_id,
+            deleted_at: null,
+          },
+          select: { user_id: true },
+        });
       user_idsForDivisionFilter = divisionAssignments.map((a) => a.user_id);
-      
+
       if (user_idsForDivisionFilter.length === 0) {
-        return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+        return buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        );
       }
-      
+
       where.id = { in: user_idsForDivisionFilter };
     }
 
@@ -188,18 +194,19 @@ export class UsersService {
       this.prisma.users.count({ where }),
     ]);
 
-
     const user_ids = data.map((u) => u.id);
-    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
-      where: {
-        user_id: { in: user_ids },
-        scope_type: 'DIVISION',
-        deleted_at: null,
-        scope_id: { not: null },
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany(
+      {
+        where: {
+          user_id: { in: user_ids },
+          scope_type: 'DIVISION',
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        select: { user_id: true, scope_id: true },
+        distinct: ['user_id'],
       },
-      select: { user_id: true, scope_id: true },
-      distinct: ['user_id'],
-    });
+    );
 
     const teamAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
@@ -212,8 +219,20 @@ export class UsersService {
       distinct: ['user_id'],
     });
 
-    const division_ids = [...new Set(divisionAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
-    const team_ids = [...new Set(teamAssignments.map((a) => a.scope_id).filter((id): id is number => id !== null))];
+    const division_ids = [
+      ...new Set(
+        divisionAssignments
+          .map((a) => a.scope_id)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
+    const team_ids = [
+      ...new Set(
+        teamAssignments
+          .map((a) => a.scope_id)
+          .filter((id): id is number => id !== null),
+      ),
+    ];
 
     const [divisions, teams] = await Promise.all([
       this.prisma.divisions.findMany({
@@ -342,14 +361,34 @@ export class UsersService {
       }),
     ]);
 
-    let division: { id: number; name: string; status: any; description: string | null; created_at: Date; updated_at: Date; deleted_at: Date | null; address: string | null; type: any; parent_id: number | null; founding_at: Date } | null = null;
+    let division: {
+      id: number;
+      name: string;
+      status: any;
+      description: string | null;
+      created_at: Date;
+      updated_at: Date;
+      deleted_at: Date | null;
+      address: string | null;
+      type: any;
+      parent_id: number | null;
+      founding_at: Date;
+    } | null = null;
     if (divisionAssignment?.scope_id) {
       division = await this.prisma.divisions.findUnique({
         where: { id: divisionAssignment.scope_id },
       });
     }
 
-    let team: { id: number; name: string; division_id: number | null; created_at: Date; updated_at: Date; deleted_at: Date | null; founding_date: Date | null } | null = null;
+    let team: {
+      id: number;
+      name: string;
+      division_id: number | null;
+      created_at: Date;
+      updated_at: Date;
+      deleted_at: Date | null;
+      founding_date: Date | null;
+    } | null = null;
     if (teamAssignment?.scope_id) {
       team = await this.prisma.teams.findUnique({
         where: { id: teamAssignment.scope_id },
@@ -361,13 +400,11 @@ export class UsersService {
     return {
       ...user,
       user_division: division
-        ? [
-            {
-              division,
-              team: team || null,
-            },
-          ]
-        : [],
+        ? {
+            division,
+            team: team || null,
+          }
+        : null,
       role_assignments: roleAssignments.roles,
     };
   }

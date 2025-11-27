@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type, Transform } from 'class-transformer';
-import { IsOptional, IsString, IsInt, Min } from 'class-validator';
+import { ProjectType } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class ProjectPaginationDto extends PaginationDto {
@@ -12,6 +13,16 @@ export class ProjectPaginationDto extends PaginationDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiProperty({
+    description: 'Loại dự án',
+    example: ProjectType.INTERNAL,
+    enum: ProjectType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ProjectType)
+  project_type?: ProjectType;
 
   @ApiProperty({
     description: 'Lọc theo trạng thái',
@@ -48,4 +59,3 @@ export class ProjectPaginationDto extends PaginationDto {
   @IsInt()
   team_id?: number;
 }
-

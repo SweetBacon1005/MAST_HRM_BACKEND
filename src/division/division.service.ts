@@ -23,7 +23,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
 import {
   DivisionMembersQueryDto,
-  DivisionMemberssort_byEnum,
+  DivisionMembersSortByEnum,
 } from './dto/division-members-query.dto';
 import { DivisionPaginationDto } from './dto/pagination-queries.dto';
 import {
@@ -479,10 +479,10 @@ export class DivisionService {
     if (queryDto.sort_by) {
       const sort_order = queryDto.sort_order || 'asc';
       switch (queryDto.sort_by) {
-        case DivisionMemberssort_byEnum.NAME:
+        case DivisionMembersSortByEnum.NAME:
           orderBy = { user_information: { name: sort_order } };
           break;
-        case DivisionMemberssort_byEnum.JOIN_DATE:
+        case DivisionMembersSortByEnum.JOIN_DATE:
           orderBy = { created_at: sort_order };
           break;
         default:
