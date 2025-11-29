@@ -322,7 +322,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'asset.read', 'asset.request.create', 'asset.request.read',
         'personnel.transfer.read',
         'role.view',
-        'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
+        'meeting_room.read', 'meeting_room.booking.read',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit',
       ],
     },
