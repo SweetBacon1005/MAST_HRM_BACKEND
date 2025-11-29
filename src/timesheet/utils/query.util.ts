@@ -23,10 +23,16 @@ export class QueryUtil {
   static checkinRange(startDate?: string, endDate?: string): any {
     if (!startDate || !endDate) return {};
 
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(0, 0, 0, 0);
+    
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(23, 59, 59, 999);
+
     return {
       checkin: {
-        gte: new Date(startDate + 'T00:00:00.000Z'),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
     };
   }

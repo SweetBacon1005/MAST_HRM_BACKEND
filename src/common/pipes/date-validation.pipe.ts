@@ -16,7 +16,8 @@ export class DateValidationPipe implements PipeTransform {
     }
 
     // Kiểm tra ngày có hợp lệ không
-    const date = new Date(value + 'T00:00:00.000Z');
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
     if (isNaN(date.getTime())) {
       throw new BadRequestException('Ngày không hợp lệ');
     }
@@ -24,9 +25,9 @@ export class DateValidationPipe implements PipeTransform {
     // Kiểm tra ngày có đúng với input không (tránh trường hợp 2024-02-30)
     const [year, month, day] = value.split('-').map(Number);
     if (
-      date.getUTCFullYear() !== year ||
-      date.getUTCMonth() + 1 !== month ||
-      date.getUTCDate() !== day
+      date.getFullYear() !== year ||
+      date.getMonth() + 1 !== month ||
+      date.getDate() !== day
     ) {
       throw new BadRequestException('Ngày không tồn tại trong lịch');
     }

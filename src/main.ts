@@ -6,6 +6,8 @@ import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { envConfig } from './config/env.config';
 import { INestApplication } from '@nestjs/common';
 
+process.env.TZ = 'Asia/Ho_Chi_Minh';
+
 let app: INestApplication;
 
 async function createApp() {

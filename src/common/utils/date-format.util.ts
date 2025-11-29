@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 
 export class DateFormatUtil {
   /**
-   * Format datetime thành yyyy-mm-dd HH:MM:SS
+   * Format datetime thành yyyy-mm-dd HH:MM:SS (Asia/Ho_Chi_Minh timezone)
    * Dùng cho các field như created_at, updated_at, checkin, checkout
    */
   static formatDateTime(date: Date | string | null | undefined): string | null {
@@ -10,7 +10,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toUTC().toFormat('yyyy-MM-dd HH:mm:ss');
+      return dt.setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd HH:mm:ss');
     } catch (error) {
       console.error('Error formatting datetime:', error);
       return null;
@@ -18,7 +18,7 @@ export class DateFormatUtil {
   }
 
   /**
-   * Format date thành yyyy-mm-dd
+   * Format date thành yyyy-mm-dd (Asia/Ho_Chi_Minh timezone)
    * Dùng cho các field như birthday, work_date, start_date, end_date
    */
   static formatDate(date: Date | string | null | undefined): string | null {
@@ -26,7 +26,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toUTC().toFormat('yyyy-MM-dd');
+      return dt.setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd');
     } catch (error) {
       console.error('Error formatting date:', error);
       return null;
@@ -34,7 +34,7 @@ export class DateFormatUtil {
   }
 
   /**
-   * Format thời gian thành HH:MM
+   * Format thời gian thành HH:MM (Asia/Ho_Chi_Minh timezone)
    * Dùng cho các field như checkin_checkout
    */
   static formatTime(date: Date | string | null | undefined): string | null {
@@ -42,7 +42,7 @@ export class DateFormatUtil {
     
     try {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
-      return dt.toUTC().toFormat('HH:mm');
+      return dt.setZone('Asia/Ho_Chi_Minh').toFormat('HH:mm');
     } catch (error) {
       console.error('Error formatting time:', error);
       return null;
@@ -77,17 +77,17 @@ export class DateFormatUtil {
   }
 
   /**
-   * Lấy ngày hiện tại theo format yyyy-mm-dd
+   * Lấy ngày hiện tại theo format yyyy-mm-dd (Asia/Ho_Chi_Minh timezone)
    */
   static getCurrentDate(): string {
-    return DateTime.utc().toFormat('yyyy-MM-dd');
+    return DateTime.now().setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd');
   }
 
   /**
-   * Lấy datetime hiện tại theo format yyyy-mm-dd HH:MM:SS
+   * Lấy datetime hiện tại theo format yyyy-mm-dd HH:MM:SS (Asia/Ho_Chi_Minh timezone)
    */
   static getCurrentDateTime(): string {
-    return DateTime.utc().toFormat('yyyy-MM-dd HH:mm:ss');
+    return DateTime.now().setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd HH:mm:ss');
   }
 
   /**

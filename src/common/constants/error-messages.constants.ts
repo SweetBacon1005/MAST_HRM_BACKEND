@@ -290,3 +290,21 @@ export const DAILY_REPORT_ERRORS = {
 
 export type DailyReportError = typeof DAILY_REPORT_ERRORS[keyof typeof DAILY_REPORT_ERRORS];
 export type SuccessMessage = typeof SUCCESS_MESSAGES[keyof typeof SUCCESS_MESSAGES];
+
+// === MEETING ROOM ERRORS ===
+export const MEETING_ROOM_ERRORS = {
+  ROOM_NOT_FOUND: 'Phòng họp không tồn tại',
+  ROOM_NOT_ACTIVE: 'Phòng họp không hoạt động',
+  ROOM_NAME_EXISTS: 'Tên phòng đã tồn tại',
+  BOOKING_NOT_FOUND: 'Lịch đặt phòng không tồn tại',
+  INVALID_TIME: 'Thời gian không hợp lệ',
+  END_TIME_BEFORE_START: 'Thời gian kết thúc phải sau thời gian bắt đầu',
+  CANNOT_BOOK_PAST: 'Không thể đặt phòng trong quá khứ',
+  DURATION_EXCEEDED: 'Thời lượng cuộc họp vượt quá giới hạn tối đa (4 giờ)',
+  ROOM_TIME_CONFLICT: 'Phòng đã bị trùng lịch trong khung giờ yêu cầu',
+  ORGANIZER_TIME_CONFLICT: 'Bạn đang có lịch họp khác trùng thời gian',
+  UNAUTHORIZED_UPDATE: 'Bạn không có quyền cập nhật lịch đặt này',
+  UNAUTHORIZED_DELETE: 'Bạn không có quyền xóa lịch đặt này',
+} as const;
+
+export type MeetingRoomError = typeof MEETING_ROOM_ERRORS[keyof typeof MEETING_ROOM_ERRORS];

@@ -72,7 +72,7 @@ export class AuthService {
     const tokens = await this.getTokens(
       Number(user.id),
       user.email,
-      user.user_role_assignments.map((assignment) => assignment.role.name),
+      Array.from(new Set(user.user_role_assignments.map((assignment) => assignment.role.name))),
     );
 
     await this.activityLogService.logUserLogin(Number(user.id));
@@ -177,7 +177,7 @@ export class AuthService {
     const tokens = await this.getTokens(
       Number(user.id),
       user.email,
-      userRoles.roles.map((role) => role.name),
+      Array.from(new Set(userRoles.roles.map((role) => role.name))),
     );
     return tokens;
   }
@@ -235,12 +235,10 @@ export class AuthService {
 
   private async getUserAdditionalInfo(user_id: number): Promise<any> {
     const today = new Date();
-    const todayStart = new Date(
-      today.toISOString().split('T')[0] + 'T00:00:00.000Z',
-    );
-    const todayEnd = new Date(
-      today.toISOString().split('T')[0] + 'T23:59:59.999Z',
-    );
+    const todayStart = new Date(today);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
     const [
       userInfo,
       todayTimesheet,

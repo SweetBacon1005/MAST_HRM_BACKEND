@@ -378,7 +378,8 @@ export class TimesheetService {
           });
         }
 
-        const workStartTime = new Date(today + 'T01:30:00.000Z');
+        const workStartTime = new Date(today);
+        workStartTime.setHours(8, 30, 0, 0);
         const lateTime =
           checkin_time > workStartTime
             ? Math.floor(
@@ -533,7 +534,8 @@ export class TimesheetService {
           throw new BadRequestException(TIMESHEET_ERRORS.INVALID_WORK_TIME);
         }
 
-        const workEndTime = new Date(today + 'T10:30:00.000Z'); // 5:30 PM UTC+7 = 10:30 AM UTC
+        const workEndTime = new Date(today);
+        workEndTime.setHours(17, 30, 0, 0);
         const earlyTime =
           checkout_time < workEndTime
             ? Math.floor(

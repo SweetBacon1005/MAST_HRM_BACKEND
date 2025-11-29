@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { ActivityLogService, ActivityEvent, SubjectType } from '../common/services/activity-log.service';
@@ -8,6 +8,8 @@ import { RoomPaginationDto } from './dto/room-pagination.dto';
 import { BookingPaginationDto } from './dto/booking-pagination.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { buildPaginationQuery, buildPaginationResponseFromDto } from '../common/utils/pagination.util';
+import { MEETING_ROOM_ERRORS } from '../common/constants/error-messages.constants';
+import { Prisma } from '@prisma/client';
 
 const MAX_DURATION_MS = 4 * 60 * 60 * 1000;
 
@@ -20,27 +22,49 @@ export class MeetingRoomsService {
 
   async createBooking(user_id: number, dto: CreateBookingDto) {
     const now = new Date();
-    const start = new Date(dto.start_time);
-    const end = new Date(dto.end_time);
+    
+    const [year, month, day] = dto.booking_date.split('-').map(Number);
+    const bookingDate = new Date(year, month - 1, day);
+    
+    if (isNaN(bookingDate.getTime())) {
+      throw new BadRequestException(MEETING_ROOM_ERRORS.INVALID_TIME);
+    }
+
+    const [startHour, startMinute] = dto.start_hour.split(':').map(Number);
+    const [endHour, endMinute] = dto.end_hour.split(':').map(Number);
+
+    const start = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
+    const end = new Date(year, month - 1, day, endHour, endMinute, 0, 0);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      throw new BadRequestException('Thời gian không hợp lệ');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.INVALID_TIME);
     }
     if (end <= start) {
-      throw new BadRequestException('Thời gian kết thúc phải sau thời gian bắt đầu');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.END_TIME_BEFORE_START);
     }
-    if (start < now) {
-      throw new BadRequestException('Không thể đặt phòng trong quá khứ');
+    
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfBookingDate = new Date(bookingDate);
+    startOfBookingDate.setHours(0, 0, 0, 0);
+    
+    if (startOfBookingDate < startOfToday) {
+      throw new BadRequestException(MEETING_ROOM_ERRORS.CANNOT_BOOK_PAST);
     }
+    
+    if (startOfBookingDate.getTime() === startOfToday.getTime() && start < now) {
+      throw new BadRequestException(MEETING_ROOM_ERRORS.CANNOT_BOOK_PAST);
+    }
+    
     if (end.getTime() - start.getTime() > MAX_DURATION_MS) {
-      throw new BadRequestException('Thời lượng cuộc họp vượt quá giới hạn tối đa (4 giờ)');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.DURATION_EXCEEDED);
     }
 
     const room = await this.prisma.rooms.findFirst({
       where: { id: dto.room_id, is_active: true, deleted_at: null },
     });
     if (!room) {
-      throw new NotFoundException('Phòng họp không tồn tại hoặc không hoạt động');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.ROOM_NOT_ACTIVE);
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -54,7 +78,7 @@ export class MeetingRoomsService {
         },
       });
       if (overlapping) {
-        throw new BadRequestException('Phòng đã bị trùng lịch trong khung giờ yêu cầu');
+        throw new BadRequestException(MEETING_ROOM_ERRORS.ROOM_TIME_CONFLICT);
       }
 
       const organizerConflicting = await tx.room_bookings.findFirst({
@@ -67,7 +91,7 @@ export class MeetingRoomsService {
       });
 
       if (organizerConflicting) {
-        throw new BadRequestException('Bạn đang có lịch họp khác trùng thời gian');
+        throw new BadRequestException(MEETING_ROOM_ERRORS.ORGANIZER_TIME_CONFLICT);
       }
 
       const booking = await tx.room_bookings.create({
@@ -106,14 +130,14 @@ export class MeetingRoomsService {
   async createRoom(dto: CreateRoomDto) {
     const exists = await this.prisma.rooms.findFirst({ where: { name: dto.name, deleted_at: null } });
     if (exists) {
-      throw new BadRequestException('Tên phòng đã tồn tại');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.ROOM_NAME_EXISTS);
     }
     return this.prisma.rooms.create({ data: { ...dto } });
   }
 
   async findAllRooms(query: RoomPaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(query);
-    const where: any = { deleted_at: null };
+    const where: Prisma.roomsWhereInput = { deleted_at: null };
     if (typeof query.search === 'string' && query.search.length > 0) {
       where.name = { contains: query.search };
     }
@@ -130,7 +154,7 @@ export class MeetingRoomsService {
   async findOneRoom(id: number) {
     const room = await this.prisma.rooms.findFirst({ where: { id, deleted_at: null } });
     if (!room) {
-      throw new NotFoundException('Phòng họp không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.ROOM_NOT_FOUND);
     }
     return room;
   }
@@ -138,14 +162,14 @@ export class MeetingRoomsService {
   async updateRoom(id: number, dto: UpdateRoomDto) {
     const room = await this.prisma.rooms.findFirst({ where: { id, deleted_at: null } });
     if (!room) {
-      throw new NotFoundException('Phòng họp không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.ROOM_NOT_FOUND);
     }
     if (dto.name && dto.name !== room.name) {
       const exists = await this.prisma.rooms.findFirst({
         where: { name: dto.name, deleted_at: null, id: { not: id } as any },
       });
       if (exists) {
-        throw new BadRequestException('Tên phòng đã tồn tại');
+        throw new BadRequestException(MEETING_ROOM_ERRORS.ROOM_NAME_EXISTS);
       }
     }
     return this.prisma.rooms.update({ where: { id }, data: { ...dto } });
@@ -154,18 +178,59 @@ export class MeetingRoomsService {
   async removeRoom(id: number) {
     const room = await this.prisma.rooms.findFirst({ where: { id, deleted_at: null } });
     if (!room) {
-      throw new NotFoundException('Phòng họp không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.ROOM_NOT_FOUND);
     }
     return this.prisma.rooms.update({ where: { id }, data: { deleted_at: new Date() } });
   }
 
   async findAllBookings(query: BookingPaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(query);
-    const where: any = { deleted_at: null };
+    const where: Prisma.room_bookingsWhereInput = { deleted_at: null };
     if (typeof query.room_id === 'number') where.room_id = query.room_id;
     if (typeof query.organizer_id === 'number') where.organizer_id = query.organizer_id;
-    if (query.from) where.start_time = { gte: new Date(query.from) };
-    if (query.to) where.end_time = Object.assign(where.end_time || {}, { lte: new Date(query.to) });
+    
+    if (query.from_date) {
+      const [year, month, day] = query.from_date.split('-').map(Number);
+      const fromDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+      where.start_time = { gte: fromDate };
+    }
+    
+    if (query.to_date) {
+      const [year, month, day] = query.to_date.split('-').map(Number);
+      const toDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+      where.end_time = Object.assign(where.end_time || {}, { lte: toDate });
+    }
+    
+    const [data, total] = await Promise.all([
+      this.prisma.room_bookings.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { start_time: 'asc' },
+        include: { room: true },
+      }),
+      this.prisma.room_bookings.count({ where }),
+    ]);
+    return buildPaginationResponseFromDto(data, total, query);
+  }
+
+  async findMyBookings(user_id: number, query: BookingPaginationDto) {
+    const { skip, take, orderBy } = buildPaginationQuery(query);
+    const where: Prisma.room_bookingsWhereInput = { deleted_at: null, organizer_id: user_id };
+    if (typeof query.room_id === 'number') where.room_id = query.room_id;
+    
+    if (query.from_date) {
+      const [year, month, day] = query.from_date.split('-').map(Number);
+      const fromDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+      where.start_time = { gte: fromDate };
+    }
+    
+    if (query.to_date) {
+      const [year, month, day] = query.to_date.split('-').map(Number);
+      const toDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+      where.end_time = Object.assign(where.end_time || {}, { lte: toDate });
+    }
+    
     const [data, total] = await Promise.all([
       this.prisma.room_bookings.findMany({
         where,
@@ -182,7 +247,7 @@ export class MeetingRoomsService {
   async findOneBooking(id: number) {
     const booking = await this.prisma.room_bookings.findFirst({ where: { id, deleted_at: null }, include: { room: true } });
     if (!booking) {
-      throw new NotFoundException('Lịch đặt phòng không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.BOOKING_NOT_FOUND);
     }
     return booking;
   }
@@ -190,27 +255,75 @@ export class MeetingRoomsService {
   async updateBooking(id: number, user_id: number, dto: UpdateBookingDto) {
     const booking = await this.prisma.room_bookings.findFirst({ where: { id, deleted_at: null } });
     if (!booking) {
-      throw new NotFoundException('Lịch đặt phòng không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.BOOKING_NOT_FOUND);
     }
+    if (booking.organizer_id !== user_id) {
+      throw new ForbiddenException(MEETING_ROOM_ERRORS.UNAUTHORIZED_UPDATE);
+    }
+    
     const roomId = dto.room_id ?? booking.room_id;
     const title = dto.title ?? booking.title;
     const description = dto.description ?? booking.description ?? null;
-    const start = dto.start_time ? new Date(dto.start_time) : new Date(booking.start_time);
-    const end = dto.end_time ? new Date(dto.end_time) : new Date(booking.end_time);
+
+    let start: Date;
+    let end: Date;
+
+    if (dto.booking_date || dto.start_hour || dto.end_hour) {
+      let year: number, month: number, day: number;
+      
+      if (dto.booking_date) {
+        [year, month, day] = dto.booking_date.split('-').map(Number);
+      } else {
+        const existingDate = new Date(booking.start_time);
+        year = existingDate.getFullYear();
+        month = existingDate.getMonth() + 1;
+        day = existingDate.getDate();
+      }
+      
+      const bookingDate = new Date(year, month - 1, day);
+      
+      if (isNaN(bookingDate.getTime())) {
+        throw new BadRequestException(MEETING_ROOM_ERRORS.INVALID_TIME);
+      }
+
+      let startHour: number, startMinute: number, endHour: number, endMinute: number;
+
+      if (dto.start_hour) {
+        [startHour, startMinute] = dto.start_hour.split(':').map(Number);
+      } else {
+        const existingStart = new Date(booking.start_time);
+        startHour = existingStart.getHours();
+        startMinute = existingStart.getMinutes();
+      }
+
+      if (dto.end_hour) {
+        [endHour, endMinute] = dto.end_hour.split(':').map(Number);
+      } else {
+        const existingEnd = new Date(booking.end_time);
+        endHour = existingEnd.getHours();
+        endMinute = existingEnd.getMinutes();
+      }
+
+      start = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
+      end = new Date(year, month - 1, day, endHour, endMinute, 0, 0);
+    } else {
+      start = new Date(booking.start_time);
+      end = new Date(booking.end_time);
+    }
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      throw new BadRequestException('Thời gian không hợp lệ');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.INVALID_TIME);
     }
     if (end <= start) {
-      throw new BadRequestException('Thời gian kết thúc phải sau thời gian bắt đầu');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.END_TIME_BEFORE_START);
     }
     if (end.getTime() - start.getTime() > MAX_DURATION_MS) {
-      throw new BadRequestException('Thời lượng cuộc họp vượt quá giới hạn tối đa (4 giờ)');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.DURATION_EXCEEDED);
     }
 
     const room = await this.prisma.rooms.findFirst({ where: { id: roomId, is_active: true, deleted_at: null } });
     if (!room) {
-      throw new NotFoundException('Phòng họp không tồn tại hoặc không hoạt động');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.ROOM_NOT_ACTIVE);
     }
 
     const overlapping = await this.prisma.room_bookings.findFirst({
@@ -223,7 +336,7 @@ export class MeetingRoomsService {
       },
     });
     if (overlapping) {
-      throw new BadRequestException('Phòng đã bị đặt trong khung giờ yêu cầu');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.ROOM_TIME_CONFLICT);
     }
 
     const organizerConflicting = await this.prisma.room_bookings.findFirst({
@@ -236,7 +349,7 @@ export class MeetingRoomsService {
       },
     });
     if (organizerConflicting) {
-      throw new BadRequestException('Bạn đang có lịch họp khác trùng thời gian');
+      throw new BadRequestException(MEETING_ROOM_ERRORS.ORGANIZER_TIME_CONFLICT);
     }
 
     const updated = await this.prisma.room_bookings.update({
@@ -261,7 +374,10 @@ export class MeetingRoomsService {
   async removeBooking(id: number, user_id: number) {
     const booking = await this.prisma.room_bookings.findFirst({ where: { id, deleted_at: null }, include: { room: true } });
     if (!booking) {
-      throw new NotFoundException('Lịch đặt phòng không tồn tại');
+      throw new NotFoundException(MEETING_ROOM_ERRORS.BOOKING_NOT_FOUND);
+    }
+    if (booking.organizer_id !== user_id) {
+      throw new ForbiddenException(MEETING_ROOM_ERRORS.UNAUTHORIZED_DELETE);
     }
     const removed = await this.prisma.room_bookings.update({ where: { id }, data: { deleted_at: new Date() } });
     await this.activityLog.log({

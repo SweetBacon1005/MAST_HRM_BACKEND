@@ -134,8 +134,8 @@ export class AttendanceService {
       where: {
         user_id,
         checkin: {
-          gte: new Date(workDate + 'T00:00:00.000Z'),
-          lt: new Date(workDate + 'T23:59:59.999Z'),
+          gte: (() => { const d = new Date(workDate); d.setHours(0, 0, 0, 0); return d; })(),
+          lt: (() => { const d = new Date(workDate); d.setHours(23, 59, 59, 999); return d; })(),
         },
         deleted_at: null,
       },
@@ -583,8 +583,8 @@ export class AttendanceService {
       where: {
         user_id,
         checkin: {
-          gte: new Date(work_date + 'T00:00:00.000Z'),
-          lt: new Date(work_date + 'T23:59:59.999Z'),
+          gte: (() => { const d = new Date(work_date); d.setHours(0, 0, 0, 0); return d; })(),
+          lt: (() => { const d = new Date(work_date); d.setHours(23, 59, 59, 999); return d; })(),
         },
         remote: RemoteType.REMOTE,
         deleted_at: null,
@@ -595,12 +595,18 @@ export class AttendanceService {
       throw new ConflictException('Đã có yêu cầu làm việc từ xa cho ngày này');
     }
 
-    const checkin = is_full_day
-      ? new Date(work_date + 'T08:00:00.000Z')
-      : new Date(start_time!);
-    const checkout = is_full_day
-      ? new Date(work_date + 'T17:30:00.000Z')
-      : new Date(end_time!);
+    let checkin: Date;
+    let checkout: Date;
+    
+    if (is_full_day) {
+      checkin = new Date(work_date);
+      checkin.setHours(8, 0, 0, 0);
+      checkout = new Date(work_date);
+      checkout.setHours(17, 30, 0, 0);
+    } else {
+      checkin = new Date(start_time!);
+      checkout = new Date(end_time!);
+    }
 
     try {
       const result = await this.prisma.time_sheets.create({
@@ -740,10 +746,15 @@ export class AttendanceService {
       user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(0, 0, 0, 0);
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(23, 59, 59, 999);
+
     const where: any = {
       checkin: {
-        gte: new Date(startDate + 'T00:00:00.000Z'),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
       deleted_at: null,
     };
@@ -871,10 +882,15 @@ export class AttendanceService {
     startDate: string,
     endDate: string,
   ) {
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(0, 0, 0, 0);
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(23, 59, 59, 999);
+    
     const where: any = {
       checkin: {
-        gte: new Date(startDate + 'T00:00:00.000Z'),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
       deleted_at: null,
     };

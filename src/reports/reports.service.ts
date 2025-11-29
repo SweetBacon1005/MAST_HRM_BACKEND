@@ -431,10 +431,15 @@ export class ReportsService {
       user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(0, 0, 0, 0);
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(23, 59, 59, 999);
+    
     const whereTimesheet: TimesheetWhereInput = {
       work_date: {
-        gte: new Date(startDate + 'T00:00:00.000Z'),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
       deleted_at: null,
     };
@@ -1165,10 +1170,15 @@ export class ReportsService {
     startDate: string,
     endDate: string,
   ) {
+    const startDateTime = new Date(startDate);
+    startDateTime.setHours(0, 0, 0, 0);
+    const endDateTime = new Date(endDate);
+    endDateTime.setHours(23, 59, 59, 999);
+    
     const whereViolation: TimesheetWhereInput = {
       work_date: {
-        gte: new Date(startDate + 'T00:00:00.000Z'),
-        lte: new Date(endDate + 'T23:59:59.999Z'),
+        gte: startDateTime,
+        lte: endDateTime,
       },
       deleted_at: null,
       OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],

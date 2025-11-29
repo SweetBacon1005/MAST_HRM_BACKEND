@@ -1,21 +1,23 @@
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateRoomDto {
+  @ApiProperty({
+    description: 'Tên phòng họp',
+    example: 'Phòng họp A',
+    maxLength: 255,
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  location?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  capacity?: number;
-
+  @ApiProperty({
+    description: 'Trạng thái hoạt động',
+    example: true,
+    default: true,
+    required: false,
+  })
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
