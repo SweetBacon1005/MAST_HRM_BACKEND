@@ -84,8 +84,8 @@ export class UploadService {
   async deleteImage(publicId: string): Promise<void> {
     try {
       await cloudinary.uploader.destroy(publicId);
-    } catch (error) {
-      console.error('Lỗi khi xóa ảnh từ Cloudinary:', error);
+    } catch {
+      // Silently fail image deletion
     }
   }
 

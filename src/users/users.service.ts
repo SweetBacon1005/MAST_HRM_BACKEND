@@ -13,12 +13,14 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersPaginationDto } from './dto/pagination-queries.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ActivityLogService } from '../common/services/activity-log.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
     private roleAssignmentService: RoleAssignmentService,
+    private activityLogService: ActivityLogService,
   ) {}
 
   async create(createUserDto: CreateUserDto, assignedBy: number) {
@@ -45,6 +47,17 @@ export class UsersService {
         assigned_by: assignedBy,
       });
     }
+
+    await this.activityLogService.logUserOperation(
+      'created',
+      user.id,
+      assignedBy,
+      user.email,
+      {
+        name: userData.name,
+        role_id: userData.role_id,
+      }
+    );
 
     const { password: _, ...result } = user;
     return result;
@@ -426,7 +439,7 @@ export class UsersService {
     });
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto) {
+  async update(id: number, updateUserDto: UpdateUserDto, updatedBy: number) {
     const user = await this.findById(id);
 
     if (!user) {
@@ -438,27 +451,53 @@ export class UsersService {
       data: updateUserDto,
     });
 
+    await this.activityLogService.logUserOperation(
+      'updated',
+      id,
+      updatedBy,
+      updatedUser.email,
+      { changes: updateUserDto }
+    );
+
     const { password, ...result } = updatedUser;
     return result;
   }
 
-  async remove(id: number) {
-    await this.findById(id);
+  async remove(id: number, deletedBy: number) {
+    const user = await this.findById(id);
 
     await this.prisma.users.update({
       where: { id: id },
       data: { deleted_at: new Date() },
     });
 
+    await this.activityLogService.logUserOperation(
+      'deleted',
+      id,
+      deletedBy,
+      user.email,
+      {}
+    );
+
     return { message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY };
   }
 
-  async updatePassword(user_id: number, hashedPassword: string) {
-    await this.prisma.users.update({
+  async updatePassword(user_id: number, hashedPassword: string, changedBy?: number) {
+    const user = await this.prisma.users.update({
       where: { id: user_id },
       data: {
         password: hashedPassword,
       },
     });
+
+    if (changedBy) {
+      await this.activityLogService.logUserOperation(
+        'password_changed',
+        user_id,
+        changedBy,
+        user.email,
+        {}
+      );
+    }
   }
 }

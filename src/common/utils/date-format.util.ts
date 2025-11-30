@@ -12,7 +12,6 @@ export class DateFormatUtil {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
       return dt.setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd HH:mm:ss');
     } catch (error) {
-      console.error('Error formatting datetime:', error);
       return null;
     }
   }
@@ -28,7 +27,6 @@ export class DateFormatUtil {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
       return dt.setZone('Asia/Ho_Chi_Minh').toFormat('yyyy-MM-dd');
     } catch (error) {
-      console.error('Error formatting date:', error);
       return null;
     }
   }
@@ -44,7 +42,6 @@ export class DateFormatUtil {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
       return dt.setZone('Asia/Ho_Chi_Minh').toFormat('HH:mm');
     } catch (error) {
-      console.error('Error formatting time:', error);
       return null;
     }
   }
@@ -59,7 +56,6 @@ export class DateFormatUtil {
       const dt = DateTime.fromISO(dateString);
       return dt.isValid ? dt.toJSDate() : null;
     } catch (error) {
-      console.error('Error parsing date:', error);
       return null;
     }
   }
@@ -111,7 +107,6 @@ export class DateFormatUtil {
       const dt = typeof date === 'string' ? DateTime.fromISO(date) : DateTime.fromJSDate(date);
       return dt.setZone(timezone).toFormat('yyyy-MM-dd HH:mm:ss');
     } catch (error) {
-      console.error('Error formatting datetime with timezone:', error);
       return null;
     }
   }
@@ -126,7 +121,6 @@ export class DateFormatUtil {
       
       return Math.round(endDt.diff(startDt, 'minutes').minutes);
     } catch (error) {
-      console.error('Error calculating time difference:', error);
       return 0;
     }
   }

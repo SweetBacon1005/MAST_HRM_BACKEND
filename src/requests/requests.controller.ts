@@ -769,5 +769,3 @@ export class RequestsController {
     return await this.requestsService.deleteForgotCheckinRequest(id, user_id);
   }}
 
-
-

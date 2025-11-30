@@ -166,7 +166,6 @@ export class AttendanceController {
   }
 
   // === LEAVE BALANCE MANAGEMENT ===
-  // Note: Leave requests and remote work requests moved to /requests module
 
   @Get('my-leave-balance')
   @ApiOperation({ summary: 'Xem số dư phép năm của tôi' })

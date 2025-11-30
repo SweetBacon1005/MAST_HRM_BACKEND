@@ -53,6 +53,70 @@ export class AttendanceExportService {
   }
 
   /**
+   * OPTIMIZED: Batch fetch division names for multiple users
+   * Reduces N+1 queries to just 2 queries
+   */
+  private async batchGetDivisionNamesForUsers(
+    user_ids: number[]
+  ): Promise<Map<number, string>> {
+    if (user_ids.length === 0) {
+      return new Map();
+    }
+
+    // Batch 1: Get all assignments for these users
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: { in: user_ids },
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      orderBy: { created_at: 'desc' },
+      select: {
+        user_id: true,
+        scope_id: true,
+      },
+    });
+
+    // Get unique division IDs and first assignment per user
+    const userToDivisionMap = new Map<number, number>();
+    assignments.forEach(assignment => {
+      if (assignment.scope_id && !userToDivisionMap.has(assignment.user_id)) {
+        userToDivisionMap.set(assignment.user_id, assignment.scope_id);
+      }
+    });
+
+    const divisionIds = [...new Set(userToDivisionMap.values())];
+
+    if (divisionIds.length === 0) {
+      return new Map();
+    }
+
+    // Batch 2: Get all divisions in 1 query
+    const divisions = await this.prisma.divisions.findMany({
+      where: { id: { in: divisionIds } },
+      select: { id: true, name: true },
+    });
+
+    const divisionNameMap = new Map(
+      divisions.map(d => [d.id, d.name])
+    );
+
+    // Map user_id to division name
+    const result = new Map<number, string>();
+    user_ids.forEach(user_id => {
+      const divisionId = userToDivisionMap.get(user_id);
+      if (divisionId) {
+        result.set(user_id, divisionNameMap.get(divisionId) || '');
+      } else {
+        result.set(user_id, '');
+      }
+    });
+
+    return result;
+  }
+
+  /**
    * Export attendance logs to CSV
    */
   async exportAttendanceLogs(
@@ -93,14 +157,9 @@ export class AttendanceExportService {
     });
 
     // Lấy division names cho tất cả users
+    // FIX N+1: Batch fetch division names for all users
     const user_ids = [...new Set(logs.map((log) => log.user_id))];
-    const divisionNamesMap = new Map<number, string>();
-    await Promise.all(
-      user_ids.map(async (user_id) => {
-        const divisionName = await this.getDivisionNameForUser(user_id);
-        divisionNamesMap.set(user_id, divisionName);
-      }),
-    );
+    const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
     // Transform data for CSV
     const csvData = logs.map((log) => ({
@@ -179,15 +238,9 @@ export class AttendanceExportService {
       },
     });
 
-    // Lấy division names
+    // FIX N+1: Batch fetch division names
     const user_ids = [...new Set(leaveRequests.map((leave) => leave.user_id))];
-    const divisionNamesMap = new Map<number, string>();
-    await Promise.all(
-      user_ids.map(async (user_id) => {
-        const divisionName = await this.getDivisionNameForUser(user_id);
-        divisionNamesMap.set(user_id, divisionName);
-      }),
-    );
+    const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
     const csvData = leaveRequests.map((leave) => ({
       user_id: leave.user_id,
@@ -268,15 +321,9 @@ export class AttendanceExportService {
       },
     });
 
-    // Lấy division names
+    // FIX N+1: Batch fetch division names
     const user_ids = [...new Set(overtimeRecords.map((overtime) => overtime.user_id))];
-    const divisionNamesMap = new Map<number, string>();
-    await Promise.all(
-      user_ids.map(async (user_id) => {
-        const divisionName = await this.getDivisionNameForUser(user_id);
-        divisionNamesMap.set(user_id, divisionName);
-      }),
-    );
+    const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
     const csvData = overtimeRecords.map((overtime) => ({
       user_id: overtime.user_id,
@@ -357,15 +404,9 @@ export class AttendanceExportService {
       },
     });
 
-    // Lấy division names
+    // FIX N+1: Batch fetch division names
     const user_ids = [...new Set(requests.map((request) => request.user_id))];
-    const divisionNamesMap = new Map<number, string>();
-    await Promise.all(
-      user_ids.map(async (user_id) => {
-        const divisionName = await this.getDivisionNameForUser(user_id);
-        divisionNamesMap.set(user_id, divisionName);
-      }),
-    );
+    const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
     const csvData = requests.map((request) => ({
       user_id: request.user_id,
@@ -440,14 +481,9 @@ export class AttendanceExportService {
     });
 
     // Lấy division names
+    // FIX N+1: Batch fetch division names
     const user_ids = [...new Set(requests.map((request) => request.user_id))];
-    const divisionNamesMap = new Map<number, string>();
-    await Promise.all(
-      user_ids.map(async (user_id) => {
-        const divisionName = await this.getDivisionNameForUser(user_id);
-        divisionNamesMap.set(user_id, divisionName);
-      }),
-    );
+    const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
     const csvData = requests.map((request) => ({
       user_id: request.user_id,

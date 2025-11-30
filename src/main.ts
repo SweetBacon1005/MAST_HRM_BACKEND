@@ -145,7 +145,6 @@ async function createApp() {
             background: rgba(80, 227, 194, 0.1) !important;
           }
           
-          /* Vercel-specific optimizations */
           .swagger-ui .loading-container {
             padding: 40px 0 !important;
           }
@@ -160,10 +159,6 @@ async function createApp() {
       };
       
       SwaggerModule.setup('api', app, document, swaggerConfig);
-      
-      console.log('Swagger documentation available at /api');
-    } else {
-      console.log('Swagger disabled - set ENABLE_SWAGGER=true to enable in production');
     }
 
     await app.init();
@@ -182,12 +177,6 @@ export default async function handler(req: any, res: any) {
 async function bootstrap() {
   const app = await createApp();
   await app.listen(envConfig.app.port);
-  console.log(
-    `Application is running on: http://localhost:${envConfig.app.port}`,
-  );
-  console.log(
-    `Swagger documentation: http://localhost:${envConfig.app.port}/api`,
-  );
 }
 
 // Only run bootstrap in local development (not on Vercel)

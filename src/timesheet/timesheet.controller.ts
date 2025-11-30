@@ -281,7 +281,6 @@ export class TimesheetController {
   }
 
   // === DAY OFF INFO (Read-only) ===
-  // Note: Day-off requests are now handled by /requests module
 
   @Get('day-off-info/:date')
   @ApiOperation({ summary: 'Lấy thông tin nghỉ phép của một ngày' })
@@ -294,7 +293,6 @@ export class TimesheetController {
   }
 
   // === OVERTIME INFO (Read-only) ===
-  // Note: Overtime requests are now handled by /requests module
 
   // === SCHEDULE MANAGEMENT ===
 

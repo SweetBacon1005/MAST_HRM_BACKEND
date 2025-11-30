@@ -3,10 +3,10 @@ import { Type } from 'class-transformer';
 import { IsNumber, Min, Max } from 'class-validator';
 
 export class UpdateProjectProgressDto {
-  @ApiProperty({ description: 'Ti?n d? d? �n (0-100)', example: 75 })
+  @ApiProperty({ description: 'Tiến độ dự án (0-100)', example: 75 })
   @Type(() => Number)
-  @IsNumber({}, { message: 'progress ph?i l� s?' })
-  @Min(0, { message: 'progress t?i thi?u l� 0' })
-  @Max(100, { message: 'progress t?i da l� 100' })
+  @IsNumber({}, { message: 'progress phải là số' })
+  @Min(0, { message: 'progress tối thiểu là 0' })
+  @Max(100, { message: 'progress tối đa là 100' })
   progress!: number;
 }

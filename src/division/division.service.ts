@@ -221,17 +221,33 @@ export class DivisionService {
       this.prisma.divisions.count({ where }),
     ]);
 
-    const transformedData = await Promise.all(
-      data.map(async (division) => {
-        const users = await this.getDivisionUser(division.id);
-        const projectCount = division.projects?.length || 0;
-        return {
-          ...division,
-          member_count: users.length,
-          project_count: projectCount,
-        };
-      }),
+    // FIX N+1: Get all member counts in 1 query using groupBy
+    const divisionIds = data.map(d => d.id);
+    const memberCounts = divisionIds.length > 0 
+      ? await this.prisma.user_role_assignment.groupBy({
+          by: ['scope_id'],
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: { in: divisionIds },
+            deleted_at: null,
+          },
+          _count: {
+            user_id: true,
+          },
+        })
+      : [];
+
+    // Create a map for O(1) lookup
+    const memberCountMap = new Map(
+      memberCounts.map(mc => [mc.scope_id, mc._count.user_id])
     );
+
+    // Transform data without additional queries
+    const transformedData = data.map(division => ({
+      ...division,
+      member_count: memberCountMap.get(division.id) || 0,
+      project_count: division.projects?.length || 0,
+    }));
 
     return buildPaginationResponse(
       transformedData,
@@ -392,15 +408,30 @@ export class DivisionService {
       },
     });
 
-    return await Promise.all(
-      divisions.map(async (division) => {
-        const users = await this.getDivisionUser(division.id);
-        return {
-          ...division,
-          member_count: users.length,
-        };
-      }),
+    // FIX N+1: Get all member counts in 1 query
+    const divisionIds = divisions.map(d => d.id);
+    const memberCounts = divisionIds.length > 0
+      ? await this.prisma.user_role_assignment.groupBy({
+          by: ['scope_id'],
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: { in: divisionIds },
+            deleted_at: null,
+          },
+          _count: {
+            user_id: true,
+          },
+        })
+      : [];
+
+    const memberCountMap = new Map(
+      memberCounts.map(mc => [mc.scope_id, mc._count.user_id])
     );
+
+    return divisions.map(division => ({
+      ...division,
+      member_count: memberCountMap.get(division.id) || 0,
+    }));
   }
 
   async getDivisionMembers(
@@ -1654,6 +1685,9 @@ export class DivisionService {
       take,
       orderBy: defaultOrderBy,
     } = buildPaginationQuery(paginationDto);
+    
+    const page = paginationDto.page || 1;
+    const limit = paginationDto.limit || 10;
 
     const whereConditions: Prisma.teamsWhereInput = {
       deleted_at: null,
@@ -1676,7 +1710,6 @@ export class DivisionService {
       orderBy = { [paginationDto.sort_by]: paginationDto.sort_order || 'desc' };
     }
 
-    console.log("whereCondition", whereConditions);
     
     const [teams, total] = await Promise.all([
       this.prisma.teams.findMany({
@@ -1690,53 +1723,101 @@ export class DivisionService {
       }),
     ]);
 
-    const teamsWithDetails = await Promise.all(
-      teams.map(async (team) => {
-        let manager: {
-          id: number;
-          name: string | null;
-          email: string;
-          avatar: string;
-        } | null = null;
+    // FIX MASSIVE N+1: Batch fetch all related data
+    const teamIds = teams.map(t => t.id);
+    
+    if (teamIds.length === 0) {
+      return buildPaginationResponse([], 0, page, limit);
+    }
 
-        const teamLeaderAssignment =
-          await this.prisma.user_role_assignment.findFirst({
-            where: {
-              scope_type: 'TEAM',
-              scope_id: team.id,
-              role: {
-                name: 'team_leader',
-                deleted_at: null,
+    // Batch 1: Get all team leaders in 1 query
+    const teamLeaderAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: { in: teamIds },
+        role: {
+          name: 'team_leader',
+          deleted_at: null,
+        },
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                avatar: true,
               },
-              deleted_at: null,
             },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  user_information: { select: { name: true, avatar: true } },
-                  email: true,
-                },
-              },
-            },
-          });
+          },
+        },
+      },
+    });
 
-        if (teamLeaderAssignment?.user) {
-          manager = {
-            id: teamLeaderAssignment.user.id,
-            name: teamLeaderAssignment.user.user_information?.name || null,
-            email: teamLeaderAssignment.user.email,
-            avatar: teamLeaderAssignment.user.user_information?.avatar || '',
-          };
+    const teamLeaderMap = new Map(
+      teamLeaderAssignments.map(tla => [
+        tla.scope_id,
+        tla.user ? {
+          id: tla.user.id,
+          name: tla.user.user_information?.name || null,
+          email: tla.user.email,
+          avatar: tla.user.user_information?.avatar || '',
+        } : null
+      ])
+    );
+
+    // Batch 2: Get all member counts in 1 query
+    const memberCounts = await this.prisma.user_role_assignment.groupBy({
+      by: ['scope_id'],
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: { in: teamIds },
+        deleted_at: null,
+      },
+      _count: {
+        user_id: true,
+      },
+    });
+
+    const memberCountMap = new Map(
+      memberCounts.map(mc => [mc.scope_id, mc._count.user_id])
+    );
+
+    // Batch 3: Get all team member user IDs
+    const allTeamAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: { in: teamIds },
+        deleted_at: null,
+      },
+      select: {
+        scope_id: true,
+        user_id: true,
+      },
+    });
+
+    // Group user IDs by team
+    const teamUserIdsMap = new Map<number, number[]>();
+    allTeamAssignments.forEach(assignment => {
+      if (assignment.scope_id !== null) {
+        if (!teamUserIdsMap.has(assignment.scope_id)) {
+          teamUserIdsMap.set(assignment.scope_id, []);
         }
+        teamUserIdsMap.get(assignment.scope_id)!.push(assignment.user_id);
+      }
+    });
 
-        const teamUsers = await this.getTeamUser(team.id);
-        const teamuser_ids = teamUsers.map((u) => u.id);
-        const memberCount = teamuser_ids.length;
+    // Get all unique user IDs
+    const allUserIds = [...new Set(allTeamAssignments.map(a => a.user_id))];
 
-        const members = await this.prisma.users.findMany({
+    // Batch 4: Get all users with their info in 1 query
+    const allUsers = allUserIds.length > 0 
+      ? await this.prisma.users.findMany({
           where: {
-            id: { in: teamuser_ids },
+            id: { in: allUserIds },
             deleted_at: null,
           },
           include: {
@@ -1748,36 +1829,57 @@ export class DivisionService {
               },
             },
           },
-        });
+        })
+      : [];
 
-        const activeProjects = await this.prisma.projects.findMany({
-          where: {
-            team_id: team.id,
-            deleted_at: null,
-          },
-          select: {
-            id: true,
-            name: true,
-          },
-        });
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
-        return {
-          id: team.id,
-          name: team.name,
-          division_id: team.division_id,
-          manager: manager,
-          member_count: memberCount,
-          resource_by_level: members.reduce((acc, user) => {
-            const levelName = user.user_information?.level?.name || 'Unknown';
-            acc[levelName] = (acc[levelName] || 0) + 1;
-            return acc;
-          }, {}),
-          active_projects: activeProjects.map((p) => p.name).join(', '),
-          founding_date: team.founding_date,
-          created_at: team.created_at,
-        };
-      }),
-    );
+    // Batch 5: Get all projects in 1 query
+    const allProjects = await this.prisma.projects.findMany({
+      where: {
+        team_id: { in: teamIds },
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        team_id: true,
+      },
+    });
+
+    // Group projects by team
+    const teamProjectsMap = new Map<number, typeof allProjects>();
+    allProjects.forEach(project => {
+      if (!teamProjectsMap.has(project.team_id!)) {
+        teamProjectsMap.set(project.team_id!, []);
+      }
+      teamProjectsMap.get(project.team_id!)!.push(project);
+    });
+
+    // Transform data without additional queries
+    const teamsWithDetails = teams.map(team => {
+      const manager = teamLeaderMap.get(team.id) || null;
+      const memberCount = memberCountMap.get(team.id) || 0;
+      const teamUserIds = teamUserIdsMap.get(team.id) || [];
+      const members = teamUserIds.map(userId => userMap.get(userId)).filter(Boolean) as any[];
+      const activeProjects = teamProjectsMap.get(team.id) || [];
+
+      return {
+        id: team.id,
+        name: team.name,
+        division_id: team.division_id,
+        manager: manager,
+        member_count: memberCount,
+        resource_by_level: members.reduce((acc, user) => {
+          const levelName = user.user_information?.level?.name || 'Unknown';
+          acc[levelName] = (acc[levelName] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+        active_projects: activeProjects.map((p) => p.name).join(', '),
+        founding_date: team.founding_date,
+        created_at: team.created_at,
+      };
+    });
 
     return buildPaginationResponseFromDto(
       teamsWithDetails,

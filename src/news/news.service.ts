@@ -350,8 +350,8 @@ export class NewsService {
           },
           reviewerId,
         );
-      } catch (error) {
-        console.error('Failed to create news notification:', error);
+      } catch {
+        // Silently fail notification creation
       }
     }
 

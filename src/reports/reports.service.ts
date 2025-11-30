@@ -51,13 +51,11 @@ export class ReportsService {
         .split('T')[0];
     const endDate = end_date || new Date().toISOString().split('T')[0];
 
-    // REFACTORED: Use UserQueryService instead of duplicate code
     const user_ids = await this.userQuery.getuser_idsByDivisionOrTeam({
       division_id: Number(division_id),
       team_id: Number(team_id),
     });
 
-    // REFACTORED: Use QueryBuilderService to build where clause
     const where = this.queryBuilder.buildTimesheetWhereClause({
       startDate,
       endDate,
@@ -82,8 +80,6 @@ export class ReportsService {
       }
     }
 
-    // Default: Trả về format cũ
-    // REFACTORED: Use UserQueryService (keeping for potential future use)
     if (user_ids.length > 0) {
       await this.userQuery.getBasicUserInfo(user_ids);
     }
@@ -1089,7 +1085,6 @@ export class ReportsService {
     const currentDate = new Date(start);
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
-      // 0 = Sunday, 6 = Saturday
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
         workingDays++;
       }

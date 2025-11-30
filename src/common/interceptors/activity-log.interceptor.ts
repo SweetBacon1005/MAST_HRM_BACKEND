@@ -92,7 +92,6 @@ export class ActivityLogInterceptor implements NestInterceptor {
       });
     } catch (logError) {
       // Không throw error để không ảnh hưởng business logic
-      console.error('Failed to log activity in interceptor:', logError);
     }
   }
 }

@@ -92,9 +92,6 @@ export class TimesheetService {
         );
       }
 
-      console.log(
-        `Tạo timesheet cho nghỉ phép nửa ngày: ${approvedDayOff.duration}`,
-      );
     }
 
     const existingTimesheet = await this.prisma.time_sheets.findFirst({
@@ -188,18 +185,155 @@ export class TimesheetService {
       this.prisma.time_sheets.count({ where }),
     ]);
 
-    const enhancedData = await Promise.all(
-      data.map(async (timesheet) => {
-        const requests = await this.getRequestsForDate(
-          user_id,
-          timesheet.work_date,
-        );
-        return {
-          ...timesheet,
-          requests,
-        };
+    // FIX N+1: Batch fetch all requests for all timesheets in fewer queries
+    if (data.length === 0) {
+      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+    }
+
+    const workDates = data.map(t => {
+      const dateStr = t.work_date.toISOString().split('T')[0];
+      return new Date(dateStr);
+    });
+
+    // Batch fetch all request types in parallel
+    const [
+      allRemoteWorkRequests,
+      allDayOffRequests,
+      allOvertimeRequests,
+      allLateEarlyRequests,
+      allForgotCheckinRequests,
+    ] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          user_id: user_id,
+          work_date: { in: workDates },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          work_date: true,
+          remote_type: true,
+          status: true,
+          reason: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
       }),
-    );
+
+      this.prisma.day_offs.findMany({
+        where: {
+          user_id: user_id,
+          work_date: { in: workDates },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          work_date: true,
+          type: true,
+          status: true,
+          reason: true,
+          duration: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      this.prisma.over_times_history.findMany({
+        where: {
+          user_id: user_id,
+          work_date: { in: workDates },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          work_date: true,
+          status: true,
+          reason: true,
+          start_time: true,
+          end_time: true,
+          total_hours: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      this.prisma.late_early_requests.findMany({
+        where: {
+          user_id: user_id,
+          work_date: { in: workDates },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          work_date: true,
+          request_type: true,
+          status: true,
+          reason: true,
+          late_minutes: true,
+          early_minutes: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          user_id: user_id,
+          work_date: { in: workDates },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          work_date: true,
+          status: true,
+          reason: true,
+          checkin_time: true,
+          checkout_time: true,
+          created_at: true,
+          approved_at: true,
+          approved_by: true,
+        },
+      }),
+    ]);
+
+    // Group requests by work_date for O(1) lookup
+    const groupByDate = (items: any[]) => {
+      const map = new Map<string, any[]>();
+      items.forEach(item => {
+        const dateKey = item.work_date.toISOString().split('T')[0];
+        if (!map.has(dateKey)) {
+          map.set(dateKey, []);
+        }
+        map.get(dateKey)!.push(item);
+      });
+      return map;
+    };
+
+    const remoteWorkMap = groupByDate(allRemoteWorkRequests);
+    const dayOffMap = groupByDate(allDayOffRequests);
+    const overtimeMap = groupByDate(allOvertimeRequests);
+    const lateEarlyMap = groupByDate(allLateEarlyRequests);
+    const forgotCheckinMap = groupByDate(allForgotCheckinRequests);
+
+    // Transform data without additional queries
+    const enhancedData = data.map(timesheet => {
+      const dateKey = timesheet.work_date.toISOString().split('T')[0];
+      
+      return {
+        ...timesheet,
+        requests: {
+          remote_work: remoteWorkMap.get(dateKey) || [],
+          day_off: dayOffMap.get(dateKey) || [],
+          overtime: overtimeMap.get(dateKey) || [],
+          late_early: lateEarlyMap.get(dateKey) || [],
+          forgot_checkin: forgotCheckinMap.get(dateKey) || [],
+        },
+      };
+    });
 
     return buildPaginationResponse(
       enhancedData,

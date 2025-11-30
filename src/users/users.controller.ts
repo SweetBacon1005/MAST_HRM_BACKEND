@@ -85,8 +85,12 @@ export class UsersController {
   @ApiResponse({
     status: 404,
     })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(+id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @GetCurrentUser('id') updatedBy: number,
+  ) {
+    return this.usersService.update(+id, updateUserDto, updatedBy);
   }
 
   @Delete(':id')
@@ -99,8 +103,10 @@ export class UsersController {
   @ApiResponse({
     status: 404,
     })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(+id);
+  remove(
+    @Param('id') id: string,
+    @GetCurrentUser('id') deletedBy: number,
+  ) {
+    return this.usersService.remove(+id, deletedBy);
   }
 }
-

@@ -42,7 +42,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         roles: sortedRoles,
       };
     } catch (error) {
-      console.error('Error fetching user roles:', error);
       return {
         id: payload.sub,
         email: payload.email,

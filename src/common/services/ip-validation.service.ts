@@ -105,7 +105,6 @@ export class ip_validationService {
       return envIps.split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
     }
 
-    // Fallback: IP mặc định
     const defaultIps = this.configService.get<string>('DEFAULT_OFFICE_IPS', '192.168.1.0/24,10.0.0.0/8,127.0.0.1');
     return defaultIps.split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
   }

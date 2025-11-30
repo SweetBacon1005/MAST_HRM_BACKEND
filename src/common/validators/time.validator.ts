@@ -18,7 +18,6 @@ export function IsTimeRange(validationOptions?: ValidationOptions) {
         validate(value: any, _args: ValidationArguments) {
           if (!value || typeof value !== 'string') return true; // Optional field
 
-          // Format: HH:MM-HH:MM
           const timeRangeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
           
           if (!timeRangeRegex.test(value)) {

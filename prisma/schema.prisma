@@ -242,12 +242,9 @@ model files {
     path          String   @db.VarChar(255)
     mime_type     String   @db.VarChar(255)
     type          Int
-    fileable_id   Int
-    fileable_type String   @db.VarChar(255)
     created_at    DateTime @default(now())
     updated_at    DateTime @updatedAt
 
-    @@index([fileable_type, fileable_id])
     @@index([type])
 }
 

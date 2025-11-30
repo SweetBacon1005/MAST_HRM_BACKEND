@@ -201,7 +201,6 @@ export class AuthService {
         ...additionalInfo,
       };
     } catch (error) {
-      console.error('Error getting additional user info:', error);
 
       const { password: _, user_division: _user_division, ...result } = user;
       return {
