@@ -24,6 +24,7 @@ import { CommonModule } from './common/common.module';
 import { DateFormatInterceptor } from './common/interceptors/date-format.interceptor';
 import { DatabaseModule } from './database/database.module';
 import { MeetingRoomsModule } from './meeting-rooms/meeting-rooms.module';
+import { MilestonesModule } from './milestones/milestones.module';
 import { NewsModule } from './news/news.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
@@ -56,6 +57,7 @@ import { UploadModule } from './upload/upload.module';
     NewsModule,
     NotificationsModule,
     MeetingRoomsModule,
+    MilestonesModule,
     AppCommonModule,
   ],
   controllers: [AppController],

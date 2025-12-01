@@ -136,6 +136,20 @@ export const ATTENDANCE_ERRORS = {
   MINIMUM_WORK_TIME_REQUIRED: 'Thời gian làm việc phải ít nhất 30 phút',
   INVALID_WORK_SHIFT: 'Ca làm việc không hợp lệ',
   CHECKIN_CHECKOUT_INVALID: 'Thời gian checkin/checkout không hợp lệ',
+  WORK_SHIFT_NAME_EXISTS: 'Ca làm việc với tên này đã tồn tại',
+  MORNING_END_BEFORE_START: 'Giờ kết thúc buổi sáng phải sau giờ bắt đầu',
+  AFTERNOON_END_BEFORE_START: 'Giờ kết thúc buổi chiều phải sau giờ bắt đầu',
+  AFTERNOON_BEFORE_MORNING: 'Giờ bắt đầu buổi chiều phải sau giờ kết thúc buổi sáng',
+  WORK_SHIFT_CREATE_FAILED: 'Không thể tạo ca làm việc',
+  INVALID_TIME_FORMAT: 'Định dạng thời gian không hợp lệ (phải là HH:MM)',
+  USER_NOT_FOUND_FOR_ATTENDANCE: 'Không tìm thấy người dùng',
+  WORK_SHIFT_NO_SUITABLE: 'Không tìm thấy ca làm việc phù hợp cho ngày này',
+  CHECKOUT_BEFORE_CHECKIN: 'Thời gian check-out phải sau thời gian check-in',
+  CANNOT_ATTEND_PAST_30_DAYS: 'Không thể chấm công cho ngày quá 30 ngày trước',
+  CANNOT_ATTEND_FUTURE: 'Không thể chấm công cho ngày trong tương lai',
+  WORK_DURATION_TOO_LONG: 'Thời gian làm việc không thể vượt quá 16 giờ một ngày',
+  WORK_DURATION_TOO_SHORT: 'Thời gian làm việc phải ít nhất 30 phút',
+  ATTENDANCE_SAVE_FAILED: 'Không thể lưu thông tin chấm công',
 } as const;
 
 // === PROJECT ERRORS ===
@@ -308,3 +322,18 @@ export const MEETING_ROOM_ERRORS = {
 } as const;
 
 export type MeetingRoomError = typeof MEETING_ROOM_ERRORS[keyof typeof MEETING_ROOM_ERRORS];
+
+// === MILESTONE ERRORS ===
+export const MILESTONE_ERRORS = {
+  MILESTONE_NOT_FOUND: 'Không tìm thấy mốc dự án',
+  MILESTONE_NAME_EXISTS: 'Tên mốc đã tồn tại trong dự án này',
+  INVALID_DATE_RANGE: 'Ngày kết thúc phải sau ngày bắt đầu',
+  OUT_OF_PROJECT_RANGE: 'Mốc phải nằm trong khoảng thời gian của dự án',
+  INVALID_PROGRESS: 'Tiến độ phải từ 0-100',
+  CANNOT_DELETE_MILESTONE: 'Không thể xóa mốc dự án',
+  UNAUTHORIZED_ACCESS: 'Bạn không có quyền truy cập mốc này',
+  MILESTONE_ALREADY_COMPLETED: 'Mốc đã hoàn thành',
+  INVALID_STATUS: 'Trạng thái mốc không hợp lệ',
+} as const;
+
+export type MilestoneError = typeof MILESTONE_ERRORS[keyof typeof MILESTONE_ERRORS];

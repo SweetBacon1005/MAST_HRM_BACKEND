@@ -14,6 +14,7 @@ import {
   WorkShiftType,
   ScopeType,
 } from '@prisma/client';
+import { ATTENDANCE_ERRORS } from '../common/constants/error-messages.constants';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -40,7 +41,7 @@ export class AttendanceService {
 
   constructor(private prisma: PrismaService) {}
 
-    async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
+  async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
     const {
       user_id,
       checkin_time,
@@ -54,18 +55,14 @@ export class AttendanceService {
       where: { id: user_id, deleted_at: null },
     });
     if (!user) {
-      throw new NotFoundException(
-        `Không tìm thấy người dùng với ID: ${user_id}`,
-      );
+      throw new NotFoundException(ATTENDANCE_ERRORS.USER_NOT_FOUND_FOR_ATTENDANCE);
     }
 
     const checkin = new Date(checkin_time);
     const checkout = new Date(checkout_time);
 
     if (checkin >= checkout) {
-      throw new BadRequestException(
-        'Thời gian check-out phải sau thời gian check-in',
-      );
+      throw new BadRequestException(ATTENDANCE_ERRORS.CHECKOUT_BEFORE_CHECKIN);
     }
 
     const workDate = checkin.toISOString().split('T')[0];
@@ -74,26 +71,20 @@ export class AttendanceService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     if (checkin < thirtyDaysAgo) {
-      throw new BadRequestException(
-        'Không thể chấm công cho ngày quá 30 ngày trước',
-      );
+      throw new BadRequestException(ATTENDANCE_ERRORS.CANNOT_ATTEND_PAST_30_DAYS);
     }
 
     if (workDate > today) {
-      throw new BadRequestException(
-        'Không thể chấm công cho ngày trong tương lai',
-      );
+      throw new BadRequestException(ATTENDANCE_ERRORS.CANNOT_ATTEND_FUTURE);
     }
 
     const workDurationHours =
       (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60);
     if (workDurationHours > 16) {
-      throw new BadRequestException(
-        'Thời gian làm việc không thể vượt quá 16 giờ một ngày',
-      );
+      throw new BadRequestException(ATTENDANCE_ERRORS.WORK_DURATION_TOO_LONG);
     }
     if (workDurationHours < 0.5) {
-      throw new BadRequestException('Thời gian làm việc phải ít nhất 30 phút');
+      throw new BadRequestException(ATTENDANCE_ERRORS.WORK_DURATION_TOO_SHORT);
     }
 
     let workShift;
@@ -102,16 +93,14 @@ export class AttendanceService {
         where: { id: shift_id, deleted_at: null },
       });
       if (!workShift) {
-        throw new NotFoundException(
-          `Không tìm thấy ca làm việc với ID: ${shift_id}`,
-        );
+        throw new NotFoundException(ATTENDANCE_ERRORS.WORK_SHIFT_NOT_FOUND);
       }
     } else {
       workShift = await this.prisma.schedule_works.findFirst({
         where: {
           start_date: { lte: new Date(workDate) },
           end_date: { gte: new Date(workDate) },
-          type: WorkShiftType.NORMAL, // Ca thường
+          type: WorkShiftType.NORMAL,
           deleted_at: null,
         },
         orderBy: { created_at: 'desc' },
@@ -119,9 +108,7 @@ export class AttendanceService {
     }
 
     if (!workShift) {
-      throw new NotFoundException(
-        'Không tìm thấy ca làm việc phù hợp cho ngày này',
-      );
+      throw new NotFoundException(ATTENDANCE_ERRORS.WORK_SHIFT_NO_SUITABLE);
     }
 
     const calculations = this.calculateWorkingTime(
@@ -178,39 +165,22 @@ export class AttendanceService {
       }
     } catch (error) {
       this.logger.error(`Lỗi khi lưu chấm công: ${error.message}`, error.stack);
-      throw new UnprocessableEntityException(
-        'Không thể lưu thông tin chấm công',
-      );
+      throw new UnprocessableEntityException(ATTENDANCE_ERRORS.ATTENDANCE_SAVE_FAILED);
     }
   }
 
-  private calculateWorkingTime(checkin: Date, checkout: Date, workShift: any) {
-    const morningStart = new Date(workShift.hour_start_morning);
-    const morningEnd = new Date(workShift.hour_end_morning);
-    const afternoonStart = new Date(workShift.hour_start_afternoon);
-    const afternoonEnd = new Date(workShift.hour_end_afternoon);
+  private parseTimeToDate(timeString: string, referenceDate: Date): Date {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date(referenceDate);
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  }
 
-    const _workDate = checkin.toISOString().split('T')[0];
-    morningStart.setFullYear(
-      checkin.getFullYear(),
-      checkin.getMonth(),
-      checkin.getDate(),
-    );
-    morningEnd.setFullYear(
-      checkin.getFullYear(),
-      checkin.getMonth(),
-      checkin.getDate(),
-    );
-    afternoonStart.setFullYear(
-      checkin.getFullYear(),
-      checkin.getMonth(),
-      checkin.getDate(),
-    );
-    afternoonEnd.setFullYear(
-      checkin.getFullYear(),
-      checkin.getMonth(),
-      checkin.getDate(),
-    );
+  private calculateWorkingTime(checkin: Date, checkout: Date, workShift: any) {
+    const morningStart = this.parseTimeToDate(workShift.hour_start_morning, checkin);
+    const morningEnd = this.parseTimeToDate(workShift.hour_end_morning, checkin);
+    const afternoonStart = this.parseTimeToDate(workShift.hour_start_afternoon, checkin);
+    const afternoonEnd = this.parseTimeToDate(workShift.hour_end_afternoon, checkin);
 
     const late_minutes =
       checkin > morningStart
@@ -255,7 +225,22 @@ export class AttendanceService {
     };
   }
 
-    async createWorkShift(workShiftDto: WorkShiftDto) {
+  private validateTimeFormat(timeString: string, fieldName: string): void {
+    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(timeString)) {
+      throw new BadRequestException(`${fieldName} ${ATTENDANCE_ERRORS.INVALID_TIME_FORMAT}`);
+    }
+  }
+
+  private compareTimeStrings(time1: string, time2: string): number {
+    const [h1, m1] = time1.split(':').map(Number);
+    const [h2, m2] = time2.split(':').map(Number);
+    const minutes1 = h1 * 60 + m1;
+    const minutes2 = h2 * 60 + m2;
+    return minutes1 < minutes2 ? -1 : minutes1 > minutes2 ? 1 : 0;
+  }
+
+  async createWorkShift(workShiftDto: WorkShiftDto) {
     const {
       name,
       morning_start,
@@ -275,43 +260,38 @@ export class AttendanceService {
     });
 
     if (existingShift) {
-      throw new ConflictException(`Ca làm việc với tên "${name}" đã tồn tại`);
+      throw new ConflictException(ATTENDANCE_ERRORS.WORK_SHIFT_NAME_EXISTS);
     }
 
-    const morningStart = new Date(morning_start);
-    const morningEnd = new Date(morning_end);
-    const afternoonStart = new Date(afternoon_start);
-    const afternoonEnd = new Date(afternoon_end);
+    this.validateTimeFormat(morning_start, 'Giờ bắt đầu buổi sáng');
+    this.validateTimeFormat(morning_end, 'Giờ kết thúc buổi sáng');
+    this.validateTimeFormat(afternoon_start, 'Giờ bắt đầu buổi chiều');
+    this.validateTimeFormat(afternoon_end, 'Giờ kết thúc buổi chiều');
 
-    if (morningStart >= morningEnd) {
-      throw new BadRequestException(
-        'Giờ kết thúc buổi sáng phải sau giờ bắt đầu',
-      );
+    if (this.compareTimeStrings(morning_start, morning_end) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.MORNING_END_BEFORE_START);
     }
 
-    if (afternoonStart >= afternoonEnd) {
-      throw new BadRequestException(
-        'Giờ kết thúc buổi chiều phải sau giờ bắt đầu',
-      );
+    if (this.compareTimeStrings(afternoon_start, afternoon_end) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.AFTERNOON_END_BEFORE_START);
     }
 
-    if (morningEnd >= afternoonStart) {
-      throw new BadRequestException(
-        'Giờ bắt đầu buổi chiều phải sau giờ kết thúc buổi sáng',
-      );
+    if (this.compareTimeStrings(morning_end, afternoon_start) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.AFTERNOON_BEFORE_MORNING);
     }
 
     try {
+      const currentYear = new Date().getFullYear();
       const result = await this.prisma.schedule_works.create({
         data: {
           name,
-          hour_start_morning: morningStart,
-          hour_end_morning: morningEnd,
-          hour_start_afternoon: afternoonStart,
-          hour_end_afternoon: afternoonEnd,
+          hour_start_morning: morning_start,
+          hour_end_morning: morning_end,
+          hour_start_afternoon: afternoon_start,
+          hour_end_afternoon: afternoon_end,
           type: type || WorkShiftType.NORMAL,
-          start_date: new Date(),
-          end_date: new Date(new Date().getFullYear() + 1, 11, 31), // Hết năm
+          start_date: new Date(currentYear, 0, 1), // 1/1 năm hiện tại
+          end_date: new Date(currentYear, 11, 31), // 31/12 năm hiện tại
         },
       });
 
@@ -372,25 +352,48 @@ export class AttendanceService {
     });
 
     if (!workShift) {
-      throw new NotFoundException('Không tìm thấy ca làm việc');
+      throw new NotFoundException(ATTENDANCE_ERRORS.WORK_SHIFT_NOT_FOUND);
+    }
+
+    if (workShiftDto.morning_start) {
+      this.validateTimeFormat(workShiftDto.morning_start, 'Giờ bắt đầu buổi sáng');
+    }
+    if (workShiftDto.morning_end) {
+      this.validateTimeFormat(workShiftDto.morning_end, 'Giờ kết thúc buổi sáng');
+    }
+    if (workShiftDto.afternoon_start) {
+      this.validateTimeFormat(workShiftDto.afternoon_start, 'Giờ bắt đầu buổi chiều');
+    }
+    if (workShiftDto.afternoon_end) {
+      this.validateTimeFormat(workShiftDto.afternoon_end, 'Giờ kết thúc buổi chiều');
+    }
+
+    const morningStart = workShiftDto.morning_start || workShift.hour_start_morning;
+    const morningEnd = workShiftDto.morning_end || workShift.hour_end_morning;
+    const afternoonStart = workShiftDto.afternoon_start || workShift.hour_start_afternoon;
+    const afternoonEnd = workShiftDto.afternoon_end || workShift.hour_end_afternoon;
+
+    if (this.compareTimeStrings(morningStart, morningEnd) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.MORNING_END_BEFORE_START);
+    }
+
+    if (this.compareTimeStrings(afternoonStart, afternoonEnd) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.AFTERNOON_END_BEFORE_START);
+    }
+
+    if (this.compareTimeStrings(morningEnd, afternoonStart) >= 0) {
+      throw new BadRequestException(ATTENDANCE_ERRORS.AFTERNOON_BEFORE_MORNING);
     }
 
     return this.prisma.schedule_works.update({
       where: { id },
       data: {
-        ...workShiftDto,
-        hour_start_morning: workShiftDto.morning_start
-          ? new Date(workShiftDto.morning_start)
-          : undefined,
-        hour_end_morning: workShiftDto.morning_end
-          ? new Date(workShiftDto.morning_end)
-          : undefined,
-        hour_start_afternoon: workShiftDto.afternoon_start
-          ? new Date(workShiftDto.afternoon_start)
-          : undefined,
-        hour_end_afternoon: workShiftDto.afternoon_end
-          ? new Date(workShiftDto.afternoon_end)
-          : undefined,
+        name: workShiftDto.name,
+        type: workShiftDto.type,
+        hour_start_morning: workShiftDto.morning_start,
+        hour_end_morning: workShiftDto.morning_end,
+        hour_start_afternoon: workShiftDto.afternoon_start,
+        hour_end_afternoon: workShiftDto.afternoon_end,
       },
     });
   }

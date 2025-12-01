@@ -43,11 +43,11 @@ export class UserProfileService {
   constructor(private prisma: PrismaService) {}
   private async getUserInfoId(user_id: number | undefined): Promise<number | null> {
     if (!user_id) return null;
-    const userInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: user_id, deleted_at: null },
-      select: { id: true },
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id },
+      select: { user_info_id: true },
     });
-    return userInfo?.id || null;
+    return user?.user_info_id || null;
   }
 
   async getUserProfile(user_id: number) {
@@ -200,9 +200,7 @@ export class UserProfileService {
 
     const { position_id, level_id, language_id, ...rest } = updateDto;
 
-    const existingInfo = await this.prisma.user_information.findFirst({
-      where: { user_id: user?.user_information?.id, deleted_at: null },
-    });
+    const existingInfo = user?.user_information;
 
     if (existingInfo) {
       return await this.prisma.user_information.update({
@@ -232,10 +230,8 @@ export class UserProfileService {
         },
       });
     } else {
-      // Tạo mới thông tin
-      return await this.prisma.user_information.create({
+      const newInfo = await this.prisma.user_information.create({
         data: {
-          user_id: user_id,
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
@@ -259,6 +255,13 @@ export class UserProfileService {
           language: true,
         },
       });
+
+      await this.prisma.users.update({
+        where: { id: user_id },
+        data: { user_info_id: newInfo.id },
+      });
+
+      return newInfo;
     }
   }
 
@@ -666,7 +669,6 @@ export class UserProfileService {
     } else {
       const newInfo = await this.prisma.user_information.create({
         data: {
-          user_id: user_id,
           avatar: avatarUrl,
         },
         include: {
@@ -674,6 +676,11 @@ export class UserProfileService {
           level: true,
           language: true,
         },
+      });
+
+      await this.prisma.users.update({
+        where: { id: user_id },
+        data: { user_info_id: newInfo.id },
       });
 
       return {

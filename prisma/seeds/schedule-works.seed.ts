@@ -3,67 +3,64 @@ import { PrismaClient, WorkShiftType } from '@prisma/client';
 export async function seedScheduleWorks(prisma: PrismaClient) {
   console.log('⏰ Seeding schedule works...');
 
-  // Tạo các ca làm việc mặc định - sử dụng upsert vì có ID cố định
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(currentYear, 0, 1);
+  const endDate = new Date(currentYear, 11, 31);
   const scheduleWorkData = [
-    // Ca hành chính (8:00 - 17:30)
     {
       id: 1,
       name: 'Ca hành chính',
       type: WorkShiftType.NORMAL,
-      start_date: new Date('2024-01-01'),
-      end_date: new Date('2024-12-31'),
-      hour_start_morning: new Date('2024-01-01T08:00:00Z'),
-      hour_end_morning: new Date('2024-01-01T12:00:00Z'),
-      hour_start_afternoon: new Date('2024-01-01T13:30:00Z'),
-      hour_end_afternoon: new Date('2024-01-01T17:30:00Z'),
+      start_date: startDate,
+      end_date: endDate,
+      hour_start_morning: '08:00',
+      hour_end_morning: '12:00',
+      hour_start_afternoon: '13:30',
+      hour_end_afternoon: '17:30',
     },
-    // Ca linh hoạt (9:00 - 18:30)
     {
       id: 2,
       name: 'Ca linh hoạt',
       type: WorkShiftType.FLEXIBLE,
-      start_date: new Date('2024-01-01'),
-      end_date: new Date('2024-12-31'),
-      hour_start_morning: new Date('2024-01-01T09:00:00Z'),
-      hour_end_morning: new Date('2024-01-01T12:00:00Z'),
-      hour_start_afternoon: new Date('2024-01-01T13:30:00Z'),
-      hour_end_afternoon: new Date('2024-01-01T18:30:00Z'),
+      start_date: startDate,
+      end_date: endDate,
+      hour_start_morning: '09:00',
+      hour_end_morning: '12:00',
+      hour_start_afternoon: '13:30',
+      hour_end_afternoon: '18:30',
     },
-    // Ca đêm (22:00 - 06:00)
     {
       id: 3,
       name: 'Ca đêm',
       type: WorkShiftType.NIGHT,
-      start_date: new Date('2024-01-01'),
-      end_date: new Date('2024-12-31'),
-      hour_start_morning: new Date('2024-01-01T22:00:00Z'),
-      hour_end_morning: new Date('2024-01-01T02:00:00Z'),
-      hour_start_afternoon: new Date('2024-01-01T03:00:00Z'),
-      hour_end_afternoon: new Date('2024-01-01T06:00:00Z'),
+      start_date: startDate,
+      end_date: endDate,
+      hour_start_morning: '22:00',
+      hour_end_morning: '02:00',
+      hour_start_afternoon: '03:00',
+      hour_end_afternoon: '06:00',
     },
-    // Ca bán thời gian (8:00 - 12:00)
     {
       id: 4,
       name: 'Ca bán thời gian',
       type: WorkShiftType.PART_TIME,
-      start_date: new Date('2024-01-01'),
-      end_date: new Date('2024-12-31'),
-      hour_start_morning: new Date('2024-01-01T08:00:00Z'),
-      hour_end_morning: new Date('2024-01-01T12:00:00Z'),
-      hour_start_afternoon: new Date('2024-01-01T08:00:00Z'), // Không có buổi chiều
-      hour_end_afternoon: new Date('2024-01-01T08:00:00Z'),   // Không có buổi chiều
+      start_date: startDate,
+      end_date: endDate,
+      hour_start_morning: '08:00',
+      hour_end_morning: '12:00',
+      hour_start_afternoon: '00:00',
+      hour_end_afternoon: '00:00',
     },
-    // Ca tăng ca (18:00 - 22:00)
     {
       id: 5,
       name: 'Ca tăng ca',
       type: WorkShiftType.OVERTIME,
-      start_date: new Date('2024-01-01'),
-      end_date: new Date('2024-12-31'),
-      hour_start_morning: new Date('2024-01-01T18:00:00Z'),
-      hour_end_morning: new Date('2024-01-01T20:00:00Z'),
-      hour_start_afternoon: new Date('2024-01-01T20:30:00Z'),
-      hour_end_afternoon: new Date('2024-01-01T22:00:00Z'),
+      start_date: startDate,
+      end_date: endDate,
+      hour_start_morning: '18:00',
+      hour_end_morning: '20:00',
+      hour_start_afternoon: '20:30',
+      hour_end_afternoon: '22:00',
     },
   ];
 
@@ -77,7 +74,7 @@ export async function seedScheduleWorks(prisma: PrismaClient) {
     )
   );
 
-  console.log(`✅ Created ${scheduleWorks.length} schedule works`);
+  console.log(`✅ Created ${scheduleWorks.length} schedule works for year ${currentYear}`);
   
   return {
     scheduleWorks,

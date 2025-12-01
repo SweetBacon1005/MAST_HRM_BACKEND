@@ -94,10 +94,10 @@ export class ScheduleAutomationService {
             type: WorkShiftType.OVERTIME,
             start_date: nextMonday,
             end_date: nextSunday,
-            hour_start_morning: new Date('2024-01-01T18:00:00Z'),
-            hour_end_morning: new Date('2024-01-01T20:00:00Z'),
-            hour_start_afternoon: new Date('2024-01-01T20:30:00Z'),
-            hour_end_afternoon: new Date('2024-01-01T22:00:00Z'),
+            hour_start_morning: '18:00',
+            hour_end_morning: '20:00',
+            hour_start_afternoon: '20:30',
+            hour_end_afternoon: '22:00',
           },
         });
 
@@ -169,10 +169,10 @@ export class ScheduleAutomationService {
             type: WorkShiftType.NORMAL,
             start_date: nextMonth,
             end_date: endOfNextMonth,
-            hour_start_morning: new Date('2024-01-01T08:00:00Z'),
-            hour_end_morning: new Date('2024-01-01T12:00:00Z'),
-            hour_start_afternoon: new Date('2024-01-01T13:30:00Z'),
-            hour_end_afternoon: new Date('2024-01-01T17:30:00Z'),
+            hour_start_morning: '08:00',
+            hour_end_morning: '12:00',
+            hour_start_afternoon: '13:30',
+            hour_end_afternoon: '17:30',
           },
         });
 

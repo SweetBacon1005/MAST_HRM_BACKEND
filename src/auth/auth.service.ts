@@ -247,17 +247,14 @@ export class AuthService {
       teamAssignment,
       unreadNotifications,
     ] = await Promise.all([
-      this.prisma.user_information.findFirst({
-        where: {
-          user_id: user_id,
-          deleted_at: null,
-        },
+      this.prisma.users.findUnique({
+        where: { id: user_id },
         select: {
-          position_id: true,
-          level_id: true,
-          user: {
+          created_at: true,
+          user_information: {
             select: {
-              created_at: true,
+              position_id: true,
+              level_id: true,
             },
           },
         },
@@ -438,7 +435,7 @@ export class AuthService {
     }
 
     return {
-      join_date: userInfo?.user?.created_at.toISOString().split('T')[0],
+      join_date: userInfo?.created_at.toISOString().split('T')[0],
       today_attendance: {
         checkin: todayTimesheet?.checkin || null,
         checkout: todayTimesheet?.checkout || null,

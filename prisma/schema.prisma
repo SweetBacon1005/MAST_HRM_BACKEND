@@ -158,8 +158,6 @@ model skills {
 
 model user_information {
     id             Int           @id @default(autoincrement())
-    user_id        Int           @unique
-    user           users         @relation(fields: [user_id], references: [id])
     personal_email String?       @db.VarChar(255)
     nationality    String?       @db.VarChar(255)
     name           String?       @db.VarChar(255)
@@ -185,8 +183,8 @@ model user_information {
     education      education[]
     experience     experience[]
     user_skills    user_skills[]
+    user           users?
 
-    @@index([user_id])
     @@index([position_id])
     @@index([level_id])
     @@index([language_id])
@@ -237,13 +235,13 @@ model activity_log {
 }
 
 model files {
-    id            Int      @id @default(autoincrement())
-    name          String   @db.VarChar(255)
-    path          String   @db.VarChar(255)
-    mime_type     String   @db.VarChar(255)
-    type          Int
-    created_at    DateTime @default(now())
-    updated_at    DateTime @updatedAt
+    id         Int      @id @default(autoincrement())
+    name       String   @db.VarChar(255)
+    path       String   @db.VarChar(255)
+    mime_type  String   @db.VarChar(255)
+    type       Int
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
 
     @@index([type])
 }
@@ -313,7 +311,6 @@ model projects {
     project_type        ProjectType?
     project_access_type ProjectAccessType    @default(RESTRICTED)
     industry            IndustryType?
-    progress            Float?
     scope               String?
     description         String?
     start_date          DateTime
@@ -323,6 +320,7 @@ model projects {
     deleted_at          DateTime?            @db.DateTime()
     daily_reports       daily_reports[]
     over_times_history  over_times_history[]
+    milestones          project_milestones[]
 
     @@index([deleted_at])
     @@index([division_id])
@@ -338,7 +336,8 @@ model users {
     updated_at                       DateTime                  @updatedAt
     deleted_at                       DateTime?                 @db.DateTime()
     status                           UserInformationStatus     @default(ACTIVE)
-    user_information                 user_information?
+    user_info_id                     Int?                      @unique
+    user_information                 user_information?         @relation(fields: [user_info_id], references: [id])
     rotation_members                 rotation_members[]
     attendance_logs                  attendance_logs[]
     attendance_sessions              attendance_sessions[]
@@ -373,27 +372,26 @@ model users {
 }
 
 model day_offs {
-    id                       Int                  @id @default(autoincrement())
-    user_id                  Int
-    user                     users                @relation("user", fields: [user_id], references: [id])
-    work_date                DateTime             @db.Date
-    duration                 DayOffDuration       @default(FULL_DAY)
-    status                   ApprovalStatus       @default(PENDING)
-    type                     DayOffType           @default(PAID)
-    title                    String               @db.VarChar(255)
-    reason                   String?              @db.Text
-    approved_by              Int?
-    approved_by_user         users?               @relation("approved_by_user", fields: [approved_by], references: [id])
-    approved_at              DateTime?            @db.DateTime()
-    rejected_reason          String?              @db.Text
-    is_past                  Boolean              @default(false)
-    balance_deducted         Boolean              @default(false)
-    deduction_transaction_id Int?
-    created_at               DateTime             @default(now())
-    updated_at               DateTime             @updatedAt
-    deleted_at               DateTime?            @db.DateTime()
-    time_sheets              time_sheets[]
-    leave_transactions       leave_transactions[] @relation("DayOffTransactions")
+    id                 Int                  @id @default(autoincrement())
+    user_id            Int
+    user               users                @relation("user", fields: [user_id], references: [id])
+    work_date          DateTime             @db.Date
+    duration           DayOffDuration       @default(FULL_DAY)
+    status             ApprovalStatus       @default(PENDING)
+    type               DayOffType           @default(PAID)
+    title              String               @db.VarChar(255)
+    reason             String?              @db.Text
+    approved_by        Int?
+    approved_by_user   users?               @relation("approved_by_user", fields: [approved_by], references: [id])
+    approved_at        DateTime?            @db.DateTime()
+    rejected_reason    String?              @db.Text
+    is_past            Boolean              @default(false)
+    timesheet_id       Int?                 @unique
+    timesheet          time_sheets?         @relation(fields: [timesheet_id], references: [id])
+    created_at         DateTime             @default(now())
+    updated_at         DateTime             @updatedAt
+    deleted_at         DateTime?            @db.DateTime()
+    leave_transactions leave_transactions[] @relation("DayOffTransactions")
 
     @@index([user_id])
     @@index([status])
@@ -403,8 +401,7 @@ model day_offs {
     @@index([duration])
     @@index([deleted_at])
     @@index([approved_by])
-    @@index([balance_deducted])
-    @@index([deduction_transaction_id])
+    @@index([timesheet_id])
 }
 
 model holidays {
@@ -445,8 +442,6 @@ model time_sheets {
     early_time                 Int?
     early_time_approved        Int?
     remote                     RemoteType?               @default(OFFICE)
-    day_off_id                 Int?
-    day_off                    day_offs?                 @relation(fields: [day_off_id], references: [id])
     has_forgot_checkin_request Boolean?                  @default(false)
     has_late_early_request     Boolean?                  @default(false)
     has_remote_work_request    Boolean?                  @default(false)
@@ -457,6 +452,7 @@ model time_sheets {
     created_at                 DateTime                  @default(now())
     updated_at                 DateTime                  @updatedAt
     deleted_at                 DateTime?                 @db.DateTime()
+    day_off                    day_offs?
     attendance_logs            attendance_logs[]
     attendance_sessions        attendance_sessions[]
     late_early_requests        late_early_requests[]
@@ -473,7 +469,6 @@ model time_sheets {
     @@index([work_date, status])
     @@index([user_id, status])
     @@index([user_id, work_date, status])
-    @@index([day_off_id])
     @@index([remote])
     @@index([has_forgot_checkin_request])
     @@index([has_late_early_request])
@@ -555,10 +550,10 @@ model schedule_works {
     id                   Int            @id @default(autoincrement())
     start_date           DateTime
     end_date             DateTime
-    hour_start_morning   DateTime
-    hour_end_morning     DateTime
-    hour_start_afternoon DateTime
-    hour_end_afternoon   DateTime
+    hour_start_morning   String
+    hour_end_morning     String
+    hour_start_afternoon String
+    hour_end_afternoon   String
     type                 WorkShiftType? @default(NORMAL)
     name                 String?
     created_at           DateTime       @default(now())
@@ -1131,4 +1126,34 @@ enum NewsStatus {
 enum ProjectAccessType {
     COMPANY
     RESTRICTED
+}
+
+enum MilestoneStatus {
+    PENDING
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+model project_milestones {
+    id          Int              @id @default(autoincrement())
+    project_id  Int
+    project     projects         @relation(fields: [project_id], references: [id])
+    name        String           @db.VarChar(255)
+    description String?          @db.Text
+    start_date  DateTime         @db.Date
+    end_date    DateTime         @db.Date
+    status      MilestoneStatus  @default(PENDING)
+    progress    Float            @default(0) @db.Float
+    order       Int              @default(0)
+    created_at  DateTime         @default(now())
+    updated_at  DateTime         @updatedAt
+    deleted_at  DateTime?        @db.DateTime()
+
+    @@index([project_id])
+    @@index([status])
+    @@index([start_date])
+    @@index([end_date])
+    @@index([deleted_at])
+    @@index([project_id, order])
 }

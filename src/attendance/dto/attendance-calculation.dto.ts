@@ -16,6 +16,7 @@ import {
   IsPositive,
   IsString,
   MaxLength,
+  Matches,
   Min,
   Validate,
 } from 'class-validator';
@@ -109,59 +110,50 @@ export class WorkShiftDto {
   name: string;
 
   @ApiProperty({
-    description: 'Giờ bắt đầu buổi sáng',
-    example: '2024-01-15T08:00:00Z',
-    format: 'date-time',
+    description: 'Giờ bắt đầu buổi sáng (HH:MM)',
+    example: '08:00',
+    pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
   })
   @IsNotEmpty({ message: 'Giờ bắt đầu buổi sáng không được để trống' })
-  @IsDateString(
-    {},
-    { message: 'Giờ bắt đầu buổi sáng phải là định dạng ISO 8601' },
-  )
+  @IsString({ message: 'Giờ bắt đầu buổi sáng phải là chuỗi' })
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Giờ bắt đầu buổi sáng phải có định dạng HH:MM (ví dụ: 08:00)',
+  })
   morning_start: string;
 
   @ApiProperty({
-    description: 'Giờ kết thúc buổi sáng',
-    example: '2024-01-15T12:00:00Z',
-    format: 'date-time',
+    description: 'Giờ kết thúc buổi sáng (HH:MM)',
+    example: '12:00',
+    pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
   })
   @IsNotEmpty({ message: 'Giờ kết thúc buổi sáng không được để trống' })
-  @IsDateString(
-    {},
-    { message: 'Giờ kết thúc buổi sáng phải là định dạng ISO 8601' },
-  )
-  @Validate(IsAfter, ['morning_start'], {
-    message: 'Giờ kết thúc buổi sáng phải sau giờ bắt đầu',
+  @IsString({ message: 'Giờ kết thúc buổi sáng phải là chuỗi' })
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Giờ kết thúc buổi sáng phải có định dạng HH:MM (ví dụ: 12:00)',
   })
   morning_end: string;
 
   @ApiProperty({
-    description: 'Giờ bắt đầu buổi chiều',
-    example: '2024-01-15T13:30:00Z',
-    format: 'date-time',
+    description: 'Giờ bắt đầu buổi chiều (HH:MM)',
+    example: '13:30',
+    pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
   })
   @IsNotEmpty({ message: 'Giờ bắt đầu buổi chiều không được để trống' })
-  @IsDateString(
-    {},
-    { message: 'Giờ bắt đầu buổi chiều phải là định dạng ISO 8601' },
-  )
-  @Validate(IsAfter, ['morning_end'], {
-    message: 'Giờ bắt đầu buổi chiều phải sau giờ kết thúc buổi sáng',
+  @IsString({ message: 'Giờ bắt đầu buổi chiều phải là chuỗi' })
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Giờ bắt đầu buổi chiều phải có định dạng HH:MM (ví dụ: 13:30)',
   })
   afternoon_start: string;
 
   @ApiProperty({
-    description: 'Giờ kết thúc buổi chiều',
-    example: '2024-01-15T17:30:00Z',
-    format: 'date-time',
+    description: 'Giờ kết thúc buổi chiều (HH:MM)',
+    example: '17:30',
+    pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
   })
   @IsNotEmpty({ message: 'Giờ kết thúc buổi chiều không được để trống' })
-  @IsDateString(
-    {},
-    { message: 'Giờ kết thúc buổi chiều phải là định dạng ISO 8601' },
-  )
-  @Validate(IsAfter, ['afternoon_start'], {
-    message: 'Giờ kết thúc buổi chiều phải sau giờ bắt đầu buổi chiều',
+  @IsString({ message: 'Giờ kết thúc buổi chiều phải là chuỗi' })
+  @Matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
+    message: 'Giờ kết thúc buổi chiều phải có định dạng HH:MM (ví dụ: 17:30)',
   })
   afternoon_end: string;
 

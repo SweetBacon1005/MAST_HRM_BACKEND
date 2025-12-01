@@ -16,12 +16,14 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
+import { MilestonesService } from '../milestones/milestones.service';
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly roleAssignmentService: RoleAssignmentService,
+    private readonly milestonesService: MilestonesService,
   ) {}
   private async getProjectMemberCount(projectId: number): Promise<number> {
     return await this.prisma.user_role_assignment.count({
@@ -144,7 +146,6 @@ export class ProjectsService {
       project_access_type: createProjectDto.project_access_type || ProjectAccessType.RESTRICTED,
       industry: createProjectDto.industry,
       description: rest.description,
-      progress: 0,
       division: createProjectDto.division_id
         ? { connect: { id: createProjectDto.division_id } }
         : undefined,
@@ -336,12 +337,15 @@ export class ProjectsService {
       throw new NotFoundException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
     }
 
+    const progress = await this.milestonesService.calculateProjectProgress(id);
+
     return {
       ...project,
       start_date: project.start_date.toISOString().split('T')[0],
       end_date: project.end_date.toISOString().split('T')[0],
       member_count: await this.getProjectMemberCount(project.id),
       members: await this.getProjectMembersData(project.id),
+      progress,
     };
   }
 
@@ -646,25 +650,6 @@ export class ProjectsService {
   }
 
   async updateProgress(id: number, progress: number) {
-    const project = await this.prisma.projects.findFirst({
-      where: { id, deleted_at: null },
-    });
-
-    if (!project) {
-      throw new NotFoundException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
-    }
-
-    if (progress < 0 || progress > 100) {
-      throw new BadRequestException(PROJECT_ERRORS.INVALID_PROGRESS_VALUE);
-    }
-
-    return await this.prisma.projects.update({
-      where: { id },
-      data: { progress },
-      include: {
-        division: { select: { id: true, name: true } },
-        team: { select: { id: true, name: true } },
-      },
-    });
+    throw new BadRequestException('Tiến độ dự án được tính tự động từ các mốc. Vui lòng cập nhật tiến độ của từng mốc.');
   }
 }

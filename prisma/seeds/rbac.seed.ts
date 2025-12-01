@@ -136,6 +136,12 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'daily.submit', description: 'Gửi daily report' },
     { name: 'daily.approve', description: 'Duyệt daily report' },
     { name: 'daily.reject', description: 'Từ chối daily report' },
+    
+    // Milestone Management
+    { name: 'milestone.create', description: 'Tạo mốc dự án' },
+    { name: 'milestone.read', description: 'Xem mốc dự án' },
+    { name: 'milestone.update', description: 'Cập nhật mốc dự án' },
+    { name: 'milestone.delete', description: 'Xóa mốc dự án' },
   ];
 
   await prisma.permissions.createMany({
@@ -200,6 +206,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'meeting_room.create', 'meeting_room.read', 'meeting_room.update', 'meeting_room.delete',
         'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
+        'milestone.create', 'milestone.read', 'milestone.update', 'milestone.delete',
         'system.admin', 'system.config.read',
       ],
     },
@@ -251,6 +258,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'role.view', 'role.assign', 'role.revoke',
         'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
+        'milestone.create', 'milestone.read', 'milestone.update', 'milestone.delete',
       ],
     },
 
@@ -277,6 +285,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'role.view', 'role.assign', 'role.revoke',
         'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
+        'milestone.read',
       ],
     },
 
@@ -301,6 +310,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'role.view',
         'meeting_room.read', 'meeting_room.booking.create', 'meeting_room.booking.read', 'meeting_room.booking.update', 'meeting_room.booking.delete',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit', 'daily.approve', 'daily.reject',
+        'milestone.read',
       ],
     },
 
@@ -324,6 +334,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'role.view',
         'meeting_room.read', 'meeting_room.booking.read',
         'daily.read', 'daily.create', 'daily.update', 'daily.remove', 'daily.submit',
+        'milestone.read',
       ],
     },
   ];

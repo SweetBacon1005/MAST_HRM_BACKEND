@@ -121,7 +121,6 @@ export class TimesheetService {
         status: 'PENDING',
         type: createTimesheetDto.type,
         remote: createTimesheetDto.remote,
-        day_off_id: approvedDayOff?.id || null, // Link với day-off nếu có
       },
     });
   }

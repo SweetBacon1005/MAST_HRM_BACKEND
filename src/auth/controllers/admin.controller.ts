@@ -434,30 +434,26 @@ export class AdminController {
     const updatedUser = await this.prisma.users.update({
       where: { id },
       data: {
-        user_information: {
-          update: {
-            where: { user_id: id },
-            data: {
-              name: updateUserDto.name,
-            },
-          },
-        },
         email: updateUserDto.email,
       },
     });
 
-    if (
-      updateUserDto.role_id ||
-      updateUserDto.position_id ||
-      updateUserDto.level_id
-    ) {
-      await this.prisma.user_information.updateMany({
-        where: { user_id: id },
-        data: {
-          position_id: updateUserDto.position_id,
-          level_id: updateUserDto.level_id,
-        },
+    if (updateUserDto.name || updateUserDto.position_id || updateUserDto.level_id) {
+      const user = await this.prisma.users.findUnique({
+        where: { id },
+        select: { user_info_id: true },
       });
+
+      if (user?.user_info_id) {
+        await this.prisma.user_information.update({
+          where: { id: user.user_info_id },
+          data: {
+            name: updateUserDto.name,
+            position_id: updateUserDto.position_id,
+            level_id: updateUserDto.level_id,
+          },
+        });
+      }
     }
 
     if (updateUserDto.division_id) {

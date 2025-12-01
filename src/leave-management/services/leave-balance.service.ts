@@ -161,14 +161,6 @@ export class LeaveBalanceService {
         },
       });
 
-      await tx.day_offs.update({
-        where: { id: dayOffId },
-        data: {
-          balance_deducted: true,
-          deduction_transaction_id: transaction.id,
-        },
-      });
-
       this.logger.log(
         `Deducted ${amount} ${leaveType} leave days for user ${user_id}. New balance: ${leaveType === DayOffType.PAID ? newPaidBalance : newUnpaidBalance}`,
       );
@@ -188,13 +180,16 @@ export class LeaveBalanceService {
     description: string,
   ) {
     return await this.prisma.$transaction(async (tx) => {
-      // Kiểm tra xem day_off có đã trừ balance chưa
-      const dayOff = await tx.day_offs.findUnique({
-        where: { id: dayOffId },
-        select: { balance_deducted: true, deduction_transaction_id: true },
+      // Kiểm tra xem day_off có đã trừ balance chưa bằng cách check transaction
+      const deductionTransaction = await tx.leave_transactions.findFirst({
+        where: {
+          day_off_id: dayOffId,
+          transaction_type: LeaveTransactionType.USED,
+          deleted_at: null,
+        },
       });
 
-      if (!dayOff || !dayOff.balance_deducted) {
+      if (!deductionTransaction) {
         throw new BadRequestException(
           'Day-off này chưa trừ balance hoặc không tồn tại',
         );
@@ -210,15 +205,6 @@ export class LeaveBalanceService {
         dayOffId,
         'day_off_refund',
       );
-
-      // Cập nhật day_off để đánh dấu đã hoàn trả
-      await tx.day_offs.update({
-        where: { id: dayOffId },
-        data: {
-          balance_deducted: false,
-          deduction_transaction_id: null,
-        },
-      });
 
       return result;
     });

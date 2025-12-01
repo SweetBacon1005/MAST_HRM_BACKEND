@@ -1795,7 +1795,6 @@ export class RequestsService {
         data: {
           user_id: dayOff.user_id,
           work_date: workDate,
-          day_off_id: dayOff.id,
           status: 'APPROVED',
           type: 'NORMAL',
           work_time_morning: workHours.morningHours,
@@ -1808,7 +1807,6 @@ export class RequestsService {
       await this.prisma.time_sheets.update({
         where: { id: existingTimesheet.id },
         data: {
-          day_off_id: dayOff.id,
           work_time_morning: workHours.morningHours,
           work_time_afternoon: workHours.afternoonHours,
           total_work_time: workHours.totalHours,
@@ -2640,12 +2638,13 @@ export class RequestsService {
    * Validate user là Division Head
    */
   private async validateDivisionHead(user_id: number): Promise<void> {
-    const userInfo = await this.prisma.user_information.findFirst({
-      where: {
-        user_id: user_id,
-        deleted_at: null,
+    const userInfo = await this.prisma.users.findUnique({
+      where: { id: user_id },
+      select: {
+        user_information: {
+          select: { id: true },
+        },
       },
-      include: {},
     });
 
     const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
@@ -2725,14 +2724,16 @@ export class RequestsService {
       whereConditions.user_id = { in: user_ids };
     }
 
-    const leadUsers = await this.prisma.user_information.findMany({
-      where: whereConditions,
+    const leadUsers = await this.prisma.users.findMany({
+      where: {
+        user_information: whereConditions,
+      },
       select: {
-        user_id: true,
+        id: true,
       },
     });
 
-    return [...new Set(leadUsers.map((lu) => lu.user_id))];
+    return [...new Set(leadUsers.map((lu) => lu.id))];
   }
 
   private async getuser_idsByRole(role_name: string): Promise<number[]> {
