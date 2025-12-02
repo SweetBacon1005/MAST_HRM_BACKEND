@@ -17,6 +17,8 @@ export const ASSET_PERMISSIONS = {
   // Request permissions
   REQUEST_CREATE: 'asset.request.create',
   REQUEST_READ: 'asset.request.read',
+  REQUEST_UPDATE: 'asset.request.update',
+  REQUEST_DELETE: 'asset.request.delete',
   REQUEST_APPROVE: 'asset.request.approve',
   REQUEST_REJECT: 'asset.request.reject',
   

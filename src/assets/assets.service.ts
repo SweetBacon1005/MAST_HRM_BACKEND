@@ -3,10 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ApprovalStatus, Prisma } from '@prisma/client';
+import { ApprovalStatus, AssetRequestStatus, AssetStatus, Prisma } from '@prisma/client';
 import {
   ASSET_ERRORS,
   SUCCESS_MESSAGES,
+  USER_ERRORS,
 } from '../common/constants/error-messages.constants';
 import { ActivityLogService } from '../common/services/activity-log.service';
 import {
@@ -14,11 +15,11 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
-import { ASSET_STATUSES, DEVICE_CATEGORIES } from './constants/asset.constants';
 import {
   CreateAssetRequestDto,
   FulfillAssetRequestDto,
   ReviewAssetRequestDto,
+  UpdateAssetRequestDto,
 } from './dto/asset-request.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import {
@@ -34,7 +35,6 @@ export class AssetsService {
     private readonly activityLogService: ActivityLogService,
   ) {}
 
-
   async createAsset(createAssetDto: CreateAssetDto, createdBy: number) {
     const existingAsset = await this.prisma.assets.findFirst({
       where: {
@@ -49,8 +49,13 @@ export class AssetsService {
 
     const asset = await this.prisma.assets.create({
       data: {
-        ...createAssetDto,
-        category: createAssetDto.category as any,
+        name: createAssetDto.name,
+        description: createAssetDto.description,
+        asset_code: createAssetDto.asset_code,
+        category: createAssetDto.category,
+        brand: createAssetDto.brand,
+        model: createAssetDto.model,
+        serial_number: createAssetDto.serial_number,
         purchase_date: createAssetDto.purchase_date
           ? new Date(createAssetDto.purchase_date)
           : null,
@@ -60,6 +65,9 @@ export class AssetsService {
         warranty_end_date: createAssetDto.warranty_end_date
           ? new Date(createAssetDto.warranty_end_date)
           : null,
+        location: createAssetDto.location,
+        status: createAssetDto.status,
+        notes: createAssetDto.notes,
         created_by: createdBy,
       },
       include: {
@@ -105,7 +113,7 @@ export class AssetsService {
   async findAllAssets(paginationDto: AssetPaginationDto = {}) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
+    const whereConditions: Prisma.assetsWhereInput = {
       deleted_at: null,
     };
 
@@ -120,8 +128,9 @@ export class AssetsService {
     }
 
     if (paginationDto.category)
-      whereConditions.category = paginationDto.category;
-    if (paginationDto.status) whereConditions.status = paginationDto.status;
+      whereConditions.category = paginationDto.category as any;
+    if (paginationDto.status)
+      whereConditions.status = paginationDto.status as any;
     if (paginationDto.assigned_to)
       whereConditions.assigned_to = paginationDto.assigned_to;
     if (paginationDto.brand)
@@ -280,25 +289,37 @@ export class AssetsService {
       }
     }
 
-    const updateData: any = {
-      ...updateAssetDto,
+    const updateData: Prisma.assetsUpdateInput = {
+      name: updateAssetDto.name,
+      description: updateAssetDto.description,
+      asset_code: updateAssetDto.asset_code,
+      category: updateAssetDto.category,
+      brand: updateAssetDto.brand,
+      model: updateAssetDto.model,
+      serial_number: updateAssetDto.serial_number,
+      purchase_date: updateAssetDto.purchase_date
+        ? new Date(updateAssetDto.purchase_date)
+        : undefined,
+      purchase_price:
+        updateAssetDto.purchase_price !== undefined
+          ? updateAssetDto.purchase_price
+            ? parseFloat(updateAssetDto.purchase_price)
+            : null
+          : undefined,
+      warranty_end_date: updateAssetDto.warranty_end_date
+        ? new Date(updateAssetDto.warranty_end_date)
+        : undefined,
+      location: updateAssetDto.location,
+      status: updateAssetDto.status,
+      assigned_user: updateAssetDto.assigned_to
+        ? { connect: { id: updateAssetDto.assigned_to } }
+        : undefined,
+      assigned_date: updateAssetDto.assigned_date
+        ? new Date(updateAssetDto.assigned_date)
+        : undefined,
+      notes: updateAssetDto.notes,
       updated_at: new Date(),
     };
-
-    if (updateAssetDto.purchase_date) {
-      updateData.purchase_date = new Date(updateAssetDto.purchase_date);
-    }
-    if (updateAssetDto.purchase_price !== undefined) {
-      updateData.purchase_price = updateAssetDto.purchase_price
-        ? parseFloat(updateAssetDto.purchase_price)
-        : null;
-    }
-    if (updateAssetDto.warranty_end_date) {
-      updateData.warranty_end_date = new Date(updateAssetDto.warranty_end_date);
-    }
-    if (updateAssetDto.assigned_date) {
-      updateData.assigned_date = new Date(updateAssetDto.assigned_date);
-    }
 
     const updatedAsset = await this.prisma.assets.update({
       where: { id },
@@ -388,7 +409,6 @@ export class AssetsService {
     };
   }
 
-
   async assignAsset(
     assetId: number,
     user_id: number,
@@ -403,8 +423,8 @@ export class AssetsService {
       throw new NotFoundException(ASSET_ERRORS.ASSET_NOT_FOUND);
     }
 
-    if (asset.status !== ASSET_STATUSES.AVAILABLE) {
-      throw new BadRequestException('Tài sản không ở trạng thái có sẵn');
+    if (asset.status !== AssetStatus.AVAILABLE) {
+      throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_AVAILABLE);
     }
 
     const user = await this.prisma.users.findFirst({
@@ -412,13 +432,13 @@ export class AssetsService {
     });
 
     if (!user) {
-      throw new NotFoundException('Không tìm thấy user');
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
     const updatedAsset = await this.prisma.assets.update({
       where: { id: assetId },
       data: {
-        status: ASSET_STATUSES.ASSIGNED,
+        status: AssetStatus.ASSIGNED,
         assigned_to: user_id,
         assigned_date: new Date(),
         notes: notes || asset.notes,
@@ -480,7 +500,7 @@ export class AssetsService {
     }
 
     if (asset.status !== 'ASSIGNED') {
-      throw new BadRequestException('Tài sản không ở trạng thái đã gán');
+      throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_ASSIGNED_STATUS);
     }
 
     const updatedAsset = await this.prisma.assets.update({
@@ -517,14 +537,12 @@ export class AssetsService {
     };
   }
 
-
   async getUserDevices(user_id: number) {
     const devices = await this.prisma.assets.findMany({
       where: {
         assigned_to: user_id,
-        status: ASSET_STATUSES.ASSIGNED,
+        status: AssetStatus.ASSIGNED,
         deleted_at: null,
-        category: { in: DEVICE_CATEGORIES as any },
       },
       select: {
         id: true,
@@ -557,7 +575,7 @@ export class AssetsService {
       });
 
       if (!asset) {
-        throw new BadRequestException('Tài sản không tồn tại');
+        throw new BadRequestException(ASSET_ERRORS.ASSET_DOES_NOT_EXIST);
       }
     }
 
@@ -654,7 +672,6 @@ export class AssetsService {
     if (paginationDto.approved_by)
       whereConditions.approved_by = paginationDto.approved_by;
 
-
     const [requests, total] = await Promise.all([
       this.prisma.asset_requests.findMany({
         where: whereConditions,
@@ -748,7 +765,7 @@ export class AssetsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Không tìm thấy request');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_REQUEST_NOT_FOUND);
     }
 
     return {
@@ -776,11 +793,11 @@ export class AssetsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Không tìm thấy request');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_REQUEST_NOT_FOUND);
     }
 
     if (request.status !== 'PENDING') {
-      throw new BadRequestException('Request đã được xử lý');
+      throw new BadRequestException(ASSET_ERRORS.REQUEST_ALREADY_PROCESSED);
     }
 
     if (reviewDto.status === ApprovalStatus.APPROVED) {
@@ -790,11 +807,11 @@ export class AssetsService {
         });
 
         if (!asset) {
-          throw new BadRequestException('Tài sản không tồn tại');
+          throw new BadRequestException(ASSET_ERRORS.ASSET_DOES_NOT_EXIST);
         }
 
-        if (asset.status !== ASSET_STATUSES.AVAILABLE) {
-          throw new BadRequestException('Tài sản không ở trạng thái có sẵn');
+        if (asset.status !== AssetStatus.AVAILABLE) {
+          throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_AVAILABLE);
         }
       }
 
@@ -888,11 +905,11 @@ export class AssetsService {
     });
 
     if (!request) {
-      throw new NotFoundException('Không tìm thấy request');
+      throw new NotFoundException(ASSET_ERRORS.ASSET_REQUEST_NOT_FOUND);
     }
 
     if (request.status !== 'APPROVED') {
-      throw new BadRequestException('Request chưa được phê duyệt');
+      throw new BadRequestException(ASSET_ERRORS.REQUEST_NOT_APPROVED);
     }
 
     const asset = await this.prisma.assets.findFirst({
@@ -900,11 +917,11 @@ export class AssetsService {
     });
 
     if (!asset) {
-      throw new BadRequestException('Tài sản không tồn tại');
+      throw new BadRequestException(ASSET_ERRORS.ASSET_DOES_NOT_EXIST);
     }
 
-    if (asset.status !== ASSET_STATUSES.AVAILABLE) {
-      throw new BadRequestException('Tài sản không ở trạng thái có sẵn');
+    if (asset.status !== AssetStatus.AVAILABLE) {
+      throw new BadRequestException(ASSET_ERRORS.ASSET_NOT_AVAILABLE);
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
@@ -922,7 +939,7 @@ export class AssetsService {
       await tx.assets.update({
         where: { id: fulfillDto.asset_id },
         data: {
-          status: ASSET_STATUSES.ASSIGNED,
+          status: AssetStatus.ASSIGNED,
           assigned_to: request.user_id,
           assigned_date: new Date(),
           updated_at: new Date(),
@@ -956,7 +973,6 @@ export class AssetsService {
       data: result,
     };
   }
-
 
   async getAssetStatistics() {
     const [
@@ -1010,6 +1026,159 @@ export class AssetsService {
         category: stat.category,
         count: stat._count.category,
       })),
+    };
+  }
+
+  async updateAssetRequest(
+    requestId: number,
+    updateDto: UpdateAssetRequestDto,
+    user_id: number,
+  ) {
+    const request = await this.prisma.asset_requests.findFirst({
+      where: { id: requestId, deleted_at: null },
+      include: {
+        user: {
+          select: {
+            id: true,
+            user_information: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException(ASSET_ERRORS.ASSET_REQUEST_NOT_FOUND);
+    }
+
+    if (request.user_id !== user_id) {
+      throw new BadRequestException(ASSET_ERRORS.CANNOT_UPDATE_REQUEST);
+    }
+
+    if (request.status !== AssetRequestStatus.PENDING) {
+      throw new BadRequestException(ASSET_ERRORS.CANNOT_UPDATE_REQUEST_STATUS);
+    }
+
+    if (updateDto.asset_id) {
+      const asset = await this.prisma.assets.findFirst({
+        where: { id: updateDto.asset_id, deleted_at: null },
+      });
+
+      if (!asset) {
+        throw new BadRequestException(ASSET_ERRORS.ASSET_DOES_NOT_EXIST);
+      }
+    }
+
+    const updateData: Prisma.asset_requestsUpdateInput = {
+      request_type: updateDto.request_type,
+      category: updateDto.category,
+      description: updateDto.description,
+      justification: updateDto.justification,
+      expected_date: updateDto.expected_date
+        ? new Date(updateDto.expected_date)
+        : undefined,
+      asset: updateDto.asset_id
+        ? { connect: { id: updateDto.asset_id } }
+        : undefined,
+      notes: updateDto.notes,
+    };
+
+    const updatedRequest = await this.prisma.asset_requests.update({
+      where: { id: requestId },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: { name: true },
+            },
+          },
+        },
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            asset_code: true,
+          },
+        },
+      },
+    });
+
+    await this.activityLogService.log({
+      logName: 'Asset Request',
+      description: `Cập nhật request tài sản`,
+      subjectType: 'Request',
+      event: 'asset_request.updated',
+      subjectId: requestId,
+      causer_id: user_id,
+      properties: {
+        changes: updateDto,
+        request_type: updatedRequest.request_type,
+        category: updatedRequest.category,
+      },
+    });
+
+    return {
+      message: 'Cập nhật request tài sản thành công',
+      data: updatedRequest,
+    };
+  }
+
+  async deleteAssetRequest(requestId: number, user_id: number) {
+    const request = await this.prisma.asset_requests.findFirst({
+      where: { id: requestId, deleted_at: null },
+      include: {
+        user: {
+          select: {
+            id: true,
+            user_information: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException(ASSET_ERRORS.ASSET_REQUEST_NOT_FOUND);
+    }
+
+    if (request.user_id !== user_id) {
+      throw new BadRequestException(ASSET_ERRORS.CANNOT_DELETE_REQUEST);
+    }
+
+    if (
+      ![AssetRequestStatus.PENDING, AssetRequestStatus.CANCELLED].includes(
+        request.status as any,
+      )
+    ) {
+      throw new BadRequestException(ASSET_ERRORS.CANNOT_DELETE_REQUEST_STATUS);
+    }
+
+    await this.prisma.asset_requests.update({
+      where: { id: requestId },
+      data: { deleted_at: new Date() },
+    });
+
+    await this.activityLogService.log({
+      logName: 'Asset Request',
+      description: `Xóa request tài sản`,
+      subjectType: 'Request',
+      event: 'asset_request.deleted',
+      subjectId: requestId,
+      causer_id: user_id,
+      properties: {
+        request_type: request.request_type,
+        category: request.category,
+        user_name: request.user?.user_information?.name,
+      },
+    });
+
+    return {
+      message: 'Xóa request tài sản thành công',
     };
   }
 }

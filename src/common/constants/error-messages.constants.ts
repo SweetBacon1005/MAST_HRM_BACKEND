@@ -69,6 +69,14 @@ export const ASSET_ERRORS = {
   INSUFFICIENT_PERMISSIONS: 'Không đủ quyền hạn',
   INVALID_ASSET_STATUS: 'Trạng thái tài sản không hợp lệ',
   ASSET_IN_USE: 'Tài sản đang được sử dụng',
+  ASSET_NOT_AVAILABLE: 'Tài sản không ở trạng thái có sẵn',
+  ASSET_NOT_ASSIGNED_STATUS: 'Tài sản không ở trạng thái đã gán',
+  REQUEST_NOT_APPROVED: 'Yêu cầu chưa được phê duyệt',
+  CANNOT_UPDATE_REQUEST: 'Bạn không có quyền cập nhật yêu cầu này',
+  CANNOT_DELETE_REQUEST: 'Bạn không có quyền xóa yêu cầu này',
+  CANNOT_UPDATE_REQUEST_STATUS: 'Chỉ có thể cập nhật yêu cầu ở trạng thái chờ duyệt',
+  CANNOT_DELETE_REQUEST_STATUS: 'Chỉ có thể xóa yêu cầu ở trạng thái chờ duyệt hoặc đã hủy',
+  ASSET_DOES_NOT_EXIST: 'Tài sản không tồn tại',
 } as const;
 
 // === DIVISION ERRORS ===

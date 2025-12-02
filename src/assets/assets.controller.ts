@@ -28,6 +28,7 @@ import {
   CreateAssetRequestDto,
   FulfillAssetRequestDto,
   ReviewAssetRequestDto,
+  UpdateAssetRequestDto,
 } from './dto/asset-request.dto';
 import { AssignAssetDto, UnassignAssetDto } from './dto/assign-asset.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -471,6 +472,73 @@ export class AssetsController {
   })
   findOneAssetRequest(@Param('id', ParseIntPipe) id: number) {
     return this.assetsService.findOneAssetRequest(id);
+  }
+
+  @Patch('requests/:id')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_UPDATE)
+  @ApiOperation({ summary: 'Cập nhật request tài sản (chỉ owner và status PENDING)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật request tài sản thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Cập nhật request tài sản thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            request_type: { type: 'string', example: 'REQUEST' },
+            category: { type: 'string', example: 'Laptop' },
+            status: { type: 'string', example: 'PENDING' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Không có quyền cập nhật hoặc request không ở trạng thái PENDING',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy request',
+  })
+  updateAssetRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: UpdateAssetRequestDto,
+    @GetCurrentUser('id') user_id: number,
+  ) {
+    return this.assetsService.updateAssetRequest(id, updateDto, user_id);
+  }
+
+  @Delete('requests/:id')
+  @RequirePermission(ASSET_PERMISSIONS.REQUEST_DELETE)
+  @ApiOperation({ summary: 'Xóa request tài sản (chỉ owner và status PENDING/CANCELLED)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa request tài sản thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Xóa request tài sản thành công' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Không có quyền xóa hoặc request không ở trạng thái PENDING/CANCELLED',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy request',
+  })
+  deleteAssetRequest(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') user_id: number,
+  ) {
+    return this.assetsService.deleteAssetRequest(id, user_id);
   }
 
   @Get(':id')

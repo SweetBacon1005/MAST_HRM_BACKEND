@@ -112,3 +112,63 @@ export class FulfillAssetRequestDto {
   @IsString()
   notes?: string;
 }
+
+export class UpdateAssetRequestDto {
+  @ApiPropertyOptional({
+    description: 'Loại request',
+    enum: AssetRequestType,
+    example: AssetRequestType.REQUEST,
+  })
+  @IsOptional()
+  @IsEnum(AssetRequestType)
+  request_type?: AssetRequestType;
+
+  @ApiPropertyOptional({
+    description: 'Danh mục tài sản cần request',
+    example: AssetCategory.LAPTOP,
+    enum: AssetCategory,
+  })
+  @IsOptional()
+  @IsEnum(AssetCategory)
+  category?: AssetCategory;
+
+  @ApiPropertyOptional({
+    description: 'Mô tả chi tiết tài sản cần thiết',
+    example: 'Laptop cho công việc development, cần cấu hình cao với RAM 16GB',
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Lý do cần tài sản',
+    example: 'Laptop hiện tại đã hỏng, cần thay thế để tiếp tục công việc',
+  })
+  @IsOptional()
+  @IsString()
+  justification?: string;
+
+  @ApiPropertyOptional({
+    description: 'Ngày mong muốn nhận tài sản (YYYY-MM-DD)',
+    example: '2024-02-01',
+  })
+  @IsOptional()
+  @IsDateString()
+  expected_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID tài sản cụ thể (cho RETURN hoặc MAINTENANCE)',
+    example: 123,
+  })
+  @IsOptional()
+  @IsInt()
+  asset_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Ghi chú thêm',
+    example: 'Cần gấp trong tuần này',
+  })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
