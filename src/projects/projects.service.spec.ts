@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '../database/prisma.service';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
+import { MilestonesService } from '../milestones/milestones.service';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -30,10 +32,26 @@ describe('ProjectsService', () => {
       },
     };
 
+    const mockRoleAssignmentService = {
+      getUserRoles: jest.fn(),
+      assignRole: jest.fn(),
+      revokeRole: jest.fn(),
+    };
+
+    const mockMilestonesService = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { provide: PrismaService, useValue: mockPrismaService },
+        { provide: RoleAssignmentService, useValue: mockRoleAssignmentService },
+        { provide: MilestonesService, useValue: mockMilestonesService },
       ],
     }).compile();
 

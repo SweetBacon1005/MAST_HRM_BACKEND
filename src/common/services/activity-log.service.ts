@@ -15,6 +15,8 @@ export interface ActivityLogData {
 
 export enum ActivityEvent {
   REQUEST_CREATED = 'request.created',
+  REQUEST_UPDATED = 'request.updated',
+  REQUEST_DELETED = 'request.deleted',
   REQUEST_APPROVED = 'request.approved',
   REQUEST_REJECTED = 'request.rejected',
   REQUEST_CANCELLED = 'request.cancelled',
@@ -192,8 +194,46 @@ export class ActivityLogService {
   }
 
   /**
-   * Log request approval/rejection
+   * Log request update
    */
+  async logRequestUpdated(
+    requestType: string,
+    requestId: number,
+    user_id: number,
+    details?: Record<string, any>
+  ): Promise<void> {
+    await this.log({
+      logName: 'Request Management',
+      description: `Cập nhật đơn ${requestType}`,
+      subjectType: SubjectType.REQUEST,
+      event: ActivityEvent.REQUEST_UPDATED,
+      subjectId: requestId,
+      causer_id: user_id,
+      properties: {
+        request_type: requestType,
+        ...details,
+      },
+    });
+  }
+
+  async logRequestDeleted(
+    requestType: string,
+    requestId: number,
+    user_id: number,
+  ): Promise<void> {
+    await this.log({
+      logName: 'Request Management',
+      description: `Xóa đơn ${requestType}`,
+      subjectType: SubjectType.REQUEST,
+      event: ActivityEvent.REQUEST_DELETED,
+      subjectId: requestId,
+      causer_id: user_id,
+      properties: {
+        request_type: requestType,
+      },
+    });
+  }
+
   async logRequestApproval(
     requestType: string,
     requestId: number,
