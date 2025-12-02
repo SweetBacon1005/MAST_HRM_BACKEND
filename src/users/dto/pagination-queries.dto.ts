@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserInformationStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString, IsBoolean } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class UsersPaginationDto extends PaginationDto {
@@ -53,4 +53,18 @@ export class UsersPaginationDto extends PaginationDto {
   @IsOptional()
   @IsEnum(UserInformationStatus)
   status?: UserInformationStatus;
+
+  @ApiProperty({
+    description: 'Lọc theo user đã đăng ký khuôn mặt hoặc chưa',
+    example: true,
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  is_register_face?: boolean;
 }

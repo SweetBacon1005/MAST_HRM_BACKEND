@@ -1,10 +1,9 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalAuthGuard } from './auth/guards/global-auth.guard';
 import { envConfig } from './config/env.config';
-import { INestApplication } from '@nestjs/common';
 
 process.env.TZ = 'Asia/Ho_Chi_Minh';
 
@@ -31,8 +30,8 @@ async function createApp() {
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
       allowedHeaders: [
-        'Content-Type', 
-        'Authorization', 
+        'Content-Type',
+        'Authorization',
         'Accept',
         'Origin',
         'X-Requested-With',
@@ -55,7 +54,9 @@ async function createApp() {
     }
 
     // Swagger Configuration - Enable in development and Vercel
-    const enableSwagger = process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true';
+    const enableSwagger =
+      process.env.NODE_ENV !== 'production' ||
+      process.env.ENABLE_SWAGGER === 'true';
     if (enableSwagger) {
       const config = new DocumentBuilder()
         .setTitle('MAST HRM API')
@@ -78,7 +79,7 @@ async function createApp() {
         .build();
 
       const document = SwaggerModule.createDocument(app, config);
-      
+
       // Optimized setup for Vercel
       const swaggerConfig = {
         swaggerOptions: {
@@ -157,7 +158,7 @@ async function createApp() {
           }
         `,
       };
-      
+
       SwaggerModule.setup('api', app, document, swaggerConfig);
     }
 
@@ -177,6 +178,12 @@ export default async function handler(req: any, res: any) {
 async function bootstrap() {
   const app = await createApp();
   await app.listen(envConfig.app.port);
+  console.log(
+    `Application is running on: http://localhost:${envConfig.app.port}`,
+  );
+  console.log(
+    `Swagger documentation: http://localhost:${envConfig.app.port}/api`,
+  );
 }
 
 // Only run bootstrap in local development (not on Vercel)

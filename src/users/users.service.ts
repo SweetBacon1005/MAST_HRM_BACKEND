@@ -176,6 +176,18 @@ export class UsersService {
       where.id = { in: user_idsForDivisionFilter };
     }
 
+    if (paginationDto.is_register_face !== undefined) {
+      if (paginationDto.is_register_face === true) {
+        where.register_face_url = { not: null };
+        where.register_face_at = { not: null };
+      } else {
+        where.OR = [
+          { register_face_url: null },
+          { register_face_at: null },
+        ];
+      }
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.users.findMany({
         where,
@@ -189,6 +201,8 @@ export class UsersService {
           status: true,
           created_at: true,
           updated_at: true,
+          register_face_url: true,
+          register_face_at: true,
           user_information: true,
           user_role_assignments: {
             select: {

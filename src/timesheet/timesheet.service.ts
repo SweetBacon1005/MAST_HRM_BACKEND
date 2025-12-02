@@ -414,15 +414,24 @@ export class TimesheetService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    if (!this.uploadService.validateCloudinaryUrl(photo_url)) {
-      throw new BadRequestException('URL ảnh không hợp lệ hoặc không phải từ Cloudinary');
+    if (!this.uploadService.validateCloudinaryUrl(photo_url) || user.register_face_url) {
+      throw new BadRequestException('URL ảnh không hợp lệ hoặc khuôn mặt đã được đăng ký');
     }
+
+    await this.prisma.users.update({
+      where: { id: user_id },
+      data: {
+        register_face_url: photo_url,
+        register_face_at: new Date(),
+      },
+    });
 
     return {
       success: true,
       message: 'Đăng ký khuôn mặt thành công',
       user_id,
       photo_url,
+      register_face_at: new Date(),
     };
   }
 
