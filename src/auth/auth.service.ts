@@ -6,12 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OtpType, ScopeType } from '@prisma/client';
+import { AssetStatus, OtpType, ScopeType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import {
-  ASSET_STATUSES,
-  DEVICE_CATEGORIES,
-} from '../assets/constants/asset.constants';
 import {
   AUTH_ERRORS,
   USER_ERRORS,
@@ -290,9 +286,8 @@ export class AuthService {
       this.prisma.assets.findMany({
         where: {
           assigned_to: user_id,
-          status: ASSET_STATUSES.ASSIGNED,
+          status: AssetStatus.ASSIGNED,
           deleted_at: null,
-          category: { in: DEVICE_CATEGORIES as any },
         },
         select: {
           id: true,

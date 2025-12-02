@@ -338,6 +338,8 @@ model users {
     status                           UserInformationStatus     @default(ACTIVE)
     user_info_id                     Int?                      @unique
     user_information                 user_information?         @relation(fields: [user_info_id], references: [id])
+    register_face_url                String?                   @db.VarChar(500)
+    register_face_at                 DateTime?                 @db.DateTime()
     rotation_members                 rotation_members[]
     attendance_logs                  attendance_logs[]
     attendance_sessions              attendance_sessions[]
