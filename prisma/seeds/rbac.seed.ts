@@ -61,6 +61,39 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'report.read', description: 'Xem báo cáo' },
     { name: 'report.export', description: 'Xuất báo cáo' },
     
+    // Timesheet Reports
+    { name: 'report.timesheet.view', description: 'Xem báo cáo timesheet' },
+    { name: 'report.timesheet.export', description: 'Xuất báo cáo timesheet' },
+    
+    // Attendance Reports
+    { name: 'report.attendance.view', description: 'Xem báo cáo chấm công' },
+    { name: 'report.attendance.dashboard', description: 'Xem dashboard chấm công' },
+    { name: 'report.attendance.statistics', description: 'Xem thống kê chấm công' },
+    { name: 'report.attendance.export', description: 'Xuất báo cáo chấm công' },
+    
+    // Leave Reports
+    { name: 'report.leave.view', description: 'Xem báo cáo nghỉ phép' },
+    { name: 'report.leave.summary', description: 'Xem tổng hợp nghỉ phép' },
+    { name: 'report.leave.export', description: 'Xuất báo cáo nghỉ phép' },
+    
+    // Overtime Reports
+    { name: 'report.overtime.view', description: 'Xem báo cáo tăng ca' },
+    { name: 'report.overtime.summary', description: 'Xem tổng hợp tăng ca' },
+    { name: 'report.overtime.export', description: 'Xuất báo cáo tăng ca' },
+    
+    // Personnel Transfer Reports
+    { name: 'report.transfer.view', description: 'Xem báo cáo điều chuyển' },
+    { name: 'report.transfer.summary', description: 'Xem tổng hợp điều chuyển' },
+    
+    // Comprehensive Dashboard
+    { name: 'report.dashboard.comprehensive', description: 'Xem dashboard tổng hợp' },
+    
+    // Monthly Work Summary
+    { name: 'reports.monthly-work-summary.view-all', description: 'Xem báo cáo công tháng tất cả nhân viên' },
+    { name: 'reports.monthly-work-summary.view-team', description: 'Xem báo cáo công tháng team' },
+    { name: 'reports.monthly-work-summary.view-own', description: 'Xem báo cáo công tháng của bản thân' },
+    { name: 'reports.monthly-work-summary.export', description: 'Xuất báo cáo công tháng' },
+    
     // System Administration
     { name: 'system.admin', description: 'Quản trị hệ thống' },
     { name: 'system.config.read', description: 'Xem cấu hình hệ thống' },
@@ -74,6 +107,8 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'team.update', description: 'Cập nhật thông tin team' },
     { name: 'team.delete', description: 'Xóa team' },
     { name: 'team.manage', description: 'Quản lý team (tất cả quyền)' },
+    { name: 'team.member.add', description: 'Thêm thành viên vào team' },
+    { name: 'team.member.remove', description: 'Xóa thành viên khỏi team' },
     
     // News Management
     { name: 'news.read', description: 'Xem tin tức' },
@@ -197,8 +232,15 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read', 'division.create', 'division.update', 'division.delete', 'division.manage',
         'division.assignment.read', 'division.assignment.create', 'division.assignment.update', 'division.assignment.delete',
         'report.read', 'report.export',
+        'report.timesheet.view', 'report.timesheet.export',
+        'report.attendance.view', 'report.attendance.dashboard', 'report.attendance.statistics', 'report.attendance.export',
+        'report.leave.view', 'report.leave.summary', 'report.leave.export',
+        'report.overtime.view', 'report.overtime.summary', 'report.overtime.export',
+        'report.transfer.view', 'report.transfer.summary',
+        'report.dashboard.comprehensive',
+        'reports.monthly-work-summary.view-all', 'reports.monthly-work-summary.view-team', 'reports.monthly-work-summary.view-own', 'reports.monthly-work-summary.export',
         'organization.read',
-        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage', 'team.member.add', 'team.member.remove',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit', 'news.approve',
         'notification.read', 'notification.create', 'notification.update', 'notification.delete', 'notification.manage',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
@@ -225,8 +267,15 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read', 'division.create', 'division.update', 'division.manage',
         'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
         'report.read', 'report.export',
+        'report.timesheet.view', 'report.timesheet.export',
+        'report.attendance.view', 'report.attendance.dashboard', 'report.attendance.statistics', 'report.attendance.export',
+        'report.leave.view', 'report.leave.summary', 'report.leave.export',
+        'report.overtime.view', 'report.overtime.summary', 'report.overtime.export',
+        'report.transfer.view', 'report.transfer.summary',
+        'report.dashboard.comprehensive',
+        'reports.monthly-work-summary.view-all', 'reports.monthly-work-summary.export',
         'organization.read',
-        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage', 'team.member.add', 'team.member.remove',
         'news.read', 'news.create', 'news.update', 'news.delete', 'news.submit',
         'notification.read', 'notification.delete',
         'asset.create', 'asset.read', 'asset.update', 'asset.delete', 'asset.assign', 'asset.unassign', 'asset.statistics',
@@ -251,6 +300,9 @@ export async function seedRBAC(prisma: PrismaClient) {
         'request.read', 'request.approve', 'request.reject',
         'division.read',
         'report.read', 'report.export',
+        'report.timesheet.view', 'report.attendance.view', 'report.attendance.statistics',
+        'report.leave.view', 'report.overtime.view',
+        'reports.monthly-work-summary.view-all', 'reports.monthly-work-summary.export',
         'organization.read',
         'team.read',
         'news.read',
@@ -277,8 +329,11 @@ export async function seedRBAC(prisma: PrismaClient) {
         'division.read', 'division.update', 'division.manage',
         'division.assignment.read', 'division.assignment.create', 'division.assignment.update',
         'report.read', 'report.export',
+        'report.timesheet.view', 'report.attendance.view', 'report.attendance.dashboard', 'report.attendance.statistics',
+        'report.leave.view', 'report.leave.summary', 'report.overtime.view', 'report.overtime.summary',
+        'reports.monthly-work-summary.view-team', 'reports.monthly-work-summary.view-own', 'reports.monthly-work-summary.export',
         'organization.read',
-        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage',
+        'team.read', 'team.create', 'team.update', 'team.delete', 'team.manage', 'team.member.add', 'team.member.remove',
         'news.read',
         'notification.read', 'notification.delete',
         'asset.read', 'asset.assign', 'asset.unassign', 'asset.statistics',
@@ -303,8 +358,10 @@ export async function seedRBAC(prisma: PrismaClient) {
         'request.read', 'request.create', 'request.approve', 'request.reject',
         'division.read',
         'report.read',
+        'report.timesheet.view', 'report.attendance.view', 'report.attendance.statistics',
+        'reports.monthly-work-summary.view-team', 'reports.monthly-work-summary.view-own',
         'organization.read',
-        'team.read', 'team.update', 'team.manage',
+        'team.read', 'team.update', 'team.manage', 'team.member.add', 'team.member.remove',
         'news.read',
         'notification.read', 'notification.delete',
         'asset.read', 'asset.request.create', 'asset.request.read', 'asset.request.update', 'asset.request.delete',
@@ -327,6 +384,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'leave.read', 'leave.create',
         'request.read', 'request.create',
         'division.read',
+        'reports.monthly-work-summary.view-own',
         'organization.read',
         'team.read',
         'news.read',

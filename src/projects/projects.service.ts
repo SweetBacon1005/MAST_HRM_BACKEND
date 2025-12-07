@@ -649,7 +649,222 @@ export class ProjectsService {
     );
   }
 
+  async findManagedProjects(paginationDto: ProjectPaginationDto, user_id: number) {
+    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: user_id,
+        scope_type: ScopeType.PROJECT,
+        role_id: ROLE_IDS.PROJECT_MANAGER,
+        deleted_at: null,
+      },
+      select: { scope_id: true },
+    });
+
+    const ids = assignments
+      .map((p) => p.scope_id)
+      .filter((id): id is number => typeof id === 'number');
+
+    if (!ids.length) {
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
+    }
+
+    const where: Prisma.projectsWhereInput = {
+      id: { in: ids },
+      deleted_at: null,
+    };
+
+    if (paginationDto.search) {
+      where.OR = [
+        { name: { contains: paginationDto.search } },
+        { code: { contains: paginationDto.search } },
+      ];
+    }
+
+    if (paginationDto.status) {
+      where.status = paginationDto.status as any;
+    }
+
+    if (paginationDto.division_id) {
+      where.division_id = paginationDto.division_id;
+    }
+
+    if (paginationDto.team_id) {
+      where.team_id = paginationDto.team_id;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.projects.findMany({
+        where,
+        skip,
+        take,
+        orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          division: { select: { id: true, name: true } },
+          team: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.projects.count({ where }),
+    ]);
+
+    const dataProjectIds = data.map((p) => p.id);
+    const memberCounts =
+      dataProjectIds.length > 0
+        ? await this.prisma.user_role_assignment.groupBy({
+            by: ['scope_id'],
+            where: {
+              scope_type: ScopeType.PROJECT,
+              scope_id: { in: dataProjectIds },
+              deleted_at: null,
+            },
+            _count: {
+              user_id: true,
+            },
+          })
+        : [];
+    const memberCountMap = new Map(
+      memberCounts
+        .filter((mc) => mc.scope_id !== null)
+        .map((mc) => [mc.scope_id!, mc._count.user_id]),
+    );
+
+    const transformedData = data.map((project) => ({
+      ...project,
+      start_date: project.start_date.toISOString().split('T')[0],
+      end_date: project.end_date.toISOString().split('T')[0],
+      member_count: memberCountMap.get(project.id) || 0,
+    }));
+
+    return buildPaginationResponse(
+      transformedData,
+      total,
+      paginationDto.page || 1,
+      paginationDto.limit || 10,
+    );
+  }
+
   async updateProgress(id: number, progress: number) {
     throw new BadRequestException('Tiến độ dự án được tính tự động từ các mốc. Vui lòng cập nhật tiến độ của từng mốc.');
+  }
+
+  async addProjectMember(project_id: number, user_id: number, role_id: number, assigned_by: number) {
+    const project = await this.prisma.projects.findUnique({
+      where: { id: project_id, deleted_at: null },
+    });
+
+    if (!project) {
+      throw new NotFoundException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
+    }
+
+    const user = await this.prisma.users.findUnique({
+      where: { id: user_id, deleted_at: null },
+    });
+
+    if (!user) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    }
+
+    const role = await this.prisma.roles.findUnique({
+      where: { id: role_id, deleted_at: null },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role không tồn tại');
+    }
+
+    const existingAssignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id,
+        scope_type: ScopeType.PROJECT,
+        scope_id: project_id,
+        deleted_at: null,
+      },
+    });
+
+    if (existingAssignment) {
+      throw new BadRequestException('User đã là thành viên của dự án này');
+    }
+
+    const assignment = await this.prisma.user_role_assignment.create({
+      data: {
+        user_id,
+        role_id,
+        scope_type: ScopeType.PROJECT,
+        scope_id: project_id,
+        assigned_by,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: { name: true },
+            },
+          },
+        },
+        role: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    return {
+      message: 'Thêm thành viên vào dự án thành công',
+      data: {
+        id: assignment.user.id,
+        email: assignment.user.email,
+        name: assignment.user.user_information?.name || '',
+        role: {
+          id: assignment.role.id,
+          name: assignment.role.name,
+        },
+      },
+    };
+  }
+
+  async removeProjectMember(project_id: number, user_id: number) {
+    const project = await this.prisma.projects.findUnique({
+      where: { id: project_id, deleted_at: null },
+    });
+
+    if (!project) {
+      throw new NotFoundException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
+    }
+
+    const assignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id,
+        scope_type: ScopeType.PROJECT,
+        scope_id: project_id,
+        deleted_at: null,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('User không phải là thành viên của dự án này');
+    }
+
+    if (assignment.role_id === ROLE_IDS.PROJECT_MANAGER) {
+      throw new BadRequestException('Không thể xóa Project Manager khỏi dự án. Vui lòng chuyển quyền quản lý trước.');
+    }
+
+    await this.prisma.user_role_assignment.update({
+      where: { id: assignment.id },
+      data: { deleted_at: new Date() },
+    });
+
+    return {
+      message: 'Xóa thành viên khỏi dự án thành công',
+    };
   }
 }

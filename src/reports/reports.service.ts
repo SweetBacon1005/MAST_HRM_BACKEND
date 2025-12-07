@@ -516,20 +516,24 @@ export class ReportsService {
 
   /**
    * Báo cáo tổng hợp chấm công
+   * FIXED: Dùng time_sheets thay vì attendance_logs để có dữ liệu đã xử lý
    */
   async getAttendanceSummary(
     startDate?: string,
     endDate?: string,
     division_id?: number,
   ) {
-    const where: AttendanceLogWhereInput = {};
+    const now = new Date();
+    const defaultStartDate = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const defaultEndDate = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    if (startDate && endDate) {
-      where.timestamp = {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      };
-    }
+    const where: TimesheetWhereInput = {
+      work_date: {
+        gte: new Date(defaultStartDate),
+        lte: new Date(defaultEndDate),
+      },
+      deleted_at: null,
+    };
 
     if (division_id) {
       // Lấy user IDs từ user_role_assignment
@@ -546,22 +550,66 @@ export class ReportsService {
       where.user_id = { in: user_ids };
     }
 
-    const attendanceStats = await this.prisma.attendance_logs.groupBy({
-      by: ['user_id'],
+    // Lấy timesheets và tính toán thống kê
+    const timesheets = await this.prisma.time_sheets.findMany({
       where,
-      _count: {
+      select: {
         user_id: true,
-      },
-      _min: {
-        timestamp: true,
-      },
-      _max: {
-        timestamp: true,
+        work_date: true,
+        checkin: true,
+        checkout: true,
+        is_complete: true,
+        late_time: true,
+        early_time: true,
+        work_time_morning: true,
+        work_time_afternoon: true,
+        remote: true,
       },
     });
 
-    // Lấy thông tin user để hiển thị
-    const user_ids = attendanceStats.map((stat) => stat.user_id);
+    // Group by user và tính toán
+    const userStatsMap = new Map<number, {
+      total_days: number;
+      complete_days: number;
+      late_count: number;
+      early_leave_count: number;
+      total_work_hours: number;
+      remote_days: number;
+      earliest_checkin?: Date;
+      latest_checkout?: Date;
+    }>();
+
+    timesheets.forEach((ts) => {
+      const existing = userStatsMap.get(ts.user_id) || {
+        total_days: 0,
+        complete_days: 0,
+        late_count: 0,
+        early_leave_count: 0,
+        total_work_hours: 0,
+        remote_days: 0,
+      };
+
+      existing.total_days += 1;
+      if (ts.is_complete) existing.complete_days += 1;
+      if (ts.late_time && ts.late_time > 0) existing.late_count += 1;
+      if (ts.early_time && ts.early_time > 0) existing.early_leave_count += 1;
+      if (ts.remote === RemoteType.REMOTE) existing.remote_days += 1;
+
+      const workHours = ((ts.work_time_morning || 0) + (ts.work_time_afternoon || 0)) / 60;
+      existing.total_work_hours += workHours;
+
+      if (ts.checkin && (!existing.earliest_checkin || ts.checkin < existing.earliest_checkin)) {
+        existing.earliest_checkin = ts.checkin;
+      }
+      if (ts.checkout && (!existing.latest_checkout || ts.checkout > existing.latest_checkout)) {
+        existing.latest_checkout = ts.checkout;
+      }
+
+      userStatsMap.set(ts.user_id, existing);
+    });
+
+    // Lấy thông tin user
+    const user_ids = Array.from(userStatsMap.keys());
     const users = await this.prisma.users.findMany({
       where: { id: { in: user_ids } },
       select: {
@@ -571,7 +619,7 @@ export class ReportsService {
       },
     });
 
-    // Lấy division names từ user_role_assignment
+    // Lấy division names
     const divisionAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
         user_id: { in: user_ids },
@@ -600,21 +648,30 @@ export class ReportsService {
       }
     });
 
-    const result = attendanceStats.map((stat) => {
-      const user = users.find((u) => u.id === stat.user_id);
+    // Tạo kết quả
+    const result = Array.from(userStatsMap.entries()).map(([user_id, stats]) => {
+      const user = users.find((u) => u.id === user_id);
       return {
-        user_id: stat.user_id,
+        user_id,
         user_name: user?.user_information?.name || 'Unknown',
         user_email: user?.email || '',
-        division: userDivisionMap.get(stat.user_id) || '',
-        total_days: stat._count?.user_id || 0,
-        earliest_timestamp: stat._min?.timestamp,
-        latest_timestamp: stat._max?.timestamp,
+        division: userDivisionMap.get(user_id) || '',
+        total_days: stats.total_days,
+        complete_days: stats.complete_days,
+        late_count: stats.late_count,
+        early_leave_count: stats.early_leave_count,
+        total_work_hours: parseFloat(stats.total_work_hours.toFixed(2)),
+        remote_days: stats.remote_days,
+        earliest_checkin: stats.earliest_checkin,
+        latest_checkout: stats.latest_checkout,
+        attendance_rate: stats.total_days > 0 
+          ? parseFloat(((stats.complete_days / stats.total_days) * 100).toFixed(2))
+          : 0,
       };
     });
 
     return {
-      period: { start_date: startDate, end_date: endDate },
+      period: { start_date: defaultStartDate, end_date: defaultEndDate },
       division_id: division_id,
       data: result,
       total_records: result.length,

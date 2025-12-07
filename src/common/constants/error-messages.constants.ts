@@ -285,7 +285,10 @@ export const SUCCESS_MESSAGES = {
   USER_ADDED_TO_DIVISION: 'Thêm người dùng vào phòng ban thành công',
   USER_DIVISION_UPDATED: 'Cập nhật phân công người dùng trong phòng ban thành công',
   USER_REMOVED_FROM_DIVISION: 'Xóa người dùng khỏi phòng ban thành công',
+  TEAM_CREATED: 'Tạo team thành công',
+  TEAM_UPDATED: 'Cập nhật team thành công',
   TEAM_DELETED: 'Xóa nhóm thành công',
+  TEAM_MEMBER_ADDED: 'Đã thêm user vào team thành công',
   REMOTE_WORK_APPROVED: 'Đã duyệt yêu cầu làm việc từ xa thành công',
   REMOTE_WORK_REJECTED: 'Đã từ chối yêu cầu làm việc từ xa',
   DAY_OFF_APPROVED: 'Đã duyệt đơn nghỉ phép thành công',
@@ -377,3 +380,19 @@ export const MILESTONE_ERRORS = {
 } as const;
 
 export type MilestoneError = typeof MILESTONE_ERRORS[keyof typeof MILESTONE_ERRORS];
+
+// === REPORT ERRORS ===
+export const REPORT_ERRORS = {
+  REPORT_NOT_FOUND: 'Không tìm thấy báo cáo',
+  INVALID_DATE_RANGE: 'Khoảng thời gian không hợp lệ',
+  INVALID_MONTH_FORMAT: 'Định dạng tháng không hợp lệ (phải là YYYY-MM)',
+  INVALID_YEAR: 'Năm không hợp lệ',
+  MONTH_NOT_CLOSED: 'Tháng chưa đóng',
+  UNAUTHORIZED_VIEW_REPORT: 'Bạn không có quyền xem báo cáo này',
+  UNAUTHORIZED_EXPORT_REPORT: 'Bạn không có quyền xuất báo cáo',
+  NO_DATA_AVAILABLE: 'Không có dữ liệu báo cáo',
+  EXPORT_FAILED: 'Xuất báo cáo thất bại',
+  REPORT_GENERATION_FAILED: 'Tạo báo cáo thất bại',
+} as const;
+
+export type ReportError = typeof REPORT_ERRORS[keyof typeof REPORT_ERRORS];

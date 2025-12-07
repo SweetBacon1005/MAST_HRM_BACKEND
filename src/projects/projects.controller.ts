@@ -74,6 +74,20 @@ export class ProjectsController {
     return this.projectsService.findMyProjects(paginationDto, userId);
   }
 
+  @Get('managed')
+  @RequirePermission('project.read')
+  @ApiOperation({ summary: 'Lấy danh sách dự án mà user hiện tại quản lý (Project Manager)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy danh sách dự án quản lý thành công',
+  })
+  findManaged(
+    @Query() paginationDto: ProjectPaginationDto,
+    @GetCurrentUser('id') userId: number,
+  ) {
+    return this.projectsService.findManagedProjects(paginationDto, userId);
+  }
+
   @Get(':id/members')
   @RequirePermission('project.read')
   @ApiOperation({ summary: 'Lấy danh sách thành viên của dự án' })
@@ -84,6 +98,60 @@ export class ProjectsController {
   })
   getProjectMembers(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProjectMembers(id);
+  }
+
+  @Post(':id/members')
+  @RequirePermission('project.update')
+  @ApiOperation({ summary: 'Thêm thành viên vào dự án' })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiResponse({
+    status: 201,
+    description: 'Thêm thành viên thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User đã là thành viên của dự án',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy dự án hoặc user',
+  })
+  addProjectMember(
+    @Param('id', ParseIntPipe) project_id: number,
+    @Body() addMemberDto: any,
+    @GetCurrentUser('id') assigned_by: number,
+  ) {
+    const { user_id, role_id = 6 } = addMemberDto;
+    return this.projectsService.addProjectMember(
+      project_id,
+      user_id,
+      role_id,
+      assigned_by,
+    );
+  }
+
+  @Delete(':id/members/:user_id')
+  @RequirePermission('project.update')
+  @ApiOperation({ summary: 'Xóa thành viên khỏi dự án' })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiParam({ name: 'user_id', description: 'ID của user cần xóa' })
+  @ApiResponse({
+    status: 200,
+    description: 'Xóa thành viên thành công',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Không thể xóa Project Manager',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Không tìm thấy dự án hoặc user không phải thành viên',
+  })
+  removeProjectMember(
+    @Param('id', ParseIntPipe) project_id: number,
+    @Param('user_id', ParseIntPipe) user_id: number,
+  ) {
+    return this.projectsService.removeProjectMember(project_id, user_id);
   }
 
   @Get(':id')

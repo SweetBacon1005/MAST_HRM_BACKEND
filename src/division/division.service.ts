@@ -1627,6 +1627,12 @@ export class DivisionService {
     return stats;
   }
 
+  // ========================================
+  // DEPRECATED: Team methods moved to TeamModule
+  // Use TeamService instead
+  // ========================================
+  
+  /* DEPRECATED - Use TeamService.create()
   async createTeam(createTeamDto: CreateTeamDto, assignedBy: number) {
     const division = await this.prisma.divisions.findUnique({
       where: { id: createTeamDto.division_id, deleted_at: null },
@@ -1678,7 +1684,9 @@ export class DivisionService {
 
     return team;
   }
+  */
 
+  /* DEPRECATED - Use TeamService.findAll()
   async findAllTeams(paginationDto: TeamPaginationDto) {
     const {
       skip,
@@ -1887,7 +1895,9 @@ export class DivisionService {
       paginationDto,
     );
   }
+  */
 
+  /* DEPRECATED - Use TeamService.findOne()
   async findOneTeam(id: number) {
     const team = await this.prisma.teams.findUnique({
       where: { id, deleted_at: null },
@@ -1994,7 +2004,9 @@ export class DivisionService {
       updated_at: team.updated_at,
     };
   }
+  */
 
+  /* DEPRECATED - Use TeamService.update()
   async updateTeam(id: number, updateTeamDto: UpdateTeamDto) {
     const team = await this.prisma.teams.findUnique({
       where: { id, deleted_at: null },
@@ -2031,7 +2043,9 @@ export class DivisionService {
 
     return updatedTeam;
   }
+  */
 
+  /* DEPRECATED - Use TeamService.remove()
   async removeTeam(id: number) {
     const team = await this.prisma.teams.findUnique({
       where: { id, deleted_at: null },
@@ -2071,6 +2085,7 @@ export class DivisionService {
 
     return { message: SUCCESS_MESSAGES.TEAM_DELETED };
   }
+  */
 
   async createUserDivision(createUserDivisionDto: CreateUserDivisionDto) {
     const { user_id, division_id, description } = createUserDivisionDto;

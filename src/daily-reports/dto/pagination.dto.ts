@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsNumber, IsOptional } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
+import { ApprovalStatus } from '@prisma/client';
 
 export class DailyReportPaginationDto {
   @ApiPropertyOptional({ description: 'Số trang', example: 1, default: 1 })
@@ -27,6 +28,12 @@ export class DailyReportPaginationDto {
   @IsNumber()
   project_id?: number;
 
+  @ApiPropertyOptional({ description: 'Lọc theo ID phòng ban', example: 3 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  division_id?: number;
+
   @ApiPropertyOptional({ description: 'Ngày bắt đầu (YYYY-MM-DD)', example: '2025-01-01' })
   @IsOptional()
   @IsDateString()
@@ -39,10 +46,28 @@ export class DailyReportPaginationDto {
 
   @ApiPropertyOptional({ 
     description: 'Lọc theo trạng thái duyệt',
-    enum: ['PENDING', 'APPROVED', 'REJECTED'],
-    example: 'PENDING'
+    enum: ApprovalStatus,
+    example: ApprovalStatus.APPROVED,
   })
   @IsOptional()
-  @IsEnum(['PENDING', 'APPROVED', 'REJECTED'] as any)
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  @IsEnum(ApprovalStatus)
+  status?: ApprovalStatus;
+
+  @ApiPropertyOptional({ 
+    description: 'Chỉ lấy users không thuộc division nào (true/false)',
+    example: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  users_without_division?: boolean;
+
+  @ApiPropertyOptional({ 
+    description: 'Chỉ lấy daily reports của những users có role Division Head (true/false)',
+    example: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  division_head_only?: boolean;
 }

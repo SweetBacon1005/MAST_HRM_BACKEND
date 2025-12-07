@@ -28,6 +28,7 @@ import { MilestonesModule } from './milestones/milestones.module';
 import { NewsModule } from './news/news.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
+import { TeamModule } from './team/team.module';
 import { UploadModule } from './upload/upload.module';
 
 @Module({
@@ -58,6 +59,7 @@ import { UploadModule } from './upload/upload.module';
     NotificationsModule,
     MeetingRoomsModule,
     MilestonesModule,
+    TeamModule,
     AppCommonModule,
   ],
   controllers: [AppController],

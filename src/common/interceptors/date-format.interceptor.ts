@@ -15,6 +15,7 @@ import { DateFormatUtil } from '../utils/date-format.util';
 export class DateFormatInterceptor implements NestInterceptor {
   // Các field cần format thành yyyy-mm-dd HH:MM:SS
   private readonly dateTimeFields = [
+    'joined_at',
     'start_time',
     'end_time',
     'created_at',

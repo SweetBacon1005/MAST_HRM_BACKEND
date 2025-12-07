@@ -800,6 +800,12 @@ export class AttendanceService {
       endDate,
     );
 
+    const requestsStats = await this.getRequestsStatistics(
+      user_ids,
+      startDate,
+      endDate,
+    );
+
     return {
       overview: {
         total_records: totalRecords,
@@ -824,6 +830,7 @@ export class AttendanceService {
       daily_stats: dailyStats,
       violation_stats: violationStats,
       leave_stats: leaveStats,
+      requests_stats: requestsStats,
       period: { start_date: startDate, end_date: endDate },
     };
   }
@@ -940,6 +947,50 @@ export class AttendanceService {
     return Object.values(userViolations)
       .sort((a: any, b: any) => b.total_penalties - a.total_penalties)
       .slice(0, 10); // Top 10
+  }
+
+  private async getRequestsStatistics(
+    user_ids: number[],
+    startDate: string,
+    endDate: string,
+  ) {
+    const whereCondition: any = {
+      created_at: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+      deleted_at: null,
+    };
+
+    if (user_ids.length > 0) {
+      whereCondition.user_id = { in: user_ids };
+    }
+
+    const [leaveRequests, remoteWorkRequests, lateEarlyRequests, forgotCheckinRequests] = await Promise.all([
+      this.prisma.day_offs.findMany({ where: whereCondition }),
+      this.prisma.remote_work_requests.findMany({ where: whereCondition }),
+      this.prisma.late_early_requests.findMany({ where: whereCondition }),
+      this.prisma.forgot_checkin_requests.findMany({ where: whereCondition }),
+    ]);
+
+    const countByStatus = (requests: any[]) => ({
+      total: requests.length,
+      pending: requests.filter((r) => r.status === ApprovalStatus.PENDING).length,
+      approved: requests.filter((r) => r.status === ApprovalStatus.APPROVED).length,
+      rejected: requests.filter((r) => r.status === ApprovalStatus.REJECTED).length,
+    });
+
+    return {
+      leave_requests: countByStatus(leaveRequests),
+      remote_work_requests: countByStatus(remoteWorkRequests),
+      late_early_requests: countByStatus(lateEarlyRequests),
+      forgot_checkin_requests: countByStatus(forgotCheckinRequests),
+      total_requests: 
+        leaveRequests.length + 
+        remoteWorkRequests.length + 
+        lateEarlyRequests.length + 
+        forgotCheckinRequests.length,
+    };
   }
 
   private async getLeaveStatistics(

@@ -96,6 +96,15 @@ export const ROLE_PERMISSIONS = {
   READ: 'role.read',
 } as const;
 
+// === MONTHLY WORK SUMMARY PERMISSIONS ===
+export const MONTHLY_WORK_SUMMARY_PERMISSIONS = {
+  VIEW_ALL: 'reports.monthly-work-summary.view-all',
+  VIEW_TEAM: 'reports.monthly-work-summary.view-team',
+  VIEW_OWN: 'reports.monthly-work-summary.view-own',
+  EXPORT: 'reports.monthly-work-summary.export',
+  RECALCULATE: 'reports.monthly-work-summary.recalculate',
+} as const;
+
 // === ALL PERMISSIONS ===
 export const ALL_PERMISSIONS = {
   ...ASSET_PERMISSIONS,
@@ -106,6 +115,7 @@ export const ALL_PERMISSIONS = {
   ...DIVISION_PERMISSIONS,
   ...PROJECT_PERMISSIONS,
   ...ROLE_PERMISSIONS,
+  ...MONTHLY_WORK_SUMMARY_PERMISSIONS,
 } as const;
 
 // Type definitions
@@ -117,4 +127,5 @@ export type RequestPermission = typeof REQUEST_PERMISSIONS[keyof typeof REQUEST_
 export type DivisionPermission = typeof DIVISION_PERMISSIONS[keyof typeof DIVISION_PERMISSIONS];
 export type ProjectPermission = typeof PROJECT_PERMISSIONS[keyof typeof PROJECT_PERMISSIONS];
 export type RolePermission = typeof ROLE_PERMISSIONS[keyof typeof ROLE_PERMISSIONS];
+export type MonthlyWorkSummaryPermission = typeof MONTHLY_WORK_SUMMARY_PERMISSIONS[keyof typeof MONTHLY_WORK_SUMMARY_PERMISSIONS];
 export type Permission = typeof ALL_PERMISSIONS[keyof typeof ALL_PERMISSIONS];

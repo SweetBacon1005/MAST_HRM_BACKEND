@@ -338,12 +338,73 @@ export class DailyReportsService {
     }
     if (pagination.status) where.status = pagination.status;
 
+    // Filter by division_id
+    if (pagination.division_id) {
+      where.project = {
+        ...where.project,
+        division_id: pagination.division_id,
+      };
+    }
+
+    // Filter users without division
+    if (pagination.users_without_division) {
+      where.project = {
+        ...where.project,
+        division_id: null,
+      };
+    }
+
+    // Filter only Division Heads
+    if (pagination.division_head_only) {
+      const divisionHeadIds = await this.getUsersWithRoles([
+        ROLE_NAMES.DIVISION_HEAD,
+      ]);
+      if (divisionHeadIds.length > 0) {
+        where.user_id = { in: divisionHeadIds };
+      } else {
+        // No division heads found, return empty result
+        where.user_id = -1;
+      }
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.daily_reports.findMany({
         where,
         skip,
         take,
         orderBy: orderBy || { created_at: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+          project: {
+            select: {
+              id: true,
+              name: true,
+              division_id: true,
+              team_id: true,
+            },
+          },
+          approved_by_user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
       }),
       this.prisma.daily_reports.count({ where }),
     ]);
@@ -471,4 +532,200 @@ export class DailyReportsService {
       },
     });
   }
+
+  async approveAllByUser(userId: number, approverId: number) {
+    // Get all PENDING reports of the user
+    const pendingReports = await this.prisma.daily_reports.findMany({
+      where: {
+        user_id: userId,
+        status: ApprovalStatus.PENDING,
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            division_id: true,
+            team_id: true,
+          },
+        },
+      },
+    });
+
+    if (pendingReports.length === 0) {
+      throw new NotFoundException(
+        'Không tìm thấy daily report nào đang chờ duyệt của user này',
+      );
+    }
+
+    // Check permissions for each report
+    const canApproveAll = await Promise.all(
+      pendingReports.map((report) =>
+        this.canApprove(approverId, report.user_id, report.project_id),
+      ),
+    );
+
+    const unauthorizedReports = pendingReports.filter(
+      (_, index) => !canApproveAll[index],
+    );
+
+    if (unauthorizedReports.length > 0) {
+      throw new ForbiddenException(
+        `Không có quyền duyệt ${unauthorizedReports.length} daily report (${unauthorizedReports.map((r) => r.project.name).join(', ')})`,
+      );
+    }
+
+    // Approve all reports
+    const reportIds = pendingReports.map((r) => r.id);
+    const result = await this.prisma.daily_reports.updateMany({
+      where: {
+        id: { in: reportIds },
+      },
+      data: {
+        status: ApprovalStatus.APPROVED,
+        approved_by: approverId,
+        reviewed_at: new Date(),
+        reject_reason: null,
+      },
+    });
+
+    return {
+      success: true,
+      approved_count: result.count,
+      message: `Đã duyệt thành công ${result.count} daily report của user ${userId}`,
+      reports: pendingReports.map((r) => ({
+        id: r.id,
+        project_name: r.project.name,
+        work_date: r.work_date,
+        actual_time: r.actual_time,
+      })),
+    };
+  }
+
+  async approveBatch(
+    reportIds: number[],
+    approverId: number,
+    action: 'approve' | 'reject' = 'approve',
+    rejectReason?: string,
+  ) {
+    if (reportIds.length === 0) {
+      throw new BadRequestException('Danh sách ID không được rỗng');
+    }
+
+    // Validate reject reason if action is reject
+    if (action === 'reject' && (!rejectReason || rejectReason.trim().length === 0)) {
+      throw new BadRequestException('Lý do từ chối không được để trống khi từ chối daily report');
+    }
+
+    // Get all reports
+    const reports = await this.prisma.daily_reports.findMany({
+      where: {
+        id: { in: reportIds },
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            division_id: true,
+            team_id: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (reports.length === 0) {
+      throw new NotFoundException('Không tìm thấy daily report nào');
+    }
+
+    if (reports.length !== reportIds.length) {
+      const foundIds = reports.map((r) => r.id);
+      const missingIds = reportIds.filter((id) => !foundIds.includes(id));
+      throw new NotFoundException(
+        `Không tìm thấy daily report với ID: ${missingIds.join(', ')}`,
+      );
+    }
+
+    // Check if all are PENDING
+    const nonPendingReports = reports.filter(
+      (r) => r.status !== ApprovalStatus.PENDING,
+    );
+    if (nonPendingReports.length > 0) {
+      throw new BadRequestException(
+        `${nonPendingReports.length} daily report không ở trạng thái PENDING (${nonPendingReports.map((r) => `#${r.id}`).join(', ')})`,
+      );
+    }
+
+    // Check permissions for each report
+    const canApproveAll = await Promise.all(
+      reports.map((report) =>
+        this.canApprove(approverId, report.user_id, report.project_id),
+      ),
+    );
+
+    const unauthorizedReports = reports.filter(
+      (_, index) => !canApproveAll[index],
+    );
+
+    if (unauthorizedReports.length > 0) {
+      const actionText = action === 'approve' ? 'duyệt' : 'từ chối';
+      throw new ForbiddenException(
+        `Không có quyền ${actionText} ${unauthorizedReports.length} daily report: ${unauthorizedReports.map((r) => `#${r.id} (${r.user.user_information?.name || r.user.email} - ${r.project.name})`).join(', ')}`,
+      );
+    }
+
+    // Update all reports (approve or reject)
+    const updateData: any = {
+      status: action === 'approve' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED,
+      approved_by: approverId,
+      reviewed_at: new Date(),
+    };
+
+    if (action === 'reject') {
+      updateData.reject_reason = rejectReason;
+    } else {
+      updateData.reject_reason = null;
+    }
+
+    const result = await this.prisma.daily_reports.updateMany({
+      where: {
+        id: { in: reportIds },
+      },
+      data: updateData,
+    });
+
+    const actionText = action === 'approve' ? 'duyệt' : 'từ chối';
+    const response: any = {
+      success: true,
+      count: result.count,
+      message: `Đã ${actionText} thành công ${result.count} daily report`,
+      action: action,
+      reports: reports.map((r) => ({
+        id: r.id,
+        user_name: r.user.user_information?.name || r.user.email,
+        project_name: r.project.name,
+        work_date: r.work_date,
+        actual_time: r.actual_time,
+      })),
+    };
+
+    if (action === 'reject') {
+      response.reject_reason = rejectReason;
+    }
+
+    return response;
+  }
+
+
 }

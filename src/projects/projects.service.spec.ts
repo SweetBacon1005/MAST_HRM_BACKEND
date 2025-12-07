@@ -91,6 +91,10 @@ describe('ProjectsService', () => {
     expect(service.findMyProjects).toBeDefined();
   });
 
+  it('should have findManagedProjects method', () => {
+    expect(service.findManagedProjects).toBeDefined();
+  });
+
   it('should have updateProgress method', () => {
     expect(service.updateProgress).toBeDefined();
   });
@@ -104,6 +108,7 @@ describe('ProjectsService', () => {
       expect(service.remove).toBeDefined();
       expect(service.getProjectMembers).toBeDefined();
       expect(service.findMyProjects).toBeDefined();
+      expect(service.findManagedProjects).toBeDefined();
       expect(service.updateProgress).toBeDefined();
     });
   });

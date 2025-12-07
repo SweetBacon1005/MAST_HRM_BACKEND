@@ -17,7 +17,7 @@ import { IsAfter } from '../../common/validators/is-after.validator';
 export class AttendanceDashboardDto {
   @ApiPropertyOptional({
     description: 'Ngày bắt đầu (YYYY-MM-DD)',
-    example: '2024-01-01',
+    example: '2025-01-01',
     format: 'date',
   })
   @IsOptional()
@@ -26,7 +26,7 @@ export class AttendanceDashboardDto {
 
   @ApiPropertyOptional({
     description: 'Ngày kết thúc (YYYY-MM-DD)',
-    example: '2024-01-31',
+    example: '2025-12-31',
     format: 'date',
   })
   @IsOptional()
