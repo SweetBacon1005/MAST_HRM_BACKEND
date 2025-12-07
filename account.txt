@@ -1,0 +1,16 @@
+admin
+admin@example.com
+division_head
+division@example.com
+teamlead
+teamlead@example.com
+pm
+pm@example.com
+employee
+employee@example.com
+hr_manager
+hr@example.com
+tất cả
+user@example.com
+
+Mật khẩu là Mast@123
