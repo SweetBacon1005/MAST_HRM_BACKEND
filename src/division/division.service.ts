@@ -17,7 +17,6 @@ import { DateFormatUtil } from '../common/utils/date-format.util';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
-  buildPaginationResponseFromDto,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import { CreateDivisionDto } from './dto/create-division.dto';
@@ -30,11 +29,6 @@ import {
   CreateRotationMemberDto,
   RotationMemberPaginationDto,
 } from './dto/rotation-member.dto';
-import {
-  CreateTeamDto,
-  TeamPaginationDto,
-  UpdateTeamDto,
-} from './dto/team.dto';
 import { UpdateDivisionDto } from './dto/update-division.dto';
 import {
   CreateUserDivisionDto,
@@ -222,28 +216,29 @@ export class DivisionService {
     ]);
 
     // FIX N+1: Get all member counts in 1 query using groupBy
-    const divisionIds = data.map(d => d.id);
-    const memberCounts = divisionIds.length > 0 
-      ? await this.prisma.user_role_assignment.groupBy({
-          by: ['scope_id'],
-          where: {
-            scope_type: ScopeType.DIVISION,
-            scope_id: { in: divisionIds },
-            deleted_at: null,
-          },
-          _count: {
-            user_id: true,
-          },
-        })
-      : [];
+    const divisionIds = data.map((d) => d.id);
+    const memberCounts =
+      divisionIds.length > 0
+        ? await this.prisma.user_role_assignment.groupBy({
+            by: ['scope_id'],
+            where: {
+              scope_type: ScopeType.DIVISION,
+              scope_id: { in: divisionIds },
+              deleted_at: null,
+            },
+            _count: {
+              user_id: true,
+            },
+          })
+        : [];
 
     // Create a map for O(1) lookup
     const memberCountMap = new Map(
-      memberCounts.map(mc => [mc.scope_id, mc._count.user_id])
+      memberCounts.map((mc) => [mc.scope_id, mc._count.user_id]),
     );
 
     // Transform data without additional queries
-    const transformedData = data.map(division => ({
+    const transformedData = data.map((division) => ({
       ...division,
       member_count: memberCountMap.get(division.id) || 0,
       project_count: division.projects?.length || 0,
@@ -409,26 +404,27 @@ export class DivisionService {
     });
 
     // FIX N+1: Get all member counts in 1 query
-    const divisionIds = divisions.map(d => d.id);
-    const memberCounts = divisionIds.length > 0
-      ? await this.prisma.user_role_assignment.groupBy({
-          by: ['scope_id'],
-          where: {
-            scope_type: ScopeType.DIVISION,
-            scope_id: { in: divisionIds },
-            deleted_at: null,
-          },
-          _count: {
-            user_id: true,
-          },
-        })
-      : [];
+    const divisionIds = divisions.map((d) => d.id);
+    const memberCounts =
+      divisionIds.length > 0
+        ? await this.prisma.user_role_assignment.groupBy({
+            by: ['scope_id'],
+            where: {
+              scope_type: ScopeType.DIVISION,
+              scope_id: { in: divisionIds },
+              deleted_at: null,
+            },
+            _count: {
+              user_id: true,
+            },
+          })
+        : [];
 
     const memberCountMap = new Map(
-      memberCounts.map(mc => [mc.scope_id, mc._count.user_id])
+      memberCounts.map((mc) => [mc.scope_id, mc._count.user_id]),
     );
 
-    return divisions.map(division => ({
+    return divisions.map((division) => ({
       ...division,
       member_count: memberCountMap.get(division.id) || 0,
     }));
@@ -583,6 +579,17 @@ export class DivisionService {
         (ura) => ura.scope_type === ScopeType.TEAM && ura.scope_id !== null,
       );
 
+      // Lấy tất cả role assignments của user trong division này
+      const userRoleAssignments =
+        user.user_role_assignments?.map((ura) => ({
+          id: ura.id,
+          role_id: ura.role_id,
+          role_name: ura.role?.name || '',
+          scope_type: ura.scope_type,
+          scope_id: ura.scope_id,
+          assigned_at: ura.created_at,
+        })) || [];
+
       const skills =
         user.user_information?.user_skills?.map((us) => us.skill.name) || [];
 
@@ -604,6 +611,7 @@ export class DivisionService {
         level: userInfo?.level?.name || '',
         level_id: userInfo?.level?.id || null,
         coefficient: userInfo?.level?.coefficient || 0,
+        user_role_assignments: userRoleAssignments,
       };
     });
 
@@ -1631,7 +1639,7 @@ export class DivisionService {
   // DEPRECATED: Team methods moved to TeamModule
   // Use TeamService instead
   // ========================================
-  
+
   /* DEPRECATED - Use TeamService.create()
   async createTeam(createTeamDto: CreateTeamDto, assignedBy: number) {
     const division = await this.prisma.divisions.findUnique({

@@ -559,6 +559,22 @@ export class DivisionController {
               level: { type: 'string' },
               level_id: { type: 'number' },
               coefficient: { type: 'number' },
+              user_role_assignments: {
+                type: 'array',
+                description: 'Danh sách tất cả role assignments của user trong division này',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number', example: 1 },
+                    role_id: { type: 'number', example: 3 },
+                    role_name: { type: 'string', example: 'Member' },
+                    scope_type: { type: 'string', example: 'DIVISION' },
+                    scope_id: { type: 'number', example: 2 },
+                    description: { type: 'string', example: 'Developer chính của phòng' },
+                    assigned_at: { type: 'string', format: 'date-time' },
+                  },
+                },
+              },
             },
           },
         },

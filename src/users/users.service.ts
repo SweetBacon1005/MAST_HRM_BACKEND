@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
+import { ROLE_IDS } from '../auth/constants/role.constants';
 import {
   SUCCESS_MESSAGES,
   USER_ERRORS,
@@ -39,14 +40,14 @@ export class UsersService {
       },
     });
 
-    if (userData.role_id) {
-      await this.roleAssignmentService.assignRole({
-        user_id: user.id,
-        role_id: Number(userData.role_id),
-        scope_type: ScopeType.COMPANY,
-        assigned_by: assignedBy,
-      });
-    }
+    const roleIdToAssign = userData.role_id ? Number(userData.role_id) : ROLE_IDS.EMPLOYEE;
+    
+    await this.roleAssignmentService.assignRole({
+      user_id: user.id,
+      role_id: roleIdToAssign,
+      scope_type: ScopeType.COMPANY,
+      assigned_by: assignedBy,
+    });
 
     await this.activityLogService.logUserOperation(
       'created',
@@ -55,7 +56,7 @@ export class UsersService {
       user.email,
       {
         name: userData.name,
-        role_id: userData.role_id,
+        role_id: roleIdToAssign,
       }
     );
 
@@ -460,20 +461,65 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    const updatedUser = await this.prisma.users.update({
-      where: { id: id },
-      data: updateUserDto,
-    });
+    // Loại bỏ password nếu có ai cố gắng gửi (bảo mật)
+    const { password: _password, name, ...safeUpdateData } = updateUserDto as any;
+
+    // Tách dữ liệu: name vào user_information, các trường khác vào users
+    const updatePromises: Promise<any>[] = [];
+
+    // Cập nhật thông tin trong bảng users (email, role_id, status...)
+    if (Object.keys(safeUpdateData).length > 0) {
+      updatePromises.push(
+        this.prisma.users.update({
+          where: { id: id },
+          data: safeUpdateData,
+        })
+      );
+    }
+
+    // Cập nhật name vào bảng user_information
+    if (name !== undefined) {
+      if (user.user_information?.id) {
+        updatePromises.push(
+          this.prisma.user_information.update({
+            where: {
+              id: user.user_information.id,
+            },
+            data: {
+              name: name,
+            },
+          })
+        );
+      } else if (user.user_info_id) {
+        // Trường hợp user có user_info_id nhưng chưa include
+        updatePromises.push(
+          this.prisma.user_information.update({
+            where: {
+              id: user.user_info_id,
+            },
+            data: {
+              name: name,
+            },
+          })
+        );
+      }
+    }
+
+    // Thực hiện tất cả update cùng lúc
+    await Promise.all(updatePromises);
+
+    // Lấy lại user đã update
+    const updatedUser = await this.findById(id);
 
     await this.activityLogService.logUserOperation(
       'updated',
       id,
       updatedBy,
       updatedUser.email,
-      { changes: updateUserDto }
+      { changes: { ...safeUpdateData, ...(name !== undefined ? { name } : {}) } }
     );
 
-    const { password, ...result } = updatedUser;
+    const { password: _, ...result } = updatedUser as any;
     return result;
   }
 
