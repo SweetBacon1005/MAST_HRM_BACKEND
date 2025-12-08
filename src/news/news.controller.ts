@@ -1,35 +1,31 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
-  Query,
-  ParseUUIDPipe,
-  UseGuards,
+  Get,
+  Param,
   ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
+  ApiOperation,
   ApiParam,
+  ApiResponse,
+  ApiTags,
 } from '@nestjs/swagger';
-import { NewsService } from './news.service';
-import { CreateNewsDto } from './dto/create-news.dto';
-import { UpdateNewsDto } from './dto/update-news.dto';
-import { ApproveNewsDto } from './dto/approve-news.dto';
-import { NewsPaginationDto } from './dto/pagination-queries.dto';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { RequirePermission } from '../auth/decorators/require-permission.decorator';
-import { NewsStatus } from '@prisma/client';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { ApproveNewsDto } from './dto/approve-news.dto';
+import { CreateNewsDto } from './dto/create-news.dto';
+import { NewsPaginationDto } from './dto/pagination-queries.dto';
+import { UpdateNewsDto } from './dto/update-news.dto';
+import { NewsService } from './news.service';
 
 @ApiTags('news')
 @Controller('news')
@@ -43,7 +39,10 @@ export class NewsController {
   @ApiOperation({ summary: 'Tạo tin tức mới' })
   @ApiResponse({ status: 201, description: 'Tạo tin tức thành công' })
   @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
-  async create(@Body() createNewsDto: CreateNewsDto, @GetCurrentUser('id') author_id: number) {
+  async create(
+    @Body() createNewsDto: CreateNewsDto,
+    @GetCurrentUser('id') author_id: number,
+  ) {
     return this.newsService.create(createNewsDto, author_id);
   }
 
@@ -70,11 +69,20 @@ export class NewsController {
 
   @Patch(':id')
   @RequirePermission('news.update')
-  @ApiOperation({ summary: 'Cập nhật tin tức (chỉ khi trạng thái là DRAFT hoặc REJECTED)' })
+  @ApiOperation({
+    summary: 'Cập nhật tin tức (chỉ khi trạng thái là DRAFT hoặc REJECTED)',
+  })
   @ApiParam({ name: 'id', description: 'ID của tin tức (UUID)' })
   @ApiResponse({ status: 200, description: 'Cập nhật tin tức thành công' })
-  @ApiResponse({ status: 400, description: 'Tin tức không ở trạng thái DRAFT/REJECTED hoặc dữ liệu không hợp lệ' })
-  @ApiResponse({ status: 403, description: 'Không có quyền cập nhật tin tức này' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Tin tức không ở trạng thái DRAFT/REJECTED hoặc dữ liệu không hợp lệ',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền cập nhật tin tức này',
+  })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -91,36 +99,60 @@ export class NewsController {
   @ApiResponse({ status: 200, description: 'Xóa tin tức thành công' })
   @ApiResponse({ status: 403, description: 'Không có quyền xóa tin tức này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
-  async remove(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number, @GetCurrentUser('role') role: string) {
-    return this.newsService.remove(id, user_id, role);
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') user_id: number,
+    @GetCurrentUser('roles') roles: string[],
+  ) {
+    return this.newsService.remove(id, user_id, roles);
   }
-
 
   @Patch(':id/submit')
   @RequirePermission('news.submit')
-  @ApiOperation({ summary: 'Gửi tin tức để duyệt (chuyển từ DRAFT/REJECTED sang PENDING)' })
+  @ApiOperation({
+    summary: 'Gửi tin tức để duyệt (chuyển từ DRAFT/REJECTED sang PENDING)',
+  })
   @ApiParam({ name: 'id', description: 'ID của tin tức (UUID)' })
   @ApiResponse({ status: 200, description: 'Gửi tin tức để duyệt thành công' })
-  @ApiResponse({ status: 400, description: 'Tin tức không ở trạng thái DRAFT/REJECTED' })
+  @ApiResponse({
+    status: 400,
+    description: 'Tin tức không ở trạng thái DRAFT/REJECTED',
+  })
   @ApiResponse({ status: 403, description: 'Không có quyền gửi tin tức này' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
-  async submitForReview(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') user_id: number) {
+  async submitForReview(
+    @Param('id', ParseIntPipe) id: number,
+    @GetCurrentUser('id') user_id: number,
+  ) {
     return this.newsService.submitForReview(id, user_id);
   }
 
   @Patch(':id/review')
   @RequirePermission('news.approve')
-  @ApiOperation({ summary: 'Duyệt hoặc từ chối tin tức (chỉ khi trạng thái là PENDING)' })
+  @ApiOperation({
+    summary: 'Duyệt hoặc từ chối tin tức (chỉ khi trạng thái là PENDING)',
+  })
   @ApiParam({ name: 'id', description: 'ID của tin tức (UUID)' })
   @ApiResponse({ status: 200, description: 'Duyệt/Từ chối tin tức thành công' })
-  @ApiResponse({ status: 400, description: 'Tin tức không ở trạng thái PENDING hoặc dữ liệu không hợp lệ' })
-  @ApiResponse({ status: 403, description: 'Không có quyền duyệt/từ chối tin tức này' })
+  @ApiResponse({
+    status: 400,
+    description: 'Tin tức không ở trạng thái PENDING hoặc dữ liệu không hợp lệ',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền duyệt/từ chối tin tức này',
+  })
   @ApiResponse({ status: 404, description: 'Không tìm thấy tin tức' })
   async approveOrReject(
     @Param('id', ParseIntPipe) id: number,
     @Body() approveNewsDto: ApproveNewsDto,
     @GetCurrentUser('id') reviewerId: number,
   ) {
-    return this.newsService.approveOrReject(id, approveNewsDto.status, reviewerId, approveNewsDto.reason);
+    return this.newsService.approveOrReject(
+      id,
+      approveNewsDto.status,
+      reviewerId,
+      approveNewsDto.reason,
+    );
   }
 }

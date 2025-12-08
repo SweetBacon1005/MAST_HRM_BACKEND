@@ -358,7 +358,7 @@ export class NewsService {
     return updatedNews;
   }
 
-  async remove(id: number, user_id: number, role: string) {
+  async remove(id: number, user_id: number, role: string[]) {
     const existingNews = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
     });
@@ -369,7 +369,7 @@ export class NewsService {
 
     if (
       existingNews.author_id !== user_id ||
-      (role !== ROLE_NAMES.ADMIN)
+      (!role.includes(ROLE_NAMES.ADMIN))
     ) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_DELETE);
     }
