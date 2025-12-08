@@ -145,6 +145,7 @@ export class TimesheetController {
   }
 
   @Patch(':id/submit')
+  @RequirePermission('timesheet.update')
   @ApiOperation({ summary: 'Submit timesheet để chờ duyệt' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400 })
@@ -156,6 +157,7 @@ export class TimesheetController {
   }
 
   @Patch(':id/approve')
+  @RequirePermission('timesheet.approve')
   @ApiOperation({ summary: 'Duyệt timesheet (Manager/HR only)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400 })
@@ -168,6 +170,7 @@ export class TimesheetController {
   }
 
   @Patch(':id/reject')
+  @RequirePermission('timesheet.approve')
   @ApiOperation({ summary: 'Từ chối timesheet (Manager/HR only)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400 })
@@ -181,6 +184,7 @@ export class TimesheetController {
   }
 
   @Patch(':id/lock')
+  @RequirePermission('timesheet.approve')
   @ApiOperation({ summary: 'Khóa timesheet sau tính lương (Admin only)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400 })
@@ -193,6 +197,7 @@ export class TimesheetController {
   }
 
   @Patch(':id')
+  @RequirePermission('timesheet.update')
   @ApiOperation({ summary: 'Cập nhật timesheet' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -204,6 +209,7 @@ export class TimesheetController {
   }
 
   @Delete(':id')
+  @RequirePermission('timesheet.delete')
   @ApiOperation({ summary: 'Xóa timesheet' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -214,6 +220,7 @@ export class TimesheetController {
   // Face registeration for check-in/out
 
   @Post('register-face')
+  @RequirePermission('user.profile.update')
   @ApiOperation({
     summary: 'Đăng ký khuôn mặt cho chấm công',
     description: `
@@ -253,6 +260,7 @@ export class TimesheetController {
   // === CHECK-IN/CHECK-OUT ===
 
   @Post('checkin')
+  @RequirePermission('attendance.checkin')
   @ApiOperation({ summary: 'Check-in' })
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 400 })
@@ -264,6 +272,7 @@ export class TimesheetController {
   }
 
   @Post('checkout')
+  @RequirePermission('attendance.checkin')
   @ApiOperation({ summary: 'Check-out' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 400 })
@@ -275,6 +284,7 @@ export class TimesheetController {
   }
 
   @Get('attendance/today')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Lấy thông tin chấm công hôm nay' })
   @ApiResponse({ status: 200 })
   getTodayAttendance(@GetCurrentUser('id') user_id: number) {
@@ -284,6 +294,7 @@ export class TimesheetController {
   // === DAY OFF INFO (Read-only) ===
 
   @Get('day-off-info/:date')
+  @RequirePermission('leave.read')
   @ApiOperation({ summary: 'Lấy thông tin nghỉ phép của một ngày' })
   @ApiResponse({ status: 200 })
   getDayOffInfo(
@@ -298,6 +309,7 @@ export class TimesheetController {
   // === SCHEDULE MANAGEMENT ===
 
   @Get('schedule/personal')
+  @RequirePermission('timesheet.read')
   @ApiOperation({ summary: 'Xem lịch làm việc cá nhân' })
   @ApiResponse({ status: 200 })
   getPersonalSchedule(
@@ -308,6 +320,7 @@ export class TimesheetController {
   }
 
   @Get('schedule/team/:team_id')
+  @RequirePermission('timesheet.read')
   @ApiOperation({ summary: 'Xem lịch làm việc của team' })
   @ApiResponse({ status: 200 })
   @Roles('manager', 'team_leader', 'admin')
@@ -321,6 +334,7 @@ export class TimesheetController {
   // === HOLIDAYS MANAGEMENT ===
 
   @Post('holidays')
+  @RequirePermission('holiday.create')
   @ApiOperation({ summary: 'Tạo ngày lễ mới' })
   @ApiResponse({ status: 201 })
   @Roles('admin', 'hr')
@@ -329,6 +343,7 @@ export class TimesheetController {
   }
 
   @Get('holidays')
+  @RequirePermission('holiday.read')
   @ApiOperation({ summary: 'Lấy danh sách ngày lễ có phân trang' })
   @ApiResponse({ status: 200 })
   findAllHolidays(@Query() paginationDto: HolidayPaginationDto) {
@@ -336,6 +351,7 @@ export class TimesheetController {
   }
 
   @Patch('holidays/:id')
+  @RequirePermission('holiday.update')
   @ApiOperation({ summary: 'Cập nhật ngày lễ' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -348,6 +364,7 @@ export class TimesheetController {
   }
 
   @Delete('holidays/:id')
+  @RequirePermission('holiday.delete')
   @ApiOperation({ summary: 'Xóa ngày lễ' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -359,6 +376,7 @@ export class TimesheetController {
   // === NOTIFICATIONS ===
 
   @Get('notifications/my')
+  @RequirePermission('notification.read')
   @ApiOperation({ summary: 'Lấy thông báo timesheet của tôi' })
   @ApiResponse({ status: 200 })
   getMyTimesheetNotifications(@GetCurrentUser('id') user_id: number) {
@@ -368,6 +386,7 @@ export class TimesheetController {
   // === REPORTS & STATISTICS ===
 
   @Get('reports/timesheet')
+  @RequirePermission('report.timesheet.view')
   @ApiOperation({ summary: 'Báo cáo timesheet' })
   @ApiResponse({ status: 200 })
   @Roles('manager', 'admin', 'hr')
@@ -376,6 +395,7 @@ export class TimesheetController {
   }
 
   @Get('reports/working-time')
+  @RequirePermission('report.timesheet.view')
   @ApiOperation({ summary: 'Báo cáo giờ làm việc' })
   @ApiResponse({ status: 200 })
   @Roles('manager', 'admin', 'hr')
@@ -384,6 +404,7 @@ export class TimesheetController {
   }
 
   @Get('statistics/attendance')
+  @RequirePermission('attendance.statistics')
   @ApiOperation({ summary: 'Thống kê chấm công' })
   @ApiResponse({ status: 200 })
   getAttendanceStatistics(
@@ -401,6 +422,7 @@ export class TimesheetController {
   }
 
   @Get('statistics/my-attendance')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Thống kê chấm công cá nhân' })
   @ApiResponse({ status: 200 })
   getMyAttendanceStatistics(
@@ -417,6 +439,7 @@ export class TimesheetController {
   // === ATTENDANCE LOGS MANAGEMENT ===
 
   @Post('attendance-logs')
+  @RequirePermission('attendance.manage')
   @ApiOperation({ summary: 'Tạo log chấm công thủ công (Admin only)' })
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 403 })
@@ -432,6 +455,7 @@ export class TimesheetController {
   }
 
   @Get('attendance-logs/my')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công của tôi' })
   @ApiResponse({ status: 200 })
   getMyAttendanceLogs(
@@ -445,6 +469,7 @@ export class TimesheetController {
   }
 
   @Get('attendance-logs')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Lấy danh sách logs chấm công có phân trang' })
   @ApiResponse({ status: 200 })
   getAttendanceLogs(
@@ -462,6 +487,7 @@ export class TimesheetController {
   // Param route - after all named routes
 
   @Get(':id')
+  @RequirePermission('timesheet.read')
   @ApiOperation({ summary: 'Lấy chi tiết timesheet' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -470,6 +496,7 @@ export class TimesheetController {
   }
 
   @Get('attendance-logs/:id')
+  @RequirePermission('attendance.read')
   @ApiOperation({ summary: 'Lấy chi tiết log chấm công' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -478,6 +505,7 @@ export class TimesheetController {
   }
 
   @Patch('attendance-logs/:id')
+  @RequirePermission('attendance.manage')
   @ApiOperation({ summary: 'Cập nhật log chấm công' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -495,6 +523,7 @@ export class TimesheetController {
   }
 
   @Delete('attendance-logs/:id')
+  @RequirePermission('attendance.manage')
   @ApiOperation({ summary: 'Xóa log chấm công (Admin only)' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 404 })
@@ -506,6 +535,7 @@ export class TimesheetController {
   // === DAILY TIMESHEET CREATION ===
 
   @Post('daily/create')
+  @RequirePermission('timesheet.create')
   @ApiOperation({ summary: 'Tạo timesheet hàng ngày (tự động hoặc thủ công)' })
   @ApiResponse({ status: 201 })
   @ApiResponse({ status: 400 })

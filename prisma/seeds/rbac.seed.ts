@@ -34,6 +34,12 @@ export async function seedRBAC(prisma: PrismaClient) {
     { name: 'attendance.checkin', description: 'Check in/out' },
     { name: 'attendance.statistics', description: 'Xem thống kê chấm công' },
     
+    // Holiday Management
+    { name: 'holiday.read', description: 'Xem ngày lễ' },
+    { name: 'holiday.create', description: 'Tạo ngày lễ mới' },
+    { name: 'holiday.update', description: 'Cập nhật ngày lễ' },
+    { name: 'holiday.delete', description: 'Xóa ngày lễ' },
+    
     // Leave Management
     { name: 'leave.read', description: 'Xem đơn nghỉ phép' },
     { name: 'leave.create', description: 'Tạo đơn nghỉ phép' },
@@ -227,6 +233,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'project.read', 'project.create', 'project.update', 'project.delete', 'project.assign',
         'timesheet.read', 'timesheet.create', 'timesheet.update', 'timesheet.delete', 'timesheet.approve', 'timesheet.statistics',
         'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'holiday.read', 'holiday.create', 'holiday.update', 'holiday.delete',
         'leave.read', 'leave.create', 'leave.approve', 'leave.balance.manage',
         'request.read', 'request.create', 'request.approve', 'request.reject',
         'division.read', 'division.create', 'division.update', 'division.delete', 'division.manage',
@@ -262,6 +269,7 @@ export async function seedRBAC(prisma: PrismaClient) {
         'user.read', 'user.create', 'user.update', 'user.profile.update',
         'timesheet.read', 'timesheet.statistics',
         'attendance.read', 'attendance.manage', 'attendance.statistics',
+        'holiday.read', 'holiday.create', 'holiday.update', 'holiday.delete',
         'leave.read', 'leave.approve', 'leave.balance.manage',
         'request.read', 'request.approve', 'request.reject',
         'division.read', 'division.create', 'division.update', 'division.manage',

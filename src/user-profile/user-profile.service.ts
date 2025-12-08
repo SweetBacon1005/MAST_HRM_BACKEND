@@ -508,10 +508,11 @@ export class UserProfileService {
     if (!user || !user.user_information) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
+    const { user_id, ...rest } = createDto;
 
     return await this.prisma.user_skills.create({
       data: {
-        ...createDto,
+        ...rest,
         user_info_id: user.user_information?.id,
         skill_id: createDto.skill_id,
       },
