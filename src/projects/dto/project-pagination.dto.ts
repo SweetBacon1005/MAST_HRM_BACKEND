@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ProjectType } from '@prisma/client';
+import { ProjectType, ProjectAccessType } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -23,6 +23,16 @@ export class ProjectPaginationDto extends PaginationDto {
   @IsOptional()
   @IsEnum(ProjectType)
   project_type?: ProjectType;
+
+  @ApiProperty({
+    description: 'Loại quyền truy cập dự án (COMPANY: toàn công ty, RESTRICTED: hạn chế)',
+    example: ProjectAccessType.RESTRICTED,
+    enum: ProjectAccessType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ProjectAccessType)
+  project_access_type?: ProjectAccessType;
 
   @ApiProperty({
     description: 'Lọc theo trạng thái',

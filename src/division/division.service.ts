@@ -684,6 +684,34 @@ export class DivisionService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
+      // 1. Get all teams from current division
+      const currentDivisionTeams = await tx.teams.findMany({
+        where: {
+          division_id: currentDivision.id,
+          deleted_at: null,
+        },
+        select: { id: true },
+      });
+
+      const teamIds = currentDivisionTeams.map((t) => t.id);
+
+      // 2. Get all projects from current division teams
+      const projectIds: number[] = [];
+      if (teamIds.length > 0) {
+        const divisionProjects = await tx.projects.findMany({
+          where: {
+            OR: [
+              { division_id: currentDivision.id },
+              { team_id: { in: teamIds } },
+            ],
+            deleted_at: null,
+          },
+          select: { id: true },
+        });
+        projectIds.push(...divisionProjects.map((p) => p.id));
+      }
+
+      // 3. Create rotation record
       const rotation = await tx.rotation_members.create({
         data: {
           user_id: createRotationDto.user_id,
@@ -694,6 +722,37 @@ export class DivisionService {
         },
       });
 
+      // 4. Remove from all teams of old division
+      if (teamIds.length > 0) {
+        await tx.user_role_assignment.updateMany({
+          where: {
+            user_id: createRotationDto.user_id,
+            scope_type: ScopeType.TEAM,
+            scope_id: { in: teamIds },
+            deleted_at: null,
+          },
+          data: {
+            deleted_at: new Date(),
+          },
+        });
+      }
+
+      // 5. Remove from all projects (PM role or team member access)
+      if (projectIds.length > 0) {
+        await tx.user_role_assignment.updateMany({
+          where: {
+            user_id: createRotationDto.user_id,
+            scope_type: ScopeType.PROJECT,
+            scope_id: { in: projectIds },
+            deleted_at: null,
+          },
+          data: {
+            deleted_at: new Date(),
+          },
+        });
+      }
+
+      // 6. Remove from old division
       await tx.user_role_assignment.updateMany({
         where: {
           user_id: createRotationDto.user_id,
@@ -706,6 +765,7 @@ export class DivisionService {
         },
       });
 
+      // 7. Assign to new division
       await tx.user_role_assignment.create({
         data: {
           user_id: createRotationDto.user_id,
@@ -720,6 +780,10 @@ export class DivisionService {
         ...rotation,
         date_rotation: rotation.date_rotation.toISOString().split('T')[0],
         from_division: currentDivision,
+        removed_from: {
+          teams: teamIds.length,
+          projects: projectIds.length,
+        },
       };
     });
   }

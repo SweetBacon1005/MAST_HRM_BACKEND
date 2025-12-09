@@ -1,19 +1,19 @@
 import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import type { Request } from 'express';
 import {
+  ApprovalStatus,
   DayOffDuration,
   HolidayStatus,
   Prisma,
-  ApprovalStatus,
   ScopeType,
 } from '@prisma/client';
+import type { Request } from 'express';
 import {
   SUCCESS_MESSAGES,
   TIMESHEET_ERRORS,
@@ -25,6 +25,7 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
+import { UploadService } from '../upload/upload.service';
 import {
   AttendanceLogQueryDto,
   CreateAttendanceLogDto,
@@ -33,7 +34,6 @@ import {
 import { CheckinDto, CheckoutDto } from './dto/checkin-checkout.dto';
 import { CreateHolidayDto } from './dto/create-holiday.dto';
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
-import { FaceIdentifiedDto } from './dto/face-identified.dto';
 import { GetScheduleDto } from './dto/get-schedule.dto';
 import {
   AttendanceLogPaginationDto,
@@ -49,7 +49,6 @@ import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { DayOffCalculator } from './enums/day-off.enum';
 import { ApprovalStatusManager } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
-import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class TimesheetService {
@@ -61,7 +60,7 @@ export class TimesheetService {
     @Inject(REQUEST) private request: Request,
   ) {}
 
-    async createTimesheet(
+  async createTimesheet(
     createTimesheetDto: CreateTimesheetDto,
     user_id: number,
   ) {
@@ -91,7 +90,6 @@ export class TimesheetService {
           TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS,
         );
       }
-
     }
 
     const existingTimesheet = await this.prisma.time_sheets.findFirst({
@@ -104,6 +102,22 @@ export class TimesheetService {
 
     if (existingTimesheet) {
       throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
+    }
+
+    // Auto-detect if work_date is a holiday
+    let timesheetType = createTimesheetDto.type;
+    if (!timesheetType || timesheetType === 'NORMAL') {
+      const isHoliday = await this.prisma.holidays.findFirst({
+        where: {
+          status: HolidayStatus.ACTIVE,
+          deleted_at: null,
+          start_date: { lte: new Date(createTimesheetDto.work_date) },
+          end_date: { gte: new Date(createTimesheetDto.work_date) },
+        },
+      });
+      if (isHoliday) {
+        timesheetType = 'HOLIDAY';
+      }
     }
 
     return this.prisma.time_sheets.create({
@@ -119,7 +133,7 @@ export class TimesheetService {
           : null,
         is_complete: createTimesheetDto.is_complete ? true : false,
         status: 'PENDING',
-        type: createTimesheetDto.type,
+        type: timesheetType,
         remote: createTimesheetDto.remote,
       },
     });
@@ -186,10 +200,15 @@ export class TimesheetService {
 
     // FIX N+1: Batch fetch all requests for all timesheets in fewer queries
     if (data.length === 0) {
-      return buildPaginationResponse([], 0, paginationDto.page || 1, paginationDto.limit || 10);
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
-    const workDates = data.map(t => {
+    const workDates = data.map((t) => {
       const dateStr = t.work_date.toISOString().split('T')[0];
       return new Date(dateStr);
     });
@@ -302,7 +321,7 @@ export class TimesheetService {
     // Group requests by work_date for O(1) lookup
     const groupByDate = (items: any[]) => {
       const map = new Map<string, any[]>();
-      items.forEach(item => {
+      items.forEach((item) => {
         const dateKey = item.work_date.toISOString().split('T')[0];
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
@@ -319,9 +338,9 @@ export class TimesheetService {
     const forgotCheckinMap = groupByDate(allForgotCheckinRequests);
 
     // Transform data without additional queries
-    const enhancedData = data.map(timesheet => {
+    const enhancedData = data.map((timesheet) => {
       const dateKey = timesheet.work_date.toISOString().split('T')[0];
-      
+
       return {
         ...timesheet,
         requests: {
@@ -414,8 +433,13 @@ export class TimesheetService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    if (!this.uploadService.validateCloudinaryUrl(photo_url) || user.register_face_url) {
-      throw new BadRequestException('URL ảnh không hợp lệ hoặc khuôn mặt đã được đăng ký');
+    if (
+      !this.uploadService.validateCloudinaryUrl(photo_url) ||
+      user.register_face_url
+    ) {
+      throw new BadRequestException(
+        'URL ảnh không hợp lệ hoặc khuôn mặt đã được đăng ký',
+      );
     }
 
     await this.prisma.users.update({
@@ -435,20 +459,18 @@ export class TimesheetService {
     };
   }
 
-  async checkin(
-    user_id: number,
-    checkinDto: CheckinDto,
-  ) {
+  async checkin(user_id: number, checkinDto: CheckinDto) {
     const today = new Date().toISOString().split('T')[0];
     const checkin_time = new Date();
 
     const client_ip = this.ip_validationService.getclient_ip(this.request);
-    
-    const ip_validation = await this.ip_validationService.validateIpForAttendance(
-      user_id,
-      client_ip,
-      today,
-    );
+
+    const ip_validation =
+      await this.ip_validationService.validateIpForAttendance(
+        user_id,
+        client_ip,
+        today,
+      );
 
     if (!ip_validation.isValid) {
       throw new BadRequestException(ip_validation.message);
@@ -509,12 +531,22 @@ export class TimesheetService {
         });
 
         if (!timesheet) {
+          // Check if today is a holiday
+          const isHoliday = await tx.holidays.findFirst({
+            where: {
+              status: HolidayStatus.ACTIVE,
+              deleted_at: null,
+              start_date: { lte: new Date(today) },
+              end_date: { gte: new Date(today) },
+            },
+          });
+
           timesheet = await tx.time_sheets.create({
             data: {
               user_id: user_id,
               work_date: new Date(today),
               status: 'PENDING',
-              type: 'NORMAL',
+              type: isHoliday ? 'HOLIDAY' : 'NORMAL',
               remote: checkinDto.remote || 'OFFICE',
             },
           });
@@ -525,7 +557,8 @@ export class TimesheetService {
         const lateTime =
           checkin_time > workStartTime
             ? Math.floor(
-                (checkin_time.getTime() - workStartTime.getTime()) / (1000 * 60),
+                (checkin_time.getTime() - workStartTime.getTime()) /
+                  (1000 * 60),
               )
             : 0;
 
@@ -573,7 +606,8 @@ export class TimesheetService {
           ip_validation: {
             client_ip: ip_validation.client_ip,
             is_office_network: ip_validation.is_office_network,
-            has_approved_remote_request: ip_validation.has_approved_remote_request,
+            has_approved_remote_request:
+              ip_validation.has_approved_remote_request,
             validation_message: ip_validation.message,
           },
         };
@@ -584,20 +618,18 @@ export class TimesheetService {
     );
   }
 
-  async checkout(
-    user_id: number,
-    checkoutDto: CheckoutDto,
-  ) {
+  async checkout(user_id: number, checkoutDto: CheckoutDto) {
     const today = new Date().toISOString().split('T')[0];
     const checkout_time = new Date();
 
     const client_ip = this.ip_validationService.getclient_ip(this.request);
-    
-    const ip_validation = await this.ip_validationService.validateIpForAttendance(
-      user_id,
-      client_ip,
-      today,
-    );
+
+    const ip_validation =
+      await this.ip_validationService.validateIpForAttendance(
+        user_id,
+        client_ip,
+        today,
+      );
 
     if (!ip_validation.isValid) {
       throw new BadRequestException(ip_validation.message);
@@ -747,7 +779,8 @@ export class TimesheetService {
           ip_validation: {
             client_ip: ip_validation.client_ip,
             is_office_network: ip_validation.is_office_network,
-            has_approved_remote_request: ip_validation.has_approved_remote_request,
+            has_approved_remote_request:
+              ip_validation.has_approved_remote_request,
             validation_message: ip_validation.message,
           },
         };
@@ -823,8 +856,7 @@ export class TimesheetService {
     };
   }
 
-
-    async createHoliday(createHolidayDto: CreateHolidayDto) {
+  async createHoliday(createHolidayDto: CreateHolidayDto) {
     const holiday = await this.prisma.holidays.findFirst({
       where: { name: createHolidayDto.name, deleted_at: null },
     });
@@ -975,7 +1007,7 @@ export class TimesheetService {
     });
   }
 
-    async getPersonalSchedule(user_id: number, getScheduleDto: GetScheduleDto) {
+  async getPersonalSchedule(user_id: number, getScheduleDto: GetScheduleDto) {
     const { start_date, end_date } = getScheduleDto;
     const startDate = start_date || new Date().toISOString().split('T')[0];
     const endDate =
@@ -1092,14 +1124,32 @@ export class TimesheetService {
       },
     });
 
+    // Get holidays in period
+    const holidays = await this.prisma.holidays.findMany({
+      where: {
+        status: HolidayStatus.ACTIVE,
+        deleted_at: null,
+        start_date: { lte: new Date(endDate) },
+        end_date: { gte: new Date(startDate) },
+      },
+      orderBy: { start_date: 'asc' },
+    });
+
     return {
       teamMembers: teamUsers,
       timesheets,
       dayOffs,
+      holidays: holidays.map((h) => ({
+        id: h.id,
+        name: h.name,
+        start_date: h.start_date.toISOString().split('T')[0],
+        end_date: h.end_date.toISOString().split('T')[0],
+        description: h.description,
+      })),
     };
   }
 
-    async getTimesheetNotifications(user_id: number) {
+  async getTimesheetNotifications(user_id: number) {
     const today = new Date();
     const notifications: Array<{
       type: string;
@@ -1157,7 +1207,7 @@ export class TimesheetService {
     return notifications;
   }
 
-    async getTimesheetReport(reportDto: TimesheetReportDto) {
+  async getTimesheetReport(reportDto: TimesheetReportDto) {
     const { start_date, end_date, division_id, team_id } = reportDto;
     const startDate =
       start_date ||
@@ -1180,15 +1230,16 @@ export class TimesheetService {
       });
       user_ids = teamAssignments.map((assignment) => assignment.user_id);
     } else if (Number(division_id)) {
-      const divisionAssignments = await this.prisma.user_role_assignment.findMany({
-        where: {
-          scope_type: ScopeType.DIVISION,
-          scope_id: Number(division_id),
-          deleted_at: null,
-        },
-        select: { user_id: true },
-        distinct: ['user_id'],
-      });
+      const divisionAssignments =
+        await this.prisma.user_role_assignment.findMany({
+          where: {
+            scope_type: ScopeType.DIVISION,
+            scope_id: Number(division_id),
+            deleted_at: null,
+          },
+          select: { user_id: true },
+          distinct: ['user_id'],
+        });
       user_ids = divisionAssignments.map((assignment) => assignment.user_id);
     }
 
@@ -1219,6 +1270,23 @@ export class TimesheetService {
       });
     }
 
+    // Get holidays in period
+    const holidays = await this.prisma.holidays.findMany({
+      where: {
+        status: HolidayStatus.ACTIVE,
+        deleted_at: null,
+        OR: [
+          {
+            AND: [
+              { start_date: { lte: new Date(endDate) } },
+              { end_date: { gte: new Date(startDate) } },
+            ],
+          },
+        ],
+      },
+      orderBy: { start_date: 'asc' },
+    });
+
     const stats = {
       total_records: timesheets.length,
       total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
@@ -1243,6 +1311,13 @@ export class TimesheetService {
       timesheets,
       stats,
       period: { start_date: startDate, end_date: endDate },
+      holidays: holidays.map((h) => ({
+        id: h.id,
+        name: h.name,
+        start_date: h.start_date.toISOString().split('T')[0],
+        end_date: h.end_date.toISOString().split('T')[0],
+        description: h.description,
+      })),
     };
   }
 
@@ -1328,6 +1403,197 @@ export class TimesheetService {
               ) / Object.keys(userStats).length
             : 0,
       },
+    };
+  }
+
+  async getAllUsersAttendanceStatistics(startDate?: string, endDate?: string) {
+    const now = new Date();
+    const defaultStartDate =
+      startDate ||
+      new Date(now.getFullYear(), now.getMonth(), 1)
+        .toISOString()
+        .split('T')[0];
+    const defaultEndDate =
+      endDate ||
+      new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        .toISOString()
+        .split('T')[0];
+
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where: {
+        work_date: {
+          gte: new Date(defaultStartDate),
+          lte: new Date(defaultEndDate),
+        },
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        day_off: {
+          select: {
+            type: true,
+            duration: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { work_date: 'desc' },
+    });
+
+    const holidays = await this.prisma.holidays.findMany({
+      where: {
+        status: HolidayStatus.ACTIVE,
+        deleted_at: null,
+        OR: [
+          {
+            AND: [
+              { start_date: { lte: new Date(defaultEndDate) } },
+              { end_date: { gte: new Date(defaultStartDate) } },
+            ],
+          },
+        ],
+      },
+      orderBy: { start_date: 'asc' },
+    });
+
+    const workingDaysInMonth = await this.calculateWorkingDaysInMonth(
+      defaultStartDate,
+      defaultEndDate,
+    );
+
+    const userStats = timesheets.reduce((acc: any, timesheet) => {
+      const userId = timesheet.user_id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user_id: userId,
+          name: timesheet.user?.user_information?.name || 'N/A',
+          email: timesheet.user?.email || 'N/A',
+          total_days: 0,
+          complete_days: 0,
+          late_days: 0,
+          late_minutes: 0,
+          early_leave_days: 0,
+          early_leave_minutes: 0,
+          total_work_minutes: 0,
+          full_day_off_count: 0,
+        };
+      }
+
+      acc[userId].total_days += 1;
+      if (timesheet.is_complete) acc[userId].complete_days += 1;
+      if (timesheet.late_time && timesheet.late_time > 0) {
+        acc[userId].late_days += 1;
+        acc[userId].late_minutes += timesheet.late_time;
+      }
+      if (timesheet.early_time && timesheet.early_time > 0) {
+        acc[userId].early_leave_days += 1;
+        acc[userId].early_leave_minutes += timesheet.early_time;
+      }
+      if (timesheet.total_work_time) {
+        acc[userId].total_work_minutes += timesheet.total_work_time;
+      }
+      if (timesheet.day_off && timesheet.day_off.duration === 'FULL_DAY') {
+        acc[userId].full_day_off_count += 1;
+      }
+
+      return acc;
+    }, {});
+
+    const employees = Object.values(userStats).map((stat: any) => {
+      const expectedWorkDays = workingDaysInMonth - stat.full_day_off_count;
+      const attendanceRate =
+        expectedWorkDays > 0
+          ? Math.round((stat.complete_days / expectedWorkDays) * 100)
+          : 0;
+      const punctualityRate =
+        stat.total_days > 0
+          ? Math.round(
+              ((stat.total_days - stat.late_days - stat.early_leave_days) /
+                stat.total_days) *
+                100,
+            )
+          : 100;
+
+      return {
+        user_id: stat.user_id,
+        name: stat.name,
+        email: stat.email,
+        work_days: `${stat.complete_days}/${expectedWorkDays}`,
+        attendance_rate: attendanceRate,
+        punctuality_rate: punctualityRate,
+        late_count: stat.late_days,
+        late_minutes: stat.late_minutes,
+        early_leave_count: stat.early_leave_days,
+        early_leave_minutes: stat.early_leave_minutes,
+        total_work_hours: Math.round((stat.total_work_minutes / 60) * 10) / 10,
+        status:
+          attendanceRate >= 95 && punctualityRate >= 90
+            ? 'good'
+            : attendanceRate >= 85 && punctualityRate >= 80
+              ? 'warning'
+              : 'critical',
+      };
+    });
+
+    const summary = {
+      total_employees: employees.length,
+      working_days_in_month: workingDaysInMonth,
+      average_attendance_rate:
+        employees.length > 0
+          ? Math.round(
+              employees.reduce((sum, e: any) => sum + e.attendance_rate, 0) /
+                employees.length,
+            )
+          : 0,
+      average_punctuality_rate:
+        employees.length > 0
+          ? Math.round(
+              employees.reduce((sum, e: any) => sum + e.punctuality_rate, 0) /
+                employees.length,
+            )
+          : 0,
+      total_late_count: employees.reduce(
+        (sum, e: any) => sum + e.late_count,
+        0,
+      ),
+      total_late_minutes: employees.reduce(
+        (sum, e: any) => sum + e.late_minutes,
+        0,
+      ),
+      employees_with_good_status: employees.filter((e: any) => e.status === 'good')
+        .length,
+      employees_with_warning_status: employees.filter(
+        (e: any) => e.status === 'warning',
+      ).length,
+      employees_with_critical_status: employees.filter(
+        (e: any) => e.status === 'critical',
+      ).length,
+    };
+
+    return {
+      period: {
+        start_date: defaultStartDate,
+        end_date: defaultEndDate,
+      },
+      summary,
+      employees: employees.sort((a: any, b: any) => b.late_count - a.late_count),
+      holidays: holidays.map((h) => ({
+        id: h.id,
+        name: h.name,
+        start_date: h.start_date.toISOString().split('T')[0],
+        end_date: h.end_date.toISOString().split('T')[0],
+        description: h.description,
+      })),
     };
   }
 
@@ -1457,7 +1723,24 @@ export class TimesheetService {
       }
     });
 
-    const workingDaysInMonth = this.calculateWorkingDaysInMonth(
+    // Get holidays in period
+    const holidays = await this.prisma.holidays.findMany({
+      where: {
+        status: HolidayStatus.ACTIVE,
+        deleted_at: null,
+        OR: [
+          {
+            AND: [
+              { start_date: { lte: new Date(defaultEndDate) } },
+              { end_date: { gte: new Date(defaultStartDate) } },
+            ],
+          },
+        ],
+      },
+      orderBy: { start_date: 'asc' },
+    });
+
+    const workingDaysInMonth = await this.calculateWorkingDaysInMonth(
       defaultStartDate,
       defaultEndDate,
     );
@@ -1476,8 +1759,8 @@ export class TimesheetService {
       overtime_hours: totalOvertimeHours,
       late_minutes: totallate_minutes,
       violation_time: `${lateDays + earlyLeaveDays}/${totalDays}`,
-      paid_leave_hours: paidLeaveDays * 8, 
-      unpaid_leave_hours: unpaidLeaveDays * 8, 
+      paid_leave_hours: paidLeaveDays * 8,
+      unpaid_leave_hours: unpaidLeaveDays * 8,
 
       attendance: {
         total_days: `${completeDays}/${expectedWorkDays}`,
@@ -1498,6 +1781,13 @@ export class TimesheetService {
         unpaid_leave: unpaidLeaveDays, // Số ngày
         total_leave_requests: dayOffRequests.length,
       },
+      holidays: holidays.map((h) => ({
+        id: h.id,
+        name: h.name,
+        start_date: h.start_date.toISOString().split('T')[0],
+        end_date: h.end_date.toISOString().split('T')[0],
+        description: h.description,
+      })),
       summary: {
         attendance_rate:
           expectedWorkDays > 0
@@ -1512,28 +1802,54 @@ export class TimesheetService {
   }
 
   /**
-   * Tính số ngày làm việc trong khoảng thời gian (trừ cuối tuần)
+   * Tính số ngày làm việc trong khoảng thời gian (trừ cuối tuần và holidays)
    */
-  private calculateWorkingDaysInMonth(
+  private async calculateWorkingDaysInMonth(
     startDate: string,
     endDate: string,
-  ): number {
+  ): Promise<number> {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    let workingDays = 0;
 
+    // Get holidays in the period
+    const holidays = await this.prisma.holidays.findMany({
+      where: {
+        status: HolidayStatus.ACTIVE,
+        deleted_at: null,
+        OR: [
+          {
+            AND: [{ start_date: { lte: end } }, { end_date: { gte: start } }],
+          },
+        ],
+      },
+    });
+
+    let workingDays = 0;
     const currentDate = new Date(start);
+
     while (currentDate <= end) {
       const dayOfWeek = currentDate.getDay();
+
+      // Skip weekends (0 = Sunday, 6 = Saturday)
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        workingDays++;
+        // Check if it's a holiday
+        const isHoliday = holidays.some((holiday) => {
+          const holidayStart = new Date(holiday.start_date);
+          const holidayEnd = new Date(holiday.end_date);
+          return currentDate >= holidayStart && currentDate <= holidayEnd;
+        });
+
+        if (!isHoliday) {
+          workingDays++;
+        }
       }
+
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
     return workingDays;
   }
-    async createAttendanceLog(
+  async createAttendanceLog(
     createAttendanceLogDto: CreateAttendanceLogDto,
     currentuser_id: number,
   ) {
@@ -1793,7 +2109,7 @@ export class TimesheetService {
     });
   }
 
-    async createDailyTimesheet(user_id: number, workDate?: string) {
+  async createDailyTimesheet(user_id: number, workDate?: string) {
     const targetDate = workDate ? new Date(workDate) : new Date();
 
     const existing = await this.prisma.time_sheets.findFirst({
@@ -1818,7 +2134,7 @@ export class TimesheetService {
     });
   }
 
-    /**
+  /**
    * Submit timesheet để chờ duyệt
    */
   async submitTimesheet(id: number, user_id: number) {
@@ -1928,7 +2244,7 @@ export class TimesheetService {
    */
   private async getRequestsForDate(user_id: number, workDate: Date) {
     const dateStr = workDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-    
+
     const [
       remoteWorkRequests,
       dayOffRequests,
@@ -2063,5 +2379,158 @@ export class TimesheetService {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
+  }
+
+  /**
+   * Lấy danh sách timesheets cần duyệt (cho hr_manager và admin)
+   */
+  async getTimesheetsForApproval(queryDto: any) {
+    const {
+      user_id,
+      month,
+      division_id,
+      team_id,
+      status,
+      page = 1,
+      limit = 20,
+    } = queryDto;
+
+    const where: Prisma.time_sheetsWhereInput = {
+      deleted_at: null,
+      status: status || ApprovalStatus.PENDING, // Mặc định lấy PENDING
+    };
+
+    // Filter theo user_id
+    if (user_id) {
+      where.user_id = Number(user_id);
+    }
+
+    // Filter theo tháng
+    if (month) {
+      const [year, monthNum] = month.split('-');
+      const startDate = new Date(`${year}-${monthNum}-01`);
+      const endDate = new Date(parseInt(year), parseInt(monthNum), 0);
+
+      where.work_date = {
+        gte: startDate,
+        lte: endDate,
+      };
+    }
+
+    // Filter theo division hoặc team
+    if (division_id || team_id) {
+      const scopeType = division_id ? ScopeType.DIVISION : ScopeType.TEAM;
+      const scopeId = division_id || team_id;
+
+      const assignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: scopeType,
+          scope_id: Number(scopeId),
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+
+      const user_ids = assignments.map((a) => a.user_id);
+      where.user_id = { in: user_ids };
+    }
+
+    const [timesheets, total] = await Promise.all([
+      this.prisma.time_sheets.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { work_date: 'desc' },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  avatar: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.time_sheets.count({ where }),
+    ]);
+
+    return {
+      data: timesheets,
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async bulkReviewTimesheets(
+    timesheet_ids: number[],
+    action: 'APPROVE' | 'REJECT',
+    reviewer_id: number,
+    reason?: string,
+  ) {
+    if (action === 'REJECT' && !reason) {
+      throw new BadRequestException(TIMESHEET_ERRORS.REASON_REQUIRED_FOR_REJECT);
+    }
+
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where: {
+        id: { in: timesheet_ids },
+        deleted_at: null,
+      },
+    });
+
+    if (timesheets.length !== timesheet_ids.length) {
+      throw new NotFoundException(TIMESHEET_ERRORS.SOME_TIMESHEETS_NOT_FOUND);
+    }
+
+    const targetStatus =
+      action === 'APPROVE' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED;
+
+    const invalidTimesheets = timesheets.filter(
+      (t) =>
+        !ApprovalStatusManager.canTransition(
+          t.status || ApprovalStatus.PENDING,
+          targetStatus,
+        ),
+    );
+
+    if (invalidTimesheets.length > 0) {
+      throw new BadRequestException(
+        `${TIMESHEET_ERRORS.CANNOT_REVIEW_INVALID_STATUS}: ${invalidTimesheets.length} timesheet`,
+      );
+    }
+
+    const result = await this.prisma.time_sheets.updateMany({
+      where: {
+        id: { in: timesheet_ids },
+      },
+      data: {
+        status: targetStatus,
+      },
+    });
+
+    const actionText = action === 'APPROVE' ? 'duyệt' : 'từ chối';
+    const countField =
+      action === 'APPROVE' ? 'approved_count' : 'rejected_count';
+    const idsField = action === 'APPROVE' ? 'approved_ids' : 'rejected_ids';
+
+    return {
+      success: true,
+      action,
+      message: `Đã ${actionText} ${result.count} timesheets thành công`,
+      [countField]: result.count,
+      [idsField]: timesheet_ids,
+      reviewer_id: reviewer_id,
+      ...(reason && { reason }),
+    };
   }
 }

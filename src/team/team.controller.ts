@@ -249,17 +249,23 @@ export class TeamController {
   @ApiOperation({
     summary: 'Thêm user vào team',
     description: `
-      Thêm user vào team. User sẽ tự động có quyền truy cập tất cả các projects của team.
+      Thêm user vào team trong cùng division.
       
       **Quyền truy cập:**
       - Admin: Có thể thêm vào bất kỳ team nào
       - Division Head: Có thể thêm vào team của division mình quản lý
       - Team Leader: Có thể thêm vào team mình quản lý
       
-      **Lưu ý:**
-      - User không thể là thành viên của nhiều team cùng lúc (trong cùng division)
-      - Khi thêm vào team, user sẽ có access tới TẤT CẢ projects của team
+      **Quy tắc:**
+      - User có thể là thành viên của nhiều team cùng lúc
+      - Tất cả các team phải thuộc cùng 1 division với user
+      - User chỉ thuộc 1 division duy nhất
       - Role mặc định là Employee nếu không chỉ định
+      
+      **Lưu ý về quyền truy cập projects:**
+      - Thêm vào team KHÔNG tự động cấp quyền truy cập projects
+      - Để user truy cập project, cần thêm riêng vào từng project
+      - Khi lấy danh sách thành viên project, sẽ lấy tất cả members từ team của project
     `,
   })
   @ApiParam({ name: 'id', description: 'Team ID' })
@@ -325,15 +331,10 @@ export class TeamController {
                 name: { type: 'string', example: 'Employee' },
               },
             },
-            project_access: {
-              type: 'object',
-              properties: {
-                count: { type: 'number', example: 5 },
-                message: {
-                  type: 'string',
-                  example: 'User sẽ có quyền truy cập 5 dự án của team này',
-                },
-              },
+            description: {
+              type: 'string',
+              nullable: true,
+              example: 'Backend Developer',
             },
             created_at: { type: 'string', format: 'date-time' },
           },
@@ -356,10 +357,12 @@ export class TeamController {
   @ApiOperation({
     summary: 'Xóa user khỏi team',
     description: `
-      Xóa user khỏi team. User sẽ mất quyền truy cập tất cả projects của team.
+      Xóa user khỏi team. Chỉ xóa khỏi team, KHÔNG xóa khỏi các projects.
       
       **Lưu ý:**
-      - Khi xóa khỏi team, user cũng bị xóa khỏi tất cả projects của team
+      - Chỉ xóa membership của user trong team này
+      - User vẫn giữ quyền truy cập các projects đã được cấp riêng
+      - Để xóa khỏi project, cần xóa riêng trong từng project
       - Action này không thể hoàn tác
     `,
   })
@@ -372,11 +375,6 @@ export class TeamController {
       type: 'object',
       properties: {
         message: { type: 'string', example: 'Đã xóa user khỏi team' },
-        removed_from_projects: {
-          type: 'number',
-          example: 5,
-          description: 'Số lượng projects mà user bị xóa quyền truy cập',
-        },
       },
     },
   })
@@ -386,6 +384,67 @@ export class TeamController {
     @Param('userId', ParseIntPipe) userId: number,
   ) {
     return this.teamService.removeMember(teamId, userId);
+  }
+
+  @Get(':id/available-members')
+  @RequirePermission('team.read')
+  @ApiOperation({
+    summary: 'Lấy danh sách users có thể thêm vào team',
+    description: `
+      Trả về danh sách users trong cùng division mà chưa là thành viên của team này.
+      
+      **Logic:**
+      - Lấy tất cả users trong division của team
+      - Loại bỏ users đã là thành viên của team
+      - Kết quả: users có thể thêm vào team
+      
+      **Hữu ích cho:**
+      - Team Leader khi muốn thêm member
+      - UI dropdown/autocomplete chọn user
+    `,
+  })
+  @ApiParam({ name: 'id', description: 'Team ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách users có thể thêm vào team',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              user_id: { type: 'number' },
+              email: { type: 'string' },
+              name: { type: 'string' },
+              code: { type: 'string' },
+              avatar: { type: 'string' },
+              position: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                },
+              },
+              level: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  name: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        total: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy team' })
+  getAvailableMembers(@Param('id', ParseIntPipe) teamId: number) {
+    return this.teamService.getAvailableMembers(teamId);
   }
 
   @Get(':id/members')

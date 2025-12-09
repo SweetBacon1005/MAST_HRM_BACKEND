@@ -393,7 +393,7 @@ export class TeamService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Check if user already in team
+    // Check if user already in THIS team
     const existing = await this.prisma.user_role_assignment.findFirst({
       where: {
         user_id: dto.user_id,
@@ -405,6 +405,27 @@ export class TeamService {
 
     if (existing) {
       throw new BadRequestException('User đã là thành viên của team này');
+    }
+
+    // Validate user belongs to the same division
+    const userDivisionAssignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: dto.user_id,
+        scope_type: ScopeType.DIVISION,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!userDivisionAssignment) {
+      throw new BadRequestException('User chưa được gán vào division nào');
+    }
+
+    if (userDivisionAssignment.scope_id !== team.division_id) {
+      throw new BadRequestException(
+        `User thuộc division khác. Chỉ có thể thêm user từ division ${team.division?.name || team.division_id}`,
+      );
     }
 
     // Use default Employee role if not specified
@@ -444,11 +465,6 @@ export class TeamService {
       },
     });
 
-    // Get project count
-    const projectCount = await this.prisma.projects.count({
-      where: { team_id: teamId, deleted_at: null },
-    });
-
     return {
       message: SUCCESS_MESSAGES.TEAM_MEMBER_ADDED,
       data: {
@@ -470,10 +486,6 @@ export class TeamService {
           name: assignment.role.name,
         },
         description: dto.description || null,
-        project_access: {
-          count: projectCount,
-          message: `User sẽ có quyền truy cập ${projectCount} dự án của team này`,
-        },
         created_at: assignment.created_at,
       },
     };
@@ -503,35 +515,14 @@ export class TeamService {
       throw new NotFoundException('User không phải là thành viên của team này');
     }
 
-    // Soft delete assignment
+    // Soft delete team assignment only
     await this.prisma.user_role_assignment.update({
       where: { id: assignment.id },
       data: { deleted_at: new Date() },
     });
 
-    // Also remove from all projects of this team
-    const teamProjects = await this.prisma.projects.findMany({
-      where: { team_id: teamId, deleted_at: null },
-      select: { id: true },
-    });
-
-    const projectIds = teamProjects.map((p) => p.id);
-
-    if (projectIds.length > 0) {
-      await this.prisma.user_role_assignment.updateMany({
-        where: {
-          user_id: userId,
-          scope_type: ScopeType.PROJECT,
-          scope_id: { in: projectIds },
-          deleted_at: null,
-        },
-        data: { deleted_at: new Date() },
-      });
-    }
-
     return {
       message: 'Đã xóa user khỏi team',
-      removed_from_projects: projectIds.length,
     };
   }
 
@@ -550,6 +541,92 @@ export class TeamService {
       message: 'Lấy danh sách thành viên thành công',
       data: members,
       total: members.length,
+    };
+  }
+
+  async getAvailableMembers(teamId: number) {
+    // Validate team exists
+    const team = await this.prisma.teams.findFirst({
+      where: { id: teamId, deleted_at: null },
+      include: {
+        division: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!team) {
+      throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_FOUND);
+    }
+
+    if (!team.division_id) {
+      throw new BadRequestException('Team không thuộc division nào');
+    }
+
+    // Get all users in the division
+    const divisionUsers = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.DIVISION,
+        scope_id: team.division_id,
+        deleted_at: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                code: true,
+                avatar: true,
+                position: { select: { id: true, name: true } },
+                level: { select: { id: true, name: true, coefficient: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Get current team members
+    const currentMembers = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.TEAM,
+        scope_id: teamId,
+        deleted_at: null,
+      },
+      select: { user_id: true },
+    });
+
+    const currentMemberIds = new Set(currentMembers.map((m) => m.user_id));
+
+    // Filter out current members
+    const availableUsers = divisionUsers
+      .filter((assignment) => !currentMemberIds.has(assignment.user_id))
+      .map((assignment) => ({
+        user_id: assignment.user.id,
+        email: assignment.user.email,
+        name: assignment.user.user_information?.name || '',
+        code: assignment.user.user_information?.code || '',
+        avatar: assignment.user.user_information?.avatar || null,
+        position: assignment.user.user_information?.position || null,
+        level: assignment.user.user_information?.level
+          ? {
+              id: assignment.user.user_information.level.id,
+              name: assignment.user.user_information.level.name,
+              coefficient: assignment.user.user_information.level.coefficient,
+            }
+          : null,
+      }));
+
+    return {
+      message: `Có ${availableUsers.length} users có thể thêm vào team ${team.name}`,
+      data: availableUsers,
+      total: availableUsers.length,
+      team: {
+        id: team.id,
+        name: team.name,
+        division: team.division,
+      },
     };
   }
 

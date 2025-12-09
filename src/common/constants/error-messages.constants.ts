@@ -158,6 +158,10 @@ export const TIMESHEET_ERRORS = {
   MODIFICATION_DEADLINE_PASSED: 'Không thể sửa đổi sau thời hạn',
   INVALID_WORK_TIME: 'Thời gian làm việc không hợp lệ',
   TIMESHEET_LOCKED: 'Bảng chấm công đã bị khóa',
+  SOME_TIMESHEETS_NOT_FOUND: 'Một số timesheet không tồn tại',
+  REASON_REQUIRED_FOR_REJECT: 'Lý do từ chối là bắt buộc khi action = REJECT',
+  CANNOT_REVIEW_INVALID_STATUS: 'Không thể duyệt/từ chối timesheet do trạng thái không hợp lệ',
+  BULK_REVIEW_SUCCESS: 'Review timesheets thành công',
 } as const;
 
 // === ATTENDANCE ERRORS ===

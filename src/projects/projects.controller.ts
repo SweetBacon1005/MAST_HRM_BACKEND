@@ -90,11 +90,22 @@ export class ProjectsController {
 
   @Get(':id/members')
   @RequirePermission('project.read')
-  @ApiOperation({ summary: 'Lấy danh sách thành viên của dự án' })
+  @ApiOperation({
+    summary: 'Lấy danh sách thành viên của dự án',
+    description: `
+      Trả về danh sách thành viên bao gồm:
+      - Project Manager (PM) của dự án
+      - Tất cả members từ team của dự án
+      
+      **Lưu ý:**
+      - PM được gán trực tiếp cho project (scope_type: PROJECT)
+      - Team members được lấy từ team của project (scope_type: TEAM)
+    `,
+  })
   @ApiParam({ name: 'id', description: 'ID của dự án' })
   @ApiResponse({
     status: 200,
-    description: 'Lấy danh sách thành viên thành công',
+    description: 'Lấy danh sách thành viên thành công (bao gồm PM và team members)',
   })
   getProjectMembers(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.getProjectMembers(id);
@@ -102,7 +113,23 @@ export class ProjectsController {
 
   @Post(':id/members')
   @RequirePermission('project.update')
-  @ApiOperation({ summary: 'Thêm thành viên vào dự án' })
+  @ApiOperation({
+    summary: 'Thêm thành viên vào dự án',
+    description: `
+      ⚠️ **DEPRECATED - NÊN DÙNG API THÊM VÀO TEAM THAY VÌ API NÀY**
+      
+      API này thêm member trực tiếp vào project (scope_type: PROJECT).
+      Tuy nhiên, theo thiết kế mới:
+      - Members của project được lấy từ TEAM
+      - Nên thêm user vào TEAM thay vì dùng API này
+      
+      **Khuyến nghị:**
+      - Sử dụng: POST /teams/:id/members để thêm user vào team
+      - User sẽ tự động có quyền truy cập tất cả projects của team
+      
+      **API này chỉ nên dùng để gán PM (Project Manager)**
+    `,
+  })
   @ApiParam({ name: 'id', description: 'ID của dự án' })
   @ApiResponse({
     status: 201,
@@ -132,7 +159,20 @@ export class ProjectsController {
 
   @Delete(':id/members/:user_id')
   @RequirePermission('project.update')
-  @ApiOperation({ summary: 'Xóa thành viên khỏi dự án' })
+  @ApiOperation({
+    summary: 'Xóa thành viên khỏi dự án',
+    description: `
+      Xóa member khỏi dự án bằng cách XÓA KHỎI TEAM của dự án.
+      
+      **Logic:**
+      - Nếu user là PM: Không cho phép xóa (phải chuyển quyền PM trước)
+      - Nếu user là team member: Xóa khỏi team → tự động mất quyền truy cập dự án
+      
+      **Lưu ý:**
+      - User sẽ mất quyền truy cập TẤT CẢ projects của team đó
+      - Không chỉ riêng project này
+    `,
+  })
   @ApiParam({ name: 'id', description: 'ID của dự án' })
   @ApiParam({ name: 'user_id', description: 'ID của user cần xóa' })
   @ApiResponse({
