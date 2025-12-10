@@ -64,15 +64,6 @@ export class CreateDivisionDto {
   address?: string;
 
   @ApiProperty({
-    description: 'ID phòng ban cha',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => Number(value))
-  parent_id?: number;
-
-  @ApiProperty({
     description: 'Mô tả phòng ban',
     example: 'Phòng ban chuyên phát triển các ứng dụng web và mobile',
     required: false,

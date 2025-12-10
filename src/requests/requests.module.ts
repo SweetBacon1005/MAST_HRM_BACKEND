@@ -4,9 +4,10 @@ import { PermissionCheckerService } from '../auth/services/permission-checker.se
 import { ActivityLogService } from '../common/services/activity-log.service';
 import { RequestsController } from './requests.controller';
 import { RequestsService } from './requests.service';
+import { TimesheetModule } from 'src/timesheet/timesheet.module';
 
 @Module({
-  imports: [LeaveManagementModule],
+  imports: [LeaveManagementModule, TimesheetModule],
   controllers: [RequestsController],
   providers: [RequestsService, PermissionCheckerService, ActivityLogService],
   exports: [RequestsService],

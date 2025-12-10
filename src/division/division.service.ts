@@ -93,15 +93,6 @@ export class DivisionService {
   }
 
   async create(createDivisionDto: CreateDivisionDto) {
-    if (createDivisionDto.parent_id) {
-      const parentDivision = await this.prisma.divisions.findUnique({
-        where: { id: createDivisionDto.parent_id, deleted_at: null },
-      });
-      if (!parentDivision) {
-        throw new NotFoundException(DIVISION_ERRORS.PARENT_DIVISION_NOT_FOUND);
-      }
-    }
-
     const founding_at = new Date();
 
     const existingDivision = await this.prisma.divisions.findFirst({
@@ -126,17 +117,11 @@ export class DivisionService {
     const division = await this.prisma.divisions.create({
       data: {
         name: createDivisionDto.name,
-        parent_id: createDivisionDto.parent_id,
         type: createDivisionDto.type,
         status: createDivisionDto.status,
         address: createDivisionDto.address,
         description: createDivisionDto.description,
         founding_at: founding_at,
-      },
-      include: {
-        parent: {
-          select: { id: true, name: true },
-        },
       },
     });
 
@@ -180,10 +165,6 @@ export class DivisionService {
       };
     }
 
-    if (paginationDto.parent_id !== undefined) {
-      where.parent_id = paginationDto.parent_id;
-    }
-
     if (paginationDto.type !== undefined) {
       where.type = paginationDto.type;
     }
@@ -199,13 +180,6 @@ export class DivisionService {
         take,
         orderBy: orderBy || { created_at: 'desc' },
         include: {
-          parent: {
-            select: { id: true, name: true },
-          },
-          children: {
-            select: { id: true, name: true },
-            where: { deleted_at: null },
-          },
           projects: {
             select: { id: true },
             where: { deleted_at: null },
@@ -256,13 +230,6 @@ export class DivisionService {
     const division = await this.prisma.divisions.findUnique({
       where: { id, deleted_at: null },
       include: {
-        parent: {
-          select: { id: true, name: true },
-        },
-        children: {
-          select: { id: true, name: true },
-          where: { deleted_at: null },
-        },
         projects: {
           select: { id: true, name: true, code: true, status: true },
           where: { deleted_at: null },
@@ -294,19 +261,6 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    if (updateDivisionDto.parent_id) {
-      if (updateDivisionDto.parent_id === id) {
-        throw new BadRequestException(DIVISION_ERRORS.CIRCULAR_PARENT_CHILD);
-      }
-
-      const parentDivision = await this.prisma.divisions.findUnique({
-        where: { id: updateDivisionDto.parent_id, deleted_at: null },
-      });
-      if (!parentDivision) {
-        throw new NotFoundException(DIVISION_ERRORS.PARENT_DIVISION_NOT_FOUND);
-      }
-    }
-
     if (updateDivisionDto.name && updateDivisionDto.name !== division.name) {
       const existingDivision = await this.prisma.divisions.findFirst({
         where: {
@@ -327,13 +281,6 @@ export class DivisionService {
       where: { id },
       data: updateData,
       include: {
-        parent: {
-          select: { id: true, name: true },
-        },
-        children: {
-          select: { id: true, name: true },
-          where: { deleted_at: null },
-        },
         projects: {
           select: { id: true },
           where: { deleted_at: null },
@@ -348,9 +295,6 @@ export class DivisionService {
     const division = await this.prisma.divisions.findUnique({
       where: { id, deleted_at: null },
       include: {
-        children: {
-          where: { deleted_at: null },
-        },
         projects: {
           where: { deleted_at: null },
         },
@@ -359,10 +303,6 @@ export class DivisionService {
 
     if (!division) {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
-    }
-
-    if (division.children && division.children.length > 0) {
-      throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
     }
 
     const users = await this.getDivisionUser(id);
@@ -379,23 +319,12 @@ export class DivisionService {
   async getDivisionHierarchy(id?: number) {
     const where: Prisma.divisionsWhereInput = {
       deleted_at: null,
-      parent_id: id || null,
     };
 
     const divisions = await this.prisma.divisions.findMany({
       where,
       orderBy: { name: 'asc' },
       include: {
-        children: {
-          where: { deleted_at: null },
-          orderBy: { name: 'asc' },
-          include: {
-            children: {
-              where: { deleted_at: null },
-              orderBy: { name: 'asc' },
-            },
-          },
-        },
         projects: {
           select: { id: true },
           where: { deleted_at: null },

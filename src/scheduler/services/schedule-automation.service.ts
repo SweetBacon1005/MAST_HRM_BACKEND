@@ -385,8 +385,30 @@ export class ScheduleAutomationService {
         }
       }
 
+      // Reset số phút đi muộn/về sớm và request quota cho tháng mới
+      this.logger.log('🔄 Resetting violation minutes and request quota for new month...');
+      
+      const resetDate = new Date(today);
+      resetDate.setHours(0, 0, 0, 0);
+
+      const resetResult = await this.prisma.user_leave_balances.updateMany({
+        where: {
+          user_id: {
+            in: activeUsers.map((user) => user.id),
+          },
+          deleted_at: null,
+        },
+        data: {
+          last_violation_reset_date: resetDate,
+          last_request_quota_reset_date: resetDate,
+        },
+      });
+
       this.logger.log(
         `🎉 Monthly paid leave addition completed: ${updatedCount} users updated with +3 days paid leave`,
+      );
+      this.logger.log(
+        `✅ Violation minutes and request quota reset completed: ${resetResult.count} users updated`,
       );
     } catch (error) {
       this.logger.error('❌ Error adding monthly paid leave:', error);

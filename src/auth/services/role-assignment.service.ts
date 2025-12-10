@@ -137,21 +137,73 @@ export class RoleAssignmentService {
         scope_id: scope_id,
         deleted_at: null,
       },
+      include: {
+        role: true,
+      },
     });
 
     if (!assignment) {
       throw new NotFoundException('Role assignment không tồn tại');
     }
 
-    const newAssignment = await this.prisma.user_role_assignment.update({
-      where: { id: assignment.id },
-      data: {
-        assigned_by: revoked_by,
+    const existingEmployee = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: user_id,
         role_id: ROLE_IDS.EMPLOYEE,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
       },
     });
 
-    return newAssignment;
+    let result;
+
+    if (existingEmployee) {
+      result = await this.prisma.user_role_assignment.update({
+        where: { id: assignment.id },
+        data: { deleted_at: new Date() },
+      });
+
+      await this.logRoleChange(
+        this.prisma,
+        user_id,
+        'role.revoked',
+        `Thu hồi role ${assignment.role.name} trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
+        revoked_by,
+        {
+          role_name: assignment.role.name,
+          scope_type: scope_type,
+          scope_id: scope_id || null,
+          action: 'deleted',
+          reason: 'User đã có role EMPLOYEE trong scope',
+        },
+      );
+    } else {
+      result = await this.prisma.user_role_assignment.update({
+        where: { id: assignment.id },
+        data: {
+          assigned_by: revoked_by,
+          role_id: ROLE_IDS.EMPLOYEE,
+        },
+      });
+
+      await this.logRoleChange(
+        this.prisma,
+        user_id,
+        'role.revoked',
+        `Thu hồi role ${assignment.role.name} và chuyển thành EMPLOYEE trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
+        revoked_by,
+        {
+          old_role: assignment.role.name,
+          new_role: 'employee',
+          scope_type: scope_type,
+          scope_id: scope_id || null,
+          action: 'downgraded_to_employee',
+        },
+      );
+    }
+
+    return result;
   }
 
   async getUserRoles(user_id: number): Promise<UserRoleContext> {

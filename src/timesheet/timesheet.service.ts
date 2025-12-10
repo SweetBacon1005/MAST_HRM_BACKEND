@@ -2533,4 +2533,178 @@ export class TimesheetService {
       ...(reason && { reason }),
     };
   }
+
+  /**
+   * Kiểm tra và lấy thông tin quota request (quên chấm công, đi muộn/về sớm)
+   */
+  async getRequestQuota(user_id: number) {
+    // Lấy quota từ user_leave_balances
+    const leaveBalance = await this.prisma.user_leave_balances.findUnique({
+      where: { user_id },
+      select: {
+        monthly_forgot_checkin_quota: true,
+        monthly_late_early_quota: true,
+        monthly_late_early_count_quota: true,
+        last_request_quota_reset_date: true,
+      },
+    });
+
+    const forgotCheckinQuota = leaveBalance?.monthly_forgot_checkin_quota || 3;
+    const lateEarlyMinutesQuota = leaveBalance?.monthly_late_early_quota || 120; // 120 phút
+    const lateEarlyCountQuota = leaveBalance?.monthly_late_early_count_quota || 3; // 3 requests
+
+    // Tính số request đã tạo trong tháng hiện tại
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Đếm số lượng forgot checkin requests (KHÔNG tính REJECTED)
+    const forgotCheckinCount = await this.prisma.forgot_checkin_requests.count({
+      where: {
+        user_id,
+        work_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        deleted_at: null,
+        status: { not: 'REJECTED' }, // Không tính requests bị reject
+      },
+    });
+
+    // Tính TỔNG SỐ PHÚT và SỐ LƯỢNG late/early requests (KHÔNG tính REJECTED)
+    const lateEarlyRequests = await this.prisma.late_early_requests.findMany({
+      where: {
+        user_id,
+        work_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        deleted_at: null,
+        status: { not: 'REJECTED' }, // Không tính requests bị reject
+      },
+      select: {
+        late_minutes: true,
+        early_minutes: true,
+      },
+    });
+
+    const lateEarlyRequestCount = lateEarlyRequests.length; // Số lượng requests
+    const totalLateEarlyMinutes = lateEarlyRequests.reduce((total, req) => {
+      return total + (req.late_minutes || 0) + (req.early_minutes || 0);
+    }, 0); // Tổng số phút
+
+    return {
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      forgot_checkin: {
+        quota: forgotCheckinQuota,
+        used: forgotCheckinCount,
+        remaining: Math.max(0, forgotCheckinQuota - forgotCheckinCount),
+        exceeded: forgotCheckinCount >= forgotCheckinQuota,
+      },
+      late_early: {
+        count_quota: lateEarlyCountQuota, // 3 requests
+        used_count: lateEarlyRequestCount, // Số requests đã tạo
+        remaining_count: Math.max(0, lateEarlyCountQuota - lateEarlyRequestCount),
+        count_exceeded: lateEarlyRequestCount >= lateEarlyCountQuota,
+        
+        minutes_quota: lateEarlyMinutesQuota, // 120 phút
+        used_minutes: totalLateEarlyMinutes, // Tổng phút đã dùng
+        remaining_minutes: Math.max(0, lateEarlyMinutesQuota - totalLateEarlyMinutes),
+        minutes_exceeded: totalLateEarlyMinutes >= lateEarlyMinutesQuota,
+        
+        exceeded: lateEarlyRequestCount >= lateEarlyCountQuota || totalLateEarlyMinutes >= lateEarlyMinutesQuota,
+      },
+      last_reset_date: leaveBalance?.last_request_quota_reset_date || null,
+    };
+  }
+
+  /**
+   * Validate request quota trước khi tạo request
+   * Throw BadRequestException nếu vượt quota
+   */
+  async validateRequestQuota(
+    user_id: number, 
+    requestType: 'forgot_checkin' | 'late_early',
+    requestMinutes?: number // Số phút của request sắp tạo (cho late_early)
+  ) {
+    const quota = await this.getRequestQuota(user_id);
+    
+    if (requestType === 'forgot_checkin' && quota.forgot_checkin.exceeded) {
+      throw new BadRequestException(
+        `Bạn đã hết quota request quên chấm công cho tháng này (${quota.forgot_checkin.used}/${quota.forgot_checkin.quota} requests)`
+      );
+    }
+    
+    if (requestType === 'late_early') {
+      // Check 1: Số lượng requests
+      if (quota.late_early.count_exceeded) {
+        throw new BadRequestException(
+          `Đã hết quota số lượng request đi muộn/về sớm cho tháng này (${quota.late_early.used_count}/${quota.late_early.count_quota} requests). Lưu ý: Các request bị reject không tính vào quota.`
+        );
+      }
+      
+      // Check 2: Tổng số phút
+      const totalMinutesAfterRequest = quota.late_early.used_minutes + (requestMinutes || 0);
+      
+      if (totalMinutesAfterRequest > quota.late_early.minutes_quota) {
+        throw new BadRequestException(
+          `Không đủ quota phút đi muộn/về sớm. Hiện có: ${quota.late_early.remaining_minutes} phút, cần: ${requestMinutes} phút (Đã dùng: ${quota.late_early.used_minutes}/${quota.late_early.minutes_quota} phút)`
+        );
+      }
+    }
+  }
+
+  /**
+   * Lấy thông tin số phút đi muộn/về sớm còn lại của user trong tháng
+   */
+  async getLateEarlyBalance(user_id: number) {
+    // Lấy quota từ user_leave_balances
+    const leaveBalance = await this.prisma.user_leave_balances.findUnique({
+      where: { user_id },
+      select: {
+        monthly_violation_minutes_quota: true,
+        last_violation_reset_date: true,
+      },
+    });
+
+    const quota = leaveBalance?.monthly_violation_minutes_quota || 60; // Default 60 phút
+
+    // Tính tổng phút muộn + sớm trong tháng hiện tại
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const summary = await this.prisma.time_sheets.aggregate({
+      where: {
+        user_id,
+        work_date: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+        deleted_at: null,
+      },
+      _sum: {
+        late_time: true,
+        early_time: true,
+      },
+    });
+
+    const usedLateMinutes = summary._sum.late_time || 0;
+    const usedEarlyMinutes = summary._sum.early_time || 0;
+    const totalUsedMinutes = usedLateMinutes + usedEarlyMinutes;
+
+    return {
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      quota: quota,
+      used_minutes: totalUsedMinutes,
+      used_late_minutes: usedLateMinutes,
+      used_early_minutes: usedEarlyMinutes,
+      remaining_minutes: Math.max(0, quota - totalUsedMinutes),
+      exceeded: totalUsedMinutes > quota,
+      exceeded_by: Math.max(0, totalUsedMinutes - quota),
+      last_reset_date: leaveBalance?.last_violation_reset_date || null,
+    };
+  }
 }

@@ -80,9 +80,6 @@ model divisions {
     type          DivisionType?
     status        DivisionStatus?
     address       String?
-    parent_id     Int?
-    parent        divisions?         @relation("DivisionParent", fields: [parent_id], references: [id])
-    children      divisions[]        @relation("DivisionParent")
     founding_at   DateTime
     description   String?
     created_at    DateTime           @default(now())
@@ -93,7 +90,6 @@ model divisions {
     from_division rotation_members[] @relation("from_division")
     to_division   rotation_members[] @relation("to_division")
 
-    @@index([parent_id])
     @@index([type])
     @@index([status])
 }
@@ -774,17 +770,23 @@ model remote_work_requests {
 }
 
 model user_leave_balances {
-    id                      Int       @id @default(autoincrement())
-    user_id                 Int       @unique
-    user                    users     @relation(fields: [user_id], references: [id])
-    paid_leave_balance      Float     @default(0)
-    unpaid_leave_balance    Float     @default(0)
-    annual_paid_leave_quota Float     @default(36)
-    carry_over_days         Float     @default(0)
-    last_reset_date         DateTime? @db.Date
-    created_at              DateTime  @default(now())
-    updated_at              DateTime  @updatedAt
-    deleted_at              DateTime? @db.DateTime()
+    id                              Int       @id @default(autoincrement())
+    user_id                         Int       @unique
+    user                            users     @relation(fields: [user_id], references: [id])
+    paid_leave_balance              Float     @default(0)
+    unpaid_leave_balance            Float     @default(0)
+    annual_paid_leave_quota         Float     @default(36)
+    carry_over_days                 Float     @default(0)
+    last_reset_date                   DateTime? @db.Date
+    monthly_violation_minutes_quota   Int       @default(60) // Tổng số phút đi muộn/về sớm được phép/tháng
+    last_violation_reset_date         DateTime? @db.Date // Ngày reset số phút vi phạm lần cuối
+    monthly_forgot_checkin_quota      Int       @default(3) // Số request quên chấm công được phép/tháng
+    monthly_late_early_quota          Int       @default(120) // Tổng số PHÚT request đi muộn/về sớm được phép/tháng
+    monthly_late_early_count_quota    Int       @default(3) // Số LƯỢNG request đi muộn/về sớm được phép/tháng
+    last_request_quota_reset_date     DateTime? @db.Date // Ngày reset quota request lần cuối
+    created_at                      DateTime  @default(now())
+    updated_at                      DateTime  @updatedAt
+    deleted_at                      DateTime? @db.DateTime()
 
     @@index([user_id])
     @@index([deleted_at])

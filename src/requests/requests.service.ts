@@ -27,6 +27,7 @@ import {
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
+import { TimesheetService } from '../timesheet/timesheet.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
@@ -48,6 +49,7 @@ export class RequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leaveBalanceService: LeaveBalanceService,
+    private readonly timesheetService: TimesheetService,
     private readonly permissionChecker: PermissionCheckerService,
     private readonly activityLogService: ActivityLogService,
     private readonly roleAssignmentService: RoleAssignmentService,
@@ -1871,6 +1873,12 @@ export class RequestsService {
   ): Promise<LateEarlyRequestResponseDto> {
     await this.validateUser(dto.user_id);
 
+    // Tính tổng số phút của request này
+    const totalRequestMinutes = (dto.late_minutes || 0) + (dto.early_minutes || 0);
+
+    // Validate request quota (bao gồm số phút sẽ tạo)
+    await this.timesheetService.validateRequestQuota(dto.user_id, 'late_early', totalRequestMinutes);
+
     const workDate = new Date(dto.work_date);
 
     const existingRequest = await this.prisma.late_early_requests.findFirst({
@@ -2256,6 +2264,9 @@ export class RequestsService {
     dto: CreateForgotCheckinRequestDto,
   ): Promise<ForgotCheckinRequestResponseDto> {
     await this.validateUser(dto.user_id);
+
+    // Validate request quota
+    await this.timesheetService.validateRequestQuota(dto.user_id, 'forgot_checkin');
 
     const workDate = new Date(dto.work_date);
     this.validatePastOrCurrentDate(workDate);

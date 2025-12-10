@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import { ROLE_IDS } from '../auth/constants/role.constants';
 import {
@@ -27,10 +28,12 @@ export class UsersService {
   async create(createUserDto: CreateUserDto, assignedBy: number) {
     const { password, ...userData } = createUserDto;
 
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     const user = await this.prisma.users.create({
       data: {
         email: userData.email.toLowerCase(),
-        password: password,
+        password: hashedPassword,
         email_verified_at: new Date(),
         user_information: {
           create: {
@@ -397,7 +400,6 @@ export class UsersService {
       deleted_at: Date | null;
       address: string | null;
       type: any;
-      parent_id: number | null;
       founding_at: Date;
     } | null = null;
     if (divisionAssignment?.scope_id) {

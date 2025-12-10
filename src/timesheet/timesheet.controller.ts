@@ -618,6 +618,101 @@ export class TimesheetController {
     );
   }
 
+  @Get('late-early-balance')
+  @RequirePermission('attendance.read')
+  @ApiOperation({
+    summary: 'Lấy số phút đi muộn/về sớm còn lại trong tháng',
+    description: `
+      Trả về thông tin số phút đi muộn/về sớm của user trong tháng hiện tại.
+      
+      **Response bao gồm:**
+      - quota: Tổng số phút được phép/tháng (mặc định 60 phút)
+      - used_minutes: Tổng số phút đã dùng (late + early)
+      - used_late_minutes: Số phút đi muộn
+      - used_early_minutes: Số phút về sớm
+      - remaining_minutes: Số phút còn lại
+      - exceeded: Đã vượt quota chưa
+      - exceeded_by: Số phút vượt quá (nếu có)
+    `,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin thành công',
+    schema: {
+      example: {
+        month: 12,
+        year: 2025,
+        quota: 60,
+        used_minutes: 45,
+        used_late_minutes: 30,
+        used_early_minutes: 15,
+        remaining_minutes: 15,
+        exceeded: false,
+        exceeded_by: 0,
+        last_reset_date: '2025-11-30',
+      },
+    },
+  })
+  getLateEarlyBalance(@GetCurrentUser('id') user_id: number) {
+    return this.timesheetService.getLateEarlyBalance(user_id);
+  }
+
+  @Get('request-quota')
+  @RequirePermission('attendance.read')
+  @ApiOperation({
+    summary: 'Lấy quota request quên chấm công & đi muộn/về sớm còn lại',
+    description: `
+      Trả về thông tin quota của requests trong tháng.
+      
+      **Giới hạn mặc định:**
+      - Request quên chấm công: 3 lần/tháng
+      - Request đi muộn/về sớm:
+        + 3 requests/tháng (số lượng)
+        + 120 phút/tháng (tổng late_minutes + early_minutes)
+      
+      **Lưu ý quan trọng:**
+      - Các request bị REJECT không tính vào quota → Có thể tạo lại
+      - Late/early có 2 giới hạn: phải đủ CẢ HAI mới tạo được request
+      - Forgot checkin: Chỉ giới hạn theo SỐ LƯỢNG
+      - Late/early: Giới hạn theo CẢ SỐ LƯỢNG VÀ TỔNG PHÚT
+      
+      **Response bao gồm:**
+      - forgot_checkin: Thông tin quota theo số lượng requests
+      - late_early: Thông tin quota theo CẢ số lượng VÀ tổng phút
+    `,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin thành công',
+    schema: {
+      example: {
+        month: 12,
+        year: 2025,
+        forgot_checkin: {
+          quota: 3,
+          used: 1,
+          remaining: 2,
+          exceeded: false,
+        },
+        late_early: {
+          count_quota: 3,
+          used_count: 2,
+          remaining_count: 1,
+          count_exceeded: false,
+          minutes_quota: 120,
+          used_minutes: 75,
+          remaining_minutes: 45,
+          minutes_exceeded: false,
+          exceeded: false,
+        },
+        last_reset_date: '2025-11-30',
+      },
+    },
+  })
+  getRequestQuota(@GetCurrentUser('id') user_id: number) {
+    return this.timesheetService.getRequestQuota(user_id);
+  }
+
   // === ATTENDANCE LOGS MANAGEMENT ===
 
   @Post('attendance-logs')
