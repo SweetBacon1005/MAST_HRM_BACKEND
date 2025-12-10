@@ -60,18 +60,12 @@ export class DivisionController {
       Tạo division mới trong hệ thống với đầy đủ thông tin.
       
       **Logic xử lý:**
-      1. Validate parent division (nếu có)
-      2. Kiểm tra tên division đã tồn tại chưa
-      3. Tạo division với thông tin được cung cấp
-      4. Tự động gán người tạo làm Division Head
-      
-      **Cấu trúc phân cấp:**
-      - Có thể tạo division con bằng cách chỉ định parent_id
-      - Division cha phải tồn tại và active
+      1. Kiểm tra tên division đã tồn tại chưa
+      2. Tạo division với thông tin được cung cấp
+      3. Tự động gán leader làm Division Head
       
       **Quyền:**
-      - Admin: Tạo division ở bất kỳ cấp nào
-      - Division Head: Tạo sub-division trong division mình quản lý
+      - Chỉ Admin mới có thể tạo division mới
     `,
   })
   @ApiResponse({
@@ -86,7 +80,6 @@ export class DivisionController {
         status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
         address: { type: 'string', nullable: true },
         description: { type: 'string', nullable: true },
-        parent_id: { type: 'number', nullable: true },
         founding_at: { type: 'string', format: 'date-time' },
         division_head: {
           type: 'object',
@@ -105,7 +98,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy parent division hoặc leader',
+    description: 'Không tìm thấy leader',
   })
   create(
     @Body() createDivisionDto: CreateDivisionDto,
@@ -124,14 +117,11 @@ export class DivisionController {
       
       **Filters hỗ trợ:**
       - search: Tìm theo tên division
-      - parent_id: Lọc theo division cha
       - type: Lọc theo loại (TECHNICAL, BUSINESS, OPERATIONS, OTHER)
       - status: Lọc theo trạng thái (ACTIVE, INACTIVE)
       
       **Dữ liệu trả về cho mỗi division:**
       - Thông tin cơ bản (id, name, type, status, address...)
-      - Parent division (nếu có)
-      - Sub-divisions (divisions con)
       - Member count (số lượng thành viên)
       - Project count (số lượng dự án)
       
@@ -158,8 +148,6 @@ export class DivisionController {
               status: { type: 'string' },
               member_count: { type: 'number' },
               project_count: { type: 'number' },
-              parent: { type: 'object', nullable: true },
-              children: { type: 'array' },
             },
           },
         },
@@ -187,13 +175,8 @@ export class DivisionController {
   @ApiResponse({
     status: 200,
   })
-  @ApiQuery({
-    name: 'parent_id',
-    required: false,
-    type: Number,
-  })
-  getHierarchy(@Query('parent_id') parentId?: number) {
-    return this.divisionService.getDivisionHierarchy(parentId);
+  getHierarchy() {
+    return this.divisionService.getDivisionHierarchy();
   }
 
   // === ROTATION MEMBERS (PERSONNEL TRANSFER) ===
@@ -1297,8 +1280,6 @@ export class DivisionController {
       
       **Thông tin trả về:**
       - Thông tin cơ bản: id, name, type, status, address, description
-      - Parent division (phòng ban cha)
-      - Sub-divisions (các phòng ban con)
       - Division Head (trưởng phòng)
       - Member count (tổng số thành viên)
       - Team count (tổng số teams)
@@ -1325,24 +1306,6 @@ export class DivisionController {
         address: { type: 'string', nullable: true },
         description: { type: 'string', nullable: true },
         founding_at: { type: 'string', format: 'date-time' },
-        parent: {
-          type: 'object',
-          nullable: true,
-          properties: {
-            id: { type: 'number' },
-            name: { type: 'string' },
-          },
-        },
-        children: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              name: { type: 'string' },
-            },
-          },
-        },
         division_head: {
           type: 'object',
           nullable: true,
@@ -1380,14 +1343,10 @@ export class DivisionController {
       - status: Trạng thái (ACTIVE, INACTIVE)
       - address: Địa chỉ
       - description: Mô tả
-      - parent_id: Chuyển sang phòng ban cha khác
       - founding_at: Ngày thành lập
       
       **Validation:**
       - Tên mới không được trùng với division khác
-      - Parent division phải tồn tại (nếu thay đổi)
-      - Không được set parent_id = chính nó
-      - Không được tạo vòng lặp trong hierarchy
       
       **Lưu ý:**
       - Division Head không được update ở đây (dùng API assign role riêng)
@@ -1411,7 +1370,6 @@ export class DivisionController {
             status: { type: 'string' },
             address: { type: 'string' },
             description: { type: 'string' },
-            parent_id: { type: 'number', nullable: true },
             updated_at: { type: 'string', format: 'date-time' },
           },
         },
@@ -1424,7 +1382,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 404,
-    description: 'Không tìm thấy division hoặc parent division',
+    description: 'Không tìm thấy division',
   })
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -1442,21 +1400,14 @@ export class DivisionController {
       
       **Logic xử lý:**
       1. Kiểm tra division có tồn tại không
-      2. Kiểm tra division có sub-divisions không (không cho xóa nếu có)
-      3. Kiểm tra division có members không (không cho xóa nếu có)
-      4. Kiểm tra division có teams/projects không
-      5. Soft delete division (set deleted_at)
+      2. Kiểm tra division có members không (không cho xóa nếu có)
+      3. Soft delete division (set deleted_at)
       
       **Điều kiện xóa được:**
-      - ✅ Division không có sub-divisions
       - ✅ Division không có members
-      - ✅ Division không có teams active
-      - ✅ Division không có projects active
       
       **Điều kiện KHÔNG xóa được:**
-      - ❌ Division có sub-divisions
       - ❌ Division có members (cần remove members trước)
-      - ❌ Division có teams/projects (cần xóa/chuyển teams/projects trước)
       
       **Lưu ý:**
       - Đây là soft delete (có thể khôi phục)
@@ -1484,7 +1435,7 @@ export class DivisionController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Không thể xóa division (có sub-divisions, members, teams hoặc projects)',
+    description: 'Không thể xóa division (có members)',
   })
   @ApiResponse({
     status: 404,

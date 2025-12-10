@@ -127,7 +127,7 @@ export class DivisionService {
 
     const leader = await this.prisma.user_role_assignment.create({
       data: {
-        user_id: createDivisionDto.creator_id,
+        user_id: createDivisionDto.leader_id,
         scope_type: ScopeType.DIVISION,
         scope_id: division.id,
         role_id: ROLE_IDS.DIVISION_HEAD,
@@ -316,7 +316,7 @@ export class DivisionService {
     });
   }
 
-  async getDivisionHierarchy(id?: number) {
+  async getDivisionHierarchy() {
     const where: Prisma.divisionsWhereInput = {
       deleted_at: null,
     };

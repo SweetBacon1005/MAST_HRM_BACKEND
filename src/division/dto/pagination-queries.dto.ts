@@ -15,19 +15,6 @@ export class DivisionPaginationDto extends PaginationDto {
   search?: string;
 
   @ApiProperty({
-    description: 'Lọc theo ID phòng ban cha',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value === null || value === undefined) return undefined;
-    return Number(value);
-  })
-  @IsInt()
-  parent_id?: number;
-
-  @ApiProperty({
     description: 'Lọc theo loại phòng ban',
     example: DivisionType.TECHNICAL,
     required: false,
