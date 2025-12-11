@@ -1,0 +1,1045 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma, ScopeType } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
+import { getRoleLevel, ROLE_IDS } from '../constants/role.constants';
+
+export interface RoleAssignmentData {
+  user_id: number;
+  role_id: number;
+  scope_type: ScopeType;
+  scope_id?: number;
+  assigned_by: number;
+}
+
+export interface UserRoleContext {
+  user_id: number;
+  roles: {
+    id: number;
+    name: string;
+    scope_type: ScopeType;
+    scope_id?: number;
+  }[];
+}
+
+@Injectable()
+export class RoleAssignmentService {
+  constructor(private prisma: PrismaService) {}
+
+  async getRoles() {
+    return await this.prisma.roles.findMany();
+  }
+
+  async assignRole(data: RoleAssignmentData) {
+    await this.validateScope(data.scope_type, data.scope_id);
+
+    const role = await this.prisma.roles.findFirst({
+      where: { id: data.role_id, deleted_at: null },
+    });
+    if (!role) {
+      throw new NotFoundException('Role không tồn tại');
+    }
+
+    const user = await this.prisma.users.findFirst({
+      where: { id: data.user_id, deleted_at: null },
+    });
+    if (!user) {
+      throw new NotFoundException('User không tồn tại');
+    }
+
+    const existingAssignment = await this.prisma.user_role_assignment.findFirst(
+      {
+        where: {
+          user_id: data.user_id,
+          role_id: data.role_id,
+          scope_type: data.scope_type,
+          scope_id: data.scope_id,
+          deleted_at: null,
+        },
+      },
+    );
+
+    if (existingAssignment) {
+      throw new ConflictException(
+        `User đã có role này trong scope ${data.scope_type} này`,
+      );
+    }
+
+    // Xóa role cũ chỉ khi:
+    // - Scope có scope_id (DIVISION, PROJECT, TEAM) => chỉ được 1 role per scope_id
+    // - COMPANY scope => không xóa, cho phép nhiều role
+    if (data.scope_id !== null && data.scope_id !== undefined) {
+      await this.prisma.user_role_assignment.updateMany({
+        where: {
+          user_id: data.user_id,
+          scope_id: data.scope_id,
+          scope_type: data.scope_type,
+          deleted_at: null,
+        },
+        data: { deleted_at: new Date() },
+      });
+    }
+
+    const newAssignment = await this.prisma.user_role_assignment.create({
+      data: {
+        user_id: data.user_id,
+        role_id: data.role_id,
+        scope_type: data.scope_type,
+        scope_id: data.scope_id,
+        assigned_by: data.assigned_by,
+      },
+      include: {
+        role: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: { name: true },
+            },
+          },
+        },
+      },
+    });
+
+    await this.logRoleChange(
+      this.prisma,
+      data.user_id,
+      'role.assigned',
+      `Gán role ${role.name} cho user trong scope ${data.scope_type} ${data.scope_id ? `với ID ${data.scope_id}` : ''}`,
+      data.assigned_by,
+      {
+        role_name: role.name,
+        scope_type: data.scope_type,
+        scope_id: data.scope_id || null,
+      },
+    );
+
+    return newAssignment;
+  }
+
+  async revokeRole(
+    user_id: number,
+    role_id: number,
+    scope_type: ScopeType,
+    revoked_by: number,
+    scope_id?: number,
+  ) {
+    const assignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: user_id,
+        role_id: role_id,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+      },
+      include: {
+        role: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Role assignment không tồn tại');
+    }
+
+    const existingEmployee = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: user_id,
+        role_id: ROLE_IDS.EMPLOYEE,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+      },
+    });
+
+    let result;
+
+    if (existingEmployee) {
+      result = await this.prisma.user_role_assignment.update({
+        where: { id: assignment.id },
+        data: { deleted_at: new Date() },
+      });
+
+      await this.logRoleChange(
+        this.prisma,
+        user_id,
+        'role.revoked',
+        `Thu hồi role ${assignment.role.name} trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
+        revoked_by,
+        {
+          role_name: assignment.role.name,
+          scope_type: scope_type,
+          scope_id: scope_id || null,
+          action: 'deleted',
+          reason: 'User đã có role EMPLOYEE trong scope',
+        },
+      );
+    } else {
+      result = await this.prisma.user_role_assignment.update({
+        where: { id: assignment.id },
+        data: {
+          assigned_by: revoked_by,
+          role_id: ROLE_IDS.EMPLOYEE,
+        },
+      });
+
+      await this.logRoleChange(
+        this.prisma,
+        user_id,
+        'role.revoked',
+        `Thu hồi role ${assignment.role.name} và chuyển thành EMPLOYEE trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
+        revoked_by,
+        {
+          old_role: assignment.role.name,
+          new_role: 'employee',
+          scope_type: scope_type,
+          scope_id: scope_id || null,
+          action: 'downgraded_to_employee',
+        },
+      );
+    }
+
+    return result;
+  }
+
+  async getUserRoles(user_id: number): Promise<UserRoleContext> {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: user_id,
+        deleted_at: null,
+      },
+      include: {
+        role: true,
+      },
+      orderBy: [{ scope_type: 'asc' }, { created_at: 'desc' }],
+    });
+
+    return {
+      user_id: user_id,
+      roles: assignments.map((assignment) => ({
+        id: assignment.role.id,
+        name: assignment.role.name,
+        scope_type: assignment.scope_type,
+        scope_id: assignment.scope_id ?? undefined,
+      })),
+    };
+  }
+
+  async getUserRolesByScope(
+    user_id: number,
+    scope_type: ScopeType,
+    scope_id?: number,
+  ) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: user_id,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+      },
+      include: {
+        role: true,
+      },
+      orderBy: [{ created_at: 'desc' }],
+    });
+
+    return assignments.map((assignment) => ({
+      id: assignment.role.id,
+      name: assignment.role.name,
+      assigned_at: assignment.created_at,
+    }));
+  }
+
+  async getUserPrimaryRole(
+    user_id: number,
+    scope_type: ScopeType,
+    scope_id?: number,
+  ) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: user_id,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+      },
+      include: { role: true },
+    });
+
+    if (!assignments.length) return null;
+
+    let highest = assignments[0];
+    let highestLevel = getRoleLevel(assignments[0].role.name);
+    for (let i = 1; i < assignments.length; i++) {
+      const level = getRoleLevel(assignments[i].role.name);
+      if (level > highestLevel) {
+        highest = assignments[i];
+        highestLevel = level;
+      }
+    }
+
+    return {
+      id: highest.role.id,
+      name: highest.role.name,
+      scope_type: highest.scope_type,
+      scope_id: highest.scope_id,
+    };
+  }
+
+  async hasRole(
+    user_id: number,
+    role_name: string,
+    scope_type: ScopeType,
+    scope_id?: number,
+  ): Promise<boolean> {
+    const assignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: user_id,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+        role: {
+          name: role_name,
+          deleted_at: null,
+        },
+      },
+    });
+
+    return !!assignment;
+  }
+
+  async hasAnyRole(
+    user_id: number,
+    role_names: string[],
+    scope_type: ScopeType,
+    scope_id?: number,
+  ): Promise<boolean> {
+    const assignment = await this.prisma.user_role_assignment.findFirst({
+      where: {
+        user_id: user_id,
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+        role: {
+          name: { in: role_names },
+          deleted_at: null,
+        },
+      },
+    });
+
+    return !!assignment;
+  }
+
+  async getUsersByRole(
+    role_name: string,
+    scope_type: ScopeType,
+    scope_id?: number,
+  ) {
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: scope_type,
+        scope_id: scope_id,
+        deleted_at: null,
+        role: {
+          name: role_name,
+          deleted_at: null,
+        },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: { name: true, avatar: true },
+            },
+          },
+        },
+        role: true,
+      },
+      orderBy: [{ created_at: 'desc' }],
+    });
+
+    return assignments.map((assignment) => ({
+      user_id: assignment.user.id,
+      email: assignment.user.email,
+      name: assignment.user.user_information?.name,
+      avatar: assignment.user.user_information?.avatar,
+      role_name: assignment.role.name,
+      assigned_at: assignment.created_at,
+    }));
+  }
+
+  async bulkAssignRoles(assignments: RoleAssignmentData[]) {
+    const results: Array<{
+      success: boolean;
+      data?: any;
+      error?: string;
+      assignment?: RoleAssignmentData;
+    }> = [];
+
+    for (const assignment of assignments) {
+      try {
+        const result = await this.assignRole(assignment);
+        results.push({ success: true, data: result });
+      } catch (error) {
+        results.push({
+          success: false,
+          error: error.message,
+          assignment: assignment,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private async validateScope(scope_type: ScopeType, scope_id?: number) {
+    switch (scope_type) {
+      case ScopeType.COMPANY:
+        break;
+
+      case ScopeType.DIVISION: {
+        if (!scope_id) {
+          throw new BadRequestException('Division scope cần scope_id');
+        }
+        const division = await this.prisma.divisions.findFirst({
+          where: { id: scope_id, deleted_at: null },
+        });
+        if (!division) {
+          throw new NotFoundException('Division không tồn tại');
+        }
+        break;
+      }
+
+      case ScopeType.TEAM: {
+        if (!scope_id) {
+          throw new BadRequestException('Team scope cần scope_id');
+        }
+        const team = await this.prisma.teams.findFirst({
+          where: { id: scope_id, deleted_at: null },
+        });
+        if (!team) {
+          throw new NotFoundException('Team không tồn tại');
+        }
+        break;
+      }
+
+      case ScopeType.PROJECT: {
+        if (!scope_id) {
+          throw new BadRequestException('Project scope cần scope_id');
+        }
+        const project = await this.prisma.projects.findFirst({
+          where: { id: scope_id, deleted_at: null },
+        });
+        if (!project) {
+          throw new NotFoundException('Project không tồn tại');
+        }
+        break;
+      }
+
+      default:
+        throw new BadRequestException('Scope type không hợp lệ');
+    }
+  }
+
+  async getRoleHierarchy(
+    user_id: number,
+    scope_type: ScopeType,
+    scope_id?: number,
+  ) {
+    const userRoles = await this.getUserRolesByScope(
+      user_id,
+      scope_type,
+      scope_id,
+    );
+
+    const roleHierarchy = {
+      Admin: 100,
+      Manager: 80,
+      'Team Lead': 60,
+      'Senior Developer': 50,
+      Developer: 40,
+      Intern: 20,
+    };
+
+    const userRoleNames = userRoles.map((role) => role.name);
+    const maxLevel = Math.max(
+      ...userRoleNames.map((name) => roleHierarchy[name] || 0),
+    );
+
+    return {
+      user_id: user_id,
+      max_role_level: maxLevel,
+      roles: userRoles,
+      inherited_permissions: this.getInheritedPermissions(
+        maxLevel,
+        roleHierarchy,
+      ),
+    };
+  }
+
+  private getInheritedPermissions(
+    userLevel: number,
+    roleHierarchy: Record<string, number>,
+  ) {
+    return Object.keys(roleHierarchy)
+      .filter((role_name) => roleHierarchy[role_name] <= userLevel)
+      .sort((a, b) => roleHierarchy[b] - roleHierarchy[a]);
+  }
+
+  /**
+   * Gán PM mới cho project - thay thế PM cũ nếu có
+   */
+  async assignProjectManager(
+    projectId: number,
+    newuser_id: number,
+    assignedBy: number,
+  ) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Tìm PM hiện tại trong project
+      const currentPM = await tx.user_role_assignment.findFirst({
+        where: {
+          scope_type: ScopeType.PROJECT,
+          scope_id: projectId,
+          role: {
+            name: 'project_manager',
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: { name: true },
+              },
+            },
+          },
+          role: true,
+        },
+      });
+
+      let replacedUser: any = null;
+
+      // 2. Nếu có PM cũ, xóa mềm
+      if (currentPM) {
+        await tx.user_role_assignment.update({
+          where: { id: currentPM.id },
+          data: { deleted_at: new Date() },
+        });
+        replacedUser = currentPM.user;
+      }
+
+      // 3. Lấy role PM
+      const pmRole = await tx.roles.findFirst({
+        where: { name: 'project_manager', deleted_at: null },
+      });
+
+      if (!pmRole) {
+        throw new NotFoundException('Role project_manager không tồn tại');
+      }
+
+      // 4. Gán PM mới
+      const newAssignment = await tx.user_role_assignment.create({
+        data: {
+          user_id: newuser_id,
+          role_id: pmRole.id,
+          scope_type: ScopeType.PROJECT,
+          scope_id: projectId,
+          assigned_by: assignedBy,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: { name: true },
+              },
+            },
+          },
+          role: true,
+        },
+      });
+
+      // 5. Ghi log
+      await this.logRoleChange(
+        tx,
+        newuser_id,
+        'role.assigned',
+        `Gán PM cho project ${projectId}`,
+        assignedBy,
+        {
+          project_id: projectId,
+          new_role: 'project_manager',
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
+      );
+
+      return {
+        newAssignment,
+        replacedUser,
+      };
+    });
+  }
+
+  /**
+   * Giáng chức PM khỏi project
+   */
+  async demoteProjectManager(
+    projectId: number,
+    user_id: number,
+    demotedBy: number,
+  ) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Tìm và xóa role PM trong project
+      const pmAssignment = await tx.user_role_assignment.findFirst({
+        where: {
+          user_id: user_id,
+          scope_type: ScopeType.PROJECT,
+          scope_id: projectId,
+          role: {
+            name: 'project_manager',
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+      });
+
+      if (!pmAssignment) {
+        throw new NotFoundException('User không phải PM của project này');
+      }
+
+      // Xóa mềm assignment
+      await tx.user_role_assignment.update({
+        where: { id: pmAssignment.id },
+        data: { deleted_at: new Date() },
+      });
+
+      // 2. Kiểm tra user còn role nào khác không
+      const remainingRoles = await tx.user_role_assignment.findMany({
+        where: {
+          user_id: user_id,
+          deleted_at: null,
+        },
+        include: {
+          role: true,
+        },
+      });
+
+      let autoAssignedEmployee: any = null;
+
+      // 3. Nếu không còn role nào, tự động gán role employee
+      if (remainingRoles.length === 0) {
+        const employeeRole = await tx.roles.findFirst({
+          where: { name: 'employee', deleted_at: null },
+        });
+
+        if (employeeRole) {
+          autoAssignedEmployee = await tx.user_role_assignment.create({
+            data: {
+              user_id: user_id,
+              role_id: employeeRole.id,
+              scope_type: ScopeType.COMPANY,
+              assigned_by: demotedBy,
+            },
+          });
+        }
+      }
+
+      // 4. Ghi log
+      await this.logRoleChange(
+        tx,
+        user_id,
+        'role.revoked',
+        `Giáng chức PM khỏi project ${projectId}`,
+        demotedBy,
+        {
+          project_id: projectId,
+          revoked_role: 'project_manager',
+          auto_assigned_employee: !!autoAssignedEmployee,
+        },
+      );
+
+      return {
+        revokedAssignment: pmAssignment,
+        remainingRoles: remainingRoles.map((r) => r.role.name),
+        autoAssignedEmployee,
+      };
+    });
+  }
+
+  async assignRoleUnified(
+    targetuser_ids: number[],
+    role_id: number,
+    assignedBy: number,
+    context?: {
+      projectId?: number;
+      team_id?: number;
+      division_id?: number;
+    },
+  ) {
+    const results: any[] = [];
+
+    for (const user_id of targetuser_ids) {
+      try {
+        const result = await this.assignRoleToUser(
+          user_id,
+          role_id,
+          assignedBy,
+          context,
+        );
+        results.push({
+          user_id,
+          success: true,
+          ...result,
+        });
+      } catch (error: any) {
+        results.push({
+          user_id,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        total: targetuser_ids.length,
+        successful: results.filter((r) => r.success).length,
+        failed: results.filter((r) => !r.success).length,
+      },
+    };
+  }
+
+  private async assignRoleToUser(
+    user_id: number,
+    role_id: number,
+    assignedBy: number,
+    context?: {
+      projectId?: number;
+      team_id?: number;
+      division_id?: number;
+    },
+  ) {
+    const role = await this.prisma.roles.findFirst({
+      where: { id: role_id, deleted_at: null },
+    });
+
+    if (!role) {
+      throw new NotFoundException('Role không tồn tại');
+    }
+
+    switch (role.name) {
+      case 'project_manager':
+        if (!context?.projectId) {
+          throw new BadRequestException(
+            'Role project_manager yêu cầu projectId',
+          );
+        }
+        return await this.assignProjectManager(
+          context.projectId,
+          user_id,
+          assignedBy,
+        );
+
+      case 'team_leader':
+        if (!context?.team_id) {
+          throw new BadRequestException('Role team_leader yêu cầu team_id');
+        }
+        return await this.assignTeamLeader(
+          context.team_id,
+          user_id,
+          assignedBy,
+        );
+
+      case 'division_head':
+        if (!context?.division_id) {
+          throw new BadRequestException(
+            'Role division_head yêu cầu division_id',
+          );
+        }
+        return await this.assignDivisionHead(
+          context.division_id,
+          user_id,
+          assignedBy,
+        );
+
+      default:
+        // Gán role thông thường
+        return await this.assignGeneralRole(
+          user_id,
+          role_id,
+          assignedBy,
+          context,
+        );
+    }
+  }
+
+  /**
+   * Gán Team Leader
+   */
+  private async assignTeamLeader(
+    team_id: number,
+    newuser_id: number,
+    assignedBy: number,
+  ) {
+    return await this.prisma.$transaction(async (tx) => {
+      // Tìm team leader hiện tại
+      const currentLeader = await tx.user_role_assignment.findFirst({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: team_id,
+          role: {
+            name: 'team_leader',
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+        },
+      });
+
+      let replacedUser: any = null;
+
+      // Xóa leader cũ nếu có
+      if (currentLeader) {
+        await tx.user_role_assignment.update({
+          where: { id: currentLeader.id },
+          data: { deleted_at: new Date() },
+        });
+        replacedUser = currentLeader.user;
+      }
+
+      // Gán leader mới
+      const teamLeaderRole = await tx.roles.findFirst({
+        where: { name: 'team_leader', deleted_at: null },
+      });
+
+      if (!teamLeaderRole) {
+        throw new NotFoundException('Role team_leader không tồn tại');
+      }
+
+      const newAssignment = await tx.user_role_assignment.create({
+        data: {
+          user_id: newuser_id,
+          role_id: teamLeaderRole.id,
+          scope_type: ScopeType.TEAM,
+          scope_id: team_id,
+          assigned_by: assignedBy,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          role: true,
+        },
+      });
+
+      // Ghi log
+      await this.logRoleChange(
+        tx,
+        newuser_id,
+        'role.assigned',
+        `Gán Team Leader cho team ${team_id}`,
+        assignedBy,
+        {
+          team_id: team_id,
+          new_role: 'team_leader',
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
+      );
+
+      return { newAssignment, replacedUser };
+    });
+  }
+
+  /**
+   * Gán Division Head
+   */
+  private async assignDivisionHead(
+    division_id: number,
+    newuser_id: number,
+    assignedBy: number,
+  ) {
+    return await this.prisma.$transaction(async (tx) => {
+      // Tìm division head hiện tại
+      const currentHead = await tx.user_role_assignment.findFirst({
+        where: {
+          scope_type: ScopeType.DIVISION,
+          scope_id: division_id,
+          role: {
+            name: 'division_head',
+            deleted_at: null,
+          },
+          deleted_at: null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+        },
+      });
+
+      let replacedUser: any = null;
+
+      // Xóa head cũ nếu có
+      if (currentHead) {
+        await tx.user_role_assignment.update({
+          where: { id: currentHead.id },
+          data: { deleted_at: new Date() },
+        });
+        replacedUser = currentHead.user;
+      }
+
+      // Gán head mới
+      const divisionHeadRole = await tx.roles.findFirst({
+        where: { name: 'division_head', deleted_at: null },
+      });
+
+      if (!divisionHeadRole) {
+        throw new NotFoundException('Role division_head không tồn tại');
+      }
+
+      const newAssignment = await tx.user_role_assignment.create({
+        data: {
+          user_id: newuser_id,
+          role_id: divisionHeadRole.id,
+          scope_type: ScopeType.DIVISION,
+          scope_id: division_id,
+          assigned_by: assignedBy,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              user_information: { select: { name: true } },
+            },
+          },
+          role: true,
+        },
+      });
+
+      // Ghi log
+      await this.logRoleChange(
+        tx,
+        newuser_id,
+        'role.assigned',
+        `Gán Division Head cho division ${division_id}`,
+        assignedBy,
+        {
+          division_id: division_id,
+          new_role: 'division_head',
+          replaced_user: replacedUser
+            ? {
+                id: replacedUser.id,
+                name: replacedUser.user_information?.[0]?.name || null,
+                email: replacedUser.email,
+              }
+            : null,
+        },
+      );
+
+      return { newAssignment, replacedUser };
+    });
+  }
+
+  /**
+   * Gán role thông thường (employee, etc.)
+   */
+  private async assignGeneralRole(
+    user_id: number,
+    role_id: number,
+    assignedBy: number,
+    context?: {
+      projectId?: number;
+      team_id?: number;
+      division_id?: number;
+    },
+  ) {
+    // Xác định scope
+    let scope_type: ScopeType = ScopeType.COMPANY;
+    let scope_id: number | undefined = undefined;
+
+    if (context?.projectId) {
+      scope_type = ScopeType.PROJECT;
+      scope_id = context.projectId;
+    } else if (context?.team_id) {
+      scope_type = ScopeType.TEAM;
+      scope_id = context.team_id;
+    } else if (context?.division_id) {
+      scope_type = ScopeType.DIVISION;
+      scope_id = context.division_id;
+    }
+
+    return await this.assignRole({
+      user_id: user_id,
+      role_id: role_id,
+      scope_type: scope_type,
+      scope_id: scope_id,
+      assigned_by: assignedBy,
+    });
+  }
+
+  private async logRoleChange(
+    tx: any,
+    user_id: number,
+    event: string,
+    description: string,
+    causer_id: number,
+    properties: any,
+  ) {
+    const activityLogData: Prisma.activity_logCreateInput = {
+      log_name: 'role_change',
+      subject: {
+        connect: { id: user_id },
+      },
+      causer: {
+        connect: { id: causer_id },
+      },
+      subject_type: 'users',
+      causer_type: 'users',
+      event,
+      description,
+      properties: JSON.stringify(properties),
+    };
+    await tx.activity_log.create({
+      data: activityLogData,
+    });
+  }
+}

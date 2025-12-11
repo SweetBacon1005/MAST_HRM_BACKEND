@@ -1,0 +1,125 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { ProjectStatus, ProjectAccessType, ProjectType, IndustryType } from '@prisma/client';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsDateString,
+  MaxLength,
+  Min,
+  IsEnum,
+} from 'class-validator';
+
+export class CreateProjectDto {
+  @ApiProperty({
+    description: 'Tên dự án',
+    example: 'Website Thương mại điện tử',
+  })
+  @IsString({ message: 'Tên dự án phải là chuỗi' })
+  @MaxLength(255, { message: 'Tên dự án không được quá 255 ký tự' })
+  name: string;
+
+  @ApiProperty({
+    description: 'Mã dự án',
+    example: 'ECOM-001',
+  })
+  @IsString({ message: 'Mã dự án phải là chuỗi' })
+  @MaxLength(50, { message: 'Mã dự án không được quá 50 ký tự' })
+  code: string;
+
+  @ApiProperty({
+    description: 'Trạng thái dự án',
+    example: ProjectStatus.OPEN,
+    enum: ProjectStatus,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ProjectStatus)
+  status?: ProjectStatus;
+
+  @ApiProperty({
+    description: 'ID người quản lý dự án (Project Manager)',
+    example: 1,
+  })
+  @Type(() => Number)
+  @IsInt({ message: 'ID người quản lý dự án phải là số nguyên' })
+  @Min(1, { message: 'ID người quản lý dự án phải lớn hơn 0' })
+  manager_id: number;
+
+  @ApiProperty({
+    description: 'ID phòng ban',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'ID phòng ban phải là số nguyên' })
+  @Min(1, { message: 'ID phòng ban phải lớn hơn 0' })
+  division_id?: number;
+
+  @ApiProperty({
+    description: 'ID team',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'ID team phải là số nguyên' })
+  @Min(1, { message: 'ID team phải lớn hơn 0' })
+  team_id?: number;
+
+  @ApiProperty({
+    description: 'Loại dự án',
+    example: ProjectType.INTERNAL,
+    enum: ProjectType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ProjectType)
+  project_type?: ProjectType;
+
+  @ApiProperty({
+    description: 'Loại truy cập dự án',
+    example: ProjectAccessType.RESTRICTED,
+    enum: ProjectAccessType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(ProjectAccessType)
+  project_access_type?: ProjectAccessType;
+
+  @ApiProperty({
+    description: 'Ngành công nghiệp',
+    example: IndustryType.IT,
+    enum: IndustryType,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(IndustryType)
+  industry?: IndustryType;
+
+  @ApiProperty({
+    description: 'Mô tả dự án',
+    example: 'Dự án phát triển website thương mại điện tử',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({
+    description: 'Ngày bắt đầu (YYYY-MM-DD)',
+    example: '2024-01-01',
+  })
+  @IsDateString({}, { message: 'Ngày bắt đầu phải có định dạng YYYY-MM-DD' })
+  start_date: string;
+
+  @ApiProperty({
+    description: 'Ngày kết thúc (YYYY-MM-DD)',
+    example: '2024-12-31',
+  })
+  @IsDateString({}, { message: 'Ngày kết thúc phải có định dạng YYYY-MM-DD' })
+  end_date: string;
+}
+

@@ -1,0 +1,42 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug NestJS",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/src/main.ts",
+        "args": [],
+        "runtimeArgs": [
+          "-r",
+          "ts-node/register",
+          "-r",
+          "tsconfig-paths/register"
+        ],
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NODE_ENV": "development"
+        },
+        "console": "integratedTerminal",
+        "restart": true,
+        "protocol": "inspector",
+        "skipFiles": [
+          "<node_internals>/**",
+          "node_modules/**"
+        ]
+      },
+      {
+        "name": "Debug NestJS (attach)",
+        "type": "node",
+        "request": "attach",
+        "port": 9229,
+        "restart": true,
+        "localRoot": "${workspaceFolder}",
+        "protocol": "inspector",
+        "skipFiles": [
+          "<node_internals>/**",
+          "node_modules/**"
+        ]
+      }
+    ]
+  }
