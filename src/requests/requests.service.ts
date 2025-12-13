@@ -12,7 +12,6 @@ import {
   ScopeType,
 } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
-import { PermissionCheckerService } from '../auth/services/permission-checker.service';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import {
   PROJECT_ERRORS,
@@ -43,6 +42,7 @@ import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-r
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { ApprovalResult, RequestType } from './interfaces/request.interface';
+import { AuthorizationContext } from '../auth/services/authorization-context.service';
 
 @Injectable()
 export class RequestsService {
@@ -50,7 +50,6 @@ export class RequestsService {
     private readonly prisma: PrismaService,
     private readonly leaveBalanceService: LeaveBalanceService,
     private readonly timesheetService: TimesheetService,
-    private readonly permissionChecker: PermissionCheckerService,
     private readonly activityLogService: ActivityLogService,
     private readonly roleAssignmentService: RoleAssignmentService,
   ) {}
@@ -171,9 +170,8 @@ export class RequestsService {
   async findAllRemoteWorkRequests(
     paginationDto: RemoteWorkRequestPaginationDto = {},
     user_id: number,
-    userRole: string,
   ) {
-    const accessScope = await this.determineAccessScope(user_id, userRole);
+    const accessScope = await this.determineAccessScope(user_id);
 
     let user_idsFilter: number[] | undefined;
 
@@ -351,12 +349,11 @@ export class RequestsService {
   async findAllDayOffRequests(
     paginationDto: RequestPaginationDto = {},
     user_id?: number,
-    userRole?: string,
   ) {
     let user_idsFilter: number[] | undefined;
 
-    if (user_id && userRole) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
+    if (user_id) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
 
       if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
@@ -499,8 +496,8 @@ export class RequestsService {
     const endMinutes = endHour * 60 + endMinute;
     const totalHours = (endMinutes - startMinutes) / 60;
 
-    const normalWorkStart = 8 * 60; // 08:00
-    const normalWorkEnd = 17 * 60; // 17:00
+    const normalWorkStart = 8 * 60;
+    const normalWorkEnd = 17 * 60;
 
     if (startMinutes < normalWorkEnd && endMinutes > normalWorkStart) {
       throw new BadRequestException(REQUEST_ERRORS.OVERTIME_OVERLAP_WORK_HOURS);
@@ -521,8 +518,8 @@ export class RequestsService {
           `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
         ),
         total_hours: totalHours,
-        hourly_rate: hourlyRate, // Tính từ bảng over_times và user level
-        total_amount: totalAmount, // Tính từ total_hours * hourly_rate
+        hourly_rate: hourlyRate,
+        total_amount: totalAmount,
         project_id: dto.project_id,
         reason: dto.reason,
         status: ApprovalStatus.PENDING,
@@ -531,20 +528,19 @@ export class RequestsService {
 
     return {
       ...result,
-      start_time: result.start_time.toTimeString().slice(0, 5), // HH:mm format
-      end_time: result.end_time.toTimeString().slice(0, 5), // HH:mm format
+      start_time: result.start_time.toTimeString().slice(0, 5),
+      end_time: result.end_time.toTimeString().slice(0, 5),
     } as OvertimeRequestResponseDto;
   }
 
   async findAllOvertimeRequests(
     paginationDto: RequestPaginationDto = {},
     user_id?: number,
-    userRole?: string,
   ) {
     let user_idsFilter: number[] | undefined;
 
-    if (user_id && userRole) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
+    if (user_id) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
 
       if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
@@ -912,8 +908,7 @@ export class RequestsService {
   async getRequestById(
     requestId: number,
     requestType: string,
-    requesterId?: number,
-    requesterRoles?: string[],
+    authContext: AuthorizationContext,
   ) {
     let request;
 
@@ -1030,28 +1025,22 @@ export class RequestsService {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
-    if (requesterId && requesterRoles) {
-      const context = await this.permissionChecker.createUserContext(
-        requesterId,
-        requesterRoles,
-      );
-      const hasAccess = await this.permissionChecker.canAccessRequest(
-        context,
-        request.user_id,
-        requestType,
-      );
-
-      if (!hasAccess) {
-        throw new ForbiddenException(REQUEST_ERRORS.NO_ACCESS_PERMISSION);
-      }
-
-      await this.activityLogService.logRequestView(
-        requestType,
-        requestId,
-        requesterId,
-        request.user_id,
+    const canView = await authContext.canApproveRequest(request.user_id, requestType);
+    const isOwnRequest = authContext.userId === request.user_id;
+    
+    if (!canView && !isOwnRequest) {
+      throw new ForbiddenException(
+        'Bạn không có quyền xem request này. ' +
+        'Chỉ có thể xem requests trong scope quản lý hoặc của chính mình.'
       );
     }
+
+    await this.activityLogService.logRequestView(
+      requestType,
+      requestId,
+      authContext.userId,
+      request.user_id,
+    );
 
     return {
       ...request,
@@ -1062,14 +1051,10 @@ export class RequestsService {
   async getAllRequests(
     paginationDto: RequestPaginationDto = {},
     requesterId?: number,
-    requesterRole?: string,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const accessScope = await this.determineAccessScope(
-      requesterId!,
-      requesterRole!,
-    );
+    const accessScope = await this.determineAccessScope(requesterId!);
 
     const roleBasedConditions = await this.buildRoleBasedWhereConditions(
       accessScope,
@@ -1110,14 +1095,14 @@ export class RequestsService {
         const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
         user_ids = teamuser_ids;
       } else {
-        user_ids = [requesterId!]; // Fallback to self-only
+        user_ids = [requesterId!];
       }
     } else if (accessScope.type === 'PROJECT_ONLY') {
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        const projectuser_ids = await this.getProjectuser_ids(accessScope.projectIds);
+        const projectuser_ids = await this.getProjectUserIds(accessScope.projectIds);
         user_ids = projectuser_ids;
       } else {
-        user_ids = [requesterId!]; // Fallback to self-only
+        user_ids = [requesterId!];
       }
     } else {
       user_ids = [requesterId!];
@@ -1410,10 +1395,9 @@ export class RequestsService {
     };
   }
 
-    private async approveRemoteWorkRequest(
+  private async approveRemoteWorkRequest(
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
       where: { id, deleted_at: null },
@@ -1427,21 +1411,23 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_APPROVE_NON_PENDING);
     }
 
-    const canApprove = await this.canApproveRequest(
-      approverId,
-      approverRole,
+    const canApprove = await authContext.canApproveRequest(
       request.user_id,
+      'remote-work',
     );
 
     if (!canApprove) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_APPROVE_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt request này. ' +
+        'Chỉ có thể duyệt requests của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.remote_work_requests.update({
       where: { id },
       data: {
         status: ApprovalStatus.APPROVED,
-        approved_by: approverId,
+        approved_by: authContext.userId,
         approved_at: new Date(),
       },
     });
@@ -1457,8 +1443,7 @@ export class RequestsService {
 
   private async rejectRemoteWorkRequest(
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.remote_work_requests.findFirst({
@@ -1473,14 +1458,17 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    const canReject = await this.canApproveRequest(
-      rejectorId,
-      rejectorRole,
+    // Scope-aware permission check
+    const canReject = await authContext.canApproveRequest(
       request.user_id,
+      'remote-work',
     );
 
     if (!canReject) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_REJECT_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối request này. ' +
+        'Chỉ có thể từ chối requests của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.remote_work_requests.update({
@@ -1501,8 +1489,7 @@ export class RequestsService {
 
   private async approveDayOffRequest(
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
       where: { id, deleted_at: null },
@@ -1516,14 +1503,16 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_APPROVE_NON_PENDING);
     }
 
-    const canApprove = await this.canApproveRequest(
-      approverId,
-      approverRole,
+    const canApprove = await authContext.canApproveRequest(
       request.user_id,
+      'day-off',
     );
 
     if (!canApprove) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_APPROVE_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt đơn nghỉ phép này. ' +
+        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     return await this.prisma.$transaction(async (tx) => {
@@ -1531,7 +1520,7 @@ export class RequestsService {
         where: { id },
         data: {
           status: ApprovalStatus.APPROVED,
-          approved_by: approverId,
+          approved_by: authContext.userId,
           approved_at: new Date(),
         },
       });
@@ -1559,8 +1548,7 @@ export class RequestsService {
 
   private async rejectDayOffRequest(
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.day_offs.findFirst({
@@ -1578,14 +1566,17 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    const canReject = await this.canApproveRequest(
-      rejectorId,
-      rejectorRole,
+    // Scope-aware permission check
+    const canReject = await authContext.canApproveRequest(
       request.user_id,
+      'day-off',
     );
 
     if (!canReject) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_REJECT_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối đơn nghỉ phép này. ' +
+        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     return await this.prisma.$transaction(async (tx) => {
@@ -1622,8 +1613,7 @@ export class RequestsService {
 
   private async approveOvertimeRequest(
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
       where: { id, deleted_at: null },
@@ -1637,21 +1627,23 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_APPROVE_NON_PENDING);
     }
 
-    const canApprove = await this.canApproveRequest(
-      approverId,
-      approverRole,
+    const canApprove = await authContext.canApproveRequest(
       request.user_id,
+      'overtime',
     );
 
     if (!canApprove) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_APPROVE_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt đơn làm thêm giờ này. ' +
+        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.over_times_history.update({
       where: { id },
       data: {
         status: ApprovalStatus.APPROVED,
-        approved_by: approverId,
+        approved_by: authContext.userId,
         approved_at: new Date(),
       },
     });
@@ -1665,8 +1657,7 @@ export class RequestsService {
 
   private async rejectOvertimeRequest(
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.over_times_history.findFirst({
@@ -1681,14 +1672,16 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    const canReject = await this.canApproveRequest(
-      rejectorId,
-      rejectorRole,
+    const canReject = await authContext.canApproveRequest(
       request.user_id,
+      'overtime',
     );
 
     if (!canReject) {
-      throw new ForbiddenException(REQUEST_ERRORS.NO_REJECT_PERMISSION);
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối đơn làm thêm giờ này. ' +
+        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.over_times_history.update({
@@ -1812,21 +1805,7 @@ export class RequestsService {
     return await this.leaveBalanceService.getLeaveBalanceStats(user_id);
   }
 
-  /**
-   * Lấy lịch sử giao dịch leave balance
-   */
-  async getMyLeaveTransactionHistory(
-    user_id: number,
-    limit: number = 50,
-    offset: number = 0,
-  ) {
-    await this.validateUser(user_id);
-    return await this.leaveBalanceService.getLeaveTransactionHistory(
-      user_id,
-      limit,
-      offset,
-    );
-  }
+
 
   /**
    * Kiểm tra có đủ leave balance để tạo đơn không
@@ -1948,12 +1927,11 @@ export class RequestsService {
   async findAllLateEarlyRequests(
     paginationDto: RequestPaginationDto = {},
     user_id?: number,
-    userRole?: string,
   ) {
     let user_idsFilter: number[] | undefined;
 
-    if (user_id && userRole) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
+    if (user_id) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
 
       if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
@@ -2063,8 +2041,7 @@ export class RequestsService {
 
   async approveLateEarlyRequest(
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
       where: { id, deleted_at: null },
@@ -2074,21 +2051,24 @@ export class RequestsService {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
-    const canApprove = await this.canApproveRequest(
-      approverId,
-      approverRole,
+    // Scope-aware permission check
+    const canApprove = await authContext.canApproveRequest(
       request.user_id,
+      'late-early',
     );
 
     if (!canApprove) {
-      throw new ForbiddenException('Bạn không có quyền duyệt request này');
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt request late/early này. ' +
+        'Chỉ có thể duyệt requests của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.late_early_requests.update({
       where: { id },
       data: {
         status: 'APPROVED',
-        approved_by: approverId,
+        approved_by: authContext.userId,
         approved_at: new Date(),
       },
     });
@@ -2104,8 +2084,7 @@ export class RequestsService {
 
   async rejectLateEarlyRequest(
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.late_early_requests.findFirst({
@@ -2116,21 +2095,24 @@ export class RequestsService {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
-    const canReject = await this.canApproveRequest(
-      rejectorId,
-      rejectorRole,
+    // Scope-aware permission check
+    const canReject = await authContext.canApproveRequest(
       request.user_id,
+      'late-early',
     );
 
     if (!canReject) {
-      throw new ForbiddenException('Bạn không có quyền từ chối request này');
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối request late/early này. ' +
+        'Chỉ có thể từ chối requests của users trong scope quản lý của bạn.',
+      );
     }
 
     const updatedRequest = await this.prisma.late_early_requests.update({
       where: { id },
       data: {
         status: 'REJECTED',
-        approved_by: rejectorId,
+        approved_by: authContext.userId,
         approved_at: new Date(),
         rejected_reason: rejectedReason,
       },
@@ -2181,79 +2163,57 @@ export class RequestsService {
     }
   }
 
-    async approveRequest(
+  /**
+   * Approve request với scope-aware authorization
+   * @param type - Request type
+   * @param id - Request ID
+   * @param authContext - Authorization context với scope information
+   */
+  async approveRequest(
     type: RequestType,
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     switch (type) {
       case RequestType.DAY_OFF:
-        return await this.approveDayOffRequest(id, approverId, approverRole);
+        return await this.approveDayOffRequest(id, authContext);
       case RequestType.OVERTIME:
-        return await this.approveOvertimeRequest(id, approverId, approverRole);
+        return await this.approveOvertimeRequest(id, authContext);
       case RequestType.REMOTE_WORK:
-        return await this.approveRemoteWorkRequest(
-          id,
-          approverId,
-          approverRole,
-        );
+        return await this.approveRemoteWorkRequest(id, authContext);
       case RequestType.LATE_EARLY:
-        return await this.approveLateEarlyRequest(id, approverId, approverRole);
+        return await this.approveLateEarlyRequest(id, authContext);
       case RequestType.FORGOT_CHECKIN:
-        return await this.approveForgotCheckinRequest(
-          id,
-          approverId,
-          approverRole,
-        );
+        return await this.approveForgotCheckinRequest(id, authContext);
       default:
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
   }
 
+  /**
+   * Reject request với scope-aware authorization
+   * @param type - Request type
+   * @param id - Request ID
+   * @param authContext - Authorization context với scope information
+   * @param rejectedReason - Lý do từ chối
+   */
   async rejectRequest(
     type: RequestType,
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     switch (type) {
       case RequestType.DAY_OFF:
-        return await this.rejectDayOffRequest(
-          id,
-          rejectorId,
-          rejectorRole,
-          rejectedReason,
-        );
+        return await this.rejectDayOffRequest(id, authContext, rejectedReason);
       case RequestType.OVERTIME:
-        return await this.rejectOvertimeRequest(
-          id,
-          rejectorId,
-          rejectorRole,
-          rejectedReason,
-        );
+        return await this.rejectOvertimeRequest(id, authContext, rejectedReason);
       case RequestType.REMOTE_WORK:
-        return await this.rejectRemoteWorkRequest(
-          id,
-          rejectorId,
-          rejectorRole,
-          rejectedReason,
-        );
+        return await this.rejectRemoteWorkRequest(id, authContext, rejectedReason);
       case RequestType.LATE_EARLY:
-        return await this.rejectLateEarlyRequest(
-          id,
-          rejectorId,
-          rejectorRole,
-          rejectedReason,
-        );
+        return await this.rejectLateEarlyRequest(id, authContext, rejectedReason);
       case RequestType.FORGOT_CHECKIN:
-        return await this.rejectForgotCheckinRequest(
-          id,
-          rejectorId,
-          rejectorRole,
-          rejectedReason,
-        );
+        return await this.rejectForgotCheckinRequest(id, authContext, rejectedReason);
       default:
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
@@ -2372,12 +2332,11 @@ export class RequestsService {
   async findAllForgotCheckinRequests(
     paginationDto: RequestPaginationDto = {},
     user_id?: number,
-    userRole?: string,
   ) {
     let user_idsFilter: number[] | undefined;
 
-    if (user_id && userRole) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id, userRole);
+    if (user_id) {
+      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
 
       if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
         return buildPaginationResponse(
@@ -2510,8 +2469,7 @@ export class RequestsService {
 
   async approveForgotCheckinRequest(
     id: number,
-    approverId: number,
-    approverRole: string,
+    authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.forgot_checkin_requests.findFirst({
       where: { id, deleted_at: null },
@@ -2528,14 +2486,17 @@ export class RequestsService {
       throw new BadRequestException('Đơn này đã được xử lý');
     }
 
-    const canApprove = await this.canApproveRequest(
-      approverId,
-      approverRole,
+    // Scope-aware permission check
+    const canApprove = await authContext.canApproveRequest(
       request.user_id,
+      'forgot-checkin',
     );
 
     if (!canApprove) {
-      throw new ForbiddenException('Bạn không có quyền duyệt request này');
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt đơn bổ sung chấm công này. ' +
+        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     await this.prisma.$transaction(async (prisma) => {
@@ -2543,7 +2504,7 @@ export class RequestsService {
         where: { id },
         data: {
           status: ApprovalStatus.APPROVED,
-          approved_by: approverId,
+          approved_by: authContext.userId,
           approved_at: new Date(),
         },
       });
@@ -2579,8 +2540,7 @@ export class RequestsService {
 
   async rejectForgotCheckinRequest(
     id: number,
-    rejectorId: number,
-    rejectorRole: string,
+    authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
     const request = await this.prisma.forgot_checkin_requests.findFirst({
@@ -2595,21 +2555,24 @@ export class RequestsService {
       throw new BadRequestException('Đơn này đã được xử lý');
     }
 
-    const canReject = await this.canApproveRequest(
-      rejectorId,
-      rejectorRole,
+    // Scope-aware permission check
+    const canReject = await authContext.canApproveRequest(
       request.user_id,
+      'forgot-checkin',
     );
 
     if (!canReject) {
-      throw new ForbiddenException('Bạn không có quyền từ chối request này');
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối đơn bổ sung chấm công này. ' +
+        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+      );
     }
 
     await this.prisma.forgot_checkin_requests.update({
       where: { id },
       data: {
         status: ApprovalStatus.REJECTED,
-        approved_by: rejectorId,
+        approved_by: authContext.userId,
         approved_at: new Date(),
         rejected_reason: rejectedReason,
       },
@@ -2793,9 +2756,8 @@ export class RequestsService {
 
   private async getuser_idsFilterByRole(
     user_id: number,
-    userRole: string,
   ): Promise<number[] | undefined> {
-    const accessScope = await this.determineAccessScope(user_id, userRole);
+    const accessScope = await this.determineAccessScope(user_id);
 
     if (accessScope.type === 'DIVISION_ONLY') {
       if (accessScope.division_ids && accessScope.division_ids.length > 0) {
@@ -2820,7 +2782,7 @@ export class RequestsService {
 
     if (accessScope.type === 'PROJECT_ONLY') {
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        return await this.getProjectuser_ids(accessScope.projectIds);
+        return await this.getProjectUserIds(accessScope.projectIds);
       }
       return [user_id];
     }
@@ -2832,36 +2794,39 @@ export class RequestsService {
     return undefined;
   }
 
-  /**
-   * Kiểm tra quyền duyệt request
-   * Logic:
-   * - Admin: Chỉ duyệt requests của mình hoặc Division Head
-   * - Division Head: Duyệt requests trong division được quản lý
-   * - Team Leader: Duyệt requests của team members
-   * - Project Manager: Duyệt requests của team members (vì project-team là 1-1)
-   */
+  // DEPRECATED: Replaced by AuthorizationContext.canApproveRequest()
+  // Kept temporarily for backward compatibility with old code paths
+  // TODO: Remove after verifying all endpoints migrated
   private async canApproveRequest(
     approverId: number,
-    approverRole: string,
     requestUserId: number,
   ): Promise<boolean> {
-    if (approverId === requestUserId) {
-      return approverRole === ROLE_NAMES.ADMIN;
-    }
-
+    // Lấy roles từ DB - không tin parameter từ controller
     const [approverRoles, ownerRoles] = await Promise.all([
       this.roleAssignmentService.getUserRoles(approverId),
       this.roleAssignmentService.getUserRoles(requestUserId),
     ]);
 
     const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    
+    // Admin có thể approve TẤT CẢ (kể cả chính mình)
     if (isAdmin) {
-      const isOwnerDivisionHead = ownerRoles.roles.some(
-        (r) => r.name === ROLE_NAMES.DIVISION_HEAD,
-      );
-      return isOwnerDivisionHead;
+      // Log nếu là self-approval để audit
+      if (approverId === requestUserId) {
+        await this.activityLogService.logAdminSelfApproval(approverId, {
+          message: 'Admin self-approved their request',
+          timestamp: new Date(),
+        });
+      }
+      return true;
     }
 
+    // Không cho phép self-approval với non-admin roles
+    if (approverId === requestUserId) {
+      return false;
+    }
+
+    // Division Head: Approve trong division của mình
     const approverDivisions = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
       .map((r) => r.scope_id);
@@ -2875,6 +2840,7 @@ export class RequestsService {
       }
     }
 
+    // Team Leader: Approve trong team của mình
     const approverTeams = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
       .map((r) => r.scope_id);
@@ -2888,6 +2854,7 @@ export class RequestsService {
       }
     }
 
+    // Project Manager: Approve members trong project của mình
     const approverProjects = approverRoles.roles
       .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
       .map((r) => r.scope_id)
@@ -2919,9 +2886,12 @@ export class RequestsService {
     return false;
   }
 
+  /**
+   * REFACTORED: Tự lấy roles từ DB và xử lý MULTIPLE roles
+   * Không nhận role parameter từ controller nữa
+   */
   private async determineAccessScope(
     user_id: number,
-    role: string,
   ): Promise<{
     type:
       | 'DIVISION_ONLY'
@@ -2929,54 +2899,65 @@ export class RequestsService {
       | 'PROJECT_ONLY'
       | 'TEAM_ONLY'
       | 'SELF_ONLY'
-      | 'ADMIN_ACCESS';
+      | 'ADMIN_ACCESS'
+      | 'COMBINED';
     division_ids?: number[];
     projectIds?: number[];
     team_ids?: number[];
     user_id?: number;
   }> {
-    switch (role) {
-      case ROLE_NAMES.DIVISION_HEAD: {
-        const managedDivisions = await this.getUserManagedDivisions(user_id);
-        return {
-          type: 'DIVISION_ONLY',
-          division_ids: managedDivisions,
-        };
-      }
-
-      case ROLE_NAMES.ADMIN:
-        return {
-          type: 'ADMIN_ACCESS',
-          user_id: user_id,
-        };
-
-      case ROLE_NAMES.HR_MANAGER:
-      case ROLE_NAMES.EMPLOYEE:
-        return {
-          type: 'SELF_ONLY',
-        };
-
-      case ROLE_NAMES.TEAM_LEADER: {
-        const userTeams = await this.getUserManagedTeams(user_id);
-        return {
-          type: 'TEAM_ONLY',
-          team_ids: userTeams,
-        };
-      }
-
-      case ROLE_NAMES.PROJECT_MANAGER: {
-        const userProjects = await this.getUserManagedProjects(user_id);
-        return {
-          type: 'PROJECT_ONLY',
-          projectIds: userProjects,
-        };
-      }
-
-      default:
-        return {
-          type: 'SELF_ONLY',
-        };
+    // Lấy TẤT CẢ roles từ DB
+    const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
+    
+    // Check Admin first (highest priority)
+    const isAdmin = userRoles.roles.some(r => r.name === ROLE_NAMES.ADMIN);
+    if (isAdmin) {
+      return {
+        type: 'ALL_ACCESS',
+        user_id: user_id,
+      };
     }
+
+    // Collect all scopes from ALL roles user has
+    const managedDivisions = userRoles.roles
+      .filter(r => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
+      .map(r => r.scope_id)
+      .filter((id): id is number => id !== null);
+
+    const managedTeams = userRoles.roles
+      .filter(r => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
+      .map(r => r.scope_id)
+      .filter((id): id is number => id !== null);
+
+    const managedProjects = userRoles.roles
+      .filter(r => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
+      .map(r => r.scope_id)
+      .filter((id): id is number => id !== null);
+
+    // Determine access type based on roles
+    // Division Head has highest scope after Admin
+    if (managedDivisions.length > 0) {
+      return {
+        type: 'DIVISION_ONLY',
+        division_ids: managedDivisions,
+        team_ids: managedTeams, // Include teams too if has both roles
+        projectIds: managedProjects,
+      };
+    }
+
+    // If user has both Team Leader and Project Manager
+    if (managedTeams.length > 0 || managedProjects.length > 0) {
+      return {
+        type: managedTeams.length > 0 ? 'TEAM_ONLY' : 'PROJECT_ONLY',
+        team_ids: managedTeams,
+        projectIds: managedProjects,
+      };
+    }
+
+    // Default: Only see their own requests
+    return {
+      type: 'SELF_ONLY',
+    };
   }
 
   /**
@@ -2988,64 +2969,6 @@ export class RequestsService {
       ROLE_NAMES.PROJECT_MANAGER,
       ROLE_NAMES.TEAM_LEADER,
       ROLE_NAMES.HR_MANAGER,
-    ];
-  }
-
-  /**
-   * Lấy danh sách teams mà user quản lý (cho Team Leader)
-   */
-  private async getUserManagedTeams(user_id: number): Promise<number[]> {
-    const assignments = await this.prisma.user_role_assignment.findMany({
-      where: {
-        user_id: user_id,
-        scope_type: ScopeType.TEAM,
-        deleted_at: null,
-        scope_id: { not: null },
-        role: {
-          name: ROLE_NAMES.TEAM_LEADER,
-          deleted_at: null,
-        },
-      },
-      select: {
-        scope_id: true,
-      },
-    });
-
-    return [
-      ...new Set(
-        assignments
-          .map((a) => a.scope_id)
-          .filter((id): id is number => id !== null),
-      ),
-    ];
-  }
-
-  /**
-   * Lấy danh sách projects mà user là manager (cho Project Manager)
-   */
-  private async getUserManagedProjects(user_id: number): Promise<number[]> {
-    const assignments = await this.prisma.user_role_assignment.findMany({
-      where: {
-        user_id: user_id,
-        scope_type: ScopeType.PROJECT,
-        deleted_at: null,
-        scope_id: { not: null },
-        role: {
-          name: ROLE_NAMES.PROJECT_MANAGER,
-          deleted_at: null,
-        },
-      },
-      select: {
-        scope_id: true,
-      },
-    });
-
-    return [
-      ...new Set(
-        assignments
-          .map((a) => a.scope_id)
-          .filter((id): id is number => id !== null),
-      ),
     ];
   }
 
@@ -3179,11 +3102,7 @@ export class RequestsService {
     return assignments.map((a) => a.user_id);
   }
 
-  /**
-   * Lấy tất cả user IDs trong projects
-   * Lưu ý: Project và Team có quan hệ 1-1, nên cần lấy cả team members
-   */
-  private async getProjectuser_ids(projectIds: number[]): Promise<number[]> {
+  private async getProjectUserIds(projectIds: number[]): Promise<number[]> {
     if (projectIds.length === 0) return [];
 
     const user_ids: Set<number> = new Set();
@@ -3228,40 +3147,6 @@ export class RequestsService {
     return Array.from(user_ids);
   }
 
-  /**
-   * Filter requests để chỉ lấy high priority requests
-   */
-  private async filterHighPriorityRequests(
-    result: any,
-    paginationDto: RequestPaginationDto,
-  ): Promise<any> {
-    if (!result.data || result.data.length === 0) {
-      return result;
-    }
-
-    const highPriorityRequests = result.data.filter((request: any) =>
-      this.isHighPriorityRequest(request),
-    );
-
-    const filteredTotal = highPriorityRequests.length;
-    const page = paginationDto.page || 1;
-    const limit = paginationDto.limit || 10;
-    const total_pages = Math.ceil(filteredTotal / limit);
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedData = highPriorityRequests.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedData,
-      pagination: {
-        total: filteredTotal,
-        page: page,
-        limit: limit,
-        total_pages: total_pages,
-      },
-    };
-  }
   async updateRemoteWorkRequest(
     id: number,
     dto: CreateRemoteWorkRequestDto,

@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AdminController } from './controllers/admin.controller';
 import { SystemAdminController } from './controllers/system-admin.controller';
 import { RoleAssignmentController } from './controllers/role-assignment.controller';
+import { AuthTestController } from './controllers/auth-test.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
@@ -19,6 +20,9 @@ import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { DivisionRolesGuard } from './guards/division-roles.guard';
 import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
+import { RoleContextCacheService } from './services/role-context-cache.service';
+import { RoleContextLoaderGuard } from './guards/role-context-loader.guard';
+import { AuthorizationContextService } from './services/authorization-context.service';
 
 @Module({
   imports: [
@@ -41,6 +45,7 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     AdminController,
     SystemAdminController,
     RoleAssignmentController,
+    AuthTestController, // Phase 1 testing - remove after Phase 2 complete
   ],
   providers: [
     AuthService,
@@ -49,12 +54,23 @@ import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
     JwtRefreshStrategy,
     OtpService,
     RoleAssignmentService,
+    RoleContextCacheService,
+    AuthorizationContextService,
     EmailService,
     ActivityLogService,
     PrismaService,
     DivisionRolesGuard,
     EnhancedRolesGuard,
+    RoleContextLoaderGuard,
   ],
-  exports: [AuthService, RoleAssignmentService, DivisionRolesGuard, EnhancedRolesGuard],
+  exports: [
+    AuthService,
+    RoleAssignmentService,
+    RoleContextCacheService,
+    AuthorizationContextService,
+    DivisionRolesGuard,
+    EnhancedRolesGuard,
+    RoleContextLoaderGuard,
+  ],
 })
 export class AuthModule {}

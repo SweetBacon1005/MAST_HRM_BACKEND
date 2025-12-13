@@ -16,6 +16,7 @@ import { PrismaService } from '../database/prisma.service';
 import { CreateDailyReportDto } from './dto/create-daily-report.dto';
 import { DailyReportPaginationDto } from './dto/pagination.dto';
 import { UpdateDailyReportDto } from './dto/update-daily-report.dto';
+import { AuthorizationContext } from '../auth/services/authorization-context.service';
 
 @Injectable()
 export class DailyReportsService {
@@ -483,7 +484,7 @@ export class DailyReportsService {
     return await this.prisma.daily_reports.delete({ where: { id } });
   }
 
-  async approve(id: number, approverId: number) {
+  async approve(id: number, authContext: AuthorizationContext) {
     const report = await this.getReportOrThrow(id);
     this.validateReportStatus(
       report,
@@ -491,24 +492,28 @@ export class DailyReportsService {
       DAILY_REPORT_ERRORS.CANNOT_APPROVE_NOT_PENDING,
     );
 
+    // Scope-aware permission check
     if (
-      !(await this.canApprove(approverId, report.user_id, report.project_id))
+      !(await this.canApprove(authContext.userId, report.user_id, report.project_id))
     ) {
-      throw new ForbiddenException(DAILY_REPORT_ERRORS.UNAUTHORIZED_APPROVE);
+      throw new ForbiddenException(
+        'Bạn không có quyền duyệt daily report này. ' +
+        'Chỉ có thể duyệt reports của projects trong scope quản lý của bạn.',
+      );
     }
 
     return await this.prisma.daily_reports.update({
       where: { id },
       data: {
         status: ApprovalStatus.APPROVED,
-        approved_by: approverId,
+        approved_by: authContext.userId,
         reviewed_at: new Date(),
         reject_reason: null,
       },
     });
   }
 
-  async reject(id: number, approverId: number, reason: string) {
+  async reject(id: number, authContext: AuthorizationContext, reason: string) {
     const report = await this.getReportOrThrow(id);
     this.validateReportStatus(
       report,
@@ -516,24 +521,28 @@ export class DailyReportsService {
       DAILY_REPORT_ERRORS.CANNOT_REJECT_NOT_PENDING,
     );
 
+    // Scope-aware permission check
     if (
-      !(await this.canApprove(approverId, report.user_id, report.project_id))
+      !(await this.canApprove(authContext.userId, report.user_id, report.project_id))
     ) {
-      throw new ForbiddenException(DAILY_REPORT_ERRORS.UNAUTHORIZED_APPROVE);
+      throw new ForbiddenException(
+        'Bạn không có quyền từ chối daily report này. ' +
+        'Chỉ có thể từ chối reports của projects trong scope quản lý của bạn.',
+      );
     }
 
     return await this.prisma.daily_reports.update({
       where: { id },
       data: {
         status: ApprovalStatus.REJECTED,
-        approved_by: approverId,
+        approved_by: authContext.userId,
         reviewed_at: new Date(),
         reject_reason: reason,
       },
     });
   }
 
-  async approveAllByUser(userId: number, approverId: number) {
+  async approveAllByUser(userId: number, authContext: AuthorizationContext) {
     // Get all PENDING reports of the user
     const pendingReports = await this.prisma.daily_reports.findMany({
       where: {
@@ -558,10 +567,10 @@ export class DailyReportsService {
       );
     }
 
-    // Check permissions for each report
+    // Scope-aware permission check for each report
     const canApproveAll = await Promise.all(
       pendingReports.map((report) =>
-        this.canApprove(approverId, report.user_id, report.project_id),
+        this.canApprove(authContext.userId, report.user_id, report.project_id),
       ),
     );
 
@@ -571,7 +580,8 @@ export class DailyReportsService {
 
     if (unauthorizedReports.length > 0) {
       throw new ForbiddenException(
-        `Không có quyền duyệt ${unauthorizedReports.length} daily report (${unauthorizedReports.map((r) => r.project.name).join(', ')})`,
+        `Không có quyền duyệt ${unauthorizedReports.length} daily report (${unauthorizedReports.map((r) => r.project.name).join(', ')}). ` +
+        'Chỉ có thể duyệt reports của projects trong scope quản lý của bạn.',
       );
     }
 
@@ -583,7 +593,7 @@ export class DailyReportsService {
       },
       data: {
         status: ApprovalStatus.APPROVED,
-        approved_by: approverId,
+        approved_by: authContext.userId,
         reviewed_at: new Date(),
         reject_reason: null,
       },
@@ -604,7 +614,7 @@ export class DailyReportsService {
 
   async approveBatch(
     reportIds: number[],
-    approverId: number,
+    authContext: AuthorizationContext,
     action: 'approve' | 'reject' = 'approve',
     rejectReason?: string,
   ) {
@@ -667,10 +677,10 @@ export class DailyReportsService {
       );
     }
 
-    // Check permissions for each report
+    // Scope-aware permission check for each report
     const canApproveAll = await Promise.all(
       reports.map((report) =>
-        this.canApprove(approverId, report.user_id, report.project_id),
+        this.canApprove(authContext.userId, report.user_id, report.project_id),
       ),
     );
 
@@ -681,14 +691,15 @@ export class DailyReportsService {
     if (unauthorizedReports.length > 0) {
       const actionText = action === 'approve' ? 'duyệt' : 'từ chối';
       throw new ForbiddenException(
-        `Không có quyền ${actionText} ${unauthorizedReports.length} daily report: ${unauthorizedReports.map((r) => `#${r.id} (${r.user.user_information?.name || r.user.email} - ${r.project.name})`).join(', ')}`,
+        `Không có quyền ${actionText} ${unauthorizedReports.length} daily report: ${unauthorizedReports.map((r) => `#${r.id} (${r.user.user_information?.name || r.user.email} - ${r.project.name})`).join(', ')}. ` +
+        'Chỉ có thể xử lý reports của projects trong scope quản lý của bạn.',
       );
     }
 
     // Update all reports (approve or reject)
     const updateData: any = {
       status: action === 'approve' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED,
-      approved_by: approverId,
+      approved_by: authContext.userId,
       reviewed_at: new Date(),
     };
 

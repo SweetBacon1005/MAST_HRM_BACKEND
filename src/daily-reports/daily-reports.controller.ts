@@ -9,13 +9,17 @@ import { UpdateDailyReportDto } from './dto/update-daily-report.dto';
 import { DailyReportPaginationDto } from './dto/pagination.dto';
 import { ApproveBatchDto, BatchAction } from './dto/approve-batch.dto';
 import { DailyReportEntity, DailyReportPaginatedResponse } from './entities/daily-report.entity';
+import { AuthorizationContextService } from '../auth/services/authorization-context.service';
 
 @ApiTags('daily-reports')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('daily-reports')
 export class DailyReportsController {
-  constructor(private readonly service: DailyReportsService) {}
+  constructor(
+    private readonly service: DailyReportsService,
+    private readonly authorizationContextService: AuthorizationContextService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Tạo daily report mới' })
@@ -73,18 +77,25 @@ export class DailyReportsController {
   }
 
   @Post(':id/approve')
-  @ApiOperation({ summary: 'Duyệt daily report' })
+  @ApiOperation({ 
+    summary: 'Duyệt daily report (scope-aware)',
+    description: 'Admin: approve tất cả | Division Head: approve projects trong division | Team Leader: approve projects trong team | Project Manager: approve projects quản lý'
+  })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền duyệt' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền duyệt (ngoài scope quản lý)' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ duyệt được khi PENDING' })
-  approve(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') approverId: number) {
-    return this.service.approve(id, approverId);
+  async approve(@Param('id', ParseIntPipe) id: number, @GetCurrentUser() user: any) {
+    const authContext = await this.authorizationContextService.createContext(user);
+    return this.service.approve(id, authContext);
   }
 
   @Post(':id/reject')
-  @ApiOperation({ summary: 'Từ chối daily report' })
+  @ApiOperation({ 
+    summary: 'Từ chối daily report (scope-aware)',
+    description: 'Admin: reject tất cả | Division Head: reject projects trong division | Team Leader: reject projects trong team | Project Manager: reject projects quản lý'
+  })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({ 
     schema: { 
@@ -97,10 +108,11 @@ export class DailyReportsController {
   })
   @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền từ chối' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền từ chối (ngoài scope quản lý)' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ từ chối được khi PENDING' })
-  reject(@Param('id', ParseIntPipe) id: number, @GetCurrentUser('id') approverId: number, @Body('reject_reason') reason: string) {
-    return this.service.reject(id, approverId, reason);
+  async reject(@Param('id', ParseIntPipe) id: number, @GetCurrentUser() user: any, @Body('reject_reason') reason: string) {
+    const authContext = await this.authorizationContextService.createContext(user);
+    return this.service.reject(id, authContext, reason);
   }
 
   @Post('approve-by-user/:user_id')
@@ -156,11 +168,12 @@ export class DailyReportsController {
   })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report nào đang chờ duyệt' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền duyệt một số daily report' })
-  approveAllByUser(
+  async approveAllByUser(
     @Param('user_id', ParseIntPipe) userId: number, 
-    @GetCurrentUser('id') approverId: number
+    @GetCurrentUser() user: any
   ) {
-    return this.service.approveAllByUser(userId, approverId);
+    const authContext = await this.authorizationContextService.createContext(user);
+    return this.service.approveAllByUser(userId, authContext);
   }
 
   @Post('approve-batch')
@@ -231,14 +244,15 @@ export class DailyReportsController {
   })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Danh sách ID rỗng, lý do từ chối trống (khi reject), hoặc có report không ở trạng thái PENDING' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy một số daily report' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền xử lý một số daily report' })
-  approveBatch(
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền xử lý một số daily report (ngoài scope quản lý)' })
+  async approveBatch(
     @Body() dto: ApproveBatchDto, 
-    @GetCurrentUser('id') approverId: number
+    @GetCurrentUser() user: any
   ) {
+    const authContext = await this.authorizationContextService.createContext(user);
     return this.service.approveBatch(
       dto.report_ids,
-      approverId,
+      authContext,
       dto.action || BatchAction.APPROVE,
       dto.reject_reason,
     );

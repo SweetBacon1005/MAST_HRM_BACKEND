@@ -350,7 +350,6 @@ model users {
     over_times_history_approved      over_times_history[]      @relation("approved_by_user")
     over_times_history_subject       over_times_history[]      @relation("user")
     user_leave_balance               user_leave_balances?
-    leave_transactions               leave_transactions[]
     late_early_requests              late_early_requests[]
     approved_late_early_requests     late_early_requests[]     @relation("LateEarlyApprover")
     forgot_checkin_requests          forgot_checkin_requests[]
@@ -389,7 +388,6 @@ model day_offs {
     created_at         DateTime             @default(now())
     updated_at         DateTime             @updatedAt
     deleted_at         DateTime?            @db.DateTime()
-    leave_transactions leave_transactions[] @relation("DayOffTransactions")
 
     @@index([user_id])
     @@index([status])
@@ -618,23 +616,6 @@ model over_times_history {
     @@index([deleted_at]) // Để tối ưu soft delete queries
 }
 
-model over_times {
-    id                 Int       @id @default(autoincrement())
-    type               Int?
-    start_first_shift  DateTime
-    end_first_shift    DateTime
-    first_coefficient  Float?
-    start_second_shift DateTime
-    end_second_shift   DateTime
-    second_coefficient Float?
-    start_third_shift  DateTime
-    end_third_shift    DateTime
-    third_coefficient  Float?
-    created_at         DateTime  @default(now())
-    updated_at         DateTime  @updatedAt
-    deleted_at         DateTime? @db.DateTime()
-}
-
 model user_role_assignment {
     id          Int       @id @default(autoincrement())
     user_id     Int
@@ -790,30 +771,6 @@ model user_leave_balances {
 
     @@index([user_id])
     @@index([deleted_at])
-}
-
-model leave_transactions {
-    id               Int                  @id @default(autoincrement())
-    user_id          Int
-    user             users                @relation(fields: [user_id], references: [id])
-    transaction_type LeaveTransactionType
-    leave_type       DayOffType // PAID, UNPAID, etc.
-    amount           Float // Số ngày (+ là cộng, - là trừ)
-    balance_after    Float // Số dư sau giao dịch
-    day_off_id       Int? // Direct reference to day_offs
-    day_off          day_offs?            @relation("DayOffTransactions", fields: [day_off_id], references: [id])
-    description      String?              @db.Text // Mô tả giao dịch
-    created_at       DateTime             @default(now())
-    updated_at       DateTime             @updatedAt
-    deleted_at       DateTime?            @db.DateTime()
-
-    @@index([user_id])
-    @@index([transaction_type])
-    @@index([leave_type])
-    @@index([created_at])
-    @@index([user_id, created_at])
-    @@index([deleted_at])
-    @@index([day_off_id]) // Index cho day_off relation
 }
 
 model late_early_requests {
@@ -1094,13 +1051,7 @@ enum IndustryType {
     OTHER
 }
 
-enum LeaveTransactionType {
-    EARNED // Cộng phép (hàng tháng)
-    USED // Sử dụng phép
-    ADJUSTED // Điều chỉnh thủ công
-    CARRIED_OVER // Chuyển từ năm trước
-    EXPIRED // Hết hạn
-}
+
 
 enum LateEarlyType {
     LATE // Chỉ đi muộn

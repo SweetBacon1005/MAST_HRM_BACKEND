@@ -3,15 +3,26 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UsersService } from '../../users/users.service';
-import { getRoleLevel } from '../constants/role.constants';
-import { RoleAssignmentService } from '../services/role-assignment.service';
 
+/**
+ * JWT Strategy - Minimal & Stateless
+ * 
+ * Changes from old implementation:
+ * - Không load roles từ DB (moved to RoleContextLoaderGuard)
+ * - JWT payload chỉ chứa user ID, email, và JTI
+ * - Role contexts sẽ được load từ cache/DB bởi RoleContextLoaderGuard
+ * 
+ * Benefits:
+ * - JWT token nhỏ gọn (~500 bytes)
+ * - Không có stale data issue
+ * - Có thể revoke bằng JTI blacklist
+ * - Better separation of concerns
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
-    private roleAssignmentService: RoleAssignmentService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -21,32 +32,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // Validate user exists
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('Token không hợp lệ');
     }
 
-    try {
-      const userRoles = await this.roleAssignmentService.getUserRoles(
-        payload.sub,
-      );
-      const role_names = userRoles.roles.map((role) => role.name);
-
-      const sortedRoles = role_names.sort(
-        (a, b) => getRoleLevel(b) - getRoleLevel(a),
-      );
-
-      return {
-        id: payload.sub,
-        email: payload.email,
-        roles: sortedRoles,
-      };
-    } catch (error) {
-      return {
-        id: payload.sub,
-        email: payload.email,
-        roles: [],
-      };
-    }
+    // Return minimal user info
+    // Role contexts sẽ được load sau bởi RoleContextLoaderGuard
+    return {
+      id: payload.sub,
+      email: payload.email,
+      jti: payload.jti, // JWT ID for blacklist capability
+    };
   }
 }

@@ -26,6 +26,7 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { UpdateProjectProgressDto } from './dto/update-progress.dto';
 import { ProjectPaginationDto } from './dto/project-pagination.dto';
+import { AddProjectMemberDto } from './dto/add-project-member.dto';
 
 @ApiTags('projects')
 @Controller('projects')
@@ -116,8 +117,6 @@ export class ProjectsController {
   @ApiOperation({
     summary: 'Thêm thành viên vào dự án',
     description: `
-      ⚠️ **DEPRECATED - NÊN DÙNG API THÊM VÀO TEAM THAY VÌ API NÀY**
-      
       API này thêm member trực tiếp vào project (scope_type: PROJECT).
       Tuy nhiên, theo thiết kế mới:
       - Members của project được lấy từ TEAM
@@ -270,6 +269,63 @@ export class ProjectsController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.projectsService.remove(id);
+  }
+
+  @Get(':id/available-members')
+  @RequirePermission('project.update')
+  @ApiOperation({
+    summary: 'Lấy danh sách members có thể thêm vào dự án',
+    description: 'Lấy danh sách users từ team trực thuộc chưa được thêm vào project',
+  })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiResponse({ status: 200, description: 'Danh sách members có thể thêm' })
+  @ApiResponse({ status: 404, description: 'Dự án không tồn tại' })
+  @ApiResponse({ status: 400, description: 'Dự án chưa có team trực thuộc' })
+  getAvailableMembers(@Param('id', ParseIntPipe) id: number) {
+    return this.projectsService.getAvailableMembersForProject(id);
+  }
+
+  @Post(':id/members')
+  @RequirePermission('project.update')
+  @ApiOperation({
+    summary: 'Thêm thành viên vào dự án',
+    description:
+      'PM hoặc Admin có thể thêm user từ team trực thuộc vào project với role EMPLOYEE',
+  })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiResponse({ status: 201, description: 'Thêm thành viên thành công' })
+  @ApiResponse({
+    status: 400,
+    description:
+      'User không thuộc team trực thuộc hoặc đã trong project',
+  })
+  @ApiResponse({ status: 403, description: 'Không có quyền thêm thành viên' })
+  addMember(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AddProjectMemberDto,
+    @GetCurrentUser('id') managerId: number,
+  ) {
+    return this.projectsService.addMemberToProject(id, dto.user_id, managerId);
+  }
+
+  @Delete(':id/members/:userId')
+  @RequirePermission('project.update')
+  @ApiOperation({
+    summary: 'Xóa thành viên khỏi dự án',
+    description: 'PM hoặc Admin có thể xóa member khỏi project (không thể xóa PM)',
+  })
+  @ApiParam({ name: 'id', description: 'ID của dự án' })
+  @ApiParam({ name: 'userId', description: 'ID của user cần xóa' })
+  @ApiResponse({ status: 200, description: 'Xóa thành viên thành công' })
+  @ApiResponse({ status: 400, description: 'Không thể xóa Project Manager' })
+  @ApiResponse({ status: 403, description: 'Không có quyền xóa thành viên' })
+  @ApiResponse({ status: 404, description: 'User không thuộc dự án' })
+  removeMember(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('userId', ParseIntPipe) userId: number,
+    @GetCurrentUser('id') managerId: number,
+  ) {
+    return this.projectsService.removeMemberFromProject(id, userId, managerId);
   }
 }
 

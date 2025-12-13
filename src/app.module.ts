@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CacheModule } from '@nestjs/cache-manager';
+import * as redisStore from 'cache-manager-redis-store';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AttendanceModule } from './attendance/attendance.module';
@@ -36,6 +38,30 @@ import { UploadModule } from './upload/upload.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    // Redis Cache Module (Global)
+    CacheModule.registerAsync({
+      isGlobal: true,
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        store: redisStore as any,
+        host: configService.get<string>('REDIS_HOST', 'localhost'),
+        port: configService.get<number>('REDIS_PORT', 6379),
+        password: configService.get<string>('REDIS_PASSWORD'),
+        db: configService.get<number>('REDIS_DB', 0),
+        ttl: parseInt(configService.get<string>('ROLE_CACHE_TTL', '300'), 10),
+        // Fallback to in-memory cache if Redis connection fails
+        socket: {
+          reconnectStrategy: (retries: number) => {
+            if (retries > 3) {
+              console.warn('Redis connection failed. Falling back to in-memory cache.');
+              return false;
+            }
+            return Math.min(retries * 100, 3000);
+          },
+        },
+      }),
+      inject: [ConfigService],
     }),
     DatabaseModule,
     PermissionModule,

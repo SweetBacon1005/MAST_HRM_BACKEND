@@ -20,30 +20,14 @@ import {
 } from '@nestjs/swagger';
 import { RotationType, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { CreateUserDto } from '../../users/dto/create-user.dto';
+import { AdminUpdateUserDto } from '../dto/admin-update-user.dto';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
 import { RoleHierarchyService } from '../services/role-hierarchy.service';
-export class CreateUserDto {
-  name: string;
-  email: string;
-  password: string;
-  role_id: number;
-  division_id: number;
-  position_id: number;
-  level_id: number;
-}
-
-export class UpdateUserDto {
-  name?: string;
-  email?: string;
-  role_id?: number;
-  division_id?: number;
-  position_id?: number;
-  level_id?: number;
-}
 
 export class SystemStatsDto {
   total_users: number;
@@ -428,7 +412,7 @@ export class AdminController {
   })
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: AdminUpdateUserDto,
     @GetCurrentUser('id') adminId: number,
   ) {
     const updatedUser = await this.prisma.users.update({

@@ -905,4 +905,35 @@ export class ActivityLogService {
       },
     };
   }
+
+  /**
+   * Log admin self-approval for audit trail
+   * SECURITY: This is logged for monitoring purposes
+   */
+  async logAdminSelfApproval(
+    adminId: number,
+    metadata: Record<string, any>,
+  ): Promise<void> {
+    await this.log({
+      logName: 'request_admin_self_approval',
+      description: `Admin tự phê duyệt request của chính mình`,
+      subjectType: 'request',
+      event: 'request.admin_self_approval',
+      subjectId: metadata.requestId || adminId,
+      causer_id: adminId,
+      properties: {
+        warning: 'ADMIN_SELF_APPROVAL',
+        requires_review: true,
+        timestamp: new Date().toISOString(),
+        ...metadata,
+      },
+    });
+
+    // Optional: Send alert to HR Manager or senior management
+    // await this.notificationService.alertHRManagers({
+    //   type: 'ADMIN_SELF_APPROVAL',
+    //   adminId,
+    //   message: 'Admin self-approved their request',
+    // });
+  }
 }

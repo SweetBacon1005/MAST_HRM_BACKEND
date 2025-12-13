@@ -398,3 +398,13 @@ export const REPORT_ERRORS = {
 } as const;
 
 export type ReportError = typeof REPORT_ERRORS[keyof typeof REPORT_ERRORS];
+
+// === AUTHORIZATION ERRORS ===
+export const AUTHORIZATION_ERRORS = {
+  USER_NO_ROLE_CONTEXTS: 'Người dùng không có thông tin phân quyền. Vui lòng đảm bảo RoleContextLoaderGuard được áp dụng.',
+  REQUEST_OWNER_NOT_FOUND: 'Không tìm thấy người tạo yêu cầu',
+  CANNOT_APPROVE_REQUEST: 'Bạn không có quyền duyệt yêu cầu này',
+  CANNOT_ACCESS_RESOURCE: 'Bạn không có quyền truy cập tài nguyên này',
+} as const;
+
+export type AuthorizationError = typeof AUTHORIZATION_ERRORS[keyof typeof AUTHORIZATION_ERRORS];

@@ -4,11 +4,26 @@ import { PrismaService } from '../../database/prisma.service';
 import {
   WorkShiftType,
   RemoteType,
-  ApprovalStatus,
   DayOffType,
-  LeaveTransactionType,
 } from '@prisma/client';
 import { LeaveBalanceService } from '../../leave-management/services/leave-balance.service';
+
+const LEAVE_CONFIG = {
+  MONTHLY_PAID_DAYS: 3,
+  EXPIRED_SHIFTS_MONTHS: 3,
+  SHIFT_EXTENSION_YEARS: 1,
+} as const;
+
+const WORK_HOURS = {
+  MORNING_START: '08:00',
+  MORNING_END: '12:00',
+  AFTERNOON_START: '13:30',
+  AFTERNOON_END: '17:30',
+  OVERTIME_EVENING_START: '18:00',
+  OVERTIME_EVENING_END: '20:00',
+  OVERTIME_NIGHT_START: '20:30',
+  OVERTIME_NIGHT_END: '22:00',
+} as const;
 
 @Injectable()
 export class ScheduleAutomationService {
@@ -19,7 +34,6 @@ export class ScheduleAutomationService {
     private leaveBalanceService: LeaveBalanceService,
   ) {}
 
-  // Chạy hàng ngày lúc 2:00 AM - Gia hạn ca làm việc sắp hết hạn
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async extendExpiringShifts() {
     this.logger.log('🔄 Checking for expiring work shifts...');
@@ -31,7 +45,6 @@ export class ScheduleAutomationService {
       const nextWeek = new Date();
       nextWeek.setDate(nextWeek.getDate() + 7);
 
-      // Tìm các ca sắp hết hạn trong 7 ngày tới
       const expiringShifts = await this.prisma.schedule_works.findMany({
         where: {
           end_date: {
@@ -45,10 +58,9 @@ export class ScheduleAutomationService {
         },
       });
 
-      // Tự động gia hạn thêm 1 năm cho các ca cơ bản
       for (const shift of expiringShifts) {
         const newEndDate = new Date(shift.end_date);
-        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+        newEndDate.setFullYear(newEndDate.getFullYear() + LEAVE_CONFIG.SHIFT_EXTENSION_YEARS);
 
         await this.prisma.schedule_works.update({
           where: { id: shift.id },
@@ -66,7 +78,6 @@ export class ScheduleAutomationService {
     }
   }
 
-  // Chạy vào Chủ nhật hàng tuần lúc 1:00 AM - Tạo ca tăng ca cho tuần tới
   @Cron('0 1 * * 0')
   async createWeeklyOvertimeShifts() {
     this.logger.log('⏰ Creating overtime shifts for next week...');
@@ -76,7 +87,6 @@ export class ScheduleAutomationService {
       const nextSunday = new Date(nextMonday);
       nextSunday.setDate(nextSunday.getDate() + 6);
 
-      // Kiểm tra xem đã có ca tăng ca cho tuần tới chưa
       const existingOvertime = await this.prisma.schedule_works.findFirst({
         where: {
           type: WorkShiftType.OVERTIME,
@@ -87,17 +97,16 @@ export class ScheduleAutomationService {
       });
 
       if (!existingOvertime) {
-        // Tạo ca tăng ca cho tuần tới
         await this.prisma.schedule_works.create({
           data: {
             name: `Ca tăng ca tuần ${this.getWeekNumber(nextMonday)}`,
             type: WorkShiftType.OVERTIME,
             start_date: nextMonday,
             end_date: nextSunday,
-            hour_start_morning: '18:00',
-            hour_end_morning: '20:00',
-            hour_start_afternoon: '20:30',
-            hour_end_afternoon: '22:00',
+            hour_start_morning: WORK_HOURS.OVERTIME_EVENING_START,
+            hour_end_morning: WORK_HOURS.OVERTIME_EVENING_END,
+            hour_start_afternoon: WORK_HOURS.OVERTIME_NIGHT_START,
+            hour_end_afternoon: WORK_HOURS.OVERTIME_NIGHT_END,
           },
         });
 
@@ -110,16 +119,14 @@ export class ScheduleAutomationService {
     }
   }
 
-  // Chạy vào ngày 1 hàng tháng lúc 3:00 AM - Cleanup ca cũ
   @Cron('0 3 1 * *')
   async cleanupExpiredShifts() {
     this.logger.log('🧹 Cleaning up expired work shifts...');
 
     try {
       const threeMonthsAgo = new Date();
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - LEAVE_CONFIG.EXPIRED_SHIFTS_MONTHS);
 
-      // Soft delete các ca đã hết hạn quá 3 tháng
       const result = await this.prisma.schedule_works.updateMany({
         where: {
           end_date: { lt: threeMonthsAgo },
@@ -137,7 +144,6 @@ export class ScheduleAutomationService {
     }
   }
 
-  // Chạy vào ngày 25 hàng tháng lúc 4:00 AM - Tạo ca cho tháng tới
   @Cron('0 4 25 * *')
   async prepareNextMonthShifts() {
     this.logger.log('📅 Preparing work shifts for next month...');
@@ -151,7 +157,6 @@ export class ScheduleAutomationService {
       endOfNextMonth.setMonth(endOfNextMonth.getMonth() + 1);
       endOfNextMonth.setDate(0);
 
-      // Kiểm tra xem đã có ca cho tháng tới chưa
       const existingShifts = await this.prisma.schedule_works.findMany({
         where: {
           start_date: { gte: nextMonth },
@@ -162,17 +167,16 @@ export class ScheduleAutomationService {
       });
 
       if (existingShifts.length === 0) {
-        // Tạo ca hành chính cho tháng tới
         await this.prisma.schedule_works.create({
           data: {
             name: `Ca hành chính - ${nextMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}`,
             type: WorkShiftType.NORMAL,
             start_date: nextMonth,
             end_date: endOfNextMonth,
-            hour_start_morning: '08:00',
-            hour_end_morning: '12:00',
-            hour_start_afternoon: '13:30',
-            hour_end_afternoon: '17:30',
+            hour_start_morning: WORK_HOURS.MORNING_START,
+            hour_end_morning: WORK_HOURS.MORNING_END,
+            hour_start_afternoon: WORK_HOURS.AFTERNOON_START,
+            hour_end_afternoon: WORK_HOURS.AFTERNOON_END,
           },
         });
 
@@ -197,20 +201,15 @@ export class ScheduleAutomationService {
     return nextMonday;
   }
 
-  // Chạy hàng ngày lúc 12:00 AM (00:00) theo giờ Việt Nam - Tạo timesheet cho ngày hôm đó
-  @Cron('0 0 * * *', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-  })
+  @Cron('0 0 * * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async createDailyTimesheets() {
     this.logger.log('📋 Creating daily timesheets for all active users...');
 
     try {
-      // Cleanup connections trước khi chạy (quan trọng cho serverless)
       await this.prisma.cleanupConnections();
       const today = new Date();
       const todayString = today.toISOString().split('T')[0];
 
-      // Lấy tất cả user đang hoạt động
       const activeUsers = await this.prisma.users.findMany({
         where: {
           deleted_at: null,
@@ -221,7 +220,6 @@ export class ScheduleAutomationService {
         },
       });
 
-      // Kiểm tra xem hôm nay có phải ngày làm việc không (thứ 2-6)
       const dayOfWeek = today.getDay();
       const isWorkingDay = dayOfWeek >= 1 && dayOfWeek <= 5;
 
@@ -230,7 +228,6 @@ export class ScheduleAutomationService {
         return;
       }
 
-      // Lấy danh sách user đã có timesheet hôm nay
       const existingTimesheets = await this.prisma.time_sheets.findMany({
         where: {
           work_date: new Date(todayString),
@@ -248,7 +245,6 @@ export class ScheduleAutomationService {
         existingTimesheets.map((ts) => ts.user_id),
       );
 
-      // Lọc ra những user chưa có timesheet
       const usersNeedTimesheet = activeUsers.filter(
         (user) => !existinguser_ids.has(user.id),
       );
@@ -257,12 +253,11 @@ export class ScheduleAutomationService {
       const skippedCount = existinguser_ids.size;
 
       if (usersNeedTimesheet.length > 0) {
-        // Tạo timesheet hàng loạt
         const timesheetsToCreate = usersNeedTimesheet.map((user) => ({
           user_id: user.id,
           work_date: new Date(todayString),
           is_complete: false,
-          remote: RemoteType.OFFICE, // Mặc định là làm việc tại văn phòng
+          remote: RemoteType.OFFICE,
           total_work_time: 0,
           late_time: 0,
           early_time: 0,
@@ -286,19 +281,13 @@ export class ScheduleAutomationService {
     } catch (error) {
       this.logger.error('❌ Error creating daily timesheets:', error);
     } finally {
-      // Cleanup connections sau khi chạy xong (quan trọng cho serverless)
       await this.prisma.cleanupConnections();
     }
   }
 
-  // Chạy vào ngày cuối tháng lúc 11:30 PM theo giờ Việt Nam - Cộng thêm 3 ngày nghỉ phép có lương
-  @Cron('30 23 28-31 * *', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-  })
+  @Cron('30 23 28-31 * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async addMonthlyPaidLeave() {
-    this.logger.log(
-      '🏖️ Adding monthly paid leave days for all active users...',
-    );
+    this.logger.log('🏖️ Adding monthly paid leave days for all active users...');
 
     try {
       await this.prisma.cleanupConnections();
@@ -306,7 +295,6 @@ export class ScheduleAutomationService {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      // Kiểm tra xem ngày mai có phải ngày đầu tháng không
       const isLastDayOfMonth = tomorrow.getDate() === 1;
 
       if (!isLastDayOfMonth) {
@@ -316,7 +304,6 @@ export class ScheduleAutomationService {
         return;
       }
 
-      // Lấy tất cả user đang hoạt động
       const activeUsers = await this.prisma.users.findMany({
         where: {
           deleted_at: null,
@@ -331,49 +318,49 @@ export class ScheduleAutomationService {
       const currentMonth = today.getMonth() + 1;
       const monthlyLeaveDescription = `Phép tích lũy tháng ${currentMonth}/${currentYear}`;
 
-      // Kiểm tra user nào đã được cộng phép tháng này
-      const existingTransactions =
-        await this.prisma.leave_transactions.findMany({
-          where: {
-            transaction_type: LeaveTransactionType.EARNED,
-            leave_type: DayOffType.PAID,
-            description: monthlyLeaveDescription,
-            deleted_at: null,
-            user_id: {
-              in: activeUsers.map((user) => user.id),
+      // Kiểm tra users đã được cộng phép trong tháng này chưa
+      // Dựa vào last_reset_date hoặc logic khác để tránh cộng trùng
+      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      firstDayOfMonth.setHours(0, 0, 0, 0);
+
+      const usersAlreadyUpdated = await this.prisma.user_leave_balances.findMany({
+        where: {
+          user_id: {
+            in: activeUsers.map((user) => user.id),
+          },
+          OR: [
+            {
+              updated_at: {
+                gte: firstDayOfMonth,
+              },
             },
-          },
-          select: {
-            user_id: true,
-          },
-        });
+          ],
+          deleted_at: null,
+        },
+        select: {
+          user_id: true,
+        },
+      });
 
       const existinguser_ids = new Set(
-        existingTransactions.map((tx) => tx.user_id),
+        usersAlreadyUpdated.map((balance) => balance.user_id),
       );
 
-      // Lọc ra những user chưa được cộng phép tháng này
       const usersNeedLeave = activeUsers.filter(
         (user) => !existinguser_ids.has(user.id),
       );
 
       let updatedCount = 0;
 
-      // Xử lý từng user để đảm bảo tạo leave balance nếu chưa có
       for (const user of usersNeedLeave) {
         try {
-          // Đảm bảo user có leave balance
           await this.leaveBalanceService.getOrCreateLeaveBalance(user.id);
 
-          // Cộng 3 ngày phép
           await this.leaveBalanceService.addLeaveBalance(
             user.id,
-            3, // 3 ngày
+            LEAVE_CONFIG.MONTHLY_PAID_DAYS,
             DayOffType.PAID,
-            LeaveTransactionType.EARNED,
             monthlyLeaveDescription,
-            undefined, // Không có reference_id
-            'monthly_accrual', // reference_type
           );
 
           updatedCount++;
@@ -385,7 +372,6 @@ export class ScheduleAutomationService {
         }
       }
 
-      // Reset số phút đi muộn/về sớm và request quota cho tháng mới
       this.logger.log('🔄 Resetting violation minutes and request quota for new month...');
       
       const resetDate = new Date(today);
@@ -417,18 +403,12 @@ export class ScheduleAutomationService {
     }
   }
 
-  // Chạy vào ngày 1/1 hàng năm lúc 1:00 AM theo giờ Việt Nam - Reset leave balance đầu năm
-  @Cron('0 1 1 1 *', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-  })
+  @Cron('0 1 1 1 *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async resetAnnualLeaveBalance() {
-    this.logger.log(
-      '🔄 Resetting annual leave balance for all active users...',
-    );
+    this.logger.log('🔄 Resetting annual leave balance for all active users...');
 
     try {
       await this.prisma.cleanupConnections();
-      // Lấy tất cả user đang hoạt động
       const activeUsers = await this.prisma.users.findMany({
         where: {
           deleted_at: null,
@@ -442,13 +422,9 @@ export class ScheduleAutomationService {
       let processedCount = 0;
       let errorCount = 0;
 
-      // Xử lý từng user
       for (const user of activeUsers) {
         try {
-          // Đảm bảo user có leave balance
           await this.leaveBalanceService.getOrCreateLeaveBalance(user.id);
-
-          // Reset annual leave balance
           await this.leaveBalanceService.resetAnnualLeaveBalance(user.id);
 
           processedCount++;
@@ -471,18 +447,13 @@ export class ScheduleAutomationService {
     }
   }
 
-  // Chạy vào ngày 1 hàng tháng lúc 5:00 AM - Initialize leave balance cho user mới
-  @Cron('0 5 1 * *', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-  })
+  @Cron('0 5 1 * *', { timeZone: 'Asia/Ho_Chi_Minh' })
   async initializeNewUserLeaveBalance() {
     this.logger.log('🆕 Initializing leave balance for new users...');
 
     try {
       await this.prisma.cleanupConnections();
-      
-      const result =
-        await this.leaveBalanceService.initializeLeaveBalanceForAllUsers();
+      const result = await this.leaveBalanceService.initializeLeaveBalanceForAllUsers();
 
       this.logger.log(
         `🎉 Leave balance initialization completed: ${result.createdCount} created, ${result.skippedCount} skipped`,

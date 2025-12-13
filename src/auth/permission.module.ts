@@ -4,6 +4,7 @@ import { RoleHierarchyService } from './services/role-hierarchy.service';
 import { PermissionGuard } from './guards/permission.guard';
 import { DatabaseModule } from '../database/database.module';
 import { RoleAssignmentService } from './services/role-assignment.service';
+import { RoleContextCacheService } from './services/role-context-cache.service';
 
 @Global() 
 @Module({
@@ -13,12 +14,14 @@ import { RoleAssignmentService } from './services/role-assignment.service';
     RoleHierarchyService,
     PermissionGuard,
     RoleAssignmentService,
+    RoleContextCacheService,
   ],
   exports: [
     PermissionService,
     RoleHierarchyService,
     PermissionGuard,
     RoleAssignmentService,
+    RoleContextCacheService,
   ],
 })
 export class PermissionModule {}

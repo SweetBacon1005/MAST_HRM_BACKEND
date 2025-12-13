@@ -25,6 +25,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { REQUEST_PERMISSIONS } from '../auth/constants/permission.constants';
+import { AuthorizationContext } from '../auth/services/authorization-context.service';
+import { AuthorizationContextService } from '../auth/services/authorization-context.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
@@ -46,7 +48,10 @@ import { RequestsService } from './requests.service';
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('requests')
 export class RequestsController {
-  constructor(private readonly requestsService: RequestsService) {}
+  constructor(
+    private readonly requestsService: RequestsService,
+    private readonly authorizationContextService: AuthorizationContextService,
+  ) {}
 
   @Get('my/all')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
@@ -65,8 +70,6 @@ export class RequestsController {
   async getMyRequestsStats(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getMyRequestsStats(user_id);
   }
-
-  // === REMOTE WORK REQUESTS ===
 
   @Post('remote-work')
   @ApiOperation({ summary: 'Tạo đơn xin làm việc từ xa' })
@@ -91,14 +94,11 @@ export class RequestsController {
   @ApiResponse({ status: 200, })
   async findAllRemoteWorkRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
     return await this.requestsService.findAllRemoteWorkRequests(
       paginationDto,
       user_id,
-      primaryRole,
     );
   }
 
@@ -116,8 +116,6 @@ export class RequestsController {
       paginationDto,
     );
   }
-
-  // === DAY OFF REQUESTS ===
 
   @Post('day-off')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
@@ -141,11 +139,9 @@ export class RequestsController {
   @ApiResponse({ status: 200, })
   async findAllDayOffRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllDayOffRequests(paginationDto, user_id, primaryRole);
+    return await this.requestsService.findAllDayOffRequests(paginationDto, user_id);
   }
 
   @Get('day-off/my')
@@ -162,8 +158,6 @@ export class RequestsController {
       paginationDto,
     );
   }
-
-  // === OVERTIME REQUESTS ===
 
   @Post('overtime')
   @ApiOperation({ summary: 'Tạo đơn xin làm thêm giờ' })
@@ -187,11 +181,9 @@ export class RequestsController {
   @ApiResponse({ status: 200, })
   async findAllOvertimeRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllOvertimeRequests(paginationDto, user_id, primaryRole);
+    return await this.requestsService.findAllOvertimeRequests(paginationDto, user_id);
   }
 
   @Get('overtime/my')
@@ -209,8 +201,6 @@ export class RequestsController {
     );
   }
 
-  // === LEAVE BALANCE ENDPOINTS ===
-
   @Get('leave-balance')
   @ApiOperation({ summary: 'Lấy thông tin leave balance của tôi' })
   @ApiResponse({ status: 200, })
@@ -218,22 +208,7 @@ export class RequestsController {
     return await this.requestsService.getMyLeaveBalance(user_id);
   }
 
-  @Get('leave-balance/transactions')
-  @ApiOperation({ summary: 'Lấy lịch sử giao dịch leave balance' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
-  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
-  @ApiResponse({ status: 200, })
-  async getMyLeaveTransactionHistory(
-    @GetCurrentUser('id') user_id: number,
-    @Query('limit') limit?: number,
-    @Query('offset') offset?: number,
-  ) {
-    return await this.requestsService.getMyLeaveTransactionHistory(
-      user_id,
-      limit || 50,
-      offset || 0,
-    );
-  }
+
 
   @Post('leave-balance/check')
   @ApiOperation({ summary: 'Kiểm tra có đủ leave balance để tạo đơn không' })
@@ -267,8 +242,6 @@ export class RequestsController {
     );
   }
 
-  // === LATE/EARLY REQUEST ENDPOINTS ===
-
   @Post('late-early')
   @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
   @ApiResponse({ status: 201, })
@@ -289,11 +262,9 @@ export class RequestsController {
   @ApiResponse({ status: 200, })
   async getAllLateEarlyRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllLateEarlyRequests(paginationDto, user_id, primaryRole);
+    return await this.requestsService.findAllLateEarlyRequests(paginationDto, user_id);
   }
 
   @Get('late-early/my')
@@ -311,13 +282,12 @@ export class RequestsController {
     );
   }
 
-  // === UNIVERSAL APPROVE/REJECT ENDPOINTS ===
-
   @Post(':type/:id/approve')
   @RequirePermission(REQUEST_PERMISSIONS.APPROVE)
   @ApiOperation({
-    summary: 'Duyệt request (tất cả loại)',
-    })
+    summary: 'Duyệt request (scope-aware - chỉ duyệt requests trong scope quản lý)',
+    description: 'Admin: approve tất cả | Division Head: approve trong division | Team Leader: approve trong team | HR Manager: approve day-off & remote-work',
+  })
   @ApiParam({
     name: 'type',
     enum: [
@@ -330,8 +300,9 @@ export class RequestsController {
     example: 'day-off',
   })
   @ApiParam({ name: 'id', example: 1 })
-  @ApiResponse({ status: 200, })
-  @ApiResponse({ status: 404, })
+  @ApiResponse({ status: 200, description: 'Request đã được duyệt thành công' })
+  @ApiResponse({ status: 403, description: 'Không có quyền duyệt request này (ngoài scope quản lý)' })
+  @ApiResponse({ status: 404, description: 'Request không tồn tại' })
   async approveRequest(
     @Param('type')
     type:
@@ -341,23 +312,22 @@ export class RequestsController {
       | 'late-early'
       | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') approverId: number,
-    @GetCurrentUser('roles') approverRoles: string[],
+    @GetCurrentUser() user: any,
   ) {
-    const primaryRole = this.getPrimaryRole(approverRoles);
+    const authContext = await this.authorizationContextService.createContext(user);
     return await this.requestsService.approveRequest(
       type as RequestType,
       id,
-      approverId,
-      primaryRole,
+      authContext,
     );
   }
 
   @Post(':type/:id/reject')
   @RequirePermission(REQUEST_PERMISSIONS.REJECT)
   @ApiOperation({
-    summary: 'Từ chối request (tất cả loại)',
-    })
+    summary: 'Từ chối request (scope-aware - chỉ từ chối requests trong scope quản lý)',
+    description: 'Admin: reject tất cả | Division Head: reject trong division | Team Leader: reject trong team | HR Manager: reject day-off & remote-work',
+  })
   @ApiParam({
     name: 'type',
     enum: [
@@ -382,8 +352,9 @@ export class RequestsController {
       required: ['rejected_reason'],
     },
   })
-  @ApiResponse({ status: 200, })
-  @ApiResponse({ status: 404, })
+  @ApiResponse({ status: 200, description: 'Request đã được từ chối thành công' })
+  @ApiResponse({ status: 403, description: 'Không có quyền từ chối request này (ngoài scope quản lý)' })
+  @ApiResponse({ status: 404, description: 'Request không tồn tại' })
   async rejectRequest(
     @Param('type')
     type:
@@ -393,21 +364,17 @@ export class RequestsController {
       | 'late-early'
       | 'forgot-checkin',
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') rejectorId: number,
-    @GetCurrentUser('roles') rejectorRoles: string[],
+    @GetCurrentUser() user: any,
     @Body('rejected_reason') rejectedReason: string,
   ) {
-    const primaryRole = this.getPrimaryRole(rejectorRoles);
+    const authContext = await this.authorizationContextService.createContext(user);
     return await this.requestsService.rejectRequest(
       type as RequestType,
       id,
-      rejectorId,
-      primaryRole,
+      authContext,
       rejectedReason,
     );
   }
-
-  // ==================== FORGOT CHECKIN ENDPOINTS ====================
 
   @Post('forgot-checkin')
   @ApiOperation({ summary: 'Tạo đơn xin bổ sung chấm công' })
@@ -442,11 +409,9 @@ export class RequestsController {
   @ApiResponse({ status: 200, })
   async getAllForgotCheckinRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, user_id, primaryRole);
+    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, user_id);
   }
 
   @Get('forgot-checkin/my')
@@ -520,13 +485,12 @@ export class RequestsController {
   async getRequestById(
     @Param('type') type: string,
     @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
+    @GetCurrentUser() user: any,
   ) {
-    return await this.requestsService.getRequestById(id, type, user_id, userRoles);
+    const authContext = await this.authorizationContextService.createContext(user);
+    return await this.requestsService.getRequestById(id, type, authContext);
   }
 
-  // Generic route - MUST be last to avoid blocking specific routes
   @Get()
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
@@ -649,40 +613,16 @@ export class RequestsController {
   })
   async getAllRequests(
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    const primaryRole = this.getPrimaryRole(userRoles);
-    
     return await this.requestsService.getAllRequests(
       paginationDto,
       user_id,
-      primaryRole,
     );
   }
 
 
-  private getPrimaryRole(userRoles: string[] | undefined): string {
-    if (!userRoles || userRoles.length === 0) {
-      return ROLE_NAMES.EMPLOYEE;
-    }
 
-    const rolePriority = [
-      ROLE_NAMES.ADMIN,
-      ROLE_NAMES.DIVISION_HEAD,
-      ROLE_NAMES.TEAM_LEADER,
-      ROLE_NAMES.PROJECT_MANAGER,
-      ROLE_NAMES.EMPLOYEE,
-    ];
-
-    for (const role of rolePriority) {
-      if (userRoles.includes(role)) {
-        return role;
-      }
-    }
-
-    return ROLE_NAMES.EMPLOYEE;
-  }
 
   @Patch('remote-work/:id')
   async updateRemoteWork(

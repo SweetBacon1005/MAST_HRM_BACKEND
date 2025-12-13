@@ -24,7 +24,7 @@ src/scheduler/
 
 - **Thời gian**: Ngày cuối tháng 23:30 (giờ VN)
 - **Mục đích**: Cộng 3 ngày phép có lương cho tất cả nhân viên
-- **Logic**: Sử dụng `LeaveBalanceService` để cập nhật `user_leave_balances` và tạo `leave_transactions`
+- **Logic**: Sử dụng `LeaveBalanceService` để cập nhật trực tiếp vào `user_leave_balances`
 
 ### 3. Annual Leave Balance Reset
 

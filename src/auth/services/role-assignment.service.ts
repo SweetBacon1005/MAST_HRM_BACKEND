@@ -3,10 +3,13 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { getRoleLevel, ROLE_IDS } from '../constants/role.constants';
+import { RoleContextCacheService } from './role-context-cache.service';
 
 export interface RoleAssignmentData {
   user_id: number;
@@ -28,7 +31,11 @@ export interface UserRoleContext {
 
 @Injectable()
 export class RoleAssignmentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => RoleContextCacheService))
+    private roleContextCacheService: RoleContextCacheService,
+  ) {}
 
   async getRoles() {
     return await this.prisma.roles.findMany();
@@ -119,6 +126,9 @@ export class RoleAssignmentService {
       },
     );
 
+    // Invalidate cache sau khi assign role
+    await this.invalidateRoleCache(data.user_id);
+
     return newAssignment;
   }
 
@@ -203,7 +213,25 @@ export class RoleAssignmentService {
       );
     }
 
+    // Invalidate cache sau khi revoke role
+    await this.invalidateRoleCache(user_id);
+
     return result;
+  }
+
+  /**
+   * Invalidate role cache cho user
+   * Method này được gọi mỗi khi role assignment thay đổi
+   */
+  async invalidateRoleCache(userId: number): Promise<void> {
+    if (this.roleContextCacheService) {
+      try {
+        await this.roleContextCacheService.invalidateUserCache(userId);
+      } catch (error) {
+        // Log error nhưng không throw để không block role assignment operation
+        console.error(`Failed to invalidate cache for user ${userId}:`, error);
+      }
+    }
   }
 
   async getUserRoles(user_id: number): Promise<UserRoleContext> {
