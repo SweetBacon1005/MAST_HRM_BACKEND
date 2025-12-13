@@ -1,14 +1,14 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,27 +19,26 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { REQUEST_PERMISSIONS } from '../auth/constants/permission.constants';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { ROLE_NAMES } from '../auth/constants/role.constants';
-import { REQUEST_PERMISSIONS } from '../auth/constants/permission.constants';
-import { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { AuthorizationContextService } from '../auth/services/authorization-context.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
+import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
-import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import {
   RemoteWorkRequestPaginationDto,
   RequestPaginationDto,
 } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
+import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
-import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { RequestType } from './interfaces/request.interface';
 import { RequestsService } from './requests.service';
 
@@ -56,7 +55,7 @@ export class RequestsController {
   @Get('my/all')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getAllMyRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -66,15 +65,15 @@ export class RequestsController {
 
   @Get('my/stats')
   @ApiOperation({ summary: 'Thống kê requests của tôi' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getMyRequestsStats(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getMyRequestsStats(user_id);
   }
 
   @Post('remote-work')
   @ApiOperation({ summary: 'Tạo đơn xin làm việc từ xa' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400 })
   async createRemoteWorkRequest(
     @Body() createRemoteWorkRequestDto: CreateRemoteWorkRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -90,8 +89,8 @@ export class RequestsController {
   @ApiOperation({
     summary:
       'Lấy danh sách tất cả đơn remote work (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+  })
+  @ApiResponse({ status: 200 })
   async findAllRemoteWorkRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
@@ -106,7 +105,7 @@ export class RequestsController {
   @ApiOperation({
     summary: 'Lấy danh sách đơn remote work của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async findMyRemoteWorkRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RemoteWorkRequestPaginationDto,
@@ -119,8 +118,8 @@ export class RequestsController {
 
   @Post('day-off')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400 })
   async createDayOffRequest(
     @Body() createDayOffRequestDto: CreateDayOffRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -135,20 +134,23 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy danh sách tất cả đơn nghỉ phép (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+  })
+  @ApiResponse({ status: 200 })
   async findAllDayOffRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllDayOffRequests(paginationDto, user_id);
+    return await this.requestsService.findAllDayOffRequests(
+      paginationDto,
+      user_id,
+    );
   }
 
   @Get('day-off/my')
   @ApiOperation({
     summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async findMyDayOffRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -161,8 +163,8 @@ export class RequestsController {
 
   @Post('overtime')
   @ApiOperation({ summary: 'Tạo đơn xin làm thêm giờ' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400 })
   async createOvertimeRequest(
     @Body() createOvertimeRequestDto: CreateOvertimeRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -176,21 +178,25 @@ export class RequestsController {
   @Get('overtime')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary: 'Lấy danh sách tất cả đơn làm thêm giờ (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    summary:
+      'Lấy danh sách tất cả đơn làm thêm giờ (Admin/Division Head/Manager)',
+  })
+  @ApiResponse({ status: 200 })
   async findAllOvertimeRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllOvertimeRequests(paginationDto, user_id);
+    return await this.requestsService.findAllOvertimeRequests(
+      paginationDto,
+      user_id,
+    );
   }
 
   @Get('overtime/my')
   @ApiOperation({
     summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async findMyOvertimeRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -203,12 +209,10 @@ export class RequestsController {
 
   @Get('leave-balance')
   @ApiOperation({ summary: 'Lấy thông tin leave balance của tôi' })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getMyLeaveBalance(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getMyLeaveBalance(user_id);
   }
-
-
 
   @Post('leave-balance/check')
   @ApiOperation({ summary: 'Kiểm tra có đủ leave balance để tạo đơn không' })
@@ -229,7 +233,7 @@ export class RequestsController {
       required: ['leave_type', 'requested_days'],
     },
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async checkLeaveBalanceAvailability(
     @GetCurrentUser('id') user_id: number,
     @Body('leave_type') leaveType: 'PAID' | 'UNPAID',
@@ -244,8 +248,8 @@ export class RequestsController {
 
   @Post('late-early')
   @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
-  @ApiResponse({ status: 201, })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 201 })
+  @ApiResponse({ status: 400 })
   async createLateEarlyRequest(
     @Body() dto: CreateLateEarlyRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -257,21 +261,25 @@ export class RequestsController {
   @Get('late-early')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary: 'Lấy danh sách tất cả late/early requests (Admin/Division Head/Manager)',
-    })
-  @ApiResponse({ status: 200, })
+    summary:
+      'Lấy danh sách tất cả late/early requests (Admin/Division Head/Manager)',
+  })
+  @ApiResponse({ status: 200 })
   async getAllLateEarlyRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllLateEarlyRequests(paginationDto, user_id);
+    return await this.requestsService.findAllLateEarlyRequests(
+      paginationDto,
+      user_id,
+    );
   }
 
   @Get('late-early/my')
   @ApiOperation({
     summary: 'Lấy danh sách late/early requests của tôi có phân trang',
   })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getMyLateEarlyRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -285,8 +293,10 @@ export class RequestsController {
   @Post(':type/:id/approve')
   @RequirePermission(REQUEST_PERMISSIONS.APPROVE)
   @ApiOperation({
-    summary: 'Duyệt request (scope-aware - chỉ duyệt requests trong scope quản lý)',
-    description: 'Admin: approve tất cả | Division Head: approve trong division | Team Leader: approve trong team | HR Manager: approve day-off & remote-work',
+    summary:
+      'Duyệt request (scope-aware - chỉ duyệt requests trong scope quản lý)',
+    description:
+      'Admin: approve tất cả | Division Head: approve trong division | Team Leader: approve trong team | HR Manager: approve day-off & remote-work',
   })
   @ApiParam({
     name: 'type',
@@ -301,7 +311,10 @@ export class RequestsController {
   })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: 200, description: 'Request đã được duyệt thành công' })
-  @ApiResponse({ status: 403, description: 'Không có quyền duyệt request này (ngoài scope quản lý)' })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền duyệt request này (ngoài scope quản lý)',
+  })
   @ApiResponse({ status: 404, description: 'Request không tồn tại' })
   async approveRequest(
     @Param('type')
@@ -314,7 +327,8 @@ export class RequestsController {
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser() user: any,
   ) {
-    const authContext = await this.authorizationContextService.createContext(user);
+    const authContext =
+      await this.authorizationContextService.createContext(user);
     return await this.requestsService.approveRequest(
       type as RequestType,
       id,
@@ -325,8 +339,10 @@ export class RequestsController {
   @Post(':type/:id/reject')
   @RequirePermission(REQUEST_PERMISSIONS.REJECT)
   @ApiOperation({
-    summary: 'Từ chối request (scope-aware - chỉ từ chối requests trong scope quản lý)',
-    description: 'Admin: reject tất cả | Division Head: reject trong division | Team Leader: reject trong team | HR Manager: reject day-off & remote-work',
+    summary:
+      'Từ chối request (scope-aware - chỉ từ chối requests trong scope quản lý)',
+    description:
+      'Admin: reject tất cả | Division Head: reject trong division | Team Leader: reject trong team | HR Manager: reject day-off & remote-work',
   })
   @ApiParam({
     name: 'type',
@@ -352,8 +368,14 @@ export class RequestsController {
       required: ['rejected_reason'],
     },
   })
-  @ApiResponse({ status: 200, description: 'Request đã được từ chối thành công' })
-  @ApiResponse({ status: 403, description: 'Không có quyền từ chối request này (ngoài scope quản lý)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Request đã được từ chối thành công',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Không có quyền từ chối request này (ngoài scope quản lý)',
+  })
   @ApiResponse({ status: 404, description: 'Request không tồn tại' })
   async rejectRequest(
     @Param('type')
@@ -367,7 +389,8 @@ export class RequestsController {
     @GetCurrentUser() user: any,
     @Body('rejected_reason') rejectedReason: string,
   ) {
-    const authContext = await this.authorizationContextService.createContext(user);
+    const authContext =
+      await this.authorizationContextService.createContext(user);
     return await this.requestsService.rejectRequest(
       type as RequestType,
       id,
@@ -383,7 +406,7 @@ export class RequestsController {
     status: 201,
     type: ForgotCheckinRequestResponseDto,
   })
-  @ApiResponse({ status: 400, })
+  @ApiResponse({ status: 400 })
   async createForgotCheckinRequest(
     @Body() dto: CreateForgotCheckinRequestDto,
     @GetCurrentUser('id') user_id: number,
@@ -395,8 +418,9 @@ export class RequestsController {
   @Get('forgot-checkin')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
-    summary: 'Lấy tất cả đơn xin bổ sung chấm công (Admin/Division Head/Manager)',
-    })
+    summary:
+      'Lấy tất cả đơn xin bổ sung chấm công (Admin/Division Head/Manager)',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({
@@ -406,12 +430,15 @@ export class RequestsController {
   })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getAllForgotCheckinRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.findAllForgotCheckinRequests(paginationDto, user_id);
+    return await this.requestsService.findAllForgotCheckinRequests(
+      paginationDto,
+      user_id,
+    );
   }
 
   @Get('forgot-checkin/my')
@@ -425,7 +452,7 @@ export class RequestsController {
   })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200, })
+  @ApiResponse({ status: 200 })
   async getMyForgotCheckinRequests(
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
@@ -443,7 +470,13 @@ export class RequestsController {
   })
   @ApiParam({
     name: 'type',
-    enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin'],
+    enum: [
+      'remote_work',
+      'day_off',
+      'overtime',
+      'late_early',
+      'forgot_checkin',
+    ],
   })
   @ApiParam({
     name: 'id',
@@ -455,9 +488,15 @@ export class RequestsController {
       type: 'object',
       properties: {
         id: { type: 'number' },
-        type: { 
+        type: {
           type: 'string',
-          enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+          enum: [
+            'remote_work',
+            'day_off',
+            'overtime',
+            'late_early',
+            'forgot_checkin',
+          ],
         },
         user_id: { type: 'number' },
         status: { type: 'string' },
@@ -480,14 +519,15 @@ export class RequestsController {
       },
     },
   })
-  @ApiResponse({ status: 404, })
-  @ApiResponse({ status: 403, })
+  @ApiResponse({ status: 404 })
+  @ApiResponse({ status: 403 })
   async getRequestById(
     @Param('type') type: string,
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser() user: any,
   ) {
-    const authContext = await this.authorizationContextService.createContext(user);
+    const authContext =
+      await this.authorizationContextService.createContext(user);
     return await this.requestsService.getRequestById(id, type, authContext);
   }
 
@@ -495,7 +535,7 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy requests theo phân quyền role với enhanced filtering',
-    })
+  })
   @ApiQuery({
     name: 'division_id',
     required: false,
@@ -521,8 +561,8 @@ export class RequestsController {
     required: false,
     type: Boolean,
   })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     schema: {
       type: 'object',
       properties: {
@@ -532,9 +572,15 @@ export class RequestsController {
             type: 'object',
             properties: {
               id: { type: 'number' },
-              type: { 
+              type: {
                 type: 'string',
-                enum: ['remote_work', 'day_off', 'overtime', 'late_early', 'forgot_checkin']
+                enum: [
+                  'remote_work',
+                  'day_off',
+                  'overtime',
+                  'late_early',
+                  'forgot_checkin',
+                ],
               },
               user_id: { type: 'number' },
               status: { type: 'string' },
@@ -583,18 +629,18 @@ export class RequestsController {
         metadata: {
           type: 'object',
           properties: {
-            access_scope: { 
+            access_scope: {
               type: 'string',
               enum: ['DIVISION_ONLY', 'ALL_ACCESS', 'TEAM_ONLY', 'SELF_ONLY'],
-              },
+            },
             managed_divisions: {
               type: 'array',
               items: { type: 'number' },
-              },
+            },
             managed_teams: {
-              type: 'array', 
+              type: 'array',
               items: { type: 'number' },
-              },
+            },
             filters_applied: {
               type: 'object',
               properties: {
@@ -605,9 +651,9 @@ export class RequestsController {
                 team_id: { type: 'number' },
                 requester_role: { type: 'string' },
               },
-              }
+            },
           },
-          },
+        },
       },
     },
   })
@@ -615,14 +661,8 @@ export class RequestsController {
     @GetCurrentUser('id') user_id: number,
     @Query() paginationDto: RequestPaginationDto,
   ) {
-    return await this.requestsService.getAllRequests(
-      paginationDto,
-      user_id,
-    );
+    return await this.requestsService.getAllRequests(paginationDto, user_id);
   }
-
-
-
 
   @Patch('remote-work/:id')
   async updateRemoteWork(
@@ -698,7 +738,11 @@ export class RequestsController {
     @Body() dto: CreateForgotCheckinRequestDto,
     @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.updateForgotCheckinRequest(id, dto, user_id);
+    return await this.requestsService.updateForgotCheckinRequest(
+      id,
+      dto,
+      user_id,
+    );
   }
 
   @Delete('forgot-checkin/:id')
@@ -707,5 +751,5 @@ export class RequestsController {
     @GetCurrentUser('id') user_id: number,
   ) {
     return await this.requestsService.deleteForgotCheckinRequest(id, user_id);
-  }}
-
+  }
+}

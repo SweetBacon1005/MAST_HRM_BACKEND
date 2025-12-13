@@ -759,12 +759,10 @@ model user_leave_balances {
     annual_paid_leave_quota         Float     @default(36)
     carry_over_days                 Float     @default(0)
     last_reset_date                   DateTime? @db.Date
-    monthly_violation_minutes_quota   Int       @default(60) // Tổng số phút đi muộn/về sớm được phép/tháng
-    last_violation_reset_date         DateTime? @db.Date // Ngày reset số phút vi phạm lần cuối
-    monthly_forgot_checkin_quota      Int       @default(3) // Số request quên chấm công được phép/tháng
-    monthly_late_early_quota          Int       @default(120) // Tổng số PHÚT request đi muộn/về sớm được phép/tháng
-    monthly_late_early_count_quota    Int       @default(3) // Số LƯỢNG request đi muộn/về sớm được phép/tháng
-    last_request_quota_reset_date     DateTime? @db.Date // Ngày reset quota request lần cuối
+    monthly_violation_minutes_quota   Int       @default(60)
+    monthly_forgot_checkin_quota      Int       @default(3) 
+    monthly_late_early_quota          Int       @default(120) 
+    monthly_late_early_count_quota    Int       @default(3)
     created_at                      DateTime  @default(now())
     updated_at                      DateTime  @updatedAt
     deleted_at                      DateTime? @db.DateTime()

@@ -1,8 +1,8 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -18,13 +18,16 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ScopeType } from '@prisma/client';
 import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { GetAuthContext } from '../auth/decorators/get-auth-context.decorator';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { AUTH_ERRORS } from 'src/common/constants/error-messages.constants';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import type { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { MarkReadDto } from './dto/mark-read.dto';
 import { AdminNotificationPaginationDto, UserNotificationPaginationDto } from './dto/pagination-queries.dto';
@@ -47,10 +50,10 @@ export class NotificationsController {
   async create(
     @Body() createNotificationDto: CreateNotificationDto,
     @GetCurrentUser('id') creatorId: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
-      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
+      throw new ForbiddenException(AUTH_ERRORS.FORBIDDEN);
     }
     return this.notificationsService.create(createNotificationDto, creatorId);
   }
@@ -80,10 +83,10 @@ export class NotificationsController {
   })
   async findAllForAdmin(
     @Query() paginationDto: AdminNotificationPaginationDto,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
-      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
+      throw new ForbiddenException(AUTH_ERRORS.FORBIDDEN);
     }
     return this.notificationsService.findAllForAdmin(paginationDto);
   }
@@ -99,10 +102,10 @@ export class NotificationsController {
   @ApiResponse({ status: 404, description: 'Không tìm thấy thông báo' })
   async findOne(
     @Param('notificationId', ParseIntPipe) id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
-      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
+      throw new ForbiddenException(AUTH_ERRORS.FORBIDDEN);
     }
     return this.notificationsService.findOne(id);
   }
@@ -121,10 +124,10 @@ export class NotificationsController {
   async update(
     @Param('notificationId', ParseIntPipe) notificationId: number,
     @Body() updateNotificationDto: UpdateNotificationDto,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
-      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
+      throw new ForbiddenException(AUTH_ERRORS.FORBIDDEN);
     }
     return this.notificationsService.update(
       notificationId,
@@ -167,10 +170,10 @@ export class NotificationsController {
   async remove(
     @Param('notificationId', ParseIntPipe) notificationId: number,
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
-      throw new BadRequestException(AUTH_ERRORS.FORBIDDEN);
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
+      throw new ForbiddenException(AUTH_ERRORS.FORBIDDEN);
     }
     return this.notificationsService.remove(notificationId, user_id);
   }

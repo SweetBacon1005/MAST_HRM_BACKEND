@@ -82,7 +82,7 @@ export class ProjectsController {
     status: 200,
     description: 'Lấy danh sách dự án quản lý thành công',
   })
-  findManaged(
+  findManagedProjects(
     @Query() paginationDto: ProjectPaginationDto,
     @GetCurrentUser('id') userId: number,
   ) {
