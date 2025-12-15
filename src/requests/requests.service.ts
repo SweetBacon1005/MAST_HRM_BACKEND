@@ -136,7 +136,7 @@ export class RequestsService {
 
     await this.prisma.time_sheets.update({
       where: { id: timesheet.id },
-      data: { has_remote_work_request: true },
+      data: { /* REMOVED: has_remote_work_request */ },
     });
 
     const request = await this.prisma.remote_work_requests.create({
@@ -470,12 +470,7 @@ export class RequestsService {
 
     const workDate = new Date(dto.work_date);
 
-    const project = await this.prisma.projects.findFirst({
-      where: { id: dto.project_id, deleted_at: null },
-    });
-    if (!project) {
-      throw new BadRequestException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
-    }
+    // REMOVED: Project validation (no longer linked to overtime)
 
     const existingOvertime = await this.prisma.over_times_history.findFirst({
       where: {
@@ -520,7 +515,7 @@ export class RequestsService {
         total_hours: totalHours,
         hourly_rate: hourlyRate,
         total_amount: totalAmount,
-        project_id: dto.project_id,
+        // REMOVED: project_id
         reason: dto.reason,
         status: ApprovalStatus.PENDING,
       },
@@ -582,7 +577,7 @@ export class RequestsService {
               user_information: { select: { name: true } },
             },
           },
-          project: { select: { name: true, code: true } },
+          // REMOVED: project relation
           approved_by_user: {
             select: {
               email: true,
@@ -632,7 +627,7 @@ export class RequestsService {
               user_information: { select: { name: true } },
             },
           },
-          project: { select: { name: true, code: true } },
+          // REMOVED: project relation
           approved_by_user: {
             select: {
               email: true,
@@ -1234,7 +1229,7 @@ export class RequestsService {
         },
         include: {
           user: { select: { id: true, email: true } },
-          project: { select: { name: true, code: true } },
+          // REMOVED: project relation
           approved_by_user: { select: { id: true, email: true } },
         },
       }),
@@ -1713,7 +1708,7 @@ export class RequestsService {
         where: { id: remoteRequest.timesheet.id },
         data: {
           remote: request.remote_type,
-          remote_work_approved: true,
+          // REMOVED: remote_work_approved
         },
       });
     } else {
@@ -1733,8 +1728,8 @@ export class RequestsService {
             remote: request.remote_type,
             status: ApprovalStatus.PENDING,
             type: 'NORMAL',
-            has_remote_work_request: true,
-            remote_work_approved: true,
+            // REMOVED: has_remote_work_request
+            // REMOVED: remote_work_approved
           },
         });
       } else {
@@ -1742,7 +1737,7 @@ export class RequestsService {
           where: { id: timesheet.id },
           data: {
             remote: request.remote_type,
-            remote_work_approved: true,
+            // REMOVED: remote_work_approved
           },
         });
       }
@@ -1779,8 +1774,7 @@ export class RequestsService {
           work_date: workDate,
           status: 'APPROVED',
           type: 'NORMAL',
-          work_time_morning: workHours.morningHours,
-          work_time_afternoon: workHours.afternoonHours,
+          // REMOVED: work_time_morning, work_time_afternoon
           total_work_time: workHours.totalHours,
           is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
         },
@@ -1789,8 +1783,7 @@ export class RequestsService {
       await this.prisma.time_sheets.update({
         where: { id: existingTimesheet.id },
         data: {
-          work_time_morning: workHours.morningHours,
-          work_time_afternoon: workHours.afternoonHours,
+          // REMOVED: work_time_morning, work_time_afternoon
           total_work_time: workHours.totalHours,
         },
       });
@@ -1899,7 +1892,7 @@ export class RequestsService {
     if (timesheet) {
       await this.prisma.time_sheets.update({
         where: { id: timesheet.id },
-        data: { has_late_early_request: true },
+        data: { /* REMOVED: has_late_early_request */ },
       });
     }
 
@@ -2268,7 +2261,7 @@ export class RequestsService {
     if (timesheet) {
       await this.prisma.time_sheets.update({
         where: { id: timesheet.id },
-        data: { has_forgot_checkin_request: true },
+        data: { /* REMOVED: has_forgot_checkin_request */ },
       });
     }
 
@@ -3401,13 +3394,7 @@ export class RequestsService {
 
     const workDate = new Date(dto.work_date);
 
-    const project = await this.prisma.projects.findFirst({
-      where: { id: dto.project_id, deleted_at: null },
-    });
-
-    if (!project) {
-      throw new BadRequestException(PROJECT_ERRORS.PROJECT_NOT_FOUND);
-    }
+    // REMOVED: Project validation (no longer linked to overtime)
 
     const conflictingOvertime = await this.prisma.over_times_history.findFirst({
       where: {
@@ -3443,7 +3430,7 @@ export class RequestsService {
       where: { id },
       data: {
         title: dto.title,
-        project_id: dto.project_id,
+        // REMOVED: project_id
         work_date: workDate,
         start_time: new Date(
           `${workDate.toISOString().split('T')[0]} ${dto.start_time}`,

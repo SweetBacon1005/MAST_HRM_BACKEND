@@ -63,13 +63,7 @@ export class CreateOvertimeRequestDto {
   @IsString()
   title: string;
 
-  @ApiProperty({
-    description: 'ID dự án',
-    example: 5,
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  project_id: number;
+  // REMOVED: project_id field
 
   @ApiProperty({
     description: 'Ngày áp dụng',

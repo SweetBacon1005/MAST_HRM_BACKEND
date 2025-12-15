@@ -74,20 +74,13 @@ export class TimesheetReportsService {
     // Thống kê tổng hợp
     const stats = {
       total_records: timesheets.length,
-      total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
-        .length,
-      total_early_leave: timesheets.filter(
-        (t) => t.early_time && t.early_time > 0,
-      ).length,
+      total_late: 0,  // REMOVED: late_time tracking
+      total_early_leave: 0,  // REMOVED: early_time tracking
       total_incomplete: timesheets.filter((t) => t.is_complete === false)
         .length,
       total_remote: timesheets.filter((t) => t.remote === 'REMOTE').length,
       average_work_hours:
-        timesheets.reduce((sum, t) => {
-          const workTime =
-            (t.work_time_morning || 0) + (t.work_time_afternoon || 0);
-          return sum + workTime;
-        }, 0) /
+        timesheets.reduce((sum, t) => sum + (t.total_work_time || 0), 0) /
         (timesheets.length || 1) /
         60,
     };
@@ -164,12 +157,10 @@ export class TimesheetReportsService {
       }
 
       acc[user_id].total_days += 1;
-      acc[user_id].total_work_hours +=
-        ((timesheet.work_time_morning || 0) +
-          (timesheet.work_time_afternoon || 0)) /
-        60;
-      acc[user_id].total_late_minutes += timesheet.late_time || 0;
-      acc[user_id].total_early_minutes += timesheet.early_time || 0;
+      acc[user_id].total_work_hours += (timesheet.total_work_time || 0) / 60;
+      // REMOVED: late/early tracking - use late_early_requests table
+      acc[user_id].total_late_minutes += 0;
+      acc[user_id].total_early_minutes += 0;
       acc[user_id].days_remote += timesheet.remote === 'REMOTE' ? 1 : 0;
 
       return acc;

@@ -978,29 +978,16 @@ export class DivisionService {
         where: {
           user_id: { in: user_ids },
           work_date: targetDate,
-          late_time: { not: null },
+          // REMOVED: late_time filter
           deleted_at: null,
         },
         include: { user: userSelect },
       }),
 
       Promise.all([
-        this.prisma.time_sheets.count({
-          where: {
-            user_id: { in: user_ids },
-            work_date: { gte: startOfMonth, lte: endOfMonth },
-            late_time: { gt: 0 },
-            deleted_at: null,
-          },
-        }),
-        this.prisma.time_sheets.count({
-          where: {
-            user_id: { in: user_ids },
-            work_date: { gte: startOfMonth, lte: endOfMonth },
-            early_time: { gt: 0 },
-            deleted_at: null,
-          },
-        }),
+        // REMOVED: Late/early time counts - use late_early_requests table
+        Promise.resolve(0),
+        Promise.resolve(0),
       ]),
 
       this.prisma.time_sheets.findMany({
@@ -1047,9 +1034,9 @@ export class DivisionService {
         avatar: ts?.user?.user_information?.avatar,
         position: ts?.user?.user_information?.position,
         checkin_time: DateFormatUtil.formatTime(ts.checkin),
-        late_minutes: ts.late_time || 0,
+        late_minutes: 0,  // REMOVED: late_time
         status: 'Không phép',
-        duration: `${Math.floor((ts.late_time || 0) / 60)}h${(ts.late_time || 0) % 60}m`,
+        duration: '0h0m',  // REMOVED: late_time
       })),
     };
 
@@ -1076,7 +1063,7 @@ export class DivisionService {
           position: ts?.user?.user_information?.position,
           checkin_time: DateFormatUtil.formatTime(ts.checkin),
           checkout_time: DateFormatUtil.formatTime(ts.checkout),
-          status: ts.late_time && ts.late_time > 0 ? 'Không phép' : 'Có phép',
+          status: 'Có phép',  // REMOVED: late_time check
           duration,
         };
       }),
@@ -1210,7 +1197,7 @@ export class DivisionService {
       where: {
         user_id: { in: user_ids },
         work_date: new Date(dateStr),
-        late_time: { not: null },
+        // REMOVED: late_time filter
         deleted_at: null,
       },
       include: {
@@ -1235,9 +1222,9 @@ export class DivisionService {
       avatar: timesheet?.user?.user_information?.avatar,
       position: timesheet?.user?.user_information?.position,
       checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
-      late_minutes: timesheet.late_time || 0,
+      late_minutes: 0,  // REMOVED: late_time
       status: 'Không phép',
-      duration: `${Math.floor((timesheet.late_time || 0) / 60)}h${(timesheet.late_time || 0) % 60}m`,
+      duration: '0h0m',  // REMOVED: late_time
     }));
 
     return {
@@ -1302,10 +1289,7 @@ export class DivisionService {
       position: timesheet?.user?.user_information?.position,
       checkin_time: DateFormatUtil.formatTime(timesheet.checkin),
       checkout_time: DateFormatUtil.formatTime(timesheet.checkout),
-      status:
-        timesheet.late_time && timesheet.late_time > 0
-          ? 'Không phép'
-          : 'Có phép',
+      status: 'Có phép',  // REMOVED: late_time check
       duration:
         timesheet.checkout && timesheet.checkin
           ? (() => {
@@ -1419,30 +1403,8 @@ export class DivisionService {
       };
     }
 
-    const [lateCount, earlyCount] = await Promise.all([
-      this.prisma.time_sheets.count({
-        where: {
-          user_id: { in: user_ids },
-          work_date: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-          late_time: { gt: 0 },
-          deleted_at: null,
-        },
-      }),
-      this.prisma.time_sheets.count({
-        where: {
-          user_id: { in: user_ids },
-          work_date: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-          early_time: { gt: 0 },
-          deleted_at: null,
-        },
-      }),
-    ]);
+    // REMOVED: Late/early counts - use late_early_requests table
+    const [lateCount, earlyCount] = [0, 0];
 
     return {
       late_count: lateCount,
@@ -1557,36 +1519,11 @@ export class DivisionService {
       const startOfMonth = new Date(year, month - 1, 1);
       const endOfMonth = new Date(year, month, 0);
 
+      // REMOVED: Late time aggregations - fields no longer exist
       const [late_minutes, actuallate_minutes, overtimeHours] =
         await Promise.all([
-          this.prisma.time_sheets.aggregate({
-            where: {
-              user_id: { in: user_ids },
-              work_date: {
-                gte: startOfMonth,
-                lte: endOfMonth,
-              },
-              late_time: { not: null },
-              deleted_at: null,
-            },
-            _sum: {
-              late_time: true,
-            },
-          }),
-          this.prisma.time_sheets.aggregate({
-            where: {
-              user_id: { in: user_ids },
-              work_date: {
-                gte: startOfMonth,
-                lte: endOfMonth,
-              },
-              late_time_approved: { not: null },
-              deleted_at: null,
-            },
-            _sum: {
-              late_time_approved: true,
-            },
-          }),
+          Promise.resolve({ _sum: { late_time: 0 } }),
+          Promise.resolve({ _sum: { late_time_approved: 0 } }),
           this.prisma.over_times_history.aggregate({
             where: {
               user_id: { in: user_ids },
@@ -2293,7 +2230,7 @@ export class DivisionService {
       const searchLower = paginationDto.search.toLowerCase();
       filteredDivisions = userDivisions.filter(
         (ud) =>
-          ud.user?.user_information?.[0]?.name
+          ud.user?.user_information?.name
             ?.toLowerCase()
             .includes(searchLower) ||
           ud.division?.name?.toLowerCase().includes(searchLower),

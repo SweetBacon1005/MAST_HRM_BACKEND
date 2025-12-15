@@ -87,20 +87,13 @@ export class ReportsService {
     // Thống kê tổng hợp
     const stats = {
       total_records: timesheets.length,
-      total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
-        .length,
-      total_early_leave: timesheets.filter(
-        (t) => t.early_time && t.early_time > 0,
-      ).length,
+      total_late: 0,  // REMOVED: late_time
+      total_early_leave: 0,  // REMOVED: early_time
       total_incomplete: timesheets.filter((t) => t.is_complete === false)
         .length,
       total_remote: timesheets.filter((t) => t.remote === 'REMOTE').length,
       average_work_hours:
-        timesheets.reduce((sum, t) => {
-          const workTime =
-            (t.work_time_morning || 0) + (t.work_time_afternoon || 0);
-          return sum + workTime;
-        }, 0) /
+        timesheets.reduce((sum, t) => sum + (t.total_work_time || 0), 0) /
         (timesheets.length || 1) /
         60, // Convert minutes to hours
     };
@@ -173,12 +166,10 @@ export class ReportsService {
 
       const userStat = acc[user_id];
       userStat.total_days += 1;
-      userStat.total_work_hours +=
-        ((timesheet.work_time_morning || 0) +
-          (timesheet.work_time_afternoon || 0)) /
-        60;
-      userStat.total_late_minutes += timesheet.late_time || 0;
-      userStat.total_early_minutes += timesheet.early_time || 0;
+      userStat.total_work_hours += (timesheet.total_work_time || 0) / 60;
+      // REMOVED: late/early time tracking
+      userStat.total_late_minutes += 0;
+      userStat.total_early_minutes += 0;
       if (userStat.days_remote !== undefined) {
         userStat.days_remote += timesheet.remote ? 1 : 0;
       }
@@ -281,20 +272,11 @@ export class ReportsService {
     // Tính toán thống kê attendance
     const totalDays = timesheets.length;
     const completeDays = timesheets.filter((t) => t.is_complete).length;
-    const lateDays = timesheets.filter(
-      (t) => t.late_time && t.late_time > 0,
-    ).length;
-    const earlyLeaveDays = timesheets.filter(
-      (t) => t.early_time && t.early_time > 0,
-    ).length;
-    const totallate_minutes = timesheets.reduce(
-      (sum, t) => sum + (t.late_time || 0),
-      0,
-    );
-    const totalearly_minutes = timesheets.reduce(
-      (sum, t) => sum + (t.early_time || 0),
-      0,
-    );
+    // REMOVED: Late/early tracking
+    const lateDays = 0;
+    const earlyLeaveDays = 0;
+    const totallate_minutes = 0;
+    const totalearly_minutes = 0;
 
     // Tính toán thống kê overtime
     const totalOvertimeHours = overtimeRequests.reduce(
@@ -450,15 +432,10 @@ export class ReportsService {
     });
 
     const totalRecords = timesheets.length;
-    const onTimeRecords = timesheets.filter(
-      (t) => !t.late_time || t.late_time === 0,
-    ).length;
-    const lateRecords = timesheets.filter(
-      (t) => t.late_time && t.late_time > 0,
-    ).length;
-    const earlyLeaveRecords = timesheets.filter(
-      (t) => t.early_time && t.early_time > 0,
-    ).length;
+    // REMOVED: Late/early tracking
+    const onTimeRecords = timesheets.length;
+    const lateRecords = 0;
+    const earlyLeaveRecords = 0;
     const remoteRecords = timesheets.filter(
       (t) => t.remote === 'REMOTE',
     ).length;
@@ -559,10 +536,8 @@ export class ReportsService {
         checkin: true,
         checkout: true,
         is_complete: true,
-        late_time: true,
-        early_time: true,
-        work_time_morning: true,
-        work_time_afternoon: true,
+        // REMOVED: late_time, early_time, work_time_morning/afternoon
+        total_work_time: true,
         remote: true,
       },
     });
@@ -591,11 +566,10 @@ export class ReportsService {
 
       existing.total_days += 1;
       if (ts.is_complete) existing.complete_days += 1;
-      if (ts.late_time && ts.late_time > 0) existing.late_count += 1;
-      if (ts.early_time && ts.early_time > 0) existing.early_leave_count += 1;
+      // REMOVED: late/early tracking
       if (ts.remote === RemoteType.REMOTE) existing.remote_days += 1;
 
-      const workHours = ((ts.work_time_morning || 0) + (ts.work_time_afternoon || 0)) / 60;
+      const workHours = (ts.total_work_time || 0) / 60;
       existing.total_work_hours += workHours;
 
       if (ts.checkin && (!existing.earliest_checkin || ts.checkin < existing.earliest_checkin)) {
@@ -884,9 +858,8 @@ export class ReportsService {
             email: true,
           },
         },
-        project: {
-          select: { id: true, name: true, code: true },
-        },
+        // REMOVED: project relation
+        approved_by_user: { select: { id: true, email: true } },
       },
     });
 
@@ -944,7 +917,8 @@ export class ReportsService {
     }, {});
 
     // Thống kê theo dự án
-    const projectStats = overtimeRecords.reduce((acc, record) => {
+    // REMOVED: Project stats (overtime no longer linked to projects)
+    const projectStats = {}; /* overtimeRecords.reduce((acc, record) => {
       if (!record.project_id) return acc;
 
       const projectId = record.project_id;
@@ -962,7 +936,7 @@ export class ReportsService {
       acc[projectId].total_amount += record.total_amount || 0;
 
       return acc;
-    }, {});
+    }, {}); */
 
     return {
       period: { start_date: startDate, end_date: endDate },
@@ -1196,17 +1170,9 @@ export class ReportsService {
       const g = grouped[key];
       g.total_records = (g.total_records as number) + 1;
       g.total_work_hours =
-        (g.total_work_hours as number) +
-        ((timesheet.work_time_morning || 0) +
-          (timesheet.work_time_afternoon || 0)) /
-          60;
+        (g.total_work_hours as number) + (timesheet.total_work_time || 0) / 60;
 
-      if (timesheet.late_time && timesheet.late_time > 0) {
-        g.total_late_count = (g.total_late_count as number) + 1;
-      }
-      if (timesheet.early_time && timesheet.early_time > 0) {
-        g.total_early_count = (g.total_early_count as number) + 1;
-      }
+      // REMOVED: Late/early tracking
     });
 
     return Object.values(grouped).sort((a, b) =>
@@ -1233,7 +1199,6 @@ export class ReportsService {
         lte: endDateTime,
       },
       deleted_at: null,
-      OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],
     };
 
     if (user_ids.length > 0) {
@@ -1265,16 +1230,7 @@ export class ReportsService {
       const uv = userViolations[user_id];
       uv.total_violations = (uv.total_violations || 0) + 1;
 
-      if (violation.late_time && violation.late_time > 0) {
-        uv.late_count = (uv.late_count || 0) + 1;
-        uv.total_late_minutes =
-          (uv.total_late_minutes || 0) + violation.late_time;
-      }
-      if (violation.early_time && violation.early_time > 0) {
-        uv.early_leave_count = (uv.early_leave_count || 0) + 1;
-        uv.total_early_minutes =
-          (uv.total_early_minutes || 0) + violation.early_time;
-      }
+      // REMOVED: Late/early violation tracking - fields no longer exist
       uv.total_penalties = (uv.total_penalties || 0) + 0;
     });
 
@@ -1373,25 +1329,14 @@ export class ReportsService {
       const us = userStats[user_id];
       us.total_days += 1;
 
-      if (!timesheet.late_time || timesheet.late_time === 0) {
-        us.on_time_days! += 1;
-      }
-      if (timesheet.late_time && timesheet.late_time > 0) {
-        us.late_days! += 1;
-        us.total_late_minutes += timesheet.late_time;
-      }
-      if (timesheet.early_time && timesheet.early_time > 0) {
-        us.early_leave_days! += 1;
-        us.total_early_minutes += timesheet.early_time;
-      }
+      // REMOVED: Late/early tracking
+      us.on_time_days! += 1;
+      
       if (timesheet.remote === RemoteType.REMOTE) {
         us.remote_days! += 1;
       }
 
-      const workHours =
-        ((timesheet.work_time_morning || 0) +
-          (timesheet.work_time_afternoon || 0)) /
-        60;
+      const workHours = (timesheet.total_work_time || 0) / 60;
       us.total_work_hours += workHours;
       us.total_penalties! += 0;
     });

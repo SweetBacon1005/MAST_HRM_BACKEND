@@ -107,9 +107,7 @@ export class UsersService {
 
     return users.map((user) => ({
       ...user,
-      role: user.user_information?.[0]?.role,
-      position: user.user_information?.[0]?.position,
-      user_information: undefined,
+      position: user.user_information?.position,
     }));
   }
 
@@ -480,31 +478,17 @@ export class UsersService {
     }
 
     // Cập nhật name vào bảng user_information
-    if (name !== undefined) {
-      if (user.user_information?.id) {
-        updatePromises.push(
-          this.prisma.user_information.update({
-            where: {
-              id: user.user_information.id,
-            },
-            data: {
-              name: name,
-            },
-          })
-        );
-      } else if (user.user_information?.id) {
-        // Trường hợp user có user_information nhưng chưa include đầy đủ
-        updatePromises.push(
-          this.prisma.user_information.update({
-            where: {
-              id: user.user_information.id,
-            },
-            data: {
-              name: name,
-            },
-          })
-        );
-      }
+    if (name !== undefined && user.user_information?.id) {
+      updatePromises.push(
+        this.prisma.user_information.update({
+          where: {
+            id: user.user_information.id,
+          },
+          data: {
+            name: name,
+          },
+        })
+      );
     }
 
     // Thực hiện tất cả update cùng lúc

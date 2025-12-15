@@ -34,8 +34,12 @@ export class ScheduleAutomationService {
     private leaveBalanceService: LeaveBalanceService,
   ) {}
 
+  // REMOVED: schedule_works management - Using hardcoded schedule
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async extendExpiringShifts() {
+    this.logger.log('🔄 Skipping work shifts check - using hardcoded schedule');
+    return; // Disabled - no longer using schedule_works table
+    /*
     this.logger.log('🔄 Checking for expiring work shifts...');
 
     try {
@@ -76,10 +80,14 @@ export class ScheduleAutomationService {
     } catch (error) {
       this.logger.error('❌ Error extending work shifts:', error);
     }
+    */
   }
 
   @Cron('0 1 * * 0')
   async createWeeklyOvertimeShifts() {
+    this.logger.log('⏰ Skipping overtime shifts - using hardcoded schedule');
+    return; // Disabled
+    /*
     this.logger.log('⏰ Creating overtime shifts for next week...');
 
     try {
@@ -117,10 +125,14 @@ export class ScheduleAutomationService {
     } catch (error) {
       this.logger.error('❌ Error creating overtime shifts:', error);
     }
+    */
   }
 
   @Cron('0 3 1 * *')
   async cleanupExpiredShifts() {
+    this.logger.log('🧹 Skipping cleanup - using hardcoded schedule');
+    return; // Disabled
+    /*
     this.logger.log('🧹 Cleaning up expired work shifts...');
 
     try {
@@ -142,10 +154,14 @@ export class ScheduleAutomationService {
     } catch (error) {
       this.logger.error('❌ Error cleaning up work shifts:', error);
     }
+    */
   }
 
   @Cron('0 4 25 * *')
   async prepareNextMonthShifts() {
+    this.logger.log('📅 Skipping next month preparation - using hardcoded schedule');
+    return; // Disabled
+    /*
     this.logger.log('📅 Preparing work shifts for next month...');
 
     try {
@@ -187,6 +203,7 @@ export class ScheduleAutomationService {
     } catch (error) {
       this.logger.error('❌ Error preparing next month shifts:', error);
     }
+    */
   }
 
   private getNextMonday(): Date {
@@ -471,3 +488,4 @@ export class ScheduleAutomationService {
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   }
 }
+// End of commented deprecated schedule_works methods - see above */

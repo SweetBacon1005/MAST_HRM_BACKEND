@@ -315,9 +315,7 @@ export class AttendanceExportService {
             email: true,
           },
         },
-        project: {
-          select: { name: true, code: true },
-        },
+        // REMOVED: project relation
       },
     });
 
@@ -330,9 +328,7 @@ export class AttendanceExportService {
       user_name: overtime.user.user_information?.name || '',
       email: overtime.user.email,
       division: divisionNamesMap.get(overtime.user_id) || '',
-      project: overtime.project
-        ? `${overtime.project.code} - ${overtime.project.name}`
-        : '',
+      project: '', // REMOVED: project relation
       work_date: this.csvExport.formatDate(overtime.work_date),
       title: overtime.title,
       start_time: overtime.start_time.toISOString().split('T')[1].substring(0, 5),

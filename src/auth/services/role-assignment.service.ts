@@ -609,7 +609,7 @@ export class RoleAssignmentService {
           replaced_user: replacedUser
             ? {
                 id: replacedUser.id,
-                name: replacedUser.user_information?.[0]?.name || null,
+                name: replacedUser.user_information?.name || null,
                 email: replacedUser.email,
               }
             : null,
@@ -901,7 +901,7 @@ export class RoleAssignmentService {
           replaced_user: replacedUser
             ? {
                 id: replacedUser.id,
-                name: replacedUser.user_information?.[0]?.name || null,
+                name: replacedUser.user_information?.name || null,
                 email: replacedUser.email,
               }
             : null,
@@ -996,7 +996,7 @@ export class RoleAssignmentService {
           replaced_user: replacedUser
             ? {
                 id: replacedUser.id,
-                name: replacedUser.user_information?.[0]?.name || null,
+                name: replacedUser.user_information?.name || null,
                 email: replacedUser.email,
               }
             : null,

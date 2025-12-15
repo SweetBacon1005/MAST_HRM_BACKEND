@@ -508,6 +508,9 @@ export class TimesheetService {
           throw new BadRequestException('Bạn đã check-in hôm nay rồi');
         }
 
+        // REMOVED: attendance_sessions table no longer exists
+        const openSession = null;
+        /*
         const openSession = await tx.attendance_sessions.findFirst({
           where: {
             user_id: user_id,
@@ -515,6 +518,7 @@ export class TimesheetService {
             deleted_at: null,
           },
         });
+        */
 
         if (openSession) {
           throw new BadRequestException(
@@ -562,6 +566,8 @@ export class TimesheetService {
               )
             : 0;
 
+        // REMOVED: attendance_sessions table no longer exists
+        /*
         const newSession = await tx.attendance_sessions.create({
           data: {
             user_id: user_id,
@@ -574,6 +580,8 @@ export class TimesheetService {
             session_type: checkinDto.session_type || 'WORK',
           },
         });
+        */
+        const newSession = null;
 
         const attendanceLog = await tx.attendance_logs.create({
           data: {
@@ -593,7 +601,7 @@ export class TimesheetService {
           where: { id: timesheet.id },
           data: {
             checkin: checkin_time,
-            late_time: lateTime,
+            // REMOVED: late_time
             remote: checkinDto.remote || 'OFFICE',
           },
         });
@@ -679,6 +687,9 @@ export class TimesheetService {
           );
         }
 
+        // REMOVED: attendance_sessions table no longer exists
+        const openSession = null;
+        /*
         const openSession = await tx.attendance_sessions.findFirst({
           where: {
             user_id: user_id,
@@ -687,6 +698,7 @@ export class TimesheetService {
             deleted_at: null,
           },
         });
+        */
 
         if (!openSession) {
           throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
@@ -728,6 +740,8 @@ export class TimesheetService {
         const workTimeMorning = Math.min(240, netWorkMinutes);
         const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
 
+        // REMOVED: attendance_sessions table no longer exists
+        /*
         await tx.attendance_sessions.update({
           where: { id: openSession.id },
           data: {
@@ -736,6 +750,7 @@ export class TimesheetService {
             is_open: false, // Đóng session khi checkout
           },
         });
+        */
 
         const attendanceLog = await tx.attendance_logs.create({
           data: {
@@ -755,11 +770,8 @@ export class TimesheetService {
           where: { id: todayTimesheet.id },
           data: {
             checkout: checkout_time,
-            early_time: earlyTime,
-            work_time_morning: workTimeMorning,
-            work_time_afternoon: workTimeAfternoon,
-            total_work_time: workTimeMorning + workTimeAfternoon,
-            break_time: breakTime,
+            // REMOVED: early_time, work_time_morning/afternoon, break_time
+            total_work_time: netWorkMinutes,
             is_complete: true,
           },
         });
@@ -1289,20 +1301,13 @@ export class TimesheetService {
 
     const stats = {
       total_records: timesheets.length,
-      total_late: timesheets.filter((t) => t.late_time && t.late_time > 0)
-        .length,
-      total_early_leave: timesheets.filter(
-        (t) => t.early_time && t.early_time > 0,
-      ).length,
+      total_late: 0,  // REMOVED: late_time
+      total_early_leave: 0,  // REMOVED: early_time
       total_incomplete: timesheets.filter((t) => t.is_complete === false)
         .length,
       total_remote: timesheets.filter((t) => t.remote === 'REMOTE').length,
       average_work_hours:
-        timesheets.reduce((sum, t) => {
-          const workTime =
-            (t.work_time_morning || 0) + (t.work_time_afternoon || 0);
-          return sum + workTime;
-        }, 0) /
+        timesheets.reduce((sum, t) => sum + (t.total_work_time || 0), 0) /
         (timesheets.length || 1) /
         60, // Convert minutes to hours
     };
@@ -1375,12 +1380,10 @@ export class TimesheetService {
       }
 
       acc[user_id].total_days += 1;
-      acc[user_id].total_work_hours +=
-        ((timesheet.work_time_morning || 0) +
-          (timesheet.work_time_afternoon || 0)) /
-        60;
-      acc[user_id].total_late_minutes += timesheet.late_time || 0;
-      acc[user_id].total_early_minutes += timesheet.early_time || 0;
+      acc[user_id].total_work_hours += (timesheet.total_work_time || 0) / 60;
+      // REMOVED: late/early tracking
+      acc[user_id].total_late_minutes += 0;
+      acc[user_id].total_early_minutes += 0;
       acc[user_id].days_remote += timesheet.remote ? 1 : 0;
 
       return acc;
@@ -1491,14 +1494,7 @@ export class TimesheetService {
 
       acc[userId].total_days += 1;
       if (timesheet.is_complete) acc[userId].complete_days += 1;
-      if (timesheet.late_time && timesheet.late_time > 0) {
-        acc[userId].late_days += 1;
-        acc[userId].late_minutes += timesheet.late_time;
-      }
-      if (timesheet.early_time && timesheet.early_time > 0) {
-        acc[userId].early_leave_days += 1;
-        acc[userId].early_leave_minutes += timesheet.early_time;
-      }
+      // REMOVED: Late/early tracking
       if (timesheet.total_work_time) {
         acc[userId].total_work_minutes += timesheet.total_work_time;
       }
@@ -1673,20 +1669,11 @@ export class TimesheetService {
 
     const totalDays = timesheets.length;
     const completeDays = timesheets.filter((t) => t.is_complete).length;
-    const lateDays = timesheets.filter(
-      (t) => t.late_time && t.late_time > 0,
-    ).length;
-    const earlyLeaveDays = timesheets.filter(
-      (t) => t.early_time && t.early_time > 0,
-    ).length;
-    const totallate_minutes = timesheets.reduce(
-      (sum, t) => sum + (t.late_time || 0),
-      0,
-    );
-    const totalearly_minutes = timesheets.reduce(
-      (sum, t) => sum + (t.early_time || 0),
-      0,
-    );
+    // REMOVED: Late/early tracking
+    const lateDays = 0;
+    const earlyLeaveDays = 0;
+    const totallate_minutes = 0;
+    const totalearly_minutes = 0;  // REMOVED
 
     const totalOvertimeHours = overtimeRequests.reduce(
       (sum, ot) => sum + (ot.total_hours || 0),
@@ -2685,13 +2672,13 @@ export class TimesheetService {
         deleted_at: null,
       },
       _sum: {
-        late_time: true,
-        early_time: true,
+        // REMOVED: late_time, early_time
+        total_work_time: true,
       },
     });
 
-    const usedLateMinutes = summary._sum.late_time || 0;
-    const usedEarlyMinutes = summary._sum.early_time || 0;
+    const usedLateMinutes = 0;  // REMOVED
+    const usedEarlyMinutes = 0;  // REMOVED
     const totalUsedMinutes = usedLateMinutes + usedEarlyMinutes;
 
     return {

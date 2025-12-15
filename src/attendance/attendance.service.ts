@@ -87,29 +87,14 @@ export class AttendanceService {
       throw new BadRequestException(ATTENDANCE_ERRORS.WORK_DURATION_TOO_SHORT);
     }
 
-    let workShift;
-    if (shift_id) {
-      workShift = await this.prisma.schedule_works.findUnique({
-        where: { id: shift_id, deleted_at: null },
-      });
-      if (!workShift) {
-        throw new NotFoundException(ATTENDANCE_ERRORS.WORK_SHIFT_NOT_FOUND);
-      }
-    } else {
-      workShift = await this.prisma.schedule_works.findFirst({
-        where: {
-          start_date: { lte: new Date(workDate) },
-          end_date: { gte: new Date(workDate) },
-          type: WorkShiftType.NORMAL,
-          deleted_at: null,
-        },
-        orderBy: { created_at: 'desc' },
-      });
-    }
-
-    if (!workShift) {
-      throw new NotFoundException(ATTENDANCE_ERRORS.WORK_SHIFT_NO_SUITABLE);
-    }
+    // REMOVED: schedule_works table - Using hardcoded schedule
+    const workShift = {
+      hour_start_morning: '08:30',
+      hour_end_morning: '12:00',
+      hour_start_afternoon: '13:00',
+      hour_end_afternoon: '17:30',
+      type: WorkShiftType.NORMAL,
+    };
 
     const calculations = this.calculateWorkingTime(
       checkin,
@@ -138,10 +123,8 @@ export class AttendanceService {
       checkin,
       checkout,
       checkin_checkout: `${checkin_time} - ${checkout_time}`,
-      late_time: calculations.late_minutes,
-      early_time: calculations.early_minutes,
-      work_time_morning: calculations.morning_minutes,
-      work_time_afternoon: calculations.afternoon_minutes,
+      // REMOVED: late_time, early_time, work_time_morning/afternoon
+      total_work_time: calculations.total_work_minutes,
       remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
       is_complete: true,
       status: ApprovalStatus.PENDING,
@@ -240,7 +223,10 @@ export class AttendanceService {
     return minutes1 < minutes2 ? -1 : minutes1 > minutes2 ? 1 : 0;
   }
 
+  // REMOVED: Work shift management - Using hardcoded schedule
   async createWorkShift(workShiftDto: WorkShiftDto) {
+    throw new BadRequestException('Work shift management is deprecated. Using hardcoded schedule: 8:30-12:00, 13:00-17:30');
+    /*
     const {
       name,
       morning_start,
@@ -304,16 +290,22 @@ export class AttendanceService {
       );
       throw new UnprocessableEntityException('Không thể tạo ca làm việc');
     }
+    */
   }
 
   async getAllWorkShifts() {
+    throw new BadRequestException('Work shift management is deprecated');
+    /*
     return this.prisma.schedule_works.findMany({
       where: { deleted_at: null },
       orderBy: { type: 'asc' },
     });
+    */
   }
 
   async getAllWorkShiftsPaginated(paginationDto: WorkShiftPaginationDto) {
+    throw new BadRequestException('Work shift management is deprecated');
+    /*
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: any = { deleted_at: null };
 
@@ -344,9 +336,12 @@ export class AttendanceService {
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
+    */
   }
 
   async updateWorkShift(id: number, workShiftDto: Partial<WorkShiftDto>) {
+    throw new BadRequestException('Work shift management is deprecated');
+    /*
     const workShift = await this.prisma.schedule_works.findUnique({
       where: { id },
     });
@@ -396,9 +391,10 @@ export class AttendanceService {
         hour_end_afternoon: workShiftDto.afternoon_end,
       },
     });
+    */
   }
 
-    async createLeaveRequest(leaveRequestDto: CreateLeaveRequestDto) {
+  async createLeaveRequest(leaveRequestDto: CreateLeaveRequestDto) {
     const {
       user_id,
       leave_type,
@@ -622,12 +618,10 @@ export class AttendanceService {
           status: ApprovalStatus.PENDING,
           is_complete: true,
           type: TimesheetType.NORMAL,
-          work_time_morning: is_full_day
-            ? 240
-            : Math.floor(
-                (checkout.getTime() - checkin.getTime()) / (1000 * 60),
-              ),
-          work_time_afternoon: is_full_day ? 240 : 0,
+          // REMOVED: work_time_morning/afternoon - use total_work_time
+          total_work_time: is_full_day ? 480 : Math.floor(
+            (checkout.getTime() - checkin.getTime()) / (1000 * 60),
+          ),
         },
       });
 
@@ -769,15 +763,10 @@ export class AttendanceService {
     const timesheets = await this.prisma.time_sheets.findMany({ where });
 
     const totalRecords = timesheets.length;
-    const onTimeRecords = timesheets.filter(
-      (t) => !t.late_time || t.late_time === 0,
-    ).length;
-    const lateRecords = timesheets.filter(
-      (t) => t.late_time && t.late_time > 0,
-    ).length;
-    const earlyLeaveRecords = timesheets.filter(
-      (t) => t.early_time && t.early_time > 0,
-    ).length;
+    // REMOVED: Late/early tracking - use late_early_requests table instead
+    const onTimeRecords = timesheets.length;  // All records now
+    const lateRecords = 0;
+    const earlyLeaveRecords = 0;
     const remoteRecords = timesheets.filter(
       (t) => t.remote === 'REMOTE',
     ).length;
@@ -872,12 +861,10 @@ export class AttendanceService {
       }
 
       grouped[key].total += 1;
-      if (!timesheet.late_time || timesheet.late_time === 0)
-        grouped[key].on_time += 1;
-      if (timesheet.late_time && timesheet.late_time > 0)
-        grouped[key].late += 1;
-      if (timesheet.early_time && timesheet.early_time > 0)
-        grouped[key].early_leave += 1;
+      // REMOVED: Late/early tracking from timesheet
+      grouped[key].on_time += 1;
+      grouped[key].late += 0;
+      grouped[key].early_leave += 0;
       if (timesheet.remote === 1) grouped[key].remote += 1;
       grouped[key].total_penalties += 0;
     });
@@ -909,10 +896,11 @@ export class AttendanceService {
       where.user_id = { in: user_ids };
     }
 
+    // REMOVED: Violation tracking from timesheets - use late_early_requests table
     const violations = await this.prisma.time_sheets.findMany({
       where: {
         ...where,
-        OR: [{ late_time: { gt: 0 } }, { early_time: { gt: 0 } }],
+        id: { gt: 0 },  // Dummy condition since OR removed
       },
     });
 
@@ -932,15 +920,8 @@ export class AttendanceService {
         };
       }
 
-      userViolations[user_id].total_violations += 1;
-      if (violation.late_time && violation.late_time > 0) {
-        userViolations[user_id].late_count += 1;
-        userViolations[user_id].total_late_minutes += violation.late_time;
-      }
-      if (violation.early_time && violation.early_time > 0) {
-        userViolations[user_id].early_leave_count += 1;
-        userViolations[user_id].total_early_minutes += violation.early_time;
-      }
+      // REMOVED: Late/early time tracking - fields no longer exist
+      userViolations[user_id].total_violations += 0;
       userViolations[user_id].total_penalties += 0;
     });
 

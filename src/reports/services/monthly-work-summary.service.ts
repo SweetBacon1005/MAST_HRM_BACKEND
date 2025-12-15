@@ -319,9 +319,7 @@ export class MonthlyWorkSummaryService {
 
     const totalWorkHours =
       timesheets.reduce((sum, t) => {
-        return (
-          sum + ((t.work_time_morning || 0) + (t.work_time_afternoon || 0)) / 60
-        );
+        return sum + (t.total_work_time || 0) / 60;
       }, 0);
 
     // Leave days calculation
@@ -495,28 +493,13 @@ export class MonthlyWorkSummaryService {
    * Tính số lần vi phạm và tổng phút
    */
   private calculateViolations(timesheets: any[]) {
-    let lateCount = 0;
-    let earlyLeaveCount = 0;
-    let totalLateMinutes = 0;
-    let totalEarlyMinutes = 0;
-
-    timesheets.forEach((timesheet) => {
-      if (timesheet.late_time && timesheet.late_time > this.LATE_TOLERANCE_MINUTES) {
-        lateCount++;
-        totalLateMinutes += timesheet.late_time;
-      }
-
-      if (timesheet.early_time && timesheet.early_time > this.EARLY_TOLERANCE_MINUTES) {
-        earlyLeaveCount++;
-        totalEarlyMinutes += timesheet.early_time;
-      }
-    });
-
+    // REMOVED: Direct late/early time tracking from timesheets
+    // Now violations are tracked via late_early_requests table only
     return {
-      lateCount,
-      earlyLeaveCount,
-      totalLateMinutes,
-      totalEarlyMinutes,
+      lateCount: 0,
+      earlyLeaveCount: 0,
+      totalLateMinutes: 0,
+      totalEarlyMinutes: 0,
     };
   }
 
@@ -540,14 +523,14 @@ export class MonthlyWorkSummaryService {
     // Điều kiện: Phải làm đủ CẢ sáng VÀ chiều (hoặc có approved requests)
     timesheets.forEach((timesheet) => {
       // ✅ CỘNG approved time vào thời gian làm việc
-      const morningMinutes = (timesheet.work_time_morning || 0) + 
-                            (timesheet.late_time_approved || 0);
+      // REMOVED: Session-based tracking (work_time_morning/afternoon)
+      // Now determine sessions from total_work_time and day_off duration
+      const totalMinutes = timesheet.total_work_time || 0;
+      const totalHours = totalMinutes / 60;
       
-      const afternoonMinutes = (timesheet.work_time_afternoon || 0) + 
-                              (timesheet.early_time_approved || 0);
-      
-      let morningOK = morningMinutes >= this.MINIMUM_MORNING_MINUTES;
-      let afternoonOK = afternoonMinutes >= this.MINIMUM_AFTERNOON_MINUTES;
+      // Simple logic: 8+ hours = full day, 4-8 hours = half day
+      let morningOK = totalHours >= 4;
+      let afternoonOK = totalHours >= 8;
       
       // ✅ CHECK nghỉ phép (day_off) được duyệt
       const dayOff = dayOffs.find(d => {
@@ -982,31 +965,10 @@ export class MonthlyWorkSummaryService {
         status = 'ABSENT';
       }
 
-      const workHours = timesheet
-        ? ((timesheet.work_time_morning || 0) +
-            (timesheet.work_time_afternoon || 0)) /
-          60
-        : 0;
-
-      const morningSessions =
-        timesheet && timesheet.work_time_morning !== null && timesheet.work_time_morning >= this.MINIMUM_MORNING_MINUTES
-          ? 1
-          : dayOff && dayOff.duration === DayOffDuration.MORNING
-            ? 0
-            : dayOff && dayOff.duration === DayOffDuration.FULL_DAY
-              ? 0
-              : 0;
-
-      const afternoonSessions =
-        timesheet &&
-        timesheet.work_time_afternoon !== null &&
-        timesheet.work_time_afternoon >= this.MINIMUM_AFTERNOON_MINUTES
-          ? 1
-          : dayOff && dayOff.duration === DayOffDuration.AFTERNOON
-            ? 0
-            : dayOff && dayOff.duration === DayOffDuration.FULL_DAY
-              ? 0
-              : 0;
+      // REMOVED: Session-based calculations
+      const workHours = timesheet ? (timesheet.total_work_time || 0) / 60 : 0;
+      const morningSessions = 0;
+      const afternoonSessions = 0;
 
       dailyDetails.push({
         date: dateStr,
@@ -1026,8 +988,8 @@ export class MonthlyWorkSummaryService {
             })
           : undefined,
         work_hours: parseFloat(workHours.toFixed(2)),
-        late_minutes: timesheet?.late_time || 0,
-        early_minutes: timesheet?.early_time || 0,
+        late_minutes: 0,  // REMOVED
+        early_minutes: 0,  // REMOVED
         status,
         remote_type: timesheet?.remote || 'OFFICE',
         has_leave_request: !!dayOff,
@@ -1037,7 +999,7 @@ export class MonthlyWorkSummaryService {
         morning_session: morningSessions,
         afternoon_session: afternoonSessions,
         total_sessions: morningSessions + afternoonSessions,
-        notes: timesheet?.checkin_checkout || undefined,
+        notes: undefined,  // REMOVED: checkin_checkout
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -1065,10 +1027,8 @@ export class MonthlyWorkSummaryService {
           lte: endDate,
         },
         deleted_at: null,
-        OR: [
-          { late_time: { gt: this.LATE_TOLERANCE_MINUTES } },
-          { early_time: { gt: this.EARLY_TOLERANCE_MINUTES } },
-        ],
+        // REMOVED: late_time/early_time filtering - fields no longer exist
+        id: { gt: 0 },  // Dummy condition since OR was removed
       },
     });
 
@@ -1085,8 +1045,9 @@ export class MonthlyWorkSummaryService {
 
     timesheets.forEach((timesheet) => {
       const dateStr = timesheet.work_date.toISOString().split('T')[0];
-      const lateMinutes = timesheet.late_time || 0;
-      const earlyMinutes = timesheet.early_time || 0;
+      // REMOVED: late_time/early_time fields no longer exist
+      const lateMinutes = 0;
+      const earlyMinutes = 0;
 
       const hasApprovedRequest = lateEarlyRequests.some(
         (r) => r.work_date.toISOString().split('T')[0] === dateStr,

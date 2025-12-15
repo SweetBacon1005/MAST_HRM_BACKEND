@@ -56,11 +56,7 @@ export class OvertimeRequestResponseDto {
   })
   total_amount: number | null;
 
-  @ApiPropertyOptional({
-    description: 'ID dự án',
-    example: 1,
-  })
-  project_id: number | null;
+  // REMOVED: project_id field
 
   @ApiPropertyOptional({
     description: 'Lý do làm thêm giờ',
