@@ -4,20 +4,24 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
-import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import { ROLE_IDS } from '../auth/constants/role.constants';
+import { RoleAssignmentService } from '../auth/services/role-assignment.service';
+import {
+  SUCCESS_MESSAGES,
+  TEAM_ERRORS,
+  USER_ERRORS,
+} from '../common/constants/error-messages.constants';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
-import { CreateTeamDto, UpdateTeamDto, TeamPaginationDto } from '../division/dto/team.dto';
-import { AddTeamMemberDto } from './dto/add-member.dto';
+import { PrismaService } from '../database/prisma.service';
 import {
-  TEAM_ERRORS,
-  USER_ERRORS,
-  SUCCESS_MESSAGES,
-} from '../common/constants/error-messages.constants';
+  CreateTeamDto,
+  TeamPaginationDto,
+  UpdateTeamDto,
+} from '../division/dto/team.dto';
+import { AddTeamMemberDto } from './dto/add-member.dto';
 
 @Injectable()
 export class TeamService {
@@ -139,32 +143,35 @@ export class TeamService {
     const transformedData = await Promise.all(
       data.map(async (team) => {
         // Get team leader
-        const leaderAssignment = await this.prisma.user_role_assignment.findFirst({
-          where: {
-            scope_type: ScopeType.TEAM,
-            scope_id: team.id,
-            role_id: ROLE_IDS.TEAM_LEADER,
-            deleted_at: null,
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: { name: true, avatar: true },
+        const leaderAssignment =
+          await this.prisma.user_role_assignment.findFirst({
+            where: {
+              scope_type: ScopeType.TEAM,
+              scope_id: team.id,
+              role_id: ROLE_IDS.TEAM_LEADER,
+              deleted_at: null,
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  user_information: {
+                    select: { name: true, avatar: true },
+                  },
                 },
               },
             },
-          },
-        });
+          });
 
-        const manager = leaderAssignment ? {
-          id: leaderAssignment.user.id,
-          name: leaderAssignment.user.user_information?.name || '',
-          email: leaderAssignment.user.email,
-          avatar: leaderAssignment.user.user_information?.avatar || null,
-        } : null;
+        const manager = leaderAssignment
+          ? {
+              id: leaderAssignment.user.id,
+              name: leaderAssignment.user.user_information?.name || '',
+              email: leaderAssignment.user.email,
+              avatar: leaderAssignment.user.user_information?.avatar || null,
+            }
+          : null;
 
         // Get members for resource breakdown
         const members = await this.prisma.user_role_assignment.findMany({
@@ -177,20 +184,12 @@ export class TeamService {
             user: {
               select: {
                 user_information: {
-                  select: {
-                    level: { select: { name: true } },
-                  },
+                  select: { name: true, avatar: true },
                 },
               },
             },
           },
         });
-
-        const resourceByLevel = members.reduce((acc, member) => {
-          const levelName = member.user.user_information?.level?.name || 'Unknown';
-          acc[levelName] = (acc[levelName] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
 
         // Get active projects
         const activeProjects = await this.prisma.projects.findMany({
@@ -208,7 +207,6 @@ export class TeamService {
           division: team.division,
           manager,
           member_count: memberCountMap.get(team.id) || 0,
-          resource_by_level: resourceByLevel,
           active_projects: activeProjects, // Array of {id, name} - Better for frontend
           founding_date: team.founding_date
             ? team.founding_date.toISOString().split('T')[0]
@@ -303,8 +301,8 @@ export class TeamService {
       where: { id },
       data: {
         name: updateTeamDto.name,
-        founding_date: updateTeamDto.founding_date 
-          ? new Date(updateTeamDto.founding_date) 
+        founding_date: updateTeamDto.founding_date
+          ? new Date(updateTeamDto.founding_date)
           : undefined,
       },
       include: {
@@ -408,15 +406,16 @@ export class TeamService {
     }
 
     // Validate user belongs to the same division
-    const userDivisionAssignment = await this.prisma.user_role_assignment.findFirst({
-      where: {
-        user_id: dto.user_id,
-        scope_type: ScopeType.DIVISION,
-        deleted_at: null,
-        scope_id: { not: null },
-      },
-      orderBy: { created_at: 'desc' },
-    });
+    const userDivisionAssignment =
+      await this.prisma.user_role_assignment.findFirst({
+        where: {
+          user_id: dto.user_id,
+          scope_type: ScopeType.DIVISION,
+          deleted_at: null,
+          scope_id: { not: null },
+        },
+        orderBy: { created_at: 'desc' },
+      });
 
     if (!userDivisionAssignment) {
       throw new BadRequestException('User chưa được gán vào division nào');
@@ -579,7 +578,6 @@ export class TeamService {
                 code: true,
                 avatar: true,
                 position: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true, coefficient: true } },
               },
             },
           },
@@ -609,13 +607,6 @@ export class TeamService {
         code: assignment.user.user_information?.code || '',
         avatar: assignment.user.user_information?.avatar || null,
         position: assignment.user.user_information?.position || null,
-        level: assignment.user.user_information?.level
-          ? {
-              id: assignment.user.user_information.level.id,
-              name: assignment.user.user_information.level.name,
-              coefficient: assignment.user.user_information.level.coefficient,
-            }
-          : null,
       }));
 
     return {
@@ -648,9 +639,6 @@ export class TeamService {
                 code: true,
                 avatar: true,
                 position: { select: { id: true, name: true } },
-                level: {
-                  select: { id: true, name: true, coefficient: true },
-                },
               },
             },
           },
@@ -670,7 +658,6 @@ export class TeamService {
       code: a.user.user_information?.code || '',
       avatar: a.user.user_information?.avatar || null,
       position: a.user.user_information?.position || null,
-      level: a.user.user_information?.level || null,
       role: a.role,
       joined_at: a.created_at,
     }));

@@ -410,13 +410,7 @@ export class DivisionService {
       };
     }
 
-    if (queryDto.level_id) {
-      userWhere.user_information = {
-        ...(userWhere.user_information as any),
-        deleted_at: null,
-        level_id: queryDto.level_id,
-      };
-    }
+    // Level filter removed - levels table no longer exists
 
     if (queryDto.skill_id) {
       userWhere.user_information = {
@@ -458,9 +452,6 @@ export class DivisionService {
             include: {
               position: {
                 select: { id: true, name: true },
-              },
-              level: {
-                select: { id: true, name: true, coefficient: true },
               },
               education: {
                 select: { id: true, name: true },
@@ -537,9 +528,6 @@ export class DivisionService {
         position: userInfo?.position?.name || '',
         position_id: userInfo?.position?.id || null,
         skills: skills.join(', '),
-        level: userInfo?.level?.name || '',
-        level_id: userInfo?.level?.id || null,
-        coefficient: userInfo?.level?.coefficient || 0,
         user_role_assignments: userRoleAssignments,
       };
     });
@@ -1830,13 +1818,7 @@ export class DivisionService {
             deleted_at: null,
           },
           include: {
-            user_information: {
-              include: {
-                level: {
-                  select: { name: true },
-                },
-              },
-            },
+            user_information: true,
           },
         })
       : [];
@@ -1967,13 +1949,7 @@ export class DivisionService {
         deleted_at: null,
       },
       include: {
-        user_information: {
-          include: {
-            level: {
-              select: { name: true },
-            },
-          },
-        },
+        user_information: true,
       },
     });
 
@@ -2393,13 +2369,6 @@ export class DivisionService {
                   name: true,
                 },
               },
-              level: {
-                select: {
-                  id: true,
-                  name: true,
-                  coefficient: true,
-                },
-              },
             },
           },
         },
@@ -2735,13 +2704,6 @@ export class DivisionService {
                       name: true,
                     },
                   },
-                  level: {
-                    select: {
-                      id: true,
-                      name: true,
-                      coefficient: true,
-                    },
-                  },
                 },
               },
             },
@@ -2872,9 +2834,6 @@ export class DivisionService {
         ...(paginationDto.position_id && {
           position_id: paginationDto.position_id,
         }),
-        ...(paginationDto.level_id && {
-          level_id: paginationDto.level_id,
-        }),
       };
     }
 
@@ -2922,13 +2881,6 @@ export class DivisionService {
                   name: true,
                 },
               },
-              level: {
-                select: {
-                  id: true,
-                  name: true,
-                  coefficient: true,
-                },
-              },
             },
           },
         },
@@ -2946,7 +2898,6 @@ export class DivisionService {
       phone: user.user_information?.phone || '',
       address: user.user_information?.address || '',
       position: user.user_information?.position || null,
-      level: user.user_information?.level || null,
       created_at: user.created_at,
     }));
 

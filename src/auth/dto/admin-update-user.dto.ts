@@ -50,14 +50,4 @@ export class AdminUpdateUserDto {
   @Type(() => Number)
   @IsInt({ message: 'ID vị trí phải là số nguyên' })
   position_id?: number;
-
-  @ApiProperty({
-    description: 'ID cấp bậc',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt({ message: 'ID cấp bậc phải là số nguyên' })
-  level_id?: number;
 }

@@ -14,7 +14,6 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -76,7 +75,10 @@ export class DivisionController {
       properties: {
         id: { type: 'number' },
         name: { type: 'string' },
-        type: { type: 'string', enum: ['TECHNICAL', 'BUSINESS', 'OPERATIONS', 'OTHER'] },
+        type: {
+          type: 'string',
+          enum: ['TECHNICAL', 'BUSINESS', 'OPERATIONS', 'OTHER'],
+        },
         status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
         address: { type: 'string', nullable: true },
         description: { type: 'string', nullable: true },
@@ -227,7 +229,10 @@ export class DivisionController {
           type: 'object',
           properties: {
             teams: { type: 'number', description: 'Số lượng teams bị xóa' },
-            projects: { type: 'number', description: 'Số lượng projects bị xóa' },
+            projects: {
+              type: 'number',
+              description: 'Số lượng projects bị xóa',
+            },
           },
         },
       },
@@ -557,15 +562,6 @@ export class DivisionController {
                   name: { type: 'string', example: 'Developer' },
                 },
               },
-              level: {
-                type: 'object',
-                nullable: true,
-                properties: {
-                  id: { type: 'number', example: 2 },
-                  name: { type: 'string', example: 'Junior' },
-                  coefficient: { type: 'number', example: 1.2 },
-                },
-              },
               role: {
                 type: 'object',
                 nullable: true,
@@ -819,12 +815,11 @@ export class DivisionController {
               skills: {
                 type: 'string',
               },
-              level: { type: 'string' },
-              level_id: { type: 'number' },
               coefficient: { type: 'number' },
               user_role_assignments: {
                 type: 'array',
-                description: 'Danh sách tất cả role assignments của user trong division này',
+                description:
+                  'Danh sách tất cả role assignments của user trong division này',
                 items: {
                   type: 'object',
                   properties: {
@@ -833,7 +828,10 @@ export class DivisionController {
                     role_name: { type: 'string', example: 'Member' },
                     scope_type: { type: 'string', example: 'DIVISION' },
                     scope_id: { type: 'number', example: 2 },
-                    description: { type: 'string', example: 'Developer chính của phòng' },
+                    description: {
+                      type: 'string',
+                      example: 'Developer chính của phòng',
+                    },
                     assigned_at: { type: 'string', format: 'date-time' },
                   },
                 },
@@ -1217,14 +1215,6 @@ export class DivisionController {
                         properties: {
                           id: { type: 'number', example: 1 },
                           name: { type: 'string', example: 'Developer' },
-                        },
-                      },
-                      level: {
-                        type: 'object',
-                        properties: {
-                          id: { type: 'number', example: 2 },
-                          name: { type: 'string', example: 'Junior' },
-                          coefficient: { type: 'number', example: 1.2 },
                         },
                       },
                     },

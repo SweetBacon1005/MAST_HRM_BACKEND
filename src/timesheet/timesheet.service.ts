@@ -2545,7 +2545,7 @@ export class TimesheetService {
         monthly_forgot_checkin_quota: true,
         monthly_late_early_quota: true,
         monthly_late_early_count_quota: true,
-        last_request_quota_reset_date: true,
+        last_reset_date: true,
       },
     });
 
@@ -2615,7 +2615,7 @@ export class TimesheetService {
         
         exceeded: lateEarlyRequestCount >= lateEarlyCountQuota || totalLateEarlyMinutes >= lateEarlyMinutesQuota,
       },
-      last_reset_date: leaveBalance?.last_request_quota_reset_date || null,
+      last_reset_date: leaveBalance?.last_reset_date || null,
     };
   }
 
@@ -2664,7 +2664,7 @@ export class TimesheetService {
       where: { user_id },
       select: {
         monthly_violation_minutes_quota: true,
-        last_violation_reset_date: true,
+        last_reset_date: true,
       },
     });
 
@@ -2704,7 +2704,7 @@ export class TimesheetService {
       remaining_minutes: Math.max(0, quota - totalUsedMinutes),
       exceeded: totalUsedMinutes > quota,
       exceeded_by: Math.max(0, totalUsedMinutes - quota),
-      last_reset_date: leaveBalance?.last_violation_reset_date || null,
+      last_reset_date: leaveBalance?.last_reset_date || null,
     };
   }
 }

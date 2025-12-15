@@ -405,7 +405,7 @@ export class UserProfileController {
     description: 'Danh sách cấp độ có phân trang',
   })
   async getLevels(@Query() paginationDto: ReferencePaginationDto) {
-    return await this.userProfileService.getLevelsPaginated(paginationDto);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   @Get('references/languages')
@@ -464,7 +464,7 @@ export class UserProfileController {
   })
   @ApiResponse({ status: 400, description: 'Tên level hoặc cấp độ đã tồn tại' })
   createLevel(@Body() createLevelDto: CreateLevelDto) {
-    return this.userProfileService.createLevel(createLevelDto);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   @Get('levels')
@@ -509,7 +509,7 @@ export class UserProfileController {
     },
   })
   findAllLevels(@Query() paginationDto: LevelPaginationDto) {
-    return this.userProfileService.findAllLevels(paginationDto);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   @Get('levels/:id')
@@ -544,7 +544,7 @@ export class UserProfileController {
   })
   @ApiResponse({ status: 404, description: 'Không tìm thấy level' })
   findOneLevel(@Param('id', ParseIntPipe) id: number) {
-    return this.userProfileService.findOneLevel(id);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   @Patch('levels/:id')
@@ -579,7 +579,7 @@ export class UserProfileController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateLevelDto: UpdateLevelDto,
   ) {
-    return this.userProfileService.updateLevel(id, updateLevelDto);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   @Delete('levels/:id')
@@ -602,7 +602,7 @@ export class UserProfileController {
     description: 'Không thể xóa level đang được sử dụng',
   })
   removeLevel(@Param('id', ParseIntPipe) id: number) {
-    return this.userProfileService.removeLevel(id);
+    throw new Error('Levels endpoint no longer exists - levels table removed');
   }
 
   // ===== QUẢN LÝ POSITIONS =====

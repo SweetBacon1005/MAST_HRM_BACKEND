@@ -74,9 +74,6 @@ export class OrganizationDto {
   @ApiPropertyOptional({ description: 'ID vị trí', example: 1 })
   position_id?: number | null;
 
-  @ApiPropertyOptional({ description: 'ID cấp bậc', example: 2 })
-  level_id?: number | null;
-
   @ApiPropertyOptional({ description: 'ID phòng ban', example: 5 })
   division_id?: number | null;
 
@@ -120,10 +117,6 @@ export class UserInformationDto {
 
   @ApiPropertyOptional({ description: 'ID vị trí', example: 1 })
   position_id?: number | null;
-
-  @ApiPropertyOptional({ description: 'ID cấp bậc', example: 2 })
-  level_id?: number | null;
-
 
   @ApiProperty({ description: 'Thời gian tạo', example: '2024-01-15T10:00:00Z' })
   created_at: Date;

@@ -561,7 +561,7 @@ export class ProjectsService {
               select: {
                 name: true,
                 position: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true, coefficient: true } },
+
               },
             },
           },
@@ -584,13 +584,6 @@ export class ProjectsService {
         ? {
             id: assignment.user.user_information.position.id,
             name: assignment.user.user_information.position.name,
-          }
-        : null,
-      level: assignment.user.user_information?.level
-        ? {
-            id: assignment.user.user_information.level.id,
-            name: assignment.user.user_information.level.name,
-            coefficient: assignment.user.user_information.level.coefficient,
           }
         : null,
     }));
@@ -979,7 +972,7 @@ export class ProjectsService {
               select: {
                 name: true,
                 position: { select: { id: true, name: true } },
-                level: { select: { id: true, name: true, coefficient: true } },
+
               },
             },
           },
@@ -1008,13 +1001,6 @@ export class ProjectsService {
           ? {
               id: tm.user.user_information.position.id,
               name: tm.user.user_information.position.name,
-            }
-          : null,
-        level: tm.user.user_information?.level
-          ? {
-              id: tm.user.user_information.level.id,
-              name: tm.user.user_information.level.name,
-              coefficient: tm.user.user_information.level.coefficient,
             }
           : null,
       }));

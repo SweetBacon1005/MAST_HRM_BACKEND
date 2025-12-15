@@ -250,7 +250,6 @@ export class AuthService {
           user_information: {
             select: {
               position_id: true,
-              level_id: true,
             },
           },
         },

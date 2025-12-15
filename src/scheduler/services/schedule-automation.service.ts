@@ -385,8 +385,7 @@ export class ScheduleAutomationService {
           deleted_at: null,
         },
         data: {
-          last_violation_reset_date: resetDate,
-          last_request_quota_reset_date: resetDate,
+          last_reset_date: resetDate,
         },
       });
 

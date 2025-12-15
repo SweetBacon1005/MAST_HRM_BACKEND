@@ -20,10 +20,9 @@ import {
 } from '@nestjs/swagger';
 import { RotationType, ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { CreateUserDto } from '../../users/dto/create-user.dto';
-import { AdminUpdateUserDto } from '../dto/admin-update-user.dto';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
+import { AdminUpdateUserDto } from '../dto/admin-update-user.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionGuard } from '../guards/permission.guard';
 import { PermissionService } from '../services/permission.service';
@@ -333,9 +332,6 @@ export class AdminController {
               position: {
                 select: { id: true, name: true },
               },
-              level: {
-                select: { id: true, name: true },
-              },
             },
           },
           // user_division đã bị xóa, sử dụng user_role_assignment thay thế
@@ -370,7 +366,6 @@ export class AdminController {
         user_information: {
           include: {
             position: true,
-            level: true,
             education: true,
             experience: true,
             user_skills: true,
@@ -420,21 +415,23 @@ export class AdminController {
       data: {
         email: updateUserDto.email,
       },
+      include: {
+        user_information: true,
+      },
     });
 
-    if (updateUserDto.name || updateUserDto.position_id || updateUserDto.level_id) {
+    if (updateUserDto.name || updateUserDto.position_id) {
       const user = await this.prisma.users.findUnique({
         where: { id },
-        select: { user_info_id: true },
+        include: { user_information: true },
       });
 
-      if (user?.user_info_id) {
+      if (user?.user_information) {
         await this.prisma.user_information.update({
-          where: { id: user.user_info_id },
+          where: { id: user.user_information.id },
           data: {
             name: updateUserDto.name,
             position_id: updateUserDto.position_id,
-            level_id: updateUserDto.level_id,
           },
         });
       }

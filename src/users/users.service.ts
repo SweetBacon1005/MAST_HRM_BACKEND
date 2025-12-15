@@ -340,7 +340,7 @@ export class UsersService {
         user_information: {
           include: {
             position: true,
-            level: true,
+            
             language: true,
             education: {
               where: { deleted_at: null },
@@ -492,12 +492,12 @@ export class UsersService {
             },
           })
         );
-      } else if (user.user_info_id) {
-        // Trường hợp user có user_info_id nhưng chưa include
+      } else if (user.user_information?.id) {
+        // Trường hợp user có user_information nhưng chưa include đầy đủ
         updatePromises.push(
           this.prisma.user_information.update({
             where: {
-              id: user.user_info_id,
+              id: user.user_information.id,
             },
             data: {
               name: name,

@@ -41,13 +41,15 @@ import { UpdateSkillDto } from './skills/dto/update-skill.dto';
 @Injectable()
 export class UserProfileService {
   constructor(private prisma: PrismaService) {}
-  private async getUserInfoId(user_id: number | undefined): Promise<number | null> {
+  private async getUserInfoId(
+    user_id: number | undefined,
+  ): Promise<number | null> {
     if (!user_id) return null;
     const user = await this.prisma.users.findUnique({
       where: { id: user_id },
-      select: { user_info_id: true },
+      include: { user_information: { select: { id: true } } },
     });
-    return user?.user_info_id || null;
+    return user?.user_information?.id || null;
   }
 
   async getUserProfile(user_id: number) {
@@ -168,9 +170,11 @@ export class UserProfileService {
   ) {
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
-      include: { user_information: {
-        select: { id: true }
-      } },
+      include: {
+        user_information: {
+          select: { id: true },
+        },
+      },
     });
 
     if (!user) {
@@ -184,12 +188,7 @@ export class UserProfileService {
       throw new NotFoundException('Không tìm thấy vị trí');
     }
 
-    const level = await this.prisma.levels.findFirst({
-      where: { id: updateDto.level_id, ...{ deleted_at: null } },
-    });
-    if (!level) {
-      throw new NotFoundException('Không tìm thấy trình độ');
-    }
+    // Level validation removed - levels table no longer exists
 
     const language = await this.prisma.languages.findFirst({
       where: { id: updateDto.language_id, ...{ deleted_at: null } },
@@ -220,18 +219,18 @@ export class UserProfileService {
           tax_code: updateDto.tax_code || '',
           expertise: updateDto.expertise || '',
           position: { connect: { id: position.id } },
-          level: { connect: { id: level.id } },
           language: { connect: { id: language.id } },
         },
         include: {
           position: true,
-          level: true,
+
           language: true,
         },
       });
     } else {
       const newInfo = await this.prisma.user_information.create({
         data: {
+          user_id: user_id,
           personal_email: updateDto.personal_email || '',
           nationality: updateDto.nationality || '',
           name: updateDto.name || '',
@@ -245,22 +244,17 @@ export class UserProfileService {
           temp_address: updateDto.temp_address || '',
           phone: updateDto.phone || '',
           tax_code: updateDto.tax_code || '',
-          level_id: updateDto.level_id || 1,
           expertise: updateDto.expertise || '',
           language_id: updateDto.language_id || 1,
         },
         include: {
           position: true,
-          level: true,
+
           language: true,
         },
       });
 
-      await this.prisma.users.update({
-        where: { id: user_id },
-        data: { user_info_id: newInfo.id },
-      });
-
+      // No need to update users table - relationship auto-managed via user_information.user_id
       return newInfo;
     }
   }
@@ -626,12 +620,6 @@ export class UserProfileService {
     });
   }
 
-  async getLevels() {
-    return await this.prisma.levels.findMany({
-      where: { deleted_at: null },
-    });
-  }
-
   async getLanguages() {
     return await this.prisma.languages.findMany({
       where: { deleted_at: null },
@@ -647,49 +635,23 @@ export class UserProfileService {
     if (!user || !user.user_information) {
       throw new NotFoundException('Không tìm thấy người dùng');
     }
-
-    const userInfo = await this.prisma.user_information.findFirst({
-      where: { id: user.user_information?.id, deleted_at: null },
+    const newInfo = await this.prisma.users.update({
+      where: { id: user_id },
+      data: {
+        user_information: {
+          upsert: {
+            create: { avatar: avatarUrl },
+            update: { avatar: avatarUrl },
+          },
+        },
+      },
     });
 
-    if (userInfo) {
-      const updatedInfo = await this.prisma.user_information.update({
-        where: { id: userInfo.id },
-        data: { avatar: avatarUrl },
-        include: {
-          position: true,
-          level: true,
-          language: true,
-        },
-      });
-      return {
-        message: 'Cập nhật avatar thành công',
-        avatar_url: avatarUrl,
-        user_information: updatedInfo,
-      };
-    } else {
-      const newInfo = await this.prisma.user_information.create({
-        data: {
-          avatar: avatarUrl,
-        },
-        include: {
-          position: true,
-          level: true,
-          language: true,
-        },
-      });
-
-      await this.prisma.users.update({
-        where: { id: user_id },
-        data: { user_info_id: newInfo.id },
-      });
-
-      return {
-        message: 'Cập nhật avatar thành công',
-        avatar_url: avatarUrl,
-        user_information: newInfo,
-      };
-    }
+    return {
+      message: 'Cập nhật avatar thành công',
+      avatar_url: avatarUrl,
+      user_information: newInfo,
+    };
   }
 
   async getExperiencesPaginated(
@@ -698,9 +660,7 @@ export class UserProfileService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const userInfoId = await this.getUserInfoId(user_id);
-    if (!userInfoId) return{
-
-    }
+    if (!userInfoId) return {};
     const where: Prisma.experienceWhereInput = {
       user_info_id: userInfoId,
       deleted_at: null,
@@ -756,12 +716,13 @@ export class UserProfileService {
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const userInfoId = await this.getUserInfoId(user_id);
-    if (!userInfoId) return{
-      data: [],
-      total: 0,
-      page: paginationDto.page || 1,
-      limit: paginationDto.limit || 10,
-    };
+    if (!userInfoId)
+      return {
+        data: [],
+        total: 0,
+        page: paginationDto.page || 1,
+        limit: paginationDto.limit || 10,
+      };
 
     const where: Prisma.user_skillsWhereInput = {
       user_info_id: userInfoId,
@@ -836,35 +797,7 @@ export class UserProfileService {
     );
   }
 
-  async getLevelsPaginated(paginationDto: ReferencePaginationDto) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-    const where: Prisma.levelsWhereInput = { deleted_at: null };
-
-    // Thêm filter theo search
-    if (paginationDto.search) {
-      where.name = {
-        contains: paginationDto.search,
-      };
-    }
-
-    // Lấy dữ liệu và đếm tổng
-    const [data, total] = await Promise.all([
-      this.prisma.levels.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { name: 'asc' },
-      }),
-      this.prisma.levels.count({ where }),
-    ]);
-
-    return buildPaginationResponse(
-      data,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
+  // getLevelsPaginated method removed - levels table no longer exists
 
   async getLanguagesPaginated(paginationDto: ReferencePaginationDto) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
@@ -894,207 +827,15 @@ export class UserProfileService {
     );
   }
 
-  // ===== LEVELS CRUD METHODS =====
-  async createLevel(createLevelDto: CreateLevelDto) {
-    // Kiểm tra tên level đã tồn tại
-    const existingLevel = await this.prisma.levels.findFirst({
-      where: {
-        name: createLevelDto.name,
-        deleted_at: null,
-      },
-    });
+  // LEVELS CRUD METHODS REMOVED - levels table no longer exists
 
-    if (existingLevel) {
-      throw new BadRequestException('Tên level đã tồn tại');
-    }
 
-    // Kiểm tra coefficient đã tồn tại
-    const existingCoefficient = await this.prisma.levels.findFirst({
-      where: {
-        coefficient: createLevelDto.level, // Sử dụng level từ DTO làm coefficient
-        deleted_at: null,
-      },
-    });
 
-    if (existingCoefficient) {
-      throw new BadRequestException('Hệ số này đã tồn tại');
-    }
 
-    const level = await this.prisma.levels.create({
-      data: {
-        name: createLevelDto.name,
-        coefficient: createLevelDto.level, // Sử dụng level từ DTO làm coefficient
-      },
-    });
 
-    return {
-      message: 'Tạo level thành công',
-      data: level,
-    };
-  }
 
-  async findAllLevels(paginationDto: LevelPaginationDto = {}) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: any = {
-      deleted_at: null,
-    };
 
-    if (paginationDto.search) {
-      whereConditions.name = {
-        contains: paginationDto.search,
-      };
-    }
-
-    if (paginationDto.level) {
-      whereConditions.coefficient = paginationDto.level;
-    }
-
-    const [levels, total] = await Promise.all([
-      this.prisma.levels.findMany({
-        where: whereConditions,
-        skip,
-        take,
-        orderBy: orderBy || { coefficient: 'asc' },
-        include: {
-          _count: {
-            select: {
-              user_information: true,
-            },
-          },
-        },
-      }),
-      this.prisma.levels.count({ where: whereConditions }),
-    ]);
-
-    return buildPaginationResponse(
-      levels,
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findOneLevel(id: number) {
-    const level = await this.prisma.levels.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-      include: {
-        _count: {
-          select: {
-            user_information: true,
-          },
-        },
-      },
-    });
-
-    if (!level) {
-      throw new NotFoundException('Không tìm thấy level');
-    }
-
-    return {
-      data: level,
-    };
-  }
-
-  async updateLevel(id: number, updateLevelDto: UpdateLevelDto) {
-    const existingLevel = await this.prisma.levels.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-    });
-
-    if (!existingLevel) {
-      throw new NotFoundException('Không tìm thấy level');
-    }
-
-    // Kiểm tra tên level đã tồn tại (nếu có thay đổi tên)
-    if (updateLevelDto.name && updateLevelDto.name !== existingLevel.name) {
-      const duplicateLevel = await this.prisma.levels.findFirst({
-        where: {
-          name: updateLevelDto.name,
-          id: { not: id },
-          deleted_at: null,
-        },
-      });
-
-      if (duplicateLevel) {
-        throw new BadRequestException('Tên level đã tồn tại');
-      }
-    }
-
-    // Kiểm tra coefficient đã tồn tại (nếu có thay đổi coefficient)
-    if (
-      updateLevelDto.level &&
-      updateLevelDto.level !== existingLevel.coefficient
-    ) {
-      const duplicateCoefficient = await this.prisma.levels.findFirst({
-        where: {
-          coefficient: updateLevelDto.level,
-          id: { not: id },
-          deleted_at: null,
-        },
-      });
-
-      if (duplicateCoefficient) {
-        throw new BadRequestException('Hệ số này đã tồn tại');
-      }
-    }
-
-    const updatedLevel = await this.prisma.levels.update({
-      where: { id },
-      data: {
-        ...updateLevelDto,
-        updated_at: new Date(),
-      },
-    });
-
-    return {
-      message: 'Cập nhật level thành công',
-      data: updatedLevel,
-    };
-  }
-
-  async removeLevel(id: number) {
-    const existingLevel = await this.prisma.levels.findFirst({
-      where: {
-        id,
-        deleted_at: null,
-      },
-      include: {
-        _count: {
-          select: {
-            user_information: true,
-          },
-        },
-      },
-    });
-
-    if (!existingLevel) {
-      throw new NotFoundException('Không tìm thấy level');
-    }
-
-    // Kiểm tra xem có user nào đang sử dụng level này không
-    if (existingLevel._count.user_information > 0) {
-      throw new BadRequestException(
-        `Không thể xóa level này vì có ${existingLevel._count.user_information} user đang sử dụng`,
-      );
-    }
-
-    await this.prisma.levels.update({
-      where: { id },
-      data: {
-        deleted_at: new Date(),
-      },
-    });
-
-    return {
-      message: 'Xóa level thành công',
-    };
-  }
 
   // ===== POSITIONS CRUD METHODS =====
   async createPosition(createPositionDto: CreatePositionDto) {

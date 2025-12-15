@@ -487,7 +487,6 @@ export class SystemAdminController {
         user_information: {
           include: {
             position: true,
-            level: true,
           },
         },
         // user_division đã bị xóa, sử dụng user_role_assignment thay thế
