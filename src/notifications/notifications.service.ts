@@ -4,7 +4,6 @@ import {
   NEWS_ERRORS,
   NOTIFICATION_ERRORS,
 } from '../common/constants/error-messages.constants';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
 import { AdminNotificationDetailResponseDto } from './dto/admin-notification-response.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -27,7 +26,6 @@ import {
 export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async create(
@@ -330,18 +328,7 @@ export class NotificationsService {
     });
 
     if (existingNotification.created_by) {
-      await this.activityLogService.logNotificationOperation(
-        'updated',
-        updatedNotification.id,
-        existingNotification.created_by,
-        updatedNotification.title,
-        {
-          changes: updateNotificationDto,
-          previous_title: existingNotification.title,
-        },
-      );
     }
-
     return updatedNotification;
   }
 
@@ -377,17 +364,6 @@ export class NotificationsService {
       },
     );
 
-    await this.activityLogService.logNotificationOperation(
-      isRead ? 'read' : 'unread',
-      userNotificationId,
-      user_id,
-      updatedUserNotification.notification.title,
-      {
-        previous_read_status: userNotification.is_read,
-        new_read_status: isRead,
-      },
-    );
-
     return updatedUserNotification;
   }
 
@@ -418,18 +394,6 @@ export class NotificationsService {
         data: { deleted_at: now },
       }),
     ]);
-
-    await this.activityLogService.logNotificationOperation(
-      'deleted',
-      notificationId,
-      user_id,
-      existingNotification.title,
-      {
-        is_admin_delete: true,
-        cascade_deleted: true,
-        created_by: existingNotification.created_by,
-      },
-    );
 
     return { message: NOTIFICATION_ERRORS.NOTIFICATION_DELETED_SUCCESS };
   }

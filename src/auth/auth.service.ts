@@ -12,7 +12,6 @@ import {
   AUTH_ERRORS,
   USER_ERRORS,
 } from '../common/constants/error-messages.constants';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
@@ -37,7 +36,6 @@ export class AuthService {
     private configService: ConfigService,
     private otpService: OtpService,
     private prisma: PrismaService,
-    private activityLogService: ActivityLogService,
     private roleAssignmentService: RoleAssignmentService,
     private notificationsService: NotificationsService,
   ) {}
@@ -70,8 +68,6 @@ export class AuthService {
       user.email,
       Array.from(new Set(user.user_role_assignments.map((assignment) => assignment.role.name))),
     );
-
-    await this.activityLogService.logUserLogin(Number(user.id));
 
     return tokens;
   }
@@ -132,17 +128,6 @@ export class AuthService {
       scope_type: ScopeType.COMPANY,
       assigned_by: user.id,
     });
-
-    await this.activityLogService.logCrudOperation(
-      'User',
-      Number(user.id),
-      'created',
-      Number(user.id),
-      {
-        email: user.email,
-        registration_method: 'self_register',
-      },
-    );
 
     const tokens = await this.getTokens(Number(user.id), user.email, [
       ROLE_NAMES.EMPLOYEE,

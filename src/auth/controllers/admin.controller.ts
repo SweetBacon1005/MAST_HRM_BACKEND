@@ -18,7 +18,12 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { RotationType, ScopeType } from '@prisma/client';
+import {
+  RotationType,
+  ScopeType,
+  ApprovalStatus,
+  AttendanceRequestType,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { GetCurrentUser } from '../decorators/get-current-user.decorator';
 import { RequirePermission } from '../decorators/require-permission.decorator';
@@ -85,38 +90,15 @@ export class AdminController {
         where: { deleted_at: null },
       }),
       // Đơn yêu cầu đang chờ
-      this.prisma.remote_work_requests.count({
-        where: { status: 'PENDING' },
-      }),
-      // Hoạt động gần đây
-      this.prisma.activity_log.findMany({
-        take: 10,
-        orderBy: { created_at: 'desc' },
-        include: {
-          causer: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-          subject: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
+      this.prisma.attendance_requests.count({
+        where: {
+          deleted_at: null,
+          status: ApprovalStatus.PENDING,
+          request_type: AttendanceRequestType.REMOTE_WORK,
         },
       }),
+      // Hoạt động gần đây
+      Promise.resolve([]),
     ]);
 
     return {
@@ -557,78 +539,6 @@ export class AdminController {
     }));
   }
 
-  @Get('system/activity-logs')
-  @RequirePermission('system.admin')
-  @ApiOperation({ summary: 'Lấy nhật ký hoạt động hệ thống' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'user_id', required: false })
-  @ApiQuery({ name: 'event', required: false })
-  @ApiResponse({
-    status: 200,
-    description: 'Lấy nhật ký hoạt động thành công',
-  })
-  async getActivityLogs(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 50,
-    @Query('user_id') user_id?: number,
-    @Query('event') event?: string,
-  ) {
-    const skip = (page - 1) * limit;
-    const where: any = {};
-
-    if (user_id) {
-      where.OR = [{ causer_id: user_id }, { subject_id: user_id }];
-    }
-
-    if (event) {
-      where.event = { contains: event };
-    }
-
-    const [logs, total] = await Promise.all([
-      this.prisma.activity_log.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { created_at: 'desc' },
-        include: {
-          causer: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-          subject: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                },
-              },
-            },
-          },
-        },
-      }),
-      this.prisma.activity_log.count({ where }),
-    ]);
-
-    return {
-      data: logs,
-      pagination: {
-        page,
-        limit,
-        total,
-        total_pages: Math.ceil(total / limit),
-      },
-    };
-  }
 
   @Post('bulk/transfer-division')
   @RequirePermission('personnel.transfer.create')

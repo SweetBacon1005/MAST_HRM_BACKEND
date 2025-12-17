@@ -6,7 +6,7 @@ import {
   forwardRef,
   Inject,
 } from '@nestjs/common';
-import { Prisma, ScopeType } from '@prisma/client';
+import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { getRoleLevel, ROLE_IDS } from '../constants/role.constants';
 import { RoleContextCacheService } from './role-context-cache.service';
@@ -113,19 +113,6 @@ export class RoleAssignmentService {
       },
     });
 
-    await this.logRoleChange(
-      this.prisma,
-      data.user_id,
-      'role.assigned',
-      `Gán role ${role.name} cho user trong scope ${data.scope_type} ${data.scope_id ? `với ID ${data.scope_id}` : ''}`,
-      data.assigned_by,
-      {
-        role_name: role.name,
-        scope_type: data.scope_type,
-        scope_id: data.scope_id || null,
-      },
-    );
-
     // Invalidate cache sau khi assign role
     await this.invalidateRoleCache(data.user_id);
 
@@ -174,20 +161,6 @@ export class RoleAssignmentService {
         data: { deleted_at: new Date() },
       });
 
-      await this.logRoleChange(
-        this.prisma,
-        user_id,
-        'role.revoked',
-        `Thu hồi role ${assignment.role.name} trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
-        revoked_by,
-        {
-          role_name: assignment.role.name,
-          scope_type: scope_type,
-          scope_id: scope_id || null,
-          action: 'deleted',
-          reason: 'User đã có role EMPLOYEE trong scope',
-        },
-      );
     } else {
       result = await this.prisma.user_role_assignment.update({
         where: { id: assignment.id },
@@ -197,20 +170,6 @@ export class RoleAssignmentService {
         },
       });
 
-      await this.logRoleChange(
-        this.prisma,
-        user_id,
-        'role.revoked',
-        `Thu hồi role ${assignment.role.name} và chuyển thành EMPLOYEE trong scope ${scope_type} ${scope_id ? `với ID ${scope_id}` : ''}`,
-        revoked_by,
-        {
-          old_role: assignment.role.name,
-          new_role: 'employee',
-          scope_type: scope_type,
-          scope_id: scope_id || null,
-          action: 'downgraded_to_employee',
-        },
-      );
     }
 
     // Invalidate cache sau khi revoke role
@@ -596,26 +555,6 @@ export class RoleAssignmentService {
         },
       });
 
-      // 5. Ghi log
-      await this.logRoleChange(
-        tx,
-        newuser_id,
-        'role.assigned',
-        `Gán PM cho project ${projectId}`,
-        assignedBy,
-        {
-          project_id: projectId,
-          new_role: 'project_manager',
-          replaced_user: replacedUser
-            ? {
-                id: replacedUser.id,
-                name: replacedUser.user_information?.name || null,
-                email: replacedUser.email,
-              }
-            : null,
-        },
-      );
-
       return {
         newAssignment,
         replacedUser,
@@ -686,20 +625,6 @@ export class RoleAssignmentService {
           });
         }
       }
-
-      // 4. Ghi log
-      await this.logRoleChange(
-        tx,
-        user_id,
-        'role.revoked',
-        `Giáng chức PM khỏi project ${projectId}`,
-        demotedBy,
-        {
-          project_id: projectId,
-          revoked_role: 'project_manager',
-          auto_assigned_employee: !!autoAssignedEmployee,
-        },
-      );
 
       return {
         revokedAssignment: pmAssignment,
@@ -888,26 +813,6 @@ export class RoleAssignmentService {
         },
       });
 
-      // Ghi log
-      await this.logRoleChange(
-        tx,
-        newuser_id,
-        'role.assigned',
-        `Gán Team Leader cho team ${team_id}`,
-        assignedBy,
-        {
-          team_id: team_id,
-          new_role: 'team_leader',
-          replaced_user: replacedUser
-            ? {
-                id: replacedUser.id,
-                name: replacedUser.user_information?.name || null,
-                email: replacedUser.email,
-              }
-            : null,
-        },
-      );
-
       return { newAssignment, replacedUser };
     });
   }
@@ -983,26 +888,6 @@ export class RoleAssignmentService {
         },
       });
 
-      // Ghi log
-      await this.logRoleChange(
-        tx,
-        newuser_id,
-        'role.assigned',
-        `Gán Division Head cho division ${division_id}`,
-        assignedBy,
-        {
-          division_id: division_id,
-          new_role: 'division_head',
-          replaced_user: replacedUser
-            ? {
-                id: replacedUser.id,
-                name: replacedUser.user_information?.name || null,
-                email: replacedUser.email,
-              }
-            : null,
-        },
-      );
-
       return { newAssignment, replacedUser };
     });
   }
@@ -1041,33 +926,6 @@ export class RoleAssignmentService {
       scope_type: scope_type,
       scope_id: scope_id,
       assigned_by: assignedBy,
-    });
-  }
-
-  private async logRoleChange(
-    tx: any,
-    user_id: number,
-    event: string,
-    description: string,
-    causer_id: number,
-    properties: any,
-  ) {
-    const activityLogData: Prisma.activity_logCreateInput = {
-      log_name: 'role_change',
-      subject: {
-        connect: { id: user_id },
-      },
-      causer: {
-        connect: { id: causer_id },
-      },
-      subject_type: 'users',
-      causer_type: 'users',
-      event,
-      description,
-      properties: JSON.stringify(properties),
-    };
-    await tx.activity_log.create({
-      data: activityLogData,
     });
   }
 }

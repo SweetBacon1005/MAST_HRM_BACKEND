@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { ActivityLogService, ActivityEvent, SubjectType } from '../common/services/activity-log.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomPaginationDto } from './dto/room-pagination.dto';
@@ -17,7 +16,6 @@ const MAX_DURATION_MS = 4 * 60 * 60 * 1000;
 export class MeetingRoomsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly activityLog: ActivityLogService,
   ) {}
 
   async createBooking(user_id: number, dto: CreateBookingDto) {
@@ -104,21 +102,6 @@ export class MeetingRoomsService {
           organizer_id: user_id,
         },
         include: { room: true },
-      });
-
-      await this.activityLog.log({
-        logName: 'Meeting Room',
-        description: `Đặt phòng: ${room.name} - ${dto.title}`,
-        subjectType: SubjectType.SYSTEM,
-        event: ActivityEvent.NOTIFICATION_CREATED,
-        subjectId: booking.id,
-        causer_id: user_id,
-        properties: {
-          room_id: dto.room_id,
-          title: dto.title,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-        },
       });
 
       return booking;
@@ -358,16 +341,6 @@ export class MeetingRoomsService {
       include: { room: true },
     });
 
-    await this.activityLog.log({
-      logName: 'Meeting Room',
-      description: `Cập nhật đặt phòng: ${room.name} - ${title}`,
-      subjectType: SubjectType.SYSTEM,
-      event: ActivityEvent.NOTIFICATION_UPDATED,
-      subjectId: updated.id,
-      causer_id: user_id,
-      properties: { room_id: roomId, title, start_time: start.toISOString(), end_time: end.toISOString() },
-    });
-
     return updated;
   }
 
@@ -380,15 +353,6 @@ export class MeetingRoomsService {
       throw new ForbiddenException(MEETING_ROOM_ERRORS.UNAUTHORIZED_DELETE);
     }
     const removed = await this.prisma.room_bookings.update({ where: { id }, data: { deleted_at: new Date() } });
-    await this.activityLog.log({
-      logName: 'Meeting Room',
-      description: `Xóa lịch đặt phòng: ${booking.room.name} - ${booking.title}`,
-      subjectType: SubjectType.SYSTEM,
-      event: ActivityEvent.NOTIFICATION_DELETED,
-      subjectId: id,
-      causer_id: user_id,
-      properties: { room_id: booking.room_id, title: booking.title },
-    });
     return removed;
   }
 }

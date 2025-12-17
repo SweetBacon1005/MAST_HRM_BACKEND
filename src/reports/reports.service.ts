@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ApprovalStatus, DayOffType, RemoteType, ScopeType } from '@prisma/client';
+import {
+  ApprovalStatus,
+  DayOffDuration,
+  DayOffType,
+  RemoteType,
+  ScopeType,
+  AttendanceRequestType,
+} from '@prisma/client';
 import { QueryBuilderService } from '../common/services/query-builder.service';
 import { UserQueryService } from '../common/services/user-query.service';
 import { PenaltyByUser } from '../common/types/penalty.types';
@@ -766,13 +773,14 @@ export class ReportsService {
     // Thống kê theo loại nghỉ phép
     const leaveTypeStats = leaveRequests.reduce((acc, leave) => {
       const type = leave.day_off?.type;
+      if (!type) return acc;
       if (!acc[type]) {
         acc[type] = { count: 0, total_days: 0 };
       }
-      acc[type].count++;
+      acc[type].count += 1;
       acc[type].total_days += 1;
       return acc;
-    }, {});
+    }, {} as Record<string, { count: number; total_days: number }>);
 
     // Thống kê theo trạng thái
     const statusStats = leaveRequests.reduce((acc, leave) => {
@@ -1093,8 +1101,12 @@ export class ReportsService {
           deleted_at: null,
         },
       }),
-      this.prisma.remote_work_requests.count({
-        where: { status: 'PENDING' },
+      this.prisma.attendance_requests.count({
+        where: {
+          deleted_at: null,
+          status: ApprovalStatus.PENDING,
+          request_type: AttendanceRequestType.REMOTE_WORK,
+        },
       }),
     ]);
 
@@ -1277,37 +1289,43 @@ export class ReportsService {
 
     const stats = {
       total_leave_days: leaves.reduce(
-        (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
+        (sum, leave) =>
+          sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
         0,
       ),
       paid_leave: leaves
         .filter((l) => l.day_off?.type === DayOffType.PAID)
         .reduce(
-          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) =>
+            sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
           0,
         ),
       unpaid_leave: leaves
         .filter((l) => l.day_off?.type === DayOffType.UNPAID)
         .reduce(
-          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) =>
+            sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
           0,
         ),
       annual_leave: leaves
         .filter((l) => l.day_off?.type === DayOffType.COMPENSATORY)
         .reduce(
-          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) =>
+            sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
           0,
         ),
       sick_leave: leaves
-        .filter((l) => l.type === DayOffType.SICK)
+        .filter((l) => l.day_off?.type === DayOffType.SICK)
         .reduce(
-          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) =>
+            sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
           0,
         ),
       personal_leave: leaves
-        .filter((l) => l.type === DayOffType.PERSONAL)
+        .filter((l) => l.day_off?.type === DayOffType.PERSONAL)
         .reduce(
-          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) =>
+            sum + (leave.day_off?.duration === DayOffDuration.FULL_DAY ? 1 : 0.5),
           0,
         ),
     };

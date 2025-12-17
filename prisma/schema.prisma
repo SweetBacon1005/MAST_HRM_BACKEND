@@ -203,22 +203,6 @@ model user_skills {
   @@index([skill_id])
 }
 
-model activity_log {
-  id           Int      @id @default(autoincrement())
-  log_name     String   @db.VarChar(255)
-  description  String   @db.Text
-  subject_type String   @db.VarChar(255)
-  event        String   @db.VarChar(255)
-  subject_id   Int
-  subject      users    @relation("Subject", fields: [subject_id], references: [id])
-  causer_type  String   @db.VarChar(255)
-  causer_id    Int
-  causer       users    @relation("Causer", fields: [causer_id], references: [id])
-  properties   Json
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-}
-
 model permission_role {
   id            Int         @id @default(autoincrement())
   permission_id Int
@@ -316,8 +300,6 @@ model users {
   attendance_logs              attendance_logs[]
   time_sheets                  time_sheets[]
   daily_reports                daily_reports[]
-  activity_log_subject         activity_log[]         @relation("Subject")
-  activity_log_causer          activity_log[]         @relation("Causer")
   user_leave_balance           user_leave_balances?
   assigned_assets              assets[]               @relation("AssetAssignedUser")
   created_assets               assets[]               @relation("AssetCreator")

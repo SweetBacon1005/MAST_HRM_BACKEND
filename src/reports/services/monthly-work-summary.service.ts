@@ -12,6 +12,7 @@ import {
   Prisma,
   RemoteType,
   ScopeType,
+  LateEarlyType,
 } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -23,6 +24,7 @@ import {
   MonthlyWorkSummaryDto,
   MonthlyWorkSummaryQueryDto,
   MonthlyWorkSummaryResponseDto,
+  OvertimeDetailDto,
   RecalculateMonthlyWorkDto,
   RecalculateResponseDto,
   ViolationDetailDto,
@@ -149,7 +151,7 @@ export class MonthlyWorkSummaryService {
 
     const violations = await this.getViolationDetails(userId, year, month);
 
-    const timesheets = await this.prisma.time_sheets.findMany({
+    const leaveRequests = await this.prisma.attendance_requests.findMany({
       where: {
         user_id: userId,
         work_date: {
@@ -157,34 +159,62 @@ export class MonthlyWorkSummaryService {
           lte: new Date(year, month, 0, 23, 59, 59, 999),
         },
         deleted_at: null,
+        status: ApprovalStatus.APPROVED,
+        request_type: AttendanceRequestType.DAY_OFF,
       },
       include: {
-        attendance_requests: {
-          select: {
-            late_early_request: true,
-            overtime: true,
-            forgot_checkin_request: true,
-            remote_work_request: true,
-            day_off: true,
-          },
+        day_off: true,
+        approved_by_user: {
+          include: { user_information: { select: { name: true } } },
         },
       },
     });
 
-    const leaveDetails: LeaveDetailDto[] = timesheets.map((ts) => ({
-      type:
-        ts.attendance_requests
-          .map((ar) => ar.day_off?.type)
-          .find((t) => t !== undefined) || null,
-    }));
+    const overtimeRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: userId,
+        work_date: {
+          gte: new Date(year, month - 1, 1),
+          lte: new Date(year, month, 0, 23, 59, 59, 999),
+        },
+        deleted_at: null,
+        status: ApprovalStatus.APPROVED,
+        request_type: AttendanceRequestType.OVERTIME,
+      },
+      include: {
+        overtime: true,
+        approved_by_user: {
+          include: { user_information: { select: { name: true } } },
+        },
+      },
+    });
 
-    const overtimeDetails = timesheets.map((ts) => ({
-      date: ts.work_date.toISOString().split('T')[0],
-      overtime_hours:
-        ts.attendance_requests
-          .map((ar) => ar.overtime?.overtime_hours)
-          .find((h) => h !== undefined) || 0,
-    }));
+    const leaveDetails: LeaveDetailDto[] = leaveRequests
+      .filter((req) => req.day_off)
+      .map((req) => ({
+        id: req.id,
+        date: req.work_date.toISOString().split('T')[0],
+        duration: req.day_off!.duration,
+        type: req.day_off!.type,
+        status: req.status,
+        reason: req.reason || undefined,
+        approved_by_name:
+          req.approved_by_user?.user_information?.name || undefined,
+        approved_at: req.approved_at || undefined,
+      }));
+
+    const overtimeDetails: OvertimeDetailDto[] = overtimeRequests
+      .filter((req) => req.overtime)
+      .map((req) => ({
+        id: req.id,
+        date: req.work_date.toISOString().split('T')[0],
+        title: req.title,
+        total_hours: req.overtime?.total_hours || 0,
+        status: req.status,
+        approved_by_name:
+          req.approved_by_user?.user_information?.name || undefined,
+        approved_at: req.approved_at || undefined,
+      }));
 
     return {
       summary,
@@ -319,31 +349,29 @@ export class MonthlyWorkSummaryService {
       orderBy: { work_date: 'asc' },
     });
 
-    // Get day offs
-    const dayOffs = await this.prisma.day_offs.findMany({
+    // Get day off requests (attendance_requests + day_off)
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
       where: {
         user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        work_date: { gte: startDate, lte: endDate },
+        request_type: AttendanceRequestType.DAY_OFF,
         status: ApprovalStatus.APPROVED,
         deleted_at: null,
       },
       orderBy: { work_date: 'asc' },
+      include: { day_off: true },
     });
 
-    // Get overtime
-    const overtimes = await this.prisma.over_times_history.findMany({
+    // Get overtime requests
+    const overtimeRequests = await this.prisma.attendance_requests.findMany({
       where: {
         user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        work_date: { gte: startDate, lte: endDate },
+        request_type: AttendanceRequestType.OVERTIME,
         status: ApprovalStatus.APPROVED,
         deleted_at: null,
       },
+      include: { overtime: true },
     });
 
     // Calculate metrics
@@ -356,7 +384,7 @@ export class MonthlyWorkSummaryService {
     }, 0);
 
     // Leave days calculation
-    const leaveDaysStats = this.calculateLeaveDays(dayOffs);
+    const leaveDaysStats = this.calculateLeaveDays(dayOffRequests);
 
     // Violations calculation
     const violationsStats = this.calculateViolations(timesheets);
@@ -367,16 +395,16 @@ export class MonthlyWorkSummaryService {
     ).length;
 
     // Overtime
-    const overtimeHours = overtimes.reduce(
-      (sum, ot) => sum + (ot.total_hours || 0),
+    const overtimeHours = overtimeRequests.reduce(
+      (sum, ot) => sum + (ot.overtime?.total_hours || 0),
       0,
     );
-    const overtimeDays = overtimes.length;
+    const overtimeDays = overtimeRequests.length;
 
     // Working sessions calculation
     const workingSessionsStats = this.calculateWorkingSessions(
       timesheets,
-      dayOffs,
+      dayOffRequests,
       violationsStats,
     );
 
@@ -399,13 +427,15 @@ export class MonthlyWorkSummaryService {
         : 100;
 
     // Leave sessions
-    const leaveSessions: LeaveSessionDto[] = dayOffs.map((dayOff) => ({
-      date: dayOff.work_date.toISOString().split('T')[0],
-      duration: dayOff.duration,
-      type: dayOff.type,
-      status: dayOff.status,
-      reason: dayOff.reason || undefined,
-    }));
+    const leaveSessions: LeaveSessionDto[] = dayOffRequests
+      .filter((req) => req.day_off)
+      .map((req) => ({
+        date: req.work_date.toISOString().split('T')[0],
+        duration: req.day_off!.duration,
+        type: req.day_off!.type,
+        status: req.status,
+        reason: req.reason || undefined,
+      }));
 
     return {
       user_id: userId,
@@ -491,24 +521,27 @@ export class MonthlyWorkSummaryService {
     return workDays;
   }
 
-  private calculateLeaveDays(dayOffs: any[]) {
+  private calculateLeaveDays(dayOffRequests: any[]) {
     let totalLeaveDays = 0;
     let paidLeaveDays = 0;
     let unpaidLeaveDays = 0;
     let sickLeaveDays = 0;
     let otherLeaveDays = 0;
 
-    dayOffs.forEach((dayOff) => {
-      const days = dayOff.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
+    dayOffRequests.forEach((req) => {
+      if (!req.day_off) return;
+
+      const days =
+        req.day_off.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
       totalLeaveDays += days;
 
-      if (dayOff.type === DayOffType.PAID) {
+      if (req.day_off.type === DayOffType.PAID) {
         paidLeaveDays += days;
-      } else if (dayOff.type === DayOffType.UNPAID) {
+      } else if (req.day_off.type === DayOffType.UNPAID) {
         unpaidLeaveDays += days;
       } else if (
-        dayOff.type === DayOffType.SICK ||
-        dayOff.type === DayOffType.MATERNITY
+        req.day_off.type === DayOffType.SICK ||
+        req.day_off.type === DayOffType.MATERNITY
       ) {
         sickLeaveDays += days;
       } else {
@@ -550,7 +583,7 @@ export class MonthlyWorkSummaryService {
    */
   private calculateWorkingSessions(
     timesheets: any[],
-    dayOffs: any[],
+    dayOffRequests: any[],
     violationsStats: any,
   ) {
     let totalSessions = 0;
@@ -569,27 +602,25 @@ export class MonthlyWorkSummaryService {
       let afternoonOK = totalHours >= 8;
 
       // ✅ CHECK nghỉ phép (day_off) được duyệt
-      const dayOff = dayOffs.find((d) => {
+      const dayOff = dayOffRequests.find((d) => {
         const timesheetDate = new Date(timesheet.work_date).getTime();
         const dayOffDate = new Date(d.work_date).getTime();
-        return (
-          dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED
-        );
+        return dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED;
       });
 
       if (dayOff) {
         // Nghỉ phép buổi sáng (approved) → tính đủ
         if (
-          dayOff.duration === DayOffDuration.MORNING ||
-          dayOff.duration === DayOffDuration.FULL_DAY
+          dayOff.day_off?.duration === DayOffDuration.MORNING ||
+          dayOff.day_off?.duration === DayOffDuration.FULL_DAY
         ) {
           morningOK = true;
         }
 
         // Nghỉ phép buổi chiều (approved) → tính đủ
         if (
-          dayOff.duration === DayOffDuration.AFTERNOON ||
-          dayOff.duration === DayOffDuration.FULL_DAY
+          dayOff.day_off?.duration === DayOffDuration.AFTERNOON ||
+          dayOff.day_off?.duration === DayOffDuration.FULL_DAY
         ) {
           afternoonOK = true;
         }
@@ -907,19 +938,6 @@ export class MonthlyWorkSummaryService {
       },
     });
 
-    // Get day offs
-    const dayOffs = await this.prisma.day_offs.findMany({
-      where: {
-        user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
-        status: ApprovalStatus.APPROVED,
-        deleted_at: null,
-      },
-    });
-
     // Get holidays
     const holidays = await this.prisma.holidays.findMany({
       where: {
@@ -936,42 +954,21 @@ export class MonthlyWorkSummaryService {
       },
     });
 
-    // Get requests
-    const [
-      remoteRequests,
-      lateEarlyRequests,
-      forgotCheckinRequests,
-      overtimeRequests,
-    ] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          user_id: userId,
-          work_date: { gte: startDate, lte: endDate },
-          deleted_at: null,
-        },
-      }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          user_id: userId,
-          work_date: { gte: startDate, lte: endDate },
-          deleted_at: null,
-        },
-      }),
-      this.prisma.forgot_checkin_requests.findMany({
-        where: {
-          user_id: userId,
-          work_date: { gte: startDate, lte: endDate },
-          deleted_at: null,
-        },
-      }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          user_id: userId,
-          work_date: { gte: startDate, lte: endDate },
-          deleted_at: null,
-        },
-      }),
-    ]);
+    // Get attendance requests for the period (all types)
+    const attendanceRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: userId,
+        work_date: { gte: startDate, lte: endDate },
+        deleted_at: null,
+      },
+      include: {
+        day_off: true,
+        remote_work_request: true,
+        late_early_request: true,
+        forgot_checkin_request: true,
+        overtime: true,
+      },
+    });
 
     const dailyDetails: DailyAttendanceDto[] = [];
     const currentDate = new Date(startDate);
@@ -994,8 +991,15 @@ export class MonthlyWorkSummaryService {
         (t) => t.work_date.toISOString().split('T')[0] === dateStr,
       );
 
-      const dayOff = dayOffs.find(
-        (d) => d.work_date.toISOString().split('T')[0] === dateStr,
+      const requestsForDate = attendanceRequests.filter(
+        (req) => req.work_date.toISOString().split('T')[0] === dateStr,
+      );
+
+      const dayOff = requestsForDate.find(
+        (r) =>
+          r.request_type === AttendanceRequestType.DAY_OFF &&
+          r.day_off &&
+          r.status === ApprovalStatus.APPROVED,
       );
 
       const holiday = holidays.find((h) => {
@@ -1004,17 +1008,23 @@ export class MonthlyWorkSummaryService {
         return currentDate >= holidayStart && currentDate <= holidayEnd;
       });
 
-      const hasRemoteRequest = remoteRequests.some(
-        (r) => r.work_date.toISOString().split('T')[0] === dateStr,
+      const hasRemoteRequest = requestsForDate.some(
+        (r) =>
+          r.request_type === AttendanceRequestType.REMOTE_WORK &&
+          r.remote_work_request,
       );
-      const hasLateEarlyRequest = lateEarlyRequests.some(
-        (r) => r.work_date.toISOString().split('T')[0] === dateStr,
+      const hasLateEarlyRequest = requestsForDate.some(
+        (r) =>
+          r.request_type === AttendanceRequestType.LATE_EARLY &&
+          r.late_early_request,
       );
-      const hasForgotCheckinRequest = forgotCheckinRequests.some(
-        (r) => r.work_date.toISOString().split('T')[0] === dateStr,
+      const hasForgotCheckinRequest = requestsForDate.some(
+        (r) =>
+          r.request_type === AttendanceRequestType.FORGOT_CHECKIN &&
+          r.forgot_checkin_request,
       );
-      const hasOvertimeRequest = overtimeRequests.some(
-        (r) => r.work_date.toISOString().split('T')[0] === dateStr,
+      const hasOvertimeRequest = requestsForDate.some(
+        (r) => r.request_type === AttendanceRequestType.OVERTIME && r.overtime,
       );
 
       let status: 'PRESENT' | 'ABSENT' | 'LEAVE' | 'HOLIDAY' | 'WEEKEND';
@@ -1081,46 +1091,41 @@ export class MonthlyWorkSummaryService {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const timesheets = await this.prisma.time_sheets.findMany({
+    // Lấy các request đi muộn/về sớm đã được duyệt trong tháng
+    const lateEarlyRequests = await this.prisma.attendance_requests.findMany({
       where: {
         user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
+        work_date: { gte: startDate, lte: endDate },
         deleted_at: null,
-        id: { gt: 0 },
+        status: ApprovalStatus.APPROVED,
+        request_type: AttendanceRequestType.LATE_EARLY,
       },
       select: {
-        attendance_requests: {
-          where: {
-            status: ApprovalStatus.APPROVED,
-            request_type: AttendanceRequestType.LATE_EARLY,
-          }
+        work_date: true,
+        late_early_request: {
+          select: {
+            late_minutes: true,
+            early_minutes: true,
+            request_type: true,
+          },
         },
       },
     });
 
     const violations: ViolationDetailDto[] = [];
 
-    timesheets.forEach((timesheet) => {
-      const dateStr = timesheet.work_date.toISOString().split('T')[0];
-      const lateMinutes = 0;
-      const earlyMinutes = 0;
-
-      const hasApprovedRequest = lateEarlyRequests.some(
-        (r) => r.work_date.toISOString().split('T')[0] === dateStr,
-      );
+    lateEarlyRequests.forEach((request) => {
+      const dateStr = request.work_date.toISOString().split('T')[0];
+      const lateMinutes = request.late_early_request?.late_minutes || 0;
+      const earlyMinutes = request.late_early_request?.early_minutes || 0;
 
       if (
         lateMinutes > this.LATE_TOLERANCE_MINUTES ||
         earlyMinutes > this.EARLY_TOLERANCE_MINUTES
       ) {
+        const requestType = request.late_early_request?.request_type;
         let type: 'LATE' | 'EARLY' | 'BOTH';
-        if (
-          lateMinutes > this.LATE_TOLERANCE_MINUTES &&
-          earlyMinutes > this.EARLY_TOLERANCE_MINUTES
-        ) {
+        if (requestType === LateEarlyType.BOTH) {
           type = 'BOTH';
         } else if (lateMinutes > this.LATE_TOLERANCE_MINUTES) {
           type = 'LATE';
@@ -1133,7 +1138,7 @@ export class MonthlyWorkSummaryService {
           type,
           late_minutes: lateMinutes,
           early_minutes: earlyMinutes,
-          has_approved_request: hasApprovedRequest,
+          has_approved_request: true,
           reason: undefined,
         });
       }

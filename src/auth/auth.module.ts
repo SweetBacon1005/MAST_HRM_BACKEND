@@ -16,7 +16,6 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { OtpService } from './services/otp.service';
 import { RoleAssignmentService } from './services/role-assignment.service';
 import { EmailService } from '../common/services/email.service';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { DivisionRolesGuard } from './guards/division-roles.guard';
 import { EnhancedRolesGuard } from './guards/enhanced-roles.guard';
@@ -57,7 +56,6 @@ import { AuthorizationContextService } from './services/authorization-context.se
     RoleContextCacheService,
     AuthorizationContextService,
     EmailService,
-    ActivityLogService,
     PrismaService,
     DivisionRolesGuard,
     EnhancedRolesGuard,

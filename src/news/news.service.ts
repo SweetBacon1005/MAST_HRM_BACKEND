@@ -8,7 +8,6 @@ import { NewsStatus, Prisma } from '@prisma/client';
 import * as DOMPurify from 'isomorphic-dompurify';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { NEWS_ERRORS } from '../common/constants/error-messages.constants';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import { PrismaService } from '../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateNewsDto } from './dto/create-news.dto';
@@ -20,7 +19,6 @@ export class NewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
-    private readonly activityLogService: ActivityLogService,
   ) {}
 
   private sanitizeHtmlContent(content: string): string {
@@ -69,14 +67,6 @@ export class NewsService {
         status: NewsStatus.DRAFT,
       },
     });
-
-    await this.activityLogService.logNewsOperation(
-      'created',
-      news.id,
-      author_id,
-      news.title,
-      { status: news.status }
-    );
 
     return news;
   }
@@ -192,13 +182,6 @@ export class NewsService {
     }
 
     if (viewerId && viewerId !== news.author_id) {
-      await this.activityLogService.logNewsOperation(
-        'viewed',
-        news.id,
-        viewerId,
-        news.title,
-        { author_id: news.author_id }
-      );
     }
 
     return {
@@ -241,18 +224,6 @@ export class NewsService {
       },
     });
 
-    await this.activityLogService.logNewsOperation(
-      'updated',
-      updatedNews.id,
-      user_id,
-      updatedNews.title,
-      { 
-        previous_status: existingNews.status,
-        new_status: updatedNews.status,
-        changes: updateNewsDto
-      }
-    );
-
     return updatedNews;
   }
 
@@ -285,17 +256,6 @@ export class NewsService {
       },
     });
 
-    await this.activityLogService.logNewsOperation(
-      'submitted',
-      updatedNews.id,
-      user_id,
-      updatedNews.title,
-      { 
-        previous_status: existingNews.status,
-        new_status: updatedNews.status
-      }
-    );
-
     return updatedNews;
   }
 
@@ -326,19 +286,6 @@ export class NewsService {
         reviewed_at: new Date(),
       },
     });
-
-    await this.activityLogService.logNewsOperation(
-      status === 'APPROVED' ? 'approved' : 'rejected',
-      updatedNews.id,
-      reviewerId,
-      updatedNews.title,
-      { 
-        previous_status: existingNews.status,
-        new_status: updatedNews.status,
-        reason: reason,
-        author_id: existingNews.author_id
-      }
-    );
 
     if (status === 'APPROVED') {
       try {
@@ -399,18 +346,6 @@ export class NewsService {
         data: { deleted_at: now },
       }),
     ]);
-
-    await this.activityLogService.logNewsOperation(
-      'deleted',
-      id,
-      user_id,
-      existingNews.title,
-      { 
-        status: existingNews.status,
-        author_id: existingNews.author_id,
-        cascade_deleted: true
-      }
-    );
 
     return { message: NEWS_ERRORS.NEWS_DELETED_SUCCESS };
   }

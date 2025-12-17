@@ -9,7 +9,6 @@ import {
   SUCCESS_MESSAGES,
   USER_ERRORS,
 } from '../common/constants/error-messages.constants';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
@@ -32,7 +31,6 @@ import { UpdateAssetDto } from './dto/update-asset.dto';
 export class AssetsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly activityLogService: ActivityLogService,
   ) {}
 
   async createAsset(createAssetDto: CreateAssetDto, createdBy: number) {
@@ -91,18 +89,6 @@ export class AssetsService {
         },
       },
     });
-
-    await this.activityLogService.logCrudOperation(
-      'Asset',
-      asset.id,
-      'created',
-      createdBy,
-      {
-        asset_code: asset.asset_code,
-        name: asset.name,
-        category: asset.category,
-      },
-    );
 
     return {
       message: SUCCESS_MESSAGES.CREATED_SUCCESSFULLY,
@@ -346,17 +332,6 @@ export class AssetsService {
       },
     });
 
-    await this.activityLogService.logCrudOperation(
-      'Asset',
-      id,
-      'updated',
-      updatedBy,
-      {
-        changes: updateAssetDto,
-        asset_code: updatedAsset.asset_code,
-      },
-    );
-
     return {
       message: SUCCESS_MESSAGES.UPDATED_SUCCESSFULLY,
       data: updatedAsset,
@@ -392,17 +367,6 @@ export class AssetsService {
       where: { id },
       data: { deleted_at: new Date() },
     });
-
-    await this.activityLogService.logCrudOperation(
-      'Asset',
-      id,
-      'deleted',
-      deletedBy,
-      {
-        asset_code: asset.asset_code,
-        name: asset.name,
-      },
-    );
 
     return {
       message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY,
@@ -457,23 +421,6 @@ export class AssetsService {
       },
     });
 
-    await this.activityLogService.log({
-      logName: 'Asset Management',
-      description: `Gán tài sản ${asset.name} cho user`,
-      subjectType: 'Asset',
-      event: 'asset.assigned',
-      subjectId: assetId,
-      causer_id: assignedBy,
-      properties: {
-        asset_code: asset.asset_code,
-        asset_name: asset.name,
-        assigned_to_user_id: user_id,
-        assigned_to_user_name:
-          updatedAsset.assigned_user?.user_information?.name,
-        notes,
-      },
-    });
-
     return {
       message: 'Gán tài sản thành công',
       data: updatedAsset,
@@ -511,23 +458,6 @@ export class AssetsService {
         assigned_date: null,
         notes: notes || asset.notes,
         updated_at: new Date(),
-      },
-    });
-
-    await this.activityLogService.log({
-      logName: 'Asset Management',
-      description: `Thu hồi tài sản ${asset.name} từ user`,
-      subjectType: 'Asset',
-      event: 'asset.unassigned',
-      subjectId: assetId,
-      causer_id: unassignedBy,
-      properties: {
-        asset_code: asset.asset_code,
-        asset_name: asset.name,
-        previous_assigned_user_id: asset.assigned_to,
-        previous_assigned_user_name:
-          asset.assigned_user?.user_information?.name,
-        notes,
       },
     });
 
@@ -624,20 +554,6 @@ export class AssetsService {
             asset_code: true,
           },
         },
-      },
-    });
-
-    await this.activityLogService.log({
-      logName: 'Asset Request',
-      description: `Tạo request ${createAssetRequestDto.request_type} tài sản`,
-      subjectType: 'Request',
-      event: 'asset_request.created',
-      subjectId: request.id,
-      causer_id: createAssetRequestDto.user_id!,
-      properties: {
-        request_type: request.request_type,
-        category: request.category,
-        asset_id: request.asset_id,
       },
     });
 
@@ -827,23 +743,6 @@ export class AssetsService {
         },
       });
 
-      await this.activityLogService.log({
-        logName: 'Asset Request',
-        description: `Phê duyệt request tài sản`,
-        subjectType: 'Request',
-        event: 'asset_request.approved',
-        subjectId: requestId,
-        causer_id: reviewBy,
-        properties: {
-          request_type: request.request_type,
-          category: request.category,
-          user_id: request.user_id,
-          user_name: request.user?.user_information?.name,
-          asset_id: reviewDto.asset_id,
-          notes: reviewDto.notes,
-        },
-      });
-
       return {
         message: 'Phê duyệt request thành công',
         data: updatedRequest,
@@ -858,23 +757,6 @@ export class AssetsService {
           notes: reviewDto.notes,
           rejection_reason: reviewDto.rejection_reason,
           updated_at: new Date(),
-        },
-      });
-
-      await this.activityLogService.log({
-        logName: 'Asset Request',
-        description: `Từ chối request tài sản`,
-        subjectType: 'Request',
-        event: 'asset_request.rejected',
-        subjectId: requestId,
-        causer_id: reviewBy,
-        properties: {
-          request_type: request.request_type,
-          category: request.category,
-          user_id: request.user_id,
-          user_name: request.user?.user_information?.name,
-          notes: reviewDto.notes,
-          rejection_reason: reviewDto.rejection_reason,
         },
       });
 
@@ -947,25 +829,6 @@ export class AssetsService {
       });
 
       return updatedRequest;
-    });
-
-    await this.activityLogService.log({
-      logName: 'Asset Request',
-      description: `Giao tài sản cho user theo request`,
-      subjectType: 'Request',
-      event: 'asset_request.fulfilled',
-      subjectId: requestId,
-      causer_id: fulfilledBy,
-      properties: {
-        request_type: request.request_type,
-        category: request.category,
-        user_id: request.user_id,
-        user_name: request.user?.user_information?.name,
-        asset_id: fulfillDto.asset_id,
-        asset_code: asset.asset_code,
-        asset_name: asset.name,
-        notes: fulfillDto.notes,
-      },
     });
 
     return {
@@ -1107,20 +970,6 @@ export class AssetsService {
       },
     });
 
-    await this.activityLogService.log({
-      logName: 'Asset Request',
-      description: `Cập nhật request tài sản`,
-      subjectType: 'Request',
-      event: 'asset_request.updated',
-      subjectId: requestId,
-      causer_id: user_id,
-      properties: {
-        changes: updateDto,
-        request_type: updatedRequest.request_type,
-        category: updatedRequest.category,
-      },
-    });
-
     return {
       message: 'Cập nhật request tài sản thành công',
       data: updatedRequest,
@@ -1161,20 +1010,6 @@ export class AssetsService {
     await this.prisma.asset_requests.update({
       where: { id: requestId },
       data: { deleted_at: new Date() },
-    });
-
-    await this.activityLogService.log({
-      logName: 'Asset Request',
-      description: `Xóa request tài sản`,
-      subjectType: 'Request',
-      event: 'asset_request.deleted',
-      subjectId: requestId,
-      causer_id: user_id,
-      properties: {
-        request_type: request.request_type,
-        category: request.category,
-        user_name: request.user?.user_information?.name,
-      },
     });
 
     return {
