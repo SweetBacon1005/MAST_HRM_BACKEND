@@ -34,12 +34,18 @@ import {
   RemoteWorkRequestDto,
 } from './dto/leave-management.dto';
 import { WorkShiftPaginationDto } from './dto/pagination-queries.dto';
+import { AttendanceRequestService } from '../requests/services/attendance-request.service';
+import { DayOffDetailService } from '../requests/services/day-off-detail.service';
 
 @Injectable()
 export class AttendanceService {
   private readonly logger = new Logger(AttendanceService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private attendanceRequestService: AttendanceRequestService,
+    private dayOffDetailService: DayOffDetailService,
+  ) {}
 
   async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
     const {
@@ -457,50 +463,50 @@ export class AttendanceService {
       }
     }
 
-    const conflictingLeave = await this.prisma.day_offs.findFirst({
-      where: {
-        user_id,
-        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
-        deleted_at: null,
-        OR: [
-          {
-            AND: [
-              {
-                work_date: {
-                  gte: new Date(start_date),
-                  lte: new Date(end_date),
-                },
-              },
-            ],
-          },
-        ],
-      },
+    const conflictingLeave = await this.attendanceRequestService.findMany({
+      user_id,
+      request_type: 'DAY_OFF',
+      status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
+      deleted_at: null,
+      work_date: { gte: new Date(start_date), lte: new Date(end_date) },
     });
 
-    if (conflictingLeave) {
+    if (conflictingLeave.length > 0) {
       throw new ConflictException(
-        `Đã có đơn nghỉ phép trùng thời gian cho ngày ${conflictingLeave.work_date.toISOString().split('T')[0]}`,
+        `Đã có đơn nghỉ phép trùng thời gian cho ngày ${conflictingLeave[0].work_date.toISOString().split('T')[0]}`,
       );
     }
 
     try {
-      const result = await this.prisma.day_offs.create({
-        data: {
-          user_id,
-          work_date: startDateObj,
-          duration: 'FULL_DAY', // Default to full day
-          title: `Đơn nghỉ phép từ ${start_date} đến ${end_date}`,
-          status: ApprovalStatus.PENDING,
-          type: leave_type as DayOffType,
-          reason: `Nghỉ phép từ ${start_date} đến ${end_date}`,
-          is_past: false,
-        },
+      let timesheet = await this.prisma.time_sheets.findFirst({
+        where: { user_id, work_date: startDateObj },
+      });
+      if (!timesheet) {
+        timesheet = await this.prisma.time_sheets.create({
+          data: { user_id, work_date: startDateObj, status: ApprovalStatus.PENDING, type: 'NORMAL' },
+        });
+      }
+
+      const attendanceRequest = await this.attendanceRequestService.createAttendanceRequest({
+        user_id,
+        timesheet_id: timesheet.id,
+        work_date: startDateObj,
+        request_type: 'DAY_OFF',
+        title: `Đơn nghỉ phép từ ${start_date} đến ${end_date}`,
+        reason: `Nghỉ phép từ ${start_date} đến ${end_date}`,
+      });
+
+      const result = await this.dayOffDetailService.createDayOffDetail({
+        request_id: attendanceRequest.id,
+        duration: 'FULL_DAY',
+        type: leave_type as DayOffType,
+        is_past: false,
       });
 
       this.logger.log(
         `Tạo đơn nghỉ phép thành công cho user ${user_id}, từ ${start_date} đến ${end_date}`,
       );
-      return result;
+      return { ...attendanceRequest, ...result };
     } catch (error) {
       this.logger.error(
         `Lỗi khi tạo đơn nghỉ phép: ${error.message}`,
@@ -660,36 +666,28 @@ export class AttendanceService {
 
     const total_annual_leave = 12;
 
-    const used_leaves = await this.prisma.day_offs.findMany({
-      where: {
-        user_id,
-        type: 'PAID',
-        status: 'APPROVED',
-        deleted_at: null,
-        created_at: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`),
-        },
-      },
+    const used_leaves_requests = await this.attendanceRequestService.findMany({
+      user_id,
+      request_type: 'DAY_OFF',
+      status: 'APPROVED',
+      deleted_at: null,
+      created_at: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
     });
+    const used_leaves = used_leaves_requests.map(r => r.day_off).filter((d): d is NonNullable<typeof d> => d !== null && d !== undefined);
 
     const used_annual_leave = used_leaves.reduce(
       (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
       0,
     );
 
-    const sick_leaves = await this.prisma.day_offs.findMany({
-      where: {
-        user_id,
-        type: 'SICK',
-        status: 'APPROVED',
-        deleted_at: null,
-        created_at: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`),
-        },
-      },
+    const sick_leaves_requests = await this.attendanceRequestService.findMany({
+      user_id,
+      request_type: 'DAY_OFF',
+      status: 'APPROVED',
+      deleted_at: null,
+      created_at: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
     });
+    const sick_leaves = sick_leaves_requests.map(r => r.day_off).filter((d): d is NonNullable<typeof d> => d !== null && d !== undefined && d.type === 'SICK');
 
     const used_sick_leave = sick_leaves.reduce(
       (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
@@ -935,23 +933,19 @@ export class AttendanceService {
     startDate: string,
     endDate: string,
   ) {
-    const whereCondition: any = {
-      created_at: {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      },
+    const baseWhere: any = {
+      created_at: { gte: new Date(startDate), lte: new Date(endDate) },
       deleted_at: null,
     };
-
     if (user_ids.length > 0) {
-      whereCondition.user_id = { in: user_ids };
+      baseWhere.user_id = { in: user_ids };
     }
 
     const [leaveRequests, remoteWorkRequests, lateEarlyRequests, forgotCheckinRequests] = await Promise.all([
-      this.prisma.day_offs.findMany({ where: whereCondition }),
-      this.prisma.remote_work_requests.findMany({ where: whereCondition }),
-      this.prisma.late_early_requests.findMany({ where: whereCondition }),
-      this.prisma.forgot_checkin_requests.findMany({ where: whereCondition }),
+      this.attendanceRequestService.findMany({ ...baseWhere, request_type: 'DAY_OFF' }),
+      this.attendanceRequestService.findMany({ ...baseWhere, request_type: 'REMOTE_WORK' }),
+      this.attendanceRequestService.findMany({ ...baseWhere, request_type: 'LATE_EARLY' }),
+      this.attendanceRequestService.findMany({ ...baseWhere, request_type: 'FORGOT_CHECKIN' }),
     ]);
 
     const countByStatus = (requests: any[]) => ({
@@ -980,19 +974,17 @@ export class AttendanceService {
     endDate: string,
   ) {
     const where: any = {
-      created_at: {
-        gte: new Date(startDate),
-        lte: new Date(endDate),
-      },
+      created_at: { gte: new Date(startDate), lte: new Date(endDate) },
       deleted_at: null,
-      status: ApprovalStatus.APPROVED, // Đã duyệt
+      status: ApprovalStatus.APPROVED,
+      request_type: 'DAY_OFF',
     };
-
     if (user_ids.length > 0) {
       where.user_id = { in: user_ids };
     }
 
-    const leaves = await this.prisma.day_offs.findMany({ where });
+    const leaveRequests = await this.attendanceRequestService.findMany(where);
+    const leaves = leaveRequests.map(r => r.day_off).filter((d): d is NonNullable<typeof d> => d !== null && d !== undefined);
 
     const stats = {
       total_leave_days: leaves.reduce(

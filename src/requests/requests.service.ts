@@ -7,28 +7,26 @@ import {
 import {
   ApprovalStatus,
   DayOffType,
-  Prisma,
   RemoteType,
   ScopeType,
 } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import {
-  PROJECT_ERRORS,
   REQUEST_ERRORS,
   SUCCESS_MESSAGES,
   USER_ERRORS,
 } from '../common/constants/error-messages.constants';
-import { ActivityLogService } from '../common/services/activity-log.service';
 import {
   buildPaginationQuery,
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
-import { TimesheetService } from '../timesheet/timesheet.service';
 import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
 import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
+import { TimesheetService } from '../timesheet/timesheet.service';
 import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
@@ -42,7 +40,12 @@ import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-r
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { ApprovalResult, RequestType } from './interfaces/request.interface';
-import { AuthorizationContext } from '../auth/services/authorization-context.service';
+import { AttendanceRequestService } from './services/attendance-request.service';
+import { DayOffDetailService } from './services/day-off-detail.service';
+import { ForgotCheckinDetailService } from './services/forgot-checkin-detail.service';
+import { LateEarlyDetailService } from './services/late-early-detail.service';
+import { OvertimeDetailService } from './services/overtime-detail.service';
+import { RemoteWorkDetailService } from './services/remote-work-detail.service';
 
 @Injectable()
 export class RequestsService {
@@ -50,11 +53,16 @@ export class RequestsService {
     private readonly prisma: PrismaService,
     private readonly leaveBalanceService: LeaveBalanceService,
     private readonly timesheetService: TimesheetService,
-    private readonly activityLogService: ActivityLogService,
     private readonly roleAssignmentService: RoleAssignmentService,
+    private readonly attendanceRequestService: AttendanceRequestService,
+    private readonly dayOffDetailService: DayOffDetailService,
+    private readonly remoteWorkDetailService: RemoteWorkDetailService,
+    private readonly lateEarlyDetailService: LateEarlyDetailService,
+    private readonly forgotCheckinDetailService: ForgotCheckinDetailService,
+    private readonly overtimeDetailService: OvertimeDetailService,
   ) {}
 
-    private async validateUser(user_id: number): Promise<void> {
+  private async validateUser(user_id: number): Promise<void> {
     const user = await this.prisma.users.findFirst({
       where: { id: user_id, deleted_at: null },
     });
@@ -79,36 +87,31 @@ export class RequestsService {
     }
   }
 
-    async createRemoteWorkRequest(
+  async createRemoteWorkRequest(
     dto: CreateRemoteWorkRequestDto,
   ): Promise<RemoteWorkRequestResponseDto> {
     await this.validateUser(dto.user_id);
-
     const workDate = new Date(dto.work_date);
     this.validateFutureDate(workDate, false);
 
-    const existingRequest = await this.prisma.remote_work_requests.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-        deleted_at: null,
-      },
-    });
-
-    if (existingRequest) {
+    const isDuplicate =
+      await this.attendanceRequestService.checkDuplicateRequest(
+        dto.user_id,
+        workDate,
+        'REMOTE_WORK',
+      );
+    if (isDuplicate) {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
-    const dayOff = await this.prisma.day_offs.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-        status: 'APPROVED',
-        deleted_at: null,
-      },
+    const conflictingDayOff = await this.attendanceRequestService.findMany({
+      user_id: dto.user_id,
+      work_date: workDate,
+      request_type: 'DAY_OFF',
+      status: ApprovalStatus.APPROVED,
+      deleted_at: null,
     });
-
-    if (dayOff) {
+    if (conflictingDayOff.length > 0) {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
@@ -122,7 +125,6 @@ export class RequestsService {
         work_date: workDate,
       },
     });
-
     if (!timesheet) {
       timesheet = await this.prisma.time_sheets.create({
         data: {
@@ -134,37 +136,26 @@ export class RequestsService {
       });
     }
 
-    await this.prisma.time_sheets.update({
-      where: { id: timesheet.id },
-      data: { /* REMOVED: has_remote_work_request */ },
-    });
-
-    const request = await this.prisma.remote_work_requests.create({
-      data: {
+    const attendanceRequest =
+      await this.attendanceRequestService.createAttendanceRequest({
         user_id: dto.user_id,
+        timesheet_id: timesheet.id,
         work_date: workDate,
-        remote_type: dto.remote_type,
-        duration: dto.duration,
+        request_type: 'REMOTE_WORK',
         title: dto.title,
         reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        timesheet_id: timesheet.id,
-      },
+      });
+
+    await this.remoteWorkDetailService.createRemoteWorkDetail({
+      request_id: attendanceRequest.id,
+      remote_type: dto.remote_type,
+      duration: dto.duration,
     });
 
-    await this.activityLogService.logRequestCreated(
-      'remote_work',
-      request.id,
-      dto.user_id,
-      {
-        work_date: workDate.toISOString(),
-        remote_type: dto.remote_type,
-        duration: dto.duration,
-        title: dto.title,
-      },
+    const fullRequest = await this.attendanceRequestService.findOne(
+      attendanceRequest.id,
     );
-
-    return request;
+    return this.mapToRemoteWorkRequestResponse(fullRequest);
   }
 
   async findAllRemoteWorkRequests(
@@ -177,71 +168,60 @@ export class RequestsService {
 
     if (accessScope.type === 'DIVISION_ONLY') {
       if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        user_idsFilter = await this.getDivisionuser_ids(accessScope.division_ids);
+        user_idsFilter = await this.getDivisionuser_ids(
+          accessScope.division_ids,
+        );
       } else {
         user_idsFilter = [];
       }
     } else if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getuser_idsByRole(
+      const divisionHeaduser_ids = await this.getUserIdsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
       user_idsFilter = [user_id, ...divisionHeaduser_ids];
     }
 
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const where: Prisma.remote_work_requestsWhereInput = { deleted_at: null };
-
-    if (user_idsFilter !== undefined) {
-      if (user_idsFilter.length === 0) {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-      where.user_id = { in: user_idsFilter };
+    if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
+      return buildPaginationResponse(
+        [],
+        0,
+        paginationDto.page || 1,
+        paginationDto.limit || 10,
+      );
     }
 
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.remote_type)
-      where.remote_type = paginationDto.remote_type;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
+      request_type: 'REMOTE_WORK',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const [data, total] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.remote_work_requests.count({ where }),
-    ]);
+    // Filter by remote_type if needed
+    const filteredRequests = paginationDto.remote_type
+      ? requests.filter(
+          (r) =>
+            r.remote_work_request?.remote_type === paginationDto.remote_type,
+        )
+      : requests;
+
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = filteredRequests
+      .slice(start, end)
+      .map((r) => this.mapToRemoteWorkRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      filteredRequests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
@@ -251,99 +231,104 @@ export class RequestsService {
     user_id: number,
     paginationDto: RemoteWorkRequestPaginationDto = {},
   ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_id,
+      request_type: 'REMOTE_WORK',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const where: any = { user_id: user_id, deleted_at: null };
+    // Filter by remote_type if needed
+    const filteredRequests = paginationDto.remote_type
+      ? requests.filter(
+          (r) =>
+            r.remote_work_request?.remote_type === paginationDto.remote_type,
+        )
+      : requests;
 
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.remote_type)
-      where.remote_type = paginationDto.remote_type;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.remote_work_requests.count({ where }),
-    ]);
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = filteredRequests
+      .slice(start, end)
+      .map((r) => this.mapToRemoteWorkRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      filteredRequests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
   }
 
-    async createDayOffRequest(
+  async createDayOffRequest(
     dto: CreateDayOffRequestDto,
   ): Promise<DayOffRequestResponseDto> {
     await this.validateUser(dto.user_id);
-
     const workDate = new Date(dto.work_date);
 
-    const existingDayOff = await this.prisma.day_offs.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-        deleted_at: null,
-        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
-      },
-    });
-
-    if (existingDayOff) {
+    const isDuplicate =
+      await this.attendanceRequestService.checkDuplicateRequest(
+        dto.user_id,
+        workDate,
+        'DAY_OFF',
+      );
+    if (isDuplicate)
       throw new BadRequestException(REQUEST_ERRORS.DAY_OFF_ALREADY_EXISTS);
-    }
 
     const dayOffAmount = dto.duration === 'FULL_DAY' ? 1 : 0.5;
-
     if (dto.type === DayOffType.PAID) {
       const leaveBalance =
         await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
-
       if (leaveBalance.paid_leave_balance < dayOffAmount) {
         throw new BadRequestException(
-          `Không đủ số dư phép có lương. Hiện có: ${leaveBalance.paid_leave_balance} ngày, cần: ${dayOffAmount} ngày`,
+          `Không đủ số dư phép. Hiện có: ${leaveBalance.paid_leave_balance}, cần: ${dayOffAmount}`,
         );
       }
     }
 
-    const { is_past, ...rest } = dto;
-
-    return await this.prisma.day_offs.create({
-      data: {
-        ...rest,
-        work_date: workDate,
-        duration: dto.duration,
-        type: dto.type,
-        is_past: is_past ? true : false,
-        status: 'PENDING',
-      },
+    let timesheet = await this.prisma.time_sheets.findFirst({
+      where: { user_id: dto.user_id, work_date: workDate },
     });
+    if (!timesheet) {
+      timesheet = await this.prisma.time_sheets.create({
+        data: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          status: ApprovalStatus.PENDING,
+          type: 'NORMAL',
+        },
+      });
+    }
+
+    const attendanceRequest =
+      await this.attendanceRequestService.createAttendanceRequest({
+        user_id: dto.user_id,
+        timesheet_id: timesheet.id,
+        work_date: workDate,
+        request_type: 'DAY_OFF',
+        title: dto.title,
+        reason: dto.reason,
+      });
+
+    await this.dayOffDetailService.createDayOffDetail({
+      request_id: attendanceRequest.id,
+      duration: dto.duration,
+      type: dto.type,
+      is_past: dto.is_past || false,
+    });
+
+    const fullRequest = await this.attendanceRequestService.findOne(
+      attendanceRequest.id,
+    );
+    return this.mapToDayOffRequestResponse(fullRequest);
   }
 
   async findAllDayOffRequests(
@@ -365,50 +350,30 @@ export class RequestsService {
       }
     }
 
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
+      request_type: 'DAY_OFF',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const where: Prisma.day_offsWhereInput = { deleted_at: null };
-
-    if (user_idsFilter !== undefined) {
-      where.user_id = { in: user_idsFilter };
-    }
-
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.day_offs.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.day_offs.count({ where }),
-    ]);
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = requests
+      .slice(start, end)
+      .map((r) => this.mapToDayOffRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      requests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
@@ -418,73 +383,54 @@ export class RequestsService {
     user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_id,
+      request_type: 'DAY_OFF',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const where: any = { user_id: user_id };
-
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.day_offs.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.day_offs.count({ where }),
-    ]);
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = requests
+      .slice(start, end)
+      .map((r) => this.mapToDayOffRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      requests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
   }
 
-    async createOvertimeRequest(
+  async createOvertimeRequest(
     dto: CreateOvertimeRequestDto,
   ): Promise<OvertimeRequestResponseDto> {
+    // 1. Validate
     await this.validateUser(dto.user_id);
-
     const workDate = new Date(dto.work_date);
 
-    // REMOVED: Project validation (no longer linked to overtime)
-
-    const existingOvertime = await this.prisma.over_times_history.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-        deleted_at: null,
-        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
-      },
-    });
-
-    if (existingOvertime) {
+    // 2. Check duplicate
+    const isDuplicate =
+      await this.attendanceRequestService.checkDuplicateRequest(
+        dto.user_id,
+        workDate,
+        'OVERTIME',
+      );
+    if (isDuplicate) {
       throw new BadRequestException(REQUEST_ERRORS.OVERTIME_ALREADY_EXISTS);
     }
 
+    // 3. Calculate total hours and validate
     const [startHour, startMinute] = dto.start_time.split(':').map(Number);
     const [endHour, endMinute] = dto.end_time.split(':').map(Number);
     const startMinutes = startHour * 60 + startMinute;
@@ -493,39 +439,51 @@ export class RequestsService {
 
     const normalWorkStart = 8 * 60;
     const normalWorkEnd = 17 * 60;
-
     if (startMinutes < normalWorkEnd && endMinutes > normalWorkStart) {
       throw new BadRequestException(REQUEST_ERRORS.OVERTIME_OVERLAP_WORK_HOURS);
     }
 
-    const hourlyRate = null;
-    const totalAmount = null;
+    // 4. Get or create timesheet
+    let timesheet = await this.prisma.time_sheets.findFirst({
+      where: { user_id: dto.user_id, work_date: workDate },
+    });
+    if (!timesheet) {
+      timesheet = await this.prisma.time_sheets.create({
+        data: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          status: ApprovalStatus.PENDING,
+          type: 'NORMAL',
+        },
+      });
+    }
 
-    const result = await this.prisma.over_times_history.create({
-      data: {
+    // 5. Create attendance_request
+    const attendanceRequest =
+      await this.attendanceRequestService.createAttendanceRequest({
         user_id: dto.user_id,
+        timesheet_id: timesheet.id,
         work_date: workDate,
+        request_type: 'OVERTIME',
         title: dto.title,
-        start_time: new Date(
-          `${workDate.toISOString().split('T')[0]} ${dto.start_time}`,
-        ),
-        end_time: new Date(
-          `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
-        ),
-        total_hours: totalHours,
-        hourly_rate: hourlyRate,
-        total_amount: totalAmount,
-        // REMOVED: project_id
         reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-      },
+      });
+
+    // 6. Create overtime detail
+    const startTime = new Date(`1970-01-01T${dto.start_time}:00Z`);
+    const endTime = new Date(`1970-01-01T${dto.end_time}:00Z`);
+
+    await this.overtimeDetailService.createOvertimeDetail({
+      request_id: attendanceRequest.id,
+      start_time: startTime,
+      end_time: endTime,
+      total_hours: totalHours,
     });
 
-    return {
-      ...result,
-      start_time: result.start_time.toTimeString().slice(0, 5),
-      end_time: result.end_time.toTimeString().slice(0, 5),
-    } as OvertimeRequestResponseDto;
+    const fullRequest = await this.attendanceRequestService.findOne(
+      attendanceRequest.id,
+    );
+    return this.mapToOvertimeRequestResponse(fullRequest);
   }
 
   async findAllOvertimeRequests(
@@ -547,51 +505,30 @@ export class RequestsService {
       }
     }
 
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
+      request_type: 'OVERTIME',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const where: Prisma.over_times_historyWhereInput = { deleted_at: null };
-
-    if (user_idsFilter !== undefined) {
-      where.user_id = { in: user_idsFilter };
-    }
-
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.over_times_history.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          // REMOVED: project relation
-          approved_by_user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.over_times_history.count({ where }),
-    ]);
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = requests
+      .slice(start, end)
+      .map((r) => this.mapToOvertimeRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      requests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
@@ -601,53 +538,36 @@ export class RequestsService {
     user_id: number,
     paginationDto: RequestPaginationDto = {},
   ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
+    const requests = await this.attendanceRequestService.findMany({
+      user_id: user_id,
+      request_type: 'OVERTIME',
+      status: paginationDto.status as ApprovalStatus,
+      work_date:
+        paginationDto.start_date && paginationDto.end_date
+          ? {
+              gte: new Date(paginationDto.start_date),
+              lte: new Date(paginationDto.end_date),
+            }
+          : undefined,
+      deleted_at: null,
+    });
 
-    const where: any = { user_id: user_id, deleted_at: null };
-
-    if (paginationDto.status)
-      where.status = paginationDto.status as ApprovalStatus;
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [data, total] = await Promise.all([
-      this.prisma.over_times_history.findMany({
-        where,
-        skip,
-        take,
-        orderBy: orderBy || { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          // REMOVED: project relation
-          approved_by_user: {
-            select: {
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
-      }),
-      this.prisma.over_times_history.count({ where }),
-    ]);
+    // Apply pagination
+    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
+    const end = start + (paginationDto.limit || 10);
+    const data = requests
+      .slice(start, end)
+      .map((r) => this.mapToOvertimeRequestResponse(r));
 
     return buildPaginationResponse(
       data,
-      total,
+      requests.length,
       paginationDto.page || 1,
       paginationDto.limit || 10,
     );
   }
 
-    /**
+  /**
    * Lấy requests cho Division Head (chỉ trong division mình quản lý)
    */
   async getDivisionRequests(
@@ -693,6 +613,14 @@ export class RequestsService {
 
     const userFilter = { user_id: { in: user_ids } };
 
+    const workDateFilter =
+      paginationDto.start_date && paginationDto.end_date
+        ? {
+            gte: new Date(paginationDto.start_date),
+            lte: new Date(paginationDto.end_date),
+          }
+        : undefined;
+
     const [
       remoteWorkData,
       dayOffData,
@@ -700,187 +628,62 @@ export class RequestsService {
       lateEarlyData,
       forgotCheckinData,
     ] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...userFilter,
-          ...(paginationDto.start_date &&
-            paginationDto.end_date && {
-              work_date: {
-                gte: new Date(paginationDto.start_date),
-                lte: new Date(paginationDto.end_date),
-              },
-            }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
+      this.attendanceRequestService.findMany({
+        user_id: { in: user_ids },
+        request_type: 'REMOTE_WORK',
+        status: whereConditions.status,
+        work_date: workDateFilter,
+        deleted_at: null,
       }),
-      this.prisma.day_offs.findMany({
-        where: {
-          ...whereConditions,
-          ...userFilter,
-          ...(paginationDto.start_date &&
-            paginationDto.end_date && {
-              work_date: {
-                gte: new Date(paginationDto.start_date),
-                lte: new Date(paginationDto.end_date),
-              },
-            }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
+      this.attendanceRequestService.findMany({
+        user_id: { in: user_ids },
+        request_type: 'DAY_OFF',
+        status: whereConditions.status,
+        work_date: workDateFilter,
+        deleted_at: null,
       }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          ...whereConditions,
-          ...userFilter,
-          ...(paginationDto.start_date &&
-            paginationDto.end_date && {
-              work_date: {
-                gte: new Date(paginationDto.start_date),
-                lte: new Date(paginationDto.end_date),
-              },
-            }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  position: true,
-                },
-              },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
+      this.attendanceRequestService.findMany({
+        user_id: { in: user_ids },
+        request_type: 'OVERTIME',
+        status: whereConditions.status,
+        work_date: workDateFilter,
+        deleted_at: null,
       }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...userFilter,
-          ...(paginationDto.start_date &&
-            paginationDto.end_date && {
-              work_date: {
-                gte: new Date(paginationDto.start_date),
-                lte: new Date(paginationDto.end_date),
-              },
-            }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  position: true,
-                },
-              },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
+      this.attendanceRequestService.findMany({
+        user_id: { in: user_ids },
+        request_type: 'LATE_EARLY',
+        status: whereConditions.status,
+        work_date: workDateFilter,
+        deleted_at: null,
       }),
-      this.prisma.forgot_checkin_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...userFilter,
-          ...(paginationDto.start_date &&
-            paginationDto.end_date && {
-              work_date: {
-                gte: new Date(paginationDto.start_date),
-                lte: new Date(paginationDto.end_date),
-              },
-            }),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  position: true,
-                },
-              },
-            },
-          },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: { select: { name: true } },
-            },
-          },
-        },
+      this.attendanceRequestService.findMany({
+        user_id: { in: user_ids },
+        request_type: 'FORGOT_CHECKIN',
+        status: whereConditions.status,
+        work_date: workDateFilter,
+        deleted_at: null,
       }),
     ]);
 
     const allRequests = [
       ...remoteWorkData.map((req) => ({
-        ...req,
+        ...this.mapToRemoteWorkRequestResponse(req),
         type: 'remote_work' as const,
       })),
       ...dayOffData.map((req) => ({
-        ...req,
+        ...this.mapToDayOffRequestResponse(req),
         type: 'day_off' as const,
       })),
       ...overtimeData.map((req) => ({
-        ...req,
+        ...this.mapToOvertimeRequestResponse(req),
         type: 'overtime' as const,
       })),
       ...lateEarlyData.map((req) => ({
-        ...req,
+        ...this.mapToLateEarlyRequestResponse(req),
         type: 'late_early' as const,
       })),
       ...forgotCheckinData.map((req) => ({
-        ...req,
+        ...this.mapToForgotCheckinRequestResponse(req),
         type: 'forgot_checkin' as const,
       })),
     ];
@@ -905,137 +708,51 @@ export class RequestsService {
     requestType: string,
     authContext: AuthorizationContext,
   ) {
-    let request;
-
+    // Map request type strings to AttendanceRequestType
+    let requestTypeEnum: string;
     switch (requestType) {
       case 'remote_work':
       case 'remote-work':
-        request = await this.prisma.remote_work_requests.findFirst({
-          where: { id: requestId, deleted_at: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: {
-                    name: true,
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+        requestTypeEnum = 'REMOTE_WORK';
         break;
-
       case 'day_off':
       case 'day-off':
-        request = await this.prisma.day_offs.findFirst({
-          where: { id: requestId, deleted_at: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: {
-                    name: true,
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+        requestTypeEnum = 'DAY_OFF';
         break;
-
       case 'overtime':
-        request = await this.prisma.time_sheets.findFirst({
-          where: { id: requestId, deleted_at: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: {
-                    name: true,
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+        requestTypeEnum = 'OVERTIME';
         break;
-
       case 'late_early':
       case 'late-early':
-        request = await this.prisma.late_early_requests.findFirst({
-          where: { id: requestId, deleted_at: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: {
-                    name: true,
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+        requestTypeEnum = 'LATE_EARLY';
         break;
-
       case 'forgot_checkin':
       case 'forgot-checkin':
-        request = await this.prisma.forgot_checkin_requests.findFirst({
-          where: { id: requestId, deleted_at: null },
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                user_information: {
-                  select: {
-                    name: true,
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+        requestTypeEnum = 'FORGOT_CHECKIN';
         break;
-
       default:
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
+
+    // Query attendance_requests
+    const request = await this.attendanceRequestService.findOne(requestId);
 
     if (!request) {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
-    const canView = await authContext.canApproveRequest(request.user_id, requestType);
+    const canView = await authContext.canApproveRequest(
+      request.user_id,
+      requestType,
+    );
     const isOwnRequest = authContext.userId === request.user_id;
-    
+
     if (!canView && !isOwnRequest) {
       throw new ForbiddenException(
         'Bạn không có quyền xem request này. ' +
-        'Chỉ có thể xem requests trong scope quản lý hoặc của chính mình.'
+          'Chỉ có thể xem requests trong scope quản lý hoặc của chính mình.',
       );
     }
-
-    await this.activityLogService.logRequestView(
-      requestType,
-      requestId,
-      authContext.userId,
-      request.user_id,
-    );
 
     return {
       ...request,
@@ -1073,7 +790,7 @@ export class RequestsService {
         );
       }
     } else if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getuser_idsByRole(
+      const divisionHeaduser_ids = await this.getUserIdsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
 
@@ -1094,7 +811,9 @@ export class RequestsService {
       }
     } else if (accessScope.type === 'PROJECT_ONLY') {
       if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        const projectuser_ids = await this.getProjectUserIds(accessScope.projectIds);
+        const projectuser_ids = await this.getProjectUserIds(
+          accessScope.projectIds,
+        );
         user_ids = projectuser_ids;
       } else {
         user_ids = [requesterId!];
@@ -1104,7 +823,7 @@ export class RequestsService {
     }
 
     if (paginationDto.requester_role) {
-      const roleuser_ids = await this.getuser_idsByRole(
+      const roleuser_ids = await this.getUserIdsByRole(
         paginationDto.requester_role,
       );
       user_ids = user_ids
@@ -1174,7 +893,6 @@ export class RequestsService {
     };
   }
 
-
   async getAllMyRequests(
     user_id: number,
     paginationDto: RequestPaginationDto = {},
@@ -1202,83 +920,53 @@ export class RequestsService {
       lateEarlyData,
       forgotCheckinData,
     ] = await Promise.all([
-      this.prisma.remote_work_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
+      this.attendanceRequestService.findMany({
+        ...whereConditions,
+        request_type: 'REMOTE_WORK',
+        work_date: dateFilter,
       }),
-      this.prisma.day_offs.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
+      this.attendanceRequestService.findMany({
+        ...whereConditions,
+        request_type: 'DAY_OFF',
+        work_date: dateFilter,
       }),
-      this.prisma.over_times_history.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          // REMOVED: project relation
-          approved_by_user: { select: { id: true, email: true } },
-        },
+      this.attendanceRequestService.findMany({
+        ...whereConditions,
+        request_type: 'OVERTIME',
+        work_date: dateFilter,
       }),
-      this.prisma.late_early_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
+      this.attendanceRequestService.findMany({
+        ...whereConditions,
+        request_type: 'LATE_EARLY',
+        work_date: dateFilter,
       }),
-      this.prisma.forgot_checkin_requests.findMany({
-        where: {
-          ...whereConditions,
-          ...(dateFilter && { work_date: dateFilter }),
-        },
-        include: {
-          user: { select: { id: true, email: true } },
-          approved_by_user: { select: { id: true, email: true } },
-        },
+      this.attendanceRequestService.findMany({
+        ...whereConditions,
+        request_type: 'FORGOT_CHECKIN',
+        work_date: dateFilter,
       }),
     ]);
 
     const allRequests = [
       ...remoteWorkData.map((req) => ({
-        ...req,
+        ...this.mapToRemoteWorkRequestResponse(req),
         request_type: 'REMOTE_WORK' as const,
       })),
       ...dayOffData.map((req) => ({
-        ...req,
+        ...this.mapToDayOffRequestResponse(req),
         request_type: 'DAY_OFF' as const,
       })),
       ...overtimeData.map((req) => ({
-        ...req,
+        ...this.mapToOvertimeRequestResponse(req),
         request_type: 'OVERTIME' as const,
-        start_time: req.start_time?.toTimeString().slice(0, 5),
-        end_time: req.end_time?.toTimeString().slice(0, 5),
       })),
       ...lateEarlyData.map((req) => ({
-        ...req,
+        ...this.mapToLateEarlyRequestResponse(req),
         request_type: 'LATE_EARLY' as const,
       })),
       ...forgotCheckinData.map((req) => ({
-        ...req,
+        ...this.mapToForgotCheckinRequestResponse(req),
         request_type: 'FORGOT_CHECKIN' as const,
-        checkin_time: req.checkin_time?.toTimeString().slice(0, 5) || null,
-        checkout_time: req.checkout_time?.toTimeString().slice(0, 5) || null,
       })),
     ];
 
@@ -1309,51 +997,39 @@ export class RequestsService {
   }
 
   async getMyRequestsStats(user_id: number) {
-    const [remoteWork, dayOffs, overtimes, lateEarly, forgotCheckin] =
-      await Promise.all([
-        this.prisma.remote_work_requests.groupBy({
-          by: ['status'],
-          where: { user_id: user_id, deleted_at: null },
-          _count: { status: true },
-        }),
-        this.prisma.day_offs.groupBy({
-          by: ['status'],
-          where: { user_id: user_id, deleted_at: null },
-          _count: { status: true },
-        }),
-        this.prisma.over_times_history.groupBy({
-          by: ['status'],
-          where: { user_id: user_id, deleted_at: null },
-          _count: { status: true },
-        }),
-        this.prisma.late_early_requests.groupBy({
-          by: ['status'],
-          where: { user_id: user_id, deleted_at: null },
-          _count: { status: true },
-        }),
-        this.prisma.forgot_checkin_requests.groupBy({
-          by: ['status'],
-          where: { user_id: user_id, deleted_at: null },
-          _count: { status: true },
-        }),
-      ]);
+    // Fetch all requests for this user
+    const allRequests = await this.attendanceRequestService.findMany({
+      user_id: user_id,
+      deleted_at: null,
+    });
 
-    const getStatusCounts = (data: any[]) => {
+    // Group by request_type and status
+    const getStatusCounts = (requests: any[]) => {
       const result = { total: 0, pending: 0, approved: 0, rejected: 0 };
-      data.forEach((item) => {
-        result.total += item._count.status;
-        if (item.status === 'PENDING') result.pending = item._count.status;
-        if (item.status === 'APPROVED') result.approved = item._count.status;
-        if (item.status === 'REJECTED') result.rejected = item._count.status;
+      requests.forEach((req) => {
+        result.total += 1;
+        if (req.status === 'PENDING') result.pending += 1;
+        if (req.status === 'APPROVED') result.approved += 1;
+        if (req.status === 'REJECTED') result.rejected += 1;
       });
       return result;
     };
 
-    const remoteWorkStats = getStatusCounts(remoteWork);
-    const dayOffStats = getStatusCounts(dayOffs);
-    const overtimeStats = getStatusCounts(overtimes);
-    const lateEarlyStats = getStatusCounts(lateEarly);
-    const forgotCheckinStats = getStatusCounts(forgotCheckin);
+    const remoteWorkStats = getStatusCounts(
+      allRequests.filter((r) => r.request_type === 'REMOTE_WORK'),
+    );
+    const dayOffStats = getStatusCounts(
+      allRequests.filter((r) => r.request_type === 'DAY_OFF'),
+    );
+    const overtimeStats = getStatusCounts(
+      allRequests.filter((r) => r.request_type === 'OVERTIME'),
+    );
+    const lateEarlyStats = getStatusCounts(
+      allRequests.filter((r) => r.request_type === 'LATE_EARLY'),
+    );
+    const forgotCheckinStats = getStatusCounts(
+      allRequests.filter((r) => r.request_type === 'FORGOT_CHECKIN'),
+    );
 
     return {
       total:
@@ -1394,11 +1070,9 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.remote_work_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
     }
 
@@ -1413,26 +1087,19 @@ export class RequestsService {
 
     if (!canApprove) {
       throw new ForbiddenException(
-        'Bạn không có quyền duyệt request này. ' +
-        'Chỉ có thể duyệt requests của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_APPROVE_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.remote_work_requests.update({
-      where: { id },
-      data: {
-        status: ApprovalStatus.APPROVED,
-        approved_by: authContext.userId,
-        approved_at: new Date(),
-      },
-    });
+    await this.attendanceRequestService.approve(id, authContext.userId);
 
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
     await this.updateTimesheetRemoteType(updatedRequest);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.REMOTE_WORK_APPROVED,
-      data: updatedRequest,
+      data: this.mapToRemoteWorkRequestResponse(updatedRequest),
     };
   }
 
@@ -1441,11 +1108,9 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.remote_work_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
     }
 
@@ -1453,7 +1118,6 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    // Scope-aware permission check
     const canReject = await authContext.canApproveRequest(
       request.user_id,
       'remote-work',
@@ -1461,24 +1125,18 @@ export class RequestsService {
 
     if (!canReject) {
       throw new ForbiddenException(
-        'Bạn không có quyền từ chối request này. ' +
-        'Chỉ có thể từ chối requests của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_REJECT_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.remote_work_requests.update({
-      where: { id },
-      data: {
-        status: ApprovalStatus.REJECTED,
-        rejected_reason: reason,
-        updated_at: new Date(),
-      },
-    });
+    await this.attendanceRequestService.reject(id, authContext.userId, reason);
+
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.REMOTE_WORK_REJECTED,
-      data: updatedRequest,
+      data: this.mapToRemoteWorkRequestResponse(updatedRequest),
     };
   }
 
@@ -1486,11 +1144,9 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.day_offs.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
     }
 
@@ -1505,38 +1161,31 @@ export class RequestsService {
 
     if (!canApprove) {
       throw new ForbiddenException(
-        'Bạn không có quyền duyệt đơn nghỉ phép này. ' +
-        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_APPROVE_REQUEST_PERMISSION,
       );
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      const updatedRequest = await tx.day_offs.update({
-        where: { id },
-        data: {
-          status: ApprovalStatus.APPROVED,
-          approved_by: authContext.userId,
-          approved_at: new Date(),
-        },
-      });
+      await this.attendanceRequestService.approve(id, authContext.userId);
 
-      if (request.type === DayOffType.PAID) {
-        const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
+      if (request.day_off?.type === DayOffType.PAID) {
+        const dayOffAmount = request.day_off.duration === 'FULL_DAY' ? 1 : 0.5;
         await this.leaveBalanceService.deductLeaveBalance(
           request.user_id,
           dayOffAmount,
           DayOffType.PAID,
-          request.id,
+          id,
           `Sử dụng phép: ${request.reason || 'Nghỉ phép'}`,
         );
       }
 
+      const updatedRequest = await this.attendanceRequestService.findOne(id);
       await this.createTimesheetsForDayOff(updatedRequest);
 
       return {
         success: true,
         message: SUCCESS_MESSAGES.DAY_OFF_APPROVED,
-        data: updatedRequest,
+        data: this.mapToDayOffRequestResponse(updatedRequest),
       };
     });
   }
@@ -1546,11 +1195,9 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.day_offs.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
     }
 
@@ -1561,7 +1208,6 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    // Scope-aware permission check
     const canReject = await authContext.canApproveRequest(
       request.user_id,
       'day-off',
@@ -1569,39 +1215,37 @@ export class RequestsService {
 
     if (!canReject) {
       throw new ForbiddenException(
-        'Bạn không có quyền từ chối đơn nghỉ phép này. ' +
-        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_REJECT_REQUEST_PERMISSION,
       );
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      const updatedRequest = await tx.day_offs.update({
-        where: { id },
-        data: {
-          status: ApprovalStatus.REJECTED,
-          rejected_reason: reason,
-          updated_at: new Date(),
-        },
-      });
+      await this.attendanceRequestService.reject(
+        id,
+        authContext.userId,
+        reason,
+      );
 
       if (
         request.status === ApprovalStatus.APPROVED &&
-        request.type === DayOffType.PAID
+        request.day_off?.type === DayOffType.PAID
       ) {
-        const dayOffAmount = request.duration === 'FULL_DAY' ? 1 : 0.5;
+        const dayOffAmount = request.day_off.duration === 'FULL_DAY' ? 1 : 0.5;
         await this.leaveBalanceService.refundLeaveBalance(
           request.user_id,
           dayOffAmount,
           DayOffType.PAID,
-          request.id,
+          id,
           `Hoàn trả phép do từ chối đơn: ${reason}`,
         );
       }
 
+      const updatedRequest = await this.attendanceRequestService.findOne(id);
+
       return {
         success: true,
         message: SUCCESS_MESSAGES.DAY_OFF_REJECTED,
-        data: updatedRequest,
+        data: this.mapToDayOffRequestResponse(updatedRequest),
       };
     });
   }
@@ -1610,11 +1254,9 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.over_times_history.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
     }
 
@@ -1629,24 +1271,18 @@ export class RequestsService {
 
     if (!canApprove) {
       throw new ForbiddenException(
-        'Bạn không có quyền duyệt đơn làm thêm giờ này. ' +
-        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_APPROVE_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.over_times_history.update({
-      where: { id },
-      data: {
-        status: ApprovalStatus.APPROVED,
-        approved_by: authContext.userId,
-        approved_at: new Date(),
-      },
-    });
+    await this.attendanceRequestService.approve(id, authContext.userId);
+
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.OVERTIME_APPROVED,
-      data: updatedRequest,
+      data: this.mapToOvertimeRequestResponse(updatedRequest),
     };
   }
 
@@ -1655,11 +1291,9 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.over_times_history.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
+    if (!request || request.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
     }
 
@@ -1674,41 +1308,27 @@ export class RequestsService {
 
     if (!canReject) {
       throw new ForbiddenException(
-        'Bạn không có quyền từ chối đơn làm thêm giờ này. ' +
-        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_REJECT_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.over_times_history.update({
-      where: { id },
-      data: {
-        status: ApprovalStatus.REJECTED,
-        rejected_reason: reason,
-        updated_at: new Date(),
-      },
-    });
+    await this.attendanceRequestService.reject(id, authContext.userId, reason);
+
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.OVERTIME_REJECTED,
-      data: updatedRequest,
+      data: this.mapToOvertimeRequestResponse(updatedRequest),
     };
   }
 
-    private async updateTimesheetRemoteType(
-    request: RemoteWorkRequestResponseDto,
-  ) {
-    const remoteRequest = await this.prisma.remote_work_requests.findFirst({
-      where: { id: request.id, deleted_at: null },
-      include: { timesheet: true },
-    });
-
-    if (remoteRequest?.timesheet) {
+  private async updateTimesheetRemoteType(request: any) {
+    if (request.timesheet_id) {
       await this.prisma.time_sheets.update({
-        where: { id: remoteRequest.timesheet.id },
+        where: { id: request.timesheet_id },
         data: {
-          remote: request.remote_type,
-          // REMOVED: remote_work_approved
+          remote: request.remote_work_request?.remote_type,
         },
       });
     } else {
@@ -1725,31 +1345,28 @@ export class RequestsService {
           data: {
             user_id: request.user_id,
             work_date: request.work_date,
-            remote: request.remote_type,
+            remote: request.remote_work_request?.remote_type,
             status: ApprovalStatus.PENDING,
             type: 'NORMAL',
-            // REMOVED: has_remote_work_request
-            // REMOVED: remote_work_approved
           },
+        });
+
+        await this.prisma.attendance_requests.update({
+          where: { id: request.id },
+          data: { timesheet_id: timesheet.id },
         });
       } else {
         await this.prisma.time_sheets.update({
           where: { id: timesheet.id },
           data: {
-            remote: request.remote_type,
-            // REMOVED: remote_work_approved
+            remote: request.remote_work_request?.remote_type,
           },
         });
       }
-
-      await this.prisma.remote_work_requests.update({
-        where: { id: request.id },
-        data: { timesheet_id: timesheet.id },
-      });
     }
   }
 
-  private async createTimesheetsForDayOff(dayOff: DayOffRequestResponseDto) {
+  private async createTimesheetsForDayOff(dayOff: any) {
     const workDate = new Date(dayOff.work_date);
 
     const existingTimesheet = await this.prisma.time_sheets.findFirst({
@@ -1760,10 +1377,11 @@ export class RequestsService {
       },
     });
 
+    const duration = dayOff.day_off?.duration || dayOff.duration;
     const workHours =
-      dayOff.duration === 'FULL_DAY'
+      duration === 'FULL_DAY'
         ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
-        : dayOff.duration === 'MORNING'
+        : duration === 'MORNING'
           ? { morningHours: 0, afternoonHours: 4 * 60, totalHours: 4 * 60 }
           : { morningHours: 4 * 60, afternoonHours: 0, totalHours: 4 * 60 };
 
@@ -1790,15 +1408,13 @@ export class RequestsService {
     }
   }
 
-    /**
+  /**
    * Lấy thông tin leave balance của user
    */
   async getMyLeaveBalance(user_id: number) {
     await this.validateUser(user_id);
     return await this.leaveBalanceService.getLeaveBalanceStats(user_id);
   }
-
-
 
   /**
    * Kiểm tra có đủ leave balance để tạo đơn không
@@ -1840,39 +1456,34 @@ export class RequestsService {
     };
   }
 
-    async createLateEarlyRequest(
+  async createLateEarlyRequest(
     dto: CreateLateEarlyRequestDto,
   ): Promise<LateEarlyRequestResponseDto> {
     await this.validateUser(dto.user_id);
-
-    // Tính tổng số phút của request này
-    const totalRequestMinutes = (dto.late_minutes || 0) + (dto.early_minutes || 0);
-
-    // Validate request quota (bao gồm số phút sẽ tạo)
-    await this.timesheetService.validateRequestQuota(dto.user_id, 'late_early', totalRequestMinutes);
-
+    const totalRequestMinutes =
+      (dto.late_minutes || 0) + (dto.early_minutes || 0);
+    await this.timesheetService.validateRequestQuota(
+      dto.user_id,
+      'late_early',
+      totalRequestMinutes,
+    );
     const workDate = new Date(dto.work_date);
 
-    const existingRequest = await this.prisma.late_early_requests.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-        deleted_at: null,
-      },
-    });
-
-    if (existingRequest) {
+    const isDuplicate =
+      await this.attendanceRequestService.checkDuplicateRequest(
+        dto.user_id,
+        workDate,
+        'LATE_EARLY',
+      );
+    if (isDuplicate)
       throw new BadRequestException(
         'Đã có request đi muộn/về sớm cho ngày này',
       );
-    }
 
-    if (dto.request_type === 'LATE' && !dto.late_minutes) {
+    if (dto.request_type === 'LATE' && !dto.late_minutes)
       throw new BadRequestException('Số phút đi muộn là bắt buộc');
-    }
-    if (dto.request_type === 'EARLY' && !dto.early_minutes) {
+    if (dto.request_type === 'EARLY' && !dto.early_minutes)
       throw new BadRequestException('Số phút về sớm là bắt buộc');
-    }
     if (
       dto.request_type === 'BOTH' &&
       (!dto.late_minutes || !dto.early_minutes)
@@ -1882,39 +1493,41 @@ export class RequestsService {
       );
     }
 
-    const timesheet = await this.prisma.time_sheets.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-      },
+    let timesheet = await this.prisma.time_sheets.findFirst({
+      where: { user_id: dto.user_id, work_date: workDate },
     });
-
-    if (timesheet) {
-      await this.prisma.time_sheets.update({
-        where: { id: timesheet.id },
-        data: { /* REMOVED: has_late_early_request */ },
+    if (!timesheet) {
+      timesheet = await this.prisma.time_sheets.create({
+        data: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          status: ApprovalStatus.PENDING,
+          type: 'NORMAL',
+        },
       });
     }
 
-    const result = await this.prisma.late_early_requests.create({
-      data: {
+    const attendanceRequest =
+      await this.attendanceRequestService.createAttendanceRequest({
         user_id: dto.user_id,
+        timesheet_id: timesheet.id,
         work_date: workDate,
-        request_type: dto.request_type,
+        request_type: 'LATE_EARLY',
         title: dto.title,
-        late_minutes: dto.late_minutes || undefined,
-        early_minutes: dto.early_minutes || undefined,
         reason: dto.reason,
-        status: 'PENDING',
-        timesheet_id: timesheet?.id,
-      },
+      });
+
+    await this.lateEarlyDetailService.createLateEarlyDetail({
+      request_id: attendanceRequest.id,
+      request_type: dto.request_type,
+      late_minutes: dto.late_minutes,
+      early_minutes: dto.early_minutes,
     });
 
-    return {
-      ...result,
-      late_minutes: result.late_minutes ?? undefined,
-      early_minutes: result.early_minutes ?? undefined,
-    } as LateEarlyRequestResponseDto;
+    const fullRequest = await this.attendanceRequestService.findOne(
+      attendanceRequest.id,
+    );
+    return this.mapToLateEarlyRequestResponse(fullRequest);
   }
 
   async findAllLateEarlyRequests(
@@ -1938,14 +1551,19 @@ export class RequestsService {
 
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const where: Prisma.late_early_requestsWhereInput = { deleted_at: null };
+    const where: any = {
+      deleted_at: null,
+      request_type: 'LATE_EARLY',
+    };
 
     if (user_idsFilter !== undefined) {
       where.user_id = { in: user_idsFilter };
     }
 
-    if (paginationDto.status)
+    if (paginationDto.status) {
       where.status = paginationDto.status as ApprovalStatus;
+    }
+
     if (paginationDto.start_date && paginationDto.end_date) {
       where.work_date = {
         gte: new Date(paginationDto.start_date),
@@ -1954,31 +1572,33 @@ export class RequestsService {
     }
 
     const [requests, total] = await Promise.all([
-      this.prisma.late_early_requests.findMany({
+      this.prisma.attendance_requests.findMany({
         where,
         include: {
           user: {
             select: {
               id: true,
               email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  code: true,
+                  avatar: true,
+                },
+              },
             },
           },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-            },
-          },
+          late_early_request: true,
         },
         orderBy: orderBy || { created_at: 'desc' },
         skip,
         take,
       }),
-      this.prisma.late_early_requests.count({ where }),
+      this.attendanceRequestService.count(where),
     ]);
 
     return buildPaginationResponse(
-      requests,
+      requests.map((r) => this.mapToLateEarlyRequestResponse(r)),
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
@@ -1991,34 +1611,40 @@ export class RequestsService {
   ): Promise<any> {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereClause = { user_id: user_id, deleted_at: null };
+    const whereClause: any = {
+      user_id: user_id,
+      deleted_at: null,
+      request_type: 'LATE_EARLY',
+    };
 
     const [requests, total] = await Promise.all([
-      this.prisma.late_early_requests.findMany({
+      this.prisma.attendance_requests.findMany({
         where: whereClause,
         include: {
           user: {
             select: {
               id: true,
               email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  code: true,
+                  avatar: true,
+                },
+              },
             },
           },
-          approved_by_user: {
-            select: {
-              id: true,
-              email: true,
-            },
-          },
+          late_early_request: true,
         },
         orderBy: orderBy || { created_at: 'desc' },
         skip,
         take,
       }),
-      this.prisma.late_early_requests.count({ where: whereClause }),
+      this.attendanceRequestService.count(whereClause),
     ]);
 
     return buildPaginationResponse(
-      requests,
+      requests.map((r) => this.mapToLateEarlyRequestResponse(r)),
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
@@ -2036,15 +1662,12 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.late_early_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
+    if (!request || request.request_type !== 'LATE_EARLY') {
+      throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
     }
 
-    // Scope-aware permission check
     const canApprove = await authContext.canApproveRequest(
       request.user_id,
       'late-early',
@@ -2052,26 +1675,19 @@ export class RequestsService {
 
     if (!canApprove) {
       throw new ForbiddenException(
-        'Bạn không có quyền duyệt request late/early này. ' +
-        'Chỉ có thể duyệt requests của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_APPROVE_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.late_early_requests.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
-        approved_by: authContext.userId,
-        approved_at: new Date(),
-      },
-    });
+    await this.attendanceRequestService.approve(id, authContext.userId);
 
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
     await this.updateTimesheetWithApprovedLateEarly(updatedRequest);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
-      data: updatedRequest,
+      data: this.mapToLateEarlyRequestResponse(updatedRequest),
     };
   }
 
@@ -2080,15 +1696,12 @@ export class RequestsService {
     authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.late_early_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
+    if (!request || request.request_type !== 'LATE_EARLY') {
+      throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
     }
 
-    // Scope-aware permission check
     const canReject = await authContext.canApproveRequest(
       request.user_id,
       'late-early',
@@ -2096,25 +1709,22 @@ export class RequestsService {
 
     if (!canReject) {
       throw new ForbiddenException(
-        'Bạn không có quyền từ chối request late/early này. ' +
-        'Chỉ có thể từ chối requests của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_REJECT_REQUEST_PERMISSION,
       );
     }
 
-    const updatedRequest = await this.prisma.late_early_requests.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-        approved_by: authContext.userId,
-        approved_at: new Date(),
-        rejected_reason: rejectedReason,
-      },
-    });
+    await this.attendanceRequestService.reject(
+      id,
+      authContext.userId,
+      rejectedReason,
+    );
+
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
 
     return {
       success: true,
       message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
-      data: updatedRequest,
+      data: this.mapToLateEarlyRequestResponse(updatedRequest),
     };
   }
 
@@ -2129,15 +1739,16 @@ export class RequestsService {
       },
     });
 
-    if (timesheet) {
+    if (timesheet && request.late_early_request) {
       const updateData: any = {};
 
-      if (request.late_minutes) {
-        updateData.late_time_approved = request.late_minutes;
+      if (request.late_early_request.late_minutes) {
+        updateData.late_time_approved = request.late_early_request.late_minutes;
       }
 
-      if (request.early_minutes) {
-        updateData.early_time_approved = request.early_minutes;
+      if (request.late_early_request.early_minutes) {
+        updateData.early_time_approved =
+          request.late_early_request.early_minutes;
       }
 
       updateData.late_early_approved = true;
@@ -2149,10 +1760,12 @@ export class RequestsService {
         });
       }
 
-      await this.prisma.late_early_requests.update({
-        where: { id: request.id },
-        data: { timesheet_id: timesheet.id },
-      });
+      if (!request.timesheet_id) {
+        await this.prisma.attendance_requests.update({
+          where: { id: request.id },
+          data: { timesheet_id: timesheet.id },
+        });
+      }
     }
   }
 
@@ -2200,43 +1813,53 @@ export class RequestsService {
       case RequestType.DAY_OFF:
         return await this.rejectDayOffRequest(id, authContext, rejectedReason);
       case RequestType.OVERTIME:
-        return await this.rejectOvertimeRequest(id, authContext, rejectedReason);
+        return await this.rejectOvertimeRequest(
+          id,
+          authContext,
+          rejectedReason,
+        );
       case RequestType.REMOTE_WORK:
-        return await this.rejectRemoteWorkRequest(id, authContext, rejectedReason);
+        return await this.rejectRemoteWorkRequest(
+          id,
+          authContext,
+          rejectedReason,
+        );
       case RequestType.LATE_EARLY:
-        return await this.rejectLateEarlyRequest(id, authContext, rejectedReason);
+        return await this.rejectLateEarlyRequest(
+          id,
+          authContext,
+          rejectedReason,
+        );
       case RequestType.FORGOT_CHECKIN:
-        return await this.rejectForgotCheckinRequest(id, authContext, rejectedReason);
+        return await this.rejectForgotCheckinRequest(
+          id,
+          authContext,
+          rejectedReason,
+        );
       default:
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
   }
 
-
   async createForgotCheckinRequest(
     dto: CreateForgotCheckinRequestDto,
   ): Promise<ForgotCheckinRequestResponseDto> {
     await this.validateUser(dto.user_id);
-
-    // Validate request quota
-    await this.timesheetService.validateRequestQuota(dto.user_id, 'forgot_checkin');
-
+    await this.timesheetService.validateRequestQuota(
+      dto.user_id,
+      'forgot_checkin',
+    );
     const workDate = new Date(dto.work_date);
     this.validatePastOrCurrentDate(workDate);
 
-    const existingRequest = await this.prisma.forgot_checkin_requests.findFirst(
-      {
-        where: {
-          user_id: dto.user_id,
-          work_date: workDate,
-          deleted_at: null,
-        },
-      },
-    );
-
-    if (existingRequest) {
+    const isDuplicate =
+      await this.attendanceRequestService.checkDuplicateRequest(
+        dto.user_id,
+        workDate,
+        'FORGOT_CHECKIN',
+      );
+    if (isDuplicate)
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
-    }
 
     if (dto.checkin_time && dto.checkout_time) {
       const checkin_time = new Date(
@@ -2245,81 +1868,51 @@ export class RequestsService {
       const checkout_time = new Date(
         `${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`,
       );
-
-      if (checkout_time <= checkin_time) {
+      if (checkout_time <= checkin_time)
         throw new BadRequestException(REQUEST_ERRORS.INVALID_TIME_RANGE);
-      }
     }
 
-    const timesheet = await this.prisma.time_sheets.findFirst({
-      where: {
-        user_id: dto.user_id,
-        work_date: workDate,
-      },
+    let timesheet = await this.prisma.time_sheets.findFirst({
+      where: { user_id: dto.user_id, work_date: workDate },
     });
-
-    if (timesheet) {
-      await this.prisma.time_sheets.update({
-        where: { id: timesheet.id },
-        data: { /* REMOVED: has_forgot_checkin_request */ },
+    if (!timesheet) {
+      timesheet = await this.prisma.time_sheets.create({
+        data: {
+          user_id: dto.user_id,
+          work_date: workDate,
+          status: ApprovalStatus.PENDING,
+          type: 'NORMAL',
+        },
       });
     }
 
-    const checkinDateTime = dto.checkin_time
-      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`)
-      : null;
-    const checkoutDateTime = dto.checkout_time
-      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
-      : null;
-
-    const result = await this.prisma.forgot_checkin_requests.create({
-      data: {
+    const attendanceRequest =
+      await this.attendanceRequestService.createAttendanceRequest({
         user_id: dto.user_id,
+        timesheet_id: timesheet.id,
         work_date: workDate,
-        checkin_time: checkinDateTime,
-        checkout_time: checkoutDateTime,
+        request_type: 'FORGOT_CHECKIN',
         title: dto.title,
         reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        timesheet_id: timesheet?.id,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: { select: { name: true } },
-          },
-        },
-        approved_by_user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: { select: { name: true } },
-          },
-        },
-      },
+      });
+
+    const checkinDateTime = dto.checkin_time
+      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`)
+      : undefined;
+    const checkoutDateTime = dto.checkout_time
+      ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
+      : undefined;
+
+    await this.forgotCheckinDetailService.createForgotCheckinDetail({
+      request_id: attendanceRequest.id,
+      checkin_time: checkinDateTime,
+      checkout_time: checkoutDateTime,
     });
 
-    return {
-      ...result,
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.user_information?.name || '',
-      },
-      approved_by_user: {
-        id: result.approved_by_user?.id || 0,
-        email: result.approved_by_user?.email || '',
-        name: result.approved_by_user?.user_information?.name || '',
-      },
-      work_date: result.work_date.toISOString().split('T')[0],
-      checkin_time: result.checkin_time?.toTimeString().slice(0, 5) || null,
-      checkout_time: result.checkout_time?.toTimeString().slice(0, 5) || null,
-      approved_at: result.approved_at?.toISOString() || null,
-      created_at: result.created_at.toISOString(),
-      updated_at: result.updated_at.toISOString(),
-    };
+    const fullRequest = await this.attendanceRequestService.findOne(
+      attendanceRequest.id,
+    );
+    return this.mapToForgotCheckinRequestResponse(fullRequest);
   }
 
   async findAllForgotCheckinRequests(
@@ -2343,8 +1936,9 @@ export class RequestsService {
 
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
 
-    const whereConditions: Prisma.forgot_checkin_requestsWhereInput = {
+    const whereConditions: any = {
       deleted_at: null,
+      request_type: 'FORGOT_CHECKIN',
     };
 
     if (user_idsFilter !== undefined) {
@@ -2363,37 +1957,33 @@ export class RequestsService {
     }
 
     const [requests, total] = await Promise.all([
-      this.prisma.forgot_checkin_requests.findMany({
+      this.prisma.attendance_requests.findMany({
         where: whereConditions,
         include: {
           user: {
-            select: { id: true, email: true },
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  code: true,
+                  avatar: true,
+                },
+              },
+            },
           },
-          approved_by_user: {
-            select: { id: true, email: true },
-          },
+          forgot_checkin_request: true,
         },
         skip,
         take,
         orderBy,
       }),
-      this.prisma.forgot_checkin_requests.count({
-        where: whereConditions,
-      }),
+      this.attendanceRequestService.count(whereConditions),
     ]);
 
-    const mappedRequests = requests.map((request) => ({
-      ...request,
-      work_date: request.work_date.toISOString().split('T')[0],
-      checkin_time: request.checkin_time?.toTimeString().slice(0, 5) || null,
-      checkout_time: request.checkout_time?.toTimeString().slice(0, 5) || null,
-      approved_at: request.approved_at?.toISOString() || null,
-      created_at: request.created_at.toISOString(),
-      updated_at: request.updated_at.toISOString(),
-    }));
-
     return buildPaginationResponse(
-      mappedRequests,
+      requests.map((r) => this.mapToForgotCheckinRequestResponse(r)),
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
@@ -2409,6 +1999,7 @@ export class RequestsService {
     const whereConditions: any = {
       user_id: user_id,
       deleted_at: null,
+      request_type: 'FORGOT_CHECKIN',
     };
 
     if (paginationDto.status) {
@@ -2423,37 +2014,33 @@ export class RequestsService {
     }
 
     const [requests, total] = await Promise.all([
-      this.prisma.forgot_checkin_requests.findMany({
+      this.prisma.attendance_requests.findMany({
         where: whereConditions,
         include: {
           user: {
-            select: { id: true, email: true },
+            select: {
+              id: true,
+              email: true,
+              user_information: {
+                select: {
+                  name: true,
+                  code: true,
+                  avatar: true,
+                },
+              },
+            },
           },
-          approved_by_user: {
-            select: { id: true, email: true },
-          },
+          forgot_checkin_request: true,
         },
         skip,
         take,
         orderBy,
       }),
-      this.prisma.forgot_checkin_requests.count({
-        where: whereConditions,
-      }),
+      this.attendanceRequestService.count(whereConditions),
     ]);
 
-    const mappedRequests = requests.map((request) => ({
-      ...request,
-      work_date: request.work_date.toISOString().split('T')[0],
-      checkin_time: request.checkin_time?.toTimeString().slice(0, 5) || null,
-      checkout_time: request.checkout_time?.toTimeString().slice(0, 5) || null,
-      approved_at: request.approved_at?.toISOString() || null,
-      created_at: request.created_at.toISOString(),
-      updated_at: request.updated_at.toISOString(),
-    }));
-
     return buildPaginationResponse(
-      mappedRequests,
+      requests.map((r) => this.mapToForgotCheckinRequestResponse(r)),
       total,
       paginationDto.page || 1,
       paginationDto.limit || 10,
@@ -2464,22 +2051,18 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.forgot_checkin_requests.findFirst({
-      where: { id, deleted_at: null },
-      include: {
-        timesheet: true,
-      },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
-      throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
+    if (!request || request.request_type !== 'FORGOT_CHECKIN') {
+      throw new NotFoundException(
+        REQUEST_ERRORS.FORGOT_CHECKIN_REQUEST_NOT_FOUND,
+      );
     }
 
     if (request.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException('Đơn này đã được xử lý');
+      throw new BadRequestException(REQUEST_ERRORS.CANNOT_APPROVE_NON_PENDING);
     }
 
-    // Scope-aware permission check
     const canApprove = await authContext.canApproveRequest(
       request.user_id,
       'forgot-checkin',
@@ -2487,35 +2070,28 @@ export class RequestsService {
 
     if (!canApprove) {
       throw new ForbiddenException(
-        'Bạn không có quyền duyệt đơn bổ sung chấm công này. ' +
-        'Chỉ có thể duyệt đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_APPROVE_REQUEST_PERMISSION,
       );
     }
 
     await this.prisma.$transaction(async (prisma) => {
-      await prisma.forgot_checkin_requests.update({
-        where: { id },
-        data: {
-          status: ApprovalStatus.APPROVED,
-          approved_by: authContext.userId,
-          approved_at: new Date(),
-        },
-      });
+      await this.attendanceRequestService.approve(id, authContext.userId);
 
       if (
         request.timesheet_id &&
-        (request.checkin_time || request.checkout_time)
+        (request.forgot_checkin_request?.checkin_time ||
+          request.forgot_checkin_request?.checkout_time)
       ) {
         const updateData: any = {
           forgot_checkin_approved: true,
         };
 
-        if (request.checkin_time) {
-          updateData.checkin = request.checkin_time;
+        if (request.forgot_checkin_request.checkin_time) {
+          updateData.checkin = request.forgot_checkin_request.checkin_time;
         }
 
-        if (request.checkout_time) {
-          updateData.checkout = request.checkout_time;
+        if (request.forgot_checkin_request.checkout_time) {
+          updateData.checkout = request.forgot_checkin_request.checkout_time;
         }
 
         await prisma.time_sheets.update({
@@ -2525,9 +2101,12 @@ export class RequestsService {
       }
     });
 
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
+
     return {
       success: true,
-      message: 'Duyệt đơn xin bổ sung chấm công thành công',
+      message: SUCCESS_MESSAGES.FORGOT_CHECKIN_APPROVED,
+      data: this.mapToForgotCheckinRequestResponse(updatedRequest),
     };
   }
 
@@ -2536,19 +2115,18 @@ export class RequestsService {
     authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.prisma.forgot_checkin_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const request = await this.attendanceRequestService.findOne(id);
 
-    if (!request) {
-      throw new NotFoundException('Không tìm thấy đơn xin bổ sung chấm công');
+    if (!request || request.request_type !== 'FORGOT_CHECKIN') {
+      throw new NotFoundException(
+        REQUEST_ERRORS.FORGOT_CHECKIN_REQUEST_NOT_FOUND,
+      );
     }
 
     if (request.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException('Đơn này đã được xử lý');
+      throw new BadRequestException(REQUEST_ERRORS.CANNOT_REJECT_NON_PENDING);
     }
 
-    // Scope-aware permission check
     const canReject = await authContext.canApproveRequest(
       request.user_id,
       'forgot-checkin',
@@ -2556,24 +2134,22 @@ export class RequestsService {
 
     if (!canReject) {
       throw new ForbiddenException(
-        'Bạn không có quyền từ chối đơn bổ sung chấm công này. ' +
-        'Chỉ có thể từ chối đơn của users trong scope quản lý của bạn.',
+        REQUEST_ERRORS.CANNOT_REJECT_REQUEST_PERMISSION,
       );
     }
 
-    await this.prisma.forgot_checkin_requests.update({
-      where: { id },
-      data: {
-        status: ApprovalStatus.REJECTED,
-        approved_by: authContext.userId,
-        approved_at: new Date(),
-        rejected_reason: rejectedReason,
-      },
-    });
+    await this.attendanceRequestService.reject(
+      id,
+      authContext.userId,
+      rejectedReason,
+    );
+
+    const updatedRequest = await this.attendanceRequestService.findOne(id);
 
     return {
       success: true,
-      message: 'Từ chối đơn xin bổ sung chấm công thành công',
+      message: SUCCESS_MESSAGES.FORGOT_CHECKIN_REJECTED,
+      data: this.mapToForgotCheckinRequestResponse(updatedRequest),
     };
   }
 
@@ -2588,7 +2164,7 @@ export class RequestsService {
     }
   }
 
-    /**
+  /**
    * Validate user là Division Head
    */
   private async validateDivisionHead(user_id: number): Promise<void> {
@@ -2647,9 +2223,6 @@ export class RequestsService {
     return assignments.map((a) => a.user_id);
   }
 
-  /**
-   * Lấy danh sách user IDs có role là lead (team_leader, division_head, project_manager)
-   */
   private async getLeaduser_ids(division_id?: number): Promise<number[]> {
     const leadRoles = [
       ROLE_NAMES.TEAM_LEADER,
@@ -2690,7 +2263,7 @@ export class RequestsService {
     return [...new Set(leadUsers.map((lu) => lu.id))];
   }
 
-  private async getuser_idsByRole(role_name: string): Promise<number[]> {
+  private async getUserIdsByRole(role_name: string): Promise<number[]> {
     const roleUsers = await this.prisma.user_role_assignment.findMany({
       where: {
         role: {
@@ -2719,7 +2292,6 @@ export class RequestsService {
 
     return whereConditions;
   }
-
 
   private async getUserManagedDivisions(user_id: number): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
@@ -2760,7 +2332,7 @@ export class RequestsService {
     }
 
     if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getuser_idsByRole(
+      const divisionHeaduser_ids = await this.getUserIdsByRole(
         ROLE_NAMES.DIVISION_HEAD,
       );
       return [user_id, ...divisionHeaduser_ids];
@@ -2800,33 +2372,30 @@ export class RequestsService {
       this.roleAssignmentService.getUserRoles(requestUserId),
     ]);
 
-    const isAdmin = approverRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
-    
-    // Admin có thể approve TẤT CẢ (kể cả chính mình)
+    const isAdmin = approverRoles.roles.some(
+      (r) => r.name === ROLE_NAMES.ADMIN,
+    );
+
     if (isAdmin) {
-      // Log nếu là self-approval để audit
-      if (approverId === requestUserId) {
-        await this.activityLogService.logAdminSelfApproval(approverId, {
-          message: 'Admin self-approved their request',
-          timestamp: new Date(),
-        });
-      }
       return true;
     }
 
-    // Không cho phép self-approval với non-admin roles
     if (approverId === requestUserId) {
       return false;
     }
 
     // Division Head: Approve trong division của mình
     const approverDivisions = approverRoles.roles
-      .filter((r) => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
+      .filter(
+        (r) =>
+          r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION',
+      )
       .map((r) => r.scope_id);
 
     if (approverDivisions.length > 0) {
       const ownerInSameDivision = ownerRoles.roles.some(
-        (r) => r.scope_type === 'DIVISION' && approverDivisions.includes(r.scope_id),
+        (r) =>
+          r.scope_type === 'DIVISION' && approverDivisions.includes(r.scope_id),
       );
       if (ownerInSameDivision) {
         return true;
@@ -2835,7 +2404,9 @@ export class RequestsService {
 
     // Team Leader: Approve trong team của mình
     const approverTeams = approverRoles.roles
-      .filter((r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
+      .filter(
+        (r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM',
+      )
       .map((r) => r.scope_id);
 
     if (approverTeams.length > 0) {
@@ -2849,7 +2420,10 @@ export class RequestsService {
 
     // Project Manager: Approve members trong project của mình
     const approverProjects = approverRoles.roles
-      .filter((r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
+      .filter(
+        (r) =>
+          r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT',
+      )
       .map((r) => r.scope_id)
       .filter((id): id is number => id !== undefined);
 
@@ -2868,7 +2442,10 @@ export class RequestsService {
 
       if (projectTeamIds.length > 0) {
         const ownerInProjectTeam = ownerRoles.roles.some(
-          (r) => r.scope_type === 'TEAM' && r.scope_id !== undefined && projectTeamIds.includes(r.scope_id),
+          (r) =>
+            r.scope_type === 'TEAM' &&
+            r.scope_id !== undefined &&
+            projectTeamIds.includes(r.scope_id),
         );
         if (ownerInProjectTeam) {
           return true;
@@ -2883,9 +2460,7 @@ export class RequestsService {
    * REFACTORED: Tự lấy roles từ DB và xử lý MULTIPLE roles
    * Không nhận role parameter từ controller nữa
    */
-  private async determineAccessScope(
-    user_id: number,
-  ): Promise<{
+  private async determineAccessScope(user_id: number): Promise<{
     type:
       | 'DIVISION_ONLY'
       | 'ALL_ACCESS'
@@ -2901,9 +2476,9 @@ export class RequestsService {
   }> {
     // Lấy TẤT CẢ roles từ DB
     const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
-    
+
     // Check Admin first (highest priority)
-    const isAdmin = userRoles.roles.some(r => r.name === ROLE_NAMES.ADMIN);
+    const isAdmin = userRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
     if (isAdmin) {
       return {
         type: 'ALL_ACCESS',
@@ -2913,18 +2488,26 @@ export class RequestsService {
 
     // Collect all scopes from ALL roles user has
     const managedDivisions = userRoles.roles
-      .filter(r => r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION')
-      .map(r => r.scope_id)
+      .filter(
+        (r) =>
+          r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION',
+      )
+      .map((r) => r.scope_id)
       .filter((id): id is number => id !== null);
 
     const managedTeams = userRoles.roles
-      .filter(r => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM')
-      .map(r => r.scope_id)
+      .filter(
+        (r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM',
+      )
+      .map((r) => r.scope_id)
       .filter((id): id is number => id !== null);
 
     const managedProjects = userRoles.roles
-      .filter(r => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT')
-      .map(r => r.scope_id)
+      .filter(
+        (r) =>
+          r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT',
+      )
+      .map((r) => r.scope_id)
       .filter((id): id is number => id !== null);
 
     // Determine access type based on roles
@@ -3124,15 +2707,16 @@ export class RequestsService {
       .filter((id): id is number => id !== null);
 
     if (team_ids.length > 0) {
-      const teamMemberAssignments = await this.prisma.user_role_assignment.findMany({
-        where: {
-          scope_type: ScopeType.TEAM,
-          scope_id: { in: team_ids },
-          deleted_at: null,
-        },
-        select: { user_id: true },
-        distinct: ['user_id'],
-      });
+      const teamMemberAssignments =
+        await this.prisma.user_role_assignment.findMany({
+          where: {
+            scope_type: ScopeType.TEAM,
+            scope_id: { in: team_ids },
+            deleted_at: null,
+          },
+          select: { user_id: true },
+          distinct: ['user_id'],
+        });
 
       teamMemberAssignments.forEach((a) => user_ids.add(a.user_id));
     }
@@ -3145,11 +2729,9 @@ export class RequestsService {
     dto: CreateRemoteWorkRequestDto,
     user_id: number,
   ) {
-    const existing = await this.prisma.remote_work_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const existing = await this.attendanceRequestService.findOne(id);
 
-    if (!existing) {
+    if (!existing || existing.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
     }
 
@@ -3170,11 +2752,12 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
 
-    const conflictingRequest = await this.prisma.remote_work_requests.findFirst({
+    const conflictingRequest = await this.prisma.attendance_requests.findFirst({
       where: {
         id: { not: id },
         user_id: dto.user_id,
         work_date: workDate,
+        request_type: 'REMOTE_WORK',
         deleted_at: null,
       },
     });
@@ -3183,10 +2766,11 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
-    const dayOff = await this.prisma.day_offs.findFirst({
+    const dayOff = await this.prisma.attendance_requests.findFirst({
       where: {
         user_id: dto.user_id,
         work_date: workDate,
+        request_type: 'DAY_OFF',
         status: 'APPROVED',
         deleted_at: null,
       },
@@ -3196,42 +2780,32 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
-    const updated = await this.prisma.remote_work_requests.update({
-      where: { id },
-      data: {
-        work_date: workDate,
-        remote_type: dto.remote_type,
-        duration: dto.duration,
-        title: dto.title,
-        reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        approved_by: null,
-        approved_at: null,
-        rejected_reason: null,
-      },
+    await this.attendanceRequestService.update(id, {
+      work_date: workDate,
+      title: dto.title,
+      reason: dto.reason,
     });
 
-    await this.activityLogService.logRequestUpdated(
-      'remote_work',
-      id,
-      user_id,
-      {
-        work_date: workDate.toISOString(),
-        remote_type: dto.remote_type,
-        duration: dto.duration,
-      },
-    );
+    if (existing.remote_work_request) {
+      await this.remoteWorkDetailService.update(
+        existing.remote_work_request.id,
+        {
+          remote_type: dto.remote_type,
+          duration: dto.duration,
+        },
+      );
+    }
 
-    return updated;
+    const updated = await this.attendanceRequestService.findOne(id);
+
+    return this.mapToRemoteWorkRequestResponse(updated);
   }
 
-  async deleteRemoteWorkRequest(id: number, user_id: number) {
-    const existing = await this.prisma.remote_work_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+  async deleteRequest(id: number, user_id: number) {
+    const existing = await this.attendanceRequestService.findOne(id);
 
     if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
+      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
     }
 
     if (existing.user_id !== user_id) {
@@ -3242,18 +2816,21 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
     }
 
-    const deleted = await this.prisma.remote_work_requests.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
+    await this.attendanceRequestService.softDelete(id);
 
-    await this.activityLogService.logRequestDeleted(
-      'remote_work',
-      id,
-      user_id,
-    );
+    const logTypeMap = {
+      REMOTE_WORK: 'remote_work',
+      DAY_OFF: 'day_off',
+      OVERTIME: 'overtime',
+      LATE_EARLY: 'late_early',
+      FORGOT_CHECKIN: 'forgot_checkin',
+    };
 
-    return deleted;
+    return { success: true, message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY };
+  }
+
+  async deleteRemoteWorkRequest(id: number, user_id: number) {
+    return this.deleteRequest(id, user_id);
   }
 
   async updateDayOffRequest(
@@ -3261,11 +2838,9 @@ export class RequestsService {
     dto: CreateDayOffRequestDto,
     user_id: number,
   ) {
-    const existing = await this.prisma.day_offs.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const existing = await this.attendanceRequestService.findOne(id);
 
-    if (!existing) {
+    if (!existing || existing.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
     }
 
@@ -3281,11 +2856,12 @@ export class RequestsService {
 
     const workDate = new Date(dto.work_date);
 
-    const conflictingDayOff = await this.prisma.day_offs.findFirst({
+    const conflictingDayOff = await this.prisma.attendance_requests.findFirst({
       where: {
         id: { not: id },
         user_id: dto.user_id,
         work_date: workDate,
+        request_type: 'DAY_OFF',
         deleted_at: null,
         status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
       },
@@ -3308,65 +2884,27 @@ export class RequestsService {
       }
     }
 
-    const updated = await this.prisma.day_offs.update({
-      where: { id },
-      data: {
-        work_date: workDate,
-        duration: dto.duration,
-        type: dto.type,
-        title: dto.title,
-        reason: dto.reason,
-        is_past: dto.is_past ?? false,
-        status: ApprovalStatus.PENDING,
-        approved_by: null,
-        approved_at: null,
-        rejected_reason: null,
-      },
+    await this.attendanceRequestService.update(id, {
+      work_date: workDate,
+      title: dto.title,
+      reason: dto.reason,
     });
 
-    await this.activityLogService.logRequestUpdated(
-      'day_off',
-      id,
-      user_id,
-      {
-        work_date: workDate.toISOString(),
-        type: dto.type,
+    if (existing.day_off) {
+      await this.dayOffDetailService.update(existing.day_off.id, {
         duration: dto.duration,
-      },
-    );
+        type: dto.type,
+        is_past: dto.is_past ?? false,
+      });
+    }
 
-    return updated;
+    const updated = await this.attendanceRequestService.findOne(id);
+
+    return this.mapToDayOffRequestResponse(updated);
   }
 
   async deleteDayOffRequest(id: number, user_id: number) {
-    const existing = await this.prisma.day_offs.findFirst({
-      where: { id, deleted_at: null },
-    });
-
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
-    }
-
-    if (existing.user_id !== user_id) {
-      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
-    }
-
-    if (existing.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
-    }
-
-    const deleted = await this.prisma.day_offs.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
-
-    await this.activityLogService.logRequestDeleted(
-      'day_off',
-      id,
-      user_id,
-    );
-
-    return deleted;
+    return this.deleteRequest(id, user_id);
   }
 
   async updateOvertimeRequest(
@@ -3374,11 +2912,9 @@ export class RequestsService {
     dto: CreateOvertimeRequestDto,
     user_id: number,
   ) {
-    const existing = await this.prisma.over_times_history.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const existing = await this.attendanceRequestService.findOne(id);
 
-    if (!existing) {
+    if (!existing || existing.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
     }
 
@@ -3394,17 +2930,18 @@ export class RequestsService {
 
     const workDate = new Date(dto.work_date);
 
-    // REMOVED: Project validation (no longer linked to overtime)
-
-    const conflictingOvertime = await this.prisma.over_times_history.findFirst({
-      where: {
-        id: { not: id },
-        user_id: dto.user_id,
-        work_date: workDate,
-        deleted_at: null,
-        status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
+    const conflictingOvertime = await this.prisma.attendance_requests.findFirst(
+      {
+        where: {
+          id: { not: id },
+          user_id: dto.user_id,
+          work_date: workDate,
+          request_type: 'OVERTIME',
+          deleted_at: null,
+          status: { in: [ApprovalStatus.PENDING, ApprovalStatus.APPROVED] },
+        },
       },
-    });
+    );
 
     if (conflictingOvertime) {
       throw new BadRequestException(REQUEST_ERRORS.OVERTIME_ALREADY_EXISTS);
@@ -3426,73 +2963,36 @@ export class RequestsService {
     const hourlyRate = null;
     const totalAmount = null;
 
-    const updated = await this.prisma.over_times_history.update({
-      where: { id },
-      data: {
-        title: dto.title,
-        // REMOVED: project_id
-        work_date: workDate,
-        start_time: new Date(
-          `${workDate.toISOString().split('T')[0]} ${dto.start_time}`,
-        ),
-        end_time: new Date(
-          `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
-        ),
+    const startTime = new Date(
+      `${workDate.toISOString().split('T')[0]} ${dto.start_time}`,
+    );
+    const endTime = new Date(
+      `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
+    );
+
+    await this.attendanceRequestService.update(id, {
+      work_date: workDate,
+      title: dto.title,
+      reason: dto.reason,
+    });
+
+    if (existing.overtime) {
+      await this.overtimeDetailService.update(existing.overtime.id, {
+        start_time: startTime,
+        end_time: endTime,
         total_hours: totalHours,
         hourly_rate: hourlyRate,
         total_amount: totalAmount,
-        reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        approved_by: null,
-        approved_at: null,
-        rejected_reason: null,
-      },
-    });
+      });
+    }
 
-    await this.activityLogService.logRequestUpdated(
-      'overtime',
-      id,
-      user_id,
-      {
-        work_date: workDate.toISOString(),
-        start_time: dto.start_time,
-        end_time: dto.end_time,
-        total_hours: totalHours,
-      },
-    );
+    const updated = await this.attendanceRequestService.findOne(id);
 
-    return updated;
+    return this.mapToOvertimeRequestResponse(updated);
   }
 
   async deleteOvertimeRequest(id: number, user_id: number) {
-    const existing = await this.prisma.over_times_history.findFirst({
-      where: { id, deleted_at: null },
-    });
-
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
-    }
-
-    if (existing.user_id !== user_id) {
-      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
-    }
-
-    if (existing.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
-    }
-
-    const deleted = await this.prisma.over_times_history.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
-
-    await this.activityLogService.logRequestDeleted(
-      'overtime',
-      id,
-      user_id,
-    );
-
-    return deleted;
+    return this.deleteRequest(id, user_id);
   }
 
   async updateLateEarlyRequest(
@@ -3500,12 +3000,10 @@ export class RequestsService {
     dto: CreateLateEarlyRequestDto,
     user_id: number,
   ) {
-    const existing = await this.prisma.late_early_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const existing = await this.attendanceRequestService.findOne(id);
 
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
+    if (!existing || existing.request_type !== 'LATE_EARLY') {
+      throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
     }
 
     if (existing.user_id !== user_id) {
@@ -3520,17 +3018,20 @@ export class RequestsService {
 
     const workDate = new Date(dto.work_date);
 
-    const conflictingRequest = await this.prisma.late_early_requests.findFirst({
+    const conflictingRequest = await this.prisma.attendance_requests.findFirst({
       where: {
         id: { not: id },
         user_id: dto.user_id,
         work_date: workDate,
+        request_type: 'LATE_EARLY',
         deleted_at: null,
       },
     });
 
     if (conflictingRequest) {
-      throw new BadRequestException('Đã có request đi muộn/về sớm cho ngày này');
+      throw new BadRequestException(
+        'Đã có request đi muộn/về sớm cho ngày này',
+      );
     }
 
     if (dto.request_type === 'LATE' && !dto.late_minutes) {
@@ -3550,66 +3051,27 @@ export class RequestsService {
       );
     }
 
-    const updated = await this.prisma.late_early_requests.update({
-      where: { id },
-      data: {
-        work_date: workDate,
-        request_type: dto.request_type,
-        title: dto.title,
-        late_minutes: dto.late_minutes || undefined,
-        early_minutes: dto.early_minutes || undefined,
-        reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        approved_by: null,
-        approved_at: null,
-        rejected_reason: null,
-      },
+    await this.attendanceRequestService.update(id, {
+      work_date: workDate,
+      title: dto.title,
+      reason: dto.reason,
     });
 
-    await this.activityLogService.logRequestUpdated(
-      'late_early',
-      id,
-      user_id,
-      {
-        work_date: workDate.toISOString(),
+    if (existing.late_early_request) {
+      await this.lateEarlyDetailService.update(existing.late_early_request.id, {
         request_type: dto.request_type,
-        late_minutes: dto.late_minutes,
-        early_minutes: dto.early_minutes,
-      },
-    );
+        late_minutes: dto.late_minutes || null,
+        early_minutes: dto.early_minutes || null,
+      });
+    }
 
-    return updated;
+    const updated = await this.attendanceRequestService.findOne(id);
+
+    return this.mapToLateEarlyRequestResponse(updated);
   }
 
   async deleteLateEarlyRequest(id: number, user_id: number) {
-    const existing = await this.prisma.late_early_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
-
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
-    }
-
-    if (existing.user_id !== user_id) {
-      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
-    }
-
-    if (existing.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
-    }
-
-    const deleted = await this.prisma.late_early_requests.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
-
-    await this.activityLogService.logRequestDeleted(
-      'late_early',
-      id,
-      user_id,
-    );
-
-    return deleted;
+    return this.deleteRequest(id, user_id);
   }
 
   async updateForgotCheckinRequest(
@@ -3617,12 +3079,12 @@ export class RequestsService {
     dto: CreateForgotCheckinRequestDto,
     user_id: number,
   ) {
-    const existing = await this.prisma.forgot_checkin_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    const existing = await this.attendanceRequestService.findOne(id);
 
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
+    if (!existing || existing.request_type !== 'FORGOT_CHECKIN') {
+      throw new NotFoundException(
+        REQUEST_ERRORS.FORGOT_CHECKIN_REQUEST_NOT_FOUND,
+      );
     }
 
     if (existing.user_id !== user_id) {
@@ -3638,11 +3100,12 @@ export class RequestsService {
     const workDate = new Date(dto.work_date);
     this.validatePastOrCurrentDate(workDate);
 
-    const conflictingRequest = await this.prisma.forgot_checkin_requests.findFirst({
+    const conflictingRequest = await this.prisma.attendance_requests.findFirst({
       where: {
         id: { not: id },
         user_id: dto.user_id,
         work_date: workDate,
+        request_type: 'FORGOT_CHECKIN',
         deleted_at: null,
       },
     });
@@ -3671,63 +3134,141 @@ export class RequestsService {
       ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
       : null;
 
-    const updated = await this.prisma.forgot_checkin_requests.update({
-      where: { id },
-      data: {
-        work_date: workDate,
-        checkin_time: checkinDateTime,
-        checkout_time: checkoutDateTime,
-        title: dto.title,
-        reason: dto.reason,
-        status: ApprovalStatus.PENDING,
-        approved_by: null,
-        approved_at: null,
-        rejected_reason: null,
-      },
+    await this.attendanceRequestService.update(id, {
+      work_date: workDate,
+      title: dto.title,
+      reason: dto.reason,
     });
 
-    await this.activityLogService.logRequestUpdated(
-      'forgot_checkin',
-      id,
-      user_id,
-      {
-        work_date: workDate.toISOString(),
-        checkin_time: dto.checkin_time,
-        checkout_time: dto.checkout_time,
-      },
-    );
+    if (existing.forgot_checkin_request) {
+      await this.forgotCheckinDetailService.update(
+        existing.forgot_checkin_request.id,
+        {
+          checkin_time: checkinDateTime,
+          checkout_time: checkoutDateTime,
+        },
+      );
+    }
 
-    return updated;
+    const updated = await this.attendanceRequestService.findOne(id);
+
+    return this.mapToForgotCheckinRequestResponse(updated);
   }
 
   async deleteForgotCheckinRequest(id: number, user_id: number) {
-    const existing = await this.prisma.forgot_checkin_requests.findFirst({
-      where: { id, deleted_at: null },
-    });
+    return this.deleteRequest(id, user_id);
+  }
 
-    if (!existing) {
-      throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
-    }
+  private mapToRemoteWorkRequestResponse(
+    request: any,
+  ): RemoteWorkRequestResponseDto {
+    return {
+      id: request.id,
+      user_id: request.user_id,
+      work_date: request.work_date,
+      remote_type: request.remote_work_request?.remote_type,
+      duration: request.remote_work_request?.duration,
+      title: request.title,
+      reason: request.reason,
+      status: request.status,
+      approved_by: request.approved_by,
+      approved_at: request.approved_at,
+      rejected_reason: request.rejected_reason,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+    } as RemoteWorkRequestResponseDto;
+  }
 
-    if (existing.user_id !== user_id) {
-      throw new ForbiddenException(REQUEST_ERRORS.NOT_HAVE_PERMISSION);
-    }
+  private mapToOvertimeRequestResponse(
+    request: any,
+  ): OvertimeRequestResponseDto {
+    return {
+      id: request.id,
+      user_id: request.user_id,
+      work_date: request.work_date,
+      title: request.title,
+      start_time:
+        request.overtime?.start_time?.toTimeString().slice(0, 5) || '',
+      end_time: request.overtime?.end_time?.toTimeString().slice(0, 5) || '',
+      total_hours: request.overtime?.total_hours || null,
+      hourly_rate: null,
+      total_amount: null,
+      reason: request.reason,
+      status: request.status,
+      approved_by: request.approved_by,
+      approved_at: request.approved_at,
+      rejected_reason: request.rejected_reason,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+      deleted_at: request.deleted_at,
+    };
+  }
 
-    if (existing.status !== ApprovalStatus.PENDING) {
-      throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
-    }
+  private mapToDayOffRequestResponse(request: any): DayOffRequestResponseDto {
+    return {
+      id: request.id,
+      user_id: request.user_id,
+      work_date: request.work_date,
+      duration: request.day_off?.duration,
+      type: request.day_off?.type,
+      is_past: request.day_off?.is_past || false,
+      title: request.title,
+      reason: request.reason,
+      status: request.status,
+      approved_by: request.approved_by,
+      approved_at: request.approved_at,
+      rejected_reason: request.rejected_reason,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+      deleted_at: request.deleted_at,
+    };
+  }
 
-    const deleted = await this.prisma.forgot_checkin_requests.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
+  private mapToLateEarlyRequestResponse(
+    request: any,
+  ): LateEarlyRequestResponseDto {
+    return {
+      id: request.id,
+      user_id: request.user_id,
+      work_date: request.work_date,
+      request_type: request.late_early_request?.request_type,
+      late_minutes: request.late_early_request?.late_minutes || null,
+      early_minutes: request.late_early_request?.early_minutes || null,
+      title: request.title,
+      reason: request.reason,
+      status: request.status,
+      approved_by: request.approved_by,
+      approved_at: request.approved_at,
+      rejected_reason: request.rejected_reason,
+      timesheet_id: request.timesheet_id,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+    };
+  }
 
-    await this.activityLogService.logRequestDeleted(
-      'forgot_checkin',
-      id,
-      user_id,
-    );
-
-    return deleted;
+  private mapToForgotCheckinRequestResponse(
+    request: any,
+  ): ForgotCheckinRequestResponseDto {
+    return {
+      id: request.id,
+      user_id: request.user_id,
+      work_date: request.work_date,
+      checkin_time:
+        request.forgot_checkin_request?.checkin_time
+          ?.toTimeString()
+          .slice(0, 5) || null,
+      checkout_time:
+        request.forgot_checkin_request?.checkout_time
+          ?.toTimeString()
+          .slice(0, 5) || null,
+      title: request.title,
+      reason: request.reason,
+      status: request.status,
+      approved_by: request.approved_by,
+      approved_at: request.approved_at,
+      rejected_reason: request.rejected_reason,
+      created_at: request.created_at,
+      updated_at: request.updated_at,
+    } as ForgotCheckinRequestResponseDto;
   }
 }

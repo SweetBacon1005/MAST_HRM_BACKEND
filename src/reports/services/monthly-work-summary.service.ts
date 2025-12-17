@@ -1,20 +1,32 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  ApprovalStatus,
+  AttendanceRequestType,
+  DayOffDuration,
+  DayOffType,
+  Prisma,
+  RemoteType,
+  ScopeType,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
-  MonthlyWorkSummaryQueryDto,
-  MonthlyWorkSummaryDetailQueryDto,
-  MonthlyWorkSummaryDto,
-  MonthlyWorkSummaryResponseDto,
-  MonthlyWorkSummaryDetailResponseDto,
   DailyAttendanceDto,
-  ViolationDetailDto,
   LeaveDetailDto,
-  OvertimeDetailDto,
   LeaveSessionDto,
+  MonthlyWorkSummaryDetailQueryDto,
+  MonthlyWorkSummaryDetailResponseDto,
+  MonthlyWorkSummaryDto,
+  MonthlyWorkSummaryQueryDto,
+  MonthlyWorkSummaryResponseDto,
   RecalculateMonthlyWorkDto,
   RecalculateResponseDto,
+  ViolationDetailDto,
 } from '../dto/monthly-work-summary.dto';
-import { ApprovalStatus, DayOffDuration, DayOffType, RemoteType, ScopeType, Prisma } from '@prisma/client';
 
 @Injectable()
 export class MonthlyWorkSummaryService {
@@ -105,9 +117,6 @@ export class MonthlyWorkSummaryService {
     };
   }
 
-  /**
-   * Lấy báo cáo chi tiết của một nhân viên
-   */
   async getMonthlyWorkSummaryDetail(
     userId: number,
     query: MonthlyWorkSummaryDetailQueryDto,
@@ -116,7 +125,6 @@ export class MonthlyWorkSummaryService {
       `Getting detailed monthly work summary for user ${userId}, month: ${query.month}`,
     );
 
-    // Check if user exists
     const user = await this.prisma.users.findUnique({
       where: { id: userId, deleted_at: null },
     });
@@ -127,28 +135,56 @@ export class MonthlyWorkSummaryService {
 
     const [year, month] = query.month.split('-').map(Number);
 
-    // Calculate summary
     const summary = await this.calculateUserMonthlyWorkSummary(
       userId,
       year,
       month,
     );
 
-    // Get daily details
     const dailyDetails = await this.getDailyAttendanceDetails(
       userId,
       year,
       month,
     );
 
-    // Get violations
     const violations = await this.getViolationDetails(userId, year, month);
 
-    // Get leave details
-    const leaveDetails = await this.getLeaveDetails(userId, year, month);
+    const timesheets = await this.prisma.time_sheets.findMany({
+      where: {
+        user_id: userId,
+        work_date: {
+          gte: new Date(year, month - 1, 1),
+          lte: new Date(year, month, 0, 23, 59, 59, 999),
+        },
+        deleted_at: null,
+      },
+      include: {
+        attendance_requests: {
+          select: {
+            late_early_request: true,
+            overtime: true,
+            forgot_checkin_request: true,
+            remote_work_request: true,
+            day_off: true,
+          },
+        },
+      },
+    });
 
-    // Get overtime details
-    const overtimeDetails = await this.getOvertimeDetails(userId, year, month);
+    const leaveDetails: LeaveDetailDto[] = timesheets.map((ts) => ({
+      type:
+        ts.attendance_requests
+          .map((ar) => ar.day_off?.type)
+          .find((t) => t !== undefined) || null,
+    }));
+
+    const overtimeDetails = timesheets.map((ts) => ({
+      date: ts.work_date.toISOString().split('T')[0],
+      overtime_hours:
+        ts.attendance_requests
+          .map((ar) => ar.overtime?.overtime_hours)
+          .find((h) => h !== undefined) || 0,
+    }));
 
     return {
       summary,
@@ -189,9 +225,7 @@ export class MonthlyWorkSummaryService {
         await this.calculateUserMonthlyWorkSummary(userId, year, month);
         recalculatedCount++;
       } catch (error) {
-        errors.push(
-          `User ${userId}: ${error.message || 'Unknown error'}`,
-        );
+        errors.push(`User ${userId}: ${error.message || 'Unknown error'}`);
         this.logger.error(`Error recalculating for user ${userId}:`, error);
       }
     }
@@ -317,10 +351,9 @@ export class MonthlyWorkSummaryService {
       (t) => t.is_complete && t.status !== ApprovalStatus.REJECTED,
     ).length;
 
-    const totalWorkHours =
-      timesheets.reduce((sum, t) => {
-        return sum + (t.total_work_time || 0) / 60;
-      }, 0);
+    const totalWorkHours = timesheets.reduce((sum, t) => {
+      return sum + (t.total_work_time || 0) / 60;
+    }, 0);
 
     // Leave days calculation
     const leaveDaysStats = this.calculateLeaveDays(dayOffs);
@@ -473,7 +506,10 @@ export class MonthlyWorkSummaryService {
         paidLeaveDays += days;
       } else if (dayOff.type === DayOffType.UNPAID) {
         unpaidLeaveDays += days;
-      } else if (dayOff.type === DayOffType.SICK || dayOff.type === DayOffType.MATERNITY) {
+      } else if (
+        dayOff.type === DayOffType.SICK ||
+        dayOff.type === DayOffType.MATERNITY
+      ) {
         sickLeaveDays += days;
       } else {
         otherLeaveDays += days;
@@ -506,7 +542,7 @@ export class MonthlyWorkSummaryService {
   /**
    * Tính số công làm việc
    * NGHIỆP VỤ: 1 ngày làm việc đủ = 1 CÔNG (không phải 2 công)
-   * 
+   *
    * XÉT CẢ APPROVED REQUESTS:
    * - late_time_approved: Đi muộn được duyệt → cộng vào morning
    * - early_time_approved: Về sớm được duyệt → cộng vào afternoon
@@ -527,38 +563,43 @@ export class MonthlyWorkSummaryService {
       // Now determine sessions from total_work_time and day_off duration
       const totalMinutes = timesheet.total_work_time || 0;
       const totalHours = totalMinutes / 60;
-      
+
       // Simple logic: 8+ hours = full day, 4-8 hours = half day
       let morningOK = totalHours >= 4;
       let afternoonOK = totalHours >= 8;
-      
+
       // ✅ CHECK nghỉ phép (day_off) được duyệt
-      const dayOff = dayOffs.find(d => {
+      const dayOff = dayOffs.find((d) => {
         const timesheetDate = new Date(timesheet.work_date).getTime();
         const dayOffDate = new Date(d.work_date).getTime();
-        return dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED;
+        return (
+          dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED
+        );
       });
-      
+
       if (dayOff) {
         // Nghỉ phép buổi sáng (approved) → tính đủ
-        if (dayOff.duration === DayOffDuration.MORNING || 
-            dayOff.duration === DayOffDuration.FULL_DAY) {
+        if (
+          dayOff.duration === DayOffDuration.MORNING ||
+          dayOff.duration === DayOffDuration.FULL_DAY
+        ) {
           morningOK = true;
         }
-        
+
         // Nghỉ phép buổi chiều (approved) → tính đủ
-        if (dayOff.duration === DayOffDuration.AFTERNOON || 
-            dayOff.duration === DayOffDuration.FULL_DAY) {
+        if (
+          dayOff.duration === DayOffDuration.AFTERNOON ||
+          dayOff.duration === DayOffDuration.FULL_DAY
+        ) {
           afternoonOK = true;
         }
       }
-      
+
       // Tính công
       if (morningOK && afternoonOK) {
-        totalSessions += 1;        // Đủ cả 2 buổi = 1 công
-      } 
-      else if (morningOK || afternoonOK) {
-        totalSessions += 0.5;      // Chỉ 1 buổi = 0.5 công
+        totalSessions += 1; // Đủ cả 2 buổi = 1 công
+      } else if (morningOK || afternoonOK) {
+        totalSessions += 0.5; // Chỉ 1 buổi = 0.5 công
       }
       // Không đủ cả 2 buổi = 0 công
     });
@@ -580,9 +621,14 @@ export class MonthlyWorkSummaryService {
   /**
    * Check if month is complete (all days have been processed)
    */
-  private checkMonthComplete(timesheets: any[], expectedWorkDays: number): boolean {
+  private checkMonthComplete(
+    timesheets: any[],
+    expectedWorkDays: number,
+  ): boolean {
     const approvedOrPendingCount = timesheets.filter(
-      (t) => t.status === ApprovalStatus.APPROVED || t.status === ApprovalStatus.PENDING,
+      (t) =>
+        t.status === ApprovalStatus.APPROVED ||
+        t.status === ApprovalStatus.PENDING,
     ).length;
 
     // Month is considered complete if we have records for most work days
@@ -637,7 +683,10 @@ export class MonthlyWorkSummaryService {
     }
 
     const totalEmployees = summaries.length;
-    const totalWorkDays = summaries.reduce((sum, s) => sum + s.total_work_days, 0);
+    const totalWorkDays = summaries.reduce(
+      (sum, s) => sum + s.total_work_days,
+      0,
+    );
     const totalAttendanceRate = summaries.reduce(
       (sum, s) => sum + s.attendance_rate,
       0,
@@ -645,7 +694,9 @@ export class MonthlyWorkSummaryService {
 
     return {
       total_employees: totalEmployees,
-      average_work_days: parseFloat((totalWorkDays / totalEmployees).toFixed(2)),
+      average_work_days: parseFloat(
+        (totalWorkDays / totalEmployees).toFixed(2),
+      ),
       average_attendance_rate: parseFloat(
         (totalAttendanceRate / totalEmployees).toFixed(2),
       ),
@@ -710,20 +761,29 @@ export class MonthlyWorkSummaryService {
       'reports.monthly-work-summary.view-own',
     );
 
-    this.logger.debug(`[getUserIdsForReport] User ${currentUserId} permissions:`, {
-      hasViewAll,
-      hasViewTeam,
-      hasViewOwn,
-      allPermissions: userPermissions.filter(p => p.startsWith('reports.monthly')),
-    });
+    this.logger.debug(
+      `[getUserIdsForReport] User ${currentUserId} permissions:`,
+      {
+        hasViewAll,
+        hasViewTeam,
+        hasViewOwn,
+        allPermissions: userPermissions.filter((p) =>
+          p.startsWith('reports.monthly'),
+        ),
+      },
+    );
 
     if (!hasViewAll && !hasViewTeam && hasViewOwn) {
-      this.logger.debug(`[getUserIdsForReport] User ${currentUserId} has ONLY view-own, returning [${currentUserId}]`);
+      this.logger.debug(
+        `[getUserIdsForReport] User ${currentUserId} has ONLY view-own, returning [${currentUserId}]`,
+      );
       return [currentUserId];
     }
 
     if (!hasViewAll && !hasViewTeam && !hasViewOwn) {
-      this.logger.warn(`[getUserIdsForReport] User ${currentUserId} has NO report permissions`);
+      this.logger.warn(
+        `[getUserIdsForReport] User ${currentUserId} has NO report permissions`,
+      );
       return [];
     }
 
@@ -767,13 +827,14 @@ export class MonthlyWorkSummaryService {
       },
     });
 
-    console.log("user: ", users);
+    console.log('user: ', users);
 
     // Filter by division/team if specified
     if (divisionId) {
       users = users.filter((u) =>
         u.user_role_assignments.some(
-          (a) => a.scope_type === ScopeType.DIVISION && a.scope_id === divisionId,
+          (a) =>
+            a.scope_type === ScopeType.DIVISION && a.scope_id === divisionId,
         ),
       );
     }
@@ -876,37 +937,41 @@ export class MonthlyWorkSummaryService {
     });
 
     // Get requests
-    const [remoteRequests, lateEarlyRequests, forgotCheckinRequests, overtimeRequests] =
-      await Promise.all([
-        this.prisma.remote_work_requests.findMany({
-          where: {
-            user_id: userId,
-            work_date: { gte: startDate, lte: endDate },
-            deleted_at: null,
-          },
-        }),
-        this.prisma.late_early_requests.findMany({
-          where: {
-            user_id: userId,
-            work_date: { gte: startDate, lte: endDate },
-            deleted_at: null,
-          },
-        }),
-        this.prisma.forgot_checkin_requests.findMany({
-          where: {
-            user_id: userId,
-            work_date: { gte: startDate, lte: endDate },
-            deleted_at: null,
-          },
-        }),
-        this.prisma.over_times_history.findMany({
-          where: {
-            user_id: userId,
-            work_date: { gte: startDate, lte: endDate },
-            deleted_at: null,
-          },
-        }),
-      ]);
+    const [
+      remoteRequests,
+      lateEarlyRequests,
+      forgotCheckinRequests,
+      overtimeRequests,
+    ] = await Promise.all([
+      this.prisma.remote_work_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: { gte: startDate, lte: endDate },
+          deleted_at: null,
+        },
+      }),
+      this.prisma.late_early_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: { gte: startDate, lte: endDate },
+          deleted_at: null,
+        },
+      }),
+      this.prisma.forgot_checkin_requests.findMany({
+        where: {
+          user_id: userId,
+          work_date: { gte: startDate, lte: endDate },
+          deleted_at: null,
+        },
+      }),
+      this.prisma.over_times_history.findMany({
+        where: {
+          user_id: userId,
+          work_date: { gte: startDate, lte: endDate },
+          deleted_at: null,
+        },
+      }),
+    ]);
 
     const dailyDetails: DailyAttendanceDto[] = [];
     const currentDate = new Date(startDate);
@@ -988,8 +1053,8 @@ export class MonthlyWorkSummaryService {
             })
           : undefined,
         work_hours: parseFloat(workHours.toFixed(2)),
-        late_minutes: 0,  // REMOVED
-        early_minutes: 0,  // REMOVED
+        late_minutes: 0, // REMOVED
+        early_minutes: 0, // REMOVED
         status,
         remote_type: timesheet?.remote || 'OFFICE',
         has_leave_request: !!dayOff,
@@ -999,7 +1064,7 @@ export class MonthlyWorkSummaryService {
         morning_session: morningSessions,
         afternoon_session: afternoonSessions,
         total_sessions: morningSessions + afternoonSessions,
-        notes: undefined,  // REMOVED: checkin_checkout
+        notes: undefined, // REMOVED: checkin_checkout
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
@@ -1008,9 +1073,6 @@ export class MonthlyWorkSummaryService {
     return dailyDetails;
   }
 
-  /**
-   * Get violation details
-   */
   private async getViolationDetails(
     userId: number,
     year: number,
@@ -1027,17 +1089,15 @@ export class MonthlyWorkSummaryService {
           lte: endDate,
         },
         deleted_at: null,
-        // REMOVED: late_time/early_time filtering - fields no longer exist
-        id: { gt: 0 },  // Dummy condition since OR was removed
+        id: { gt: 0 },
       },
-    });
-
-    const lateEarlyRequests = await this.prisma.late_early_requests.findMany({
-      where: {
-        user_id: userId,
-        work_date: { gte: startDate, lte: endDate },
-        status: ApprovalStatus.APPROVED,
-        deleted_at: null,
+      select: {
+        attendance_requests: {
+          where: {
+            status: ApprovalStatus.APPROVED,
+            request_type: AttendanceRequestType.LATE_EARLY,
+          }
+        },
       },
     });
 
@@ -1045,7 +1105,6 @@ export class MonthlyWorkSummaryService {
 
     timesheets.forEach((timesheet) => {
       const dateStr = timesheet.work_date.toISOString().split('T')[0];
-      // REMOVED: late_time/early_time fields no longer exist
       const lateMinutes = 0;
       const earlyMinutes = 0;
 
@@ -1081,94 +1140,5 @@ export class MonthlyWorkSummaryService {
     });
 
     return violations;
-  }
-
-  /**
-   * Get leave details
-   */
-  private async getLeaveDetails(
-    userId: number,
-    year: number,
-    month: number,
-  ): Promise<LeaveDetailDto[]> {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-
-    const dayOffs = await this.prisma.day_offs.findMany({
-      where: {
-        user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
-        deleted_at: null,
-      },
-      include: {
-        approved_by_user: {
-          select: {
-            user_information: {
-              select: { name: true },
-            },
-          },
-        },
-      },
-      orderBy: { work_date: 'asc' },
-    });
-
-    return dayOffs.map((dayOff) => ({
-      id: dayOff.id,
-      date: dayOff.work_date.toISOString().split('T')[0],
-      duration: dayOff.duration,
-      type: dayOff.type,
-      status: dayOff.status,
-      reason: dayOff.reason || undefined,
-      approved_by_name:
-        dayOff.approved_by_user?.user_information?.name || undefined,
-      approved_at: dayOff.approved_at || undefined,
-    }));
-  }
-
-  /**
-   * Get overtime details
-   */
-  private async getOvertimeDetails(
-    userId: number,
-    year: number,
-    month: number,
-  ): Promise<OvertimeDetailDto[]> {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
-
-    const overtimes = await this.prisma.over_times_history.findMany({
-      where: {
-        user_id: userId,
-        work_date: {
-          gte: startDate,
-          lte: endDate,
-        },
-        deleted_at: null,
-      },
-      include: {
-        approved_by_user: {
-          select: {
-            user_information: {
-              select: { name: true },
-            },
-          },
-        },
-      },
-      orderBy: { work_date: 'asc' },
-    });
-
-    return overtimes.map((overtime) => ({
-      id: overtime.id,
-      date: overtime.work_date.toISOString().split('T')[0],
-      title: overtime.title,
-      total_hours: overtime.total_hours || 0,
-      status: overtime.status || 'PENDING',
-      approved_by_name:
-        overtime.approved_by_user?.user_information?.name || undefined,
-      approved_at: overtime.approved_at || undefined,
-    }));
   }
 }

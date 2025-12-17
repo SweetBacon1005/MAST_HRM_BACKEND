@@ -231,20 +231,11 @@ export class ReportsService {
     // Lấy timesheets trong khoảng thời gian
     const timesheets = await this.prisma.time_sheets.findMany({
       where,
-      include: {
-        day_off: {
-          select: {
-            type: true,
-            duration: true,
-            status: true,
-          },
-        },
-      },
       orderBy: { work_date: 'desc' },
     });
 
     // Lấy overtime requests đã được approve
-    const overtimeRequests = await this.prisma.over_times_history.findMany({
+    const overtimeRequests = await this.prisma.attendance_requests.findMany({
       where: {
         ...(user_id && { user_id: Number(user_id) }),
         work_date: {
@@ -252,12 +243,16 @@ export class ReportsService {
           lte: new Date(defaultEndDate),
         },
         status: 'APPROVED',
+        request_type: 'OVERTIME',
         deleted_at: null,
+      },
+      include: {
+        overtime: true,
       },
     });
 
     // Lấy day-off requests trong khoảng thời gian
-    const dayOffRequests = await this.prisma.day_offs.findMany({
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
       where: {
         ...(user_id && { user_id: Number(user_id) }),
         work_date: {
@@ -265,7 +260,11 @@ export class ReportsService {
           lte: new Date(defaultEndDate),
         },
         status: 'APPROVED',
+        request_type: 'DAY_OFF',
         deleted_at: null,
+      },
+      include: {
+        day_off: true,
       },
     });
 
@@ -280,7 +279,7 @@ export class ReportsService {
 
     // Tính toán thống kê overtime
     const totalOvertimeHours = overtimeRequests.reduce(
-      (sum, ot) => sum + (ot.total_hours || 0),
+      (sum, ot) => sum + (ot.overtime?.total_hours || 0),
       0,
     );
     const overtimeCount = overtimeRequests.length;
@@ -301,9 +300,9 @@ export class ReportsService {
       );
 
       if (leaveStart <= leaveEnd) {
-        const actualLeaveDays = dayOff.duration === 'FULL_DAY' ? 1 : 0.5;
+        const actualLeaveDays = dayOff.day_off?.duration === 'FULL_DAY' ? 1 : 0.5;
 
-        if (dayOff.type === 'PAID') {
+        if (dayOff.day_off?.type === 'PAID') {
           paidLeaveDays += actualLeaveDays;
         } else {
           unpaidLeaveDays += actualLeaveDays;
@@ -318,8 +317,8 @@ export class ReportsService {
     );
 
     // Tính số ngày có timesheet vs số ngày cần làm việc
-    const fullDayOffCount = timesheets.filter(
-      (t) => t.day_off && t.day_off.duration === 'FULL_DAY',
+    const fullDayOffCount = dayOffRequests.filter(
+      (req) => req.day_off && req.day_off.duration === 'FULL_DAY',
     ).length;
     const expectedWorkDays = workingDaysInMonth - fullDayOffCount;
 
@@ -663,12 +662,13 @@ export class ReportsService {
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0);
 
-    const lateRequests = await this.prisma.late_early_requests.findMany({
+    const lateRequests = await this.prisma.attendance_requests.findMany({
       where: {
         work_date: {
           gte: startDate,
           lte: endDate,
         },
+        request_type: 'LATE_EARLY',
       },
       include: {
         user: {
@@ -678,14 +678,15 @@ export class ReportsService {
             user_information: { select: { name: true } },
           },
         },
+        late_early_request: true,
       },
     });
 
     // Thống kê theo loại
     const stats = {
-      late_only: lateRequests.filter((r) => r.request_type === 'LATE').length,
-      early_only: lateRequests.filter((r) => r.request_type === 'EARLY').length,
-      both: lateRequests.filter((r) => r.request_type === 'BOTH').length,
+      late_only: lateRequests.filter((r) => r.late_early_request?.request_type === 'LATE').length,
+      early_only: lateRequests.filter((r) => r.late_early_request?.request_type === 'EARLY').length,
+      both: lateRequests.filter((r) => r.late_early_request?.request_type === 'BOTH').length,
       total: lateRequests.length,
     };
 
@@ -694,7 +695,7 @@ export class ReportsService {
       const user_id = request.user_id;
       if (!acc[user_id]) {
         acc[user_id] = {
-          user: request.user.user_information?.name || '',
+          user: request.user?.user_information?.name || '',
           late_count: 0,
           early_count: 0,
           both_count: 0,
@@ -702,9 +703,9 @@ export class ReportsService {
         };
       }
 
-      if (request.request_type === 'LATE') acc[user_id].late_count++;
-      else if (request.request_type === 'EARLY') acc[user_id].early_count++;
-      else if (request.request_type === 'BOTH') acc[user_id].both_count++;
+      if (request.late_early_request?.request_type === 'LATE') acc[user_id].late_count++;
+      else if (request.late_early_request?.request_type === 'EARLY') acc[user_id].early_count++;
+      else if (request.late_early_request?.request_type === 'BOTH') acc[user_id].both_count++;
 
       acc[user_id].total++;
       return acc;
@@ -725,11 +726,12 @@ export class ReportsService {
     const startDate = new Date(targetYear, 0, 1);
     const endDate = new Date(targetYear, 11, 31);
 
-    const where: DayOffWhereInput = {
+    const where: any = {
       work_date: {
         gte: startDate,
         lte: endDate,
       },
+      request_type: 'DAY_OFF',
     };
 
     if (division_id) {
@@ -747,7 +749,7 @@ export class ReportsService {
       where.user_id = { in: user_ids };
     }
 
-    const leaveRequests = await this.prisma.day_offs.findMany({
+    const leaveRequests = await this.prisma.attendance_requests.findMany({
       where,
       include: {
         user: {
@@ -757,12 +759,13 @@ export class ReportsService {
             user_information: { select: { name: true } },
           },
         },
+        day_off: true,
       },
     });
 
     // Thống kê theo loại nghỉ phép
     const leaveTypeStats = leaveRequests.reduce((acc, leave) => {
-      const type = leave.type;
+      const type = leave.day_off?.type;
       if (!acc[type]) {
         acc[type] = { count: 0, total_days: 0 };
       }
@@ -824,7 +827,9 @@ export class ReportsService {
     endDate?: string,
     division_id?: number,
   ) {
-    const where: any = {};
+    const where: any = {
+      request_type: 'OVERTIME',
+    };
 
     if (startDate && endDate) {
       where.work_date = {
@@ -848,7 +853,7 @@ export class ReportsService {
       where.user_id = { in: user_ids };
     }
 
-    const overtimeRecords = await this.prisma.over_times_history.findMany({
+    const overtimeRecords = await this.prisma.attendance_requests.findMany({
       where,
       include: {
         user: {
@@ -858,7 +863,7 @@ export class ReportsService {
             email: true,
           },
         },
-        // REMOVED: project relation
+        overtime: true,
         approved_by_user: { select: { id: true, email: true } },
       },
     });
@@ -867,13 +872,13 @@ export class ReportsService {
     const totalStats = overtimeRecords.reduce(
       (acc, record) => {
         acc.total_records++;
-        acc.total_hours += record.total_hours || 0;
-        acc.total_amount += record.total_amount || 0;
+        acc.total_hours += record.overtime?.total_hours || 0;
+        acc.total_amount += 0;
 
         if (record.status === 'APPROVED') {
           acc.approved_records++;
-          acc.approved_hours += record.total_hours || 0;
-          acc.approved_amount += record.total_amount || 0;
+          acc.approved_hours += record.overtime?.total_hours || 0;
+          acc.approved_amount += 0;
         }
 
         return acc;
@@ -893,7 +898,7 @@ export class ReportsService {
       const user_id = record.user_id;
       if (!acc[user_id]) {
         acc[user_id] = {
-          user: record.user.user_information?.name || '',
+          user: record.user?.user_information?.name || '',
           total_sessions: 0,
           total_hours: 0,
           total_amount: 0,
@@ -904,13 +909,13 @@ export class ReportsService {
       }
 
       acc[user_id].total_sessions++;
-      acc[user_id].total_hours += record.total_hours || 0;
-      acc[user_id].total_amount += record.total_amount || 0;
+      acc[user_id].total_hours += record.overtime?.total_hours || 0;
+      acc[user_id].total_amount += 0;
 
       if (record.status === 'APPROVED') {
         acc[user_id].approved_sessions++;
-        acc[user_id].approved_hours += record.total_hours || 0;
-        acc[user_id].approved_amount += record.total_amount || 0;
+        acc[user_id].approved_hours += record.overtime?.total_hours || 0;
+        acc[user_id].approved_amount += 0;
       }
 
       return acc;
@@ -1065,14 +1070,16 @@ export class ReportsService {
           created_at: { gte: startDate, lte: endDate },
         },
       }),
-      this.prisma.day_offs.count({
+      this.prisma.attendance_requests.count({
         where: {
           created_at: { gte: startDate, lte: endDate },
+          request_type: 'DAY_OFF',
         },
       }),
-      this.prisma.over_times_history.count({
+      this.prisma.attendance_requests.count({
         where: {
           work_date: { gte: startDate, lte: endDate },
+          request_type: 'OVERTIME',
         },
       }),
       this.prisma.rotation_members.count({
@@ -1254,35 +1261,41 @@ export class ReportsService {
       },
       deleted_at: null,
       status: ApprovalStatus.APPROVED,
+      request_type: 'DAY_OFF',
     };
 
     if (user_ids.length > 0) {
       where.user_id = { in: user_ids };
     }
 
-    const leaves = await this.prisma.day_offs.findMany({ where });
+    const leaves = await this.prisma.attendance_requests.findMany({ 
+      where,
+      include: {
+        day_off: true,
+      },
+    });
 
     const stats = {
       total_leave_days: leaves.reduce(
-        (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+        (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
         0,
       ),
       paid_leave: leaves
-        .filter((l) => l.type === DayOffType.PAID)
+        .filter((l) => l.day_off?.type === DayOffType.PAID)
         .reduce(
-          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
           0,
         ),
       unpaid_leave: leaves
-        .filter((l) => l.type === DayOffType.UNPAID)
+        .filter((l) => l.day_off?.type === DayOffType.UNPAID)
         .reduce(
-          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
           0,
         ),
       annual_leave: leaves
-        .filter((l) => l.type === DayOffType.COMPENSATORY)
+        .filter((l) => l.day_off?.type === DayOffType.COMPENSATORY)
         .reduce(
-          (sum, leave) => sum + (leave.duration === 'FULL_DAY' ? 1 : 0.5),
+          (sum, leave) => sum + (leave.day_off?.duration === 'FULL_DAY' ? 1 : 0.5),
           0,
         ),
       sick_leave: leaves

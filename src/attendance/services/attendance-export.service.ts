@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ScopeType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CsvExportService } from '../../common/services/csv-export.service';
+import { AttendanceRequestService } from '../../requests/services/attendance-request.service';
 
 @Injectable()
 export class AttendanceExportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly csvExport: CsvExportService,
+    private readonly attendanceRequestService: AttendanceRequestService,
   ) {}
 
   /**
@@ -220,40 +222,27 @@ export class AttendanceExportService {
       where.user_id = { in: user_ids };
     }
 
-    const leaveRequests = await this.prisma.day_offs.findMany({
-      where,
-      orderBy: { created_at: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            user_information: {
-              select: {
-                name: true,
-              },
-            },
-            email: true,
-          },
-        },
-      },
+    const leaveRequests = await this.attendanceRequestService.findMany({
+      ...where,
+      request_type: 'DAY_OFF',
     });
 
     // FIX N+1: Batch fetch division names
-    const user_ids = [...new Set(leaveRequests.map((leave) => leave.user_id))];
+    const user_ids = [...new Set(leaveRequests.map((req) => req.user_id))];
     const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
-    const csvData = leaveRequests.map((leave) => ({
-      user_id: leave.user_id,
-      user_name: leave.user.user_information?.name || '',
-      email: leave.user.email,
-      division: divisionNamesMap.get(leave.user_id) || '',
-      type: leave.type,
-      work_date: this.csvExport.formatDate(leave.work_date),
-      duration: leave.duration,
-      title: leave.title,
-      status: leave.status,
-      reason: leave.reason || '',
-      created_at: this.csvExport.formatDateTime(leave.created_at),
+    const csvData = leaveRequests.map((req) => ({
+      user_id: req.user_id,
+      user_name: req.user?.user_information?.name || '',
+      email: req.user?.email || '',
+      division: divisionNamesMap.get(req.user_id) || '',
+      type: req.day_off?.type || '',
+      work_date: this.csvExport.formatDate(req.work_date),
+      duration: req.day_off?.duration || '',
+      title: req.title,
+      status: req.status,
+      reason: req.reason || '',
+      created_at: this.csvExport.formatDateTime(req.created_at),
     }));
 
     const fieldMapping = {
@@ -300,44 +289,30 @@ export class AttendanceExportService {
       where.user_id = { in: user_ids };
     }
 
-    const overtimeRecords = await this.prisma.over_times_history.findMany({
-      where,
-      orderBy: { work_date: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            user_information: {
-              select: {
-                name: true,
-              },
-            },
-            email: true,
-          },
-        },
-        // REMOVED: project relation
-      },
+    const overtimeRecords = await this.attendanceRequestService.findMany({
+      ...where,
+      request_type: 'OVERTIME',
     });
 
     // FIX N+1: Batch fetch division names
-    const user_ids = [...new Set(overtimeRecords.map((overtime) => overtime.user_id))];
+    const user_ids = [...new Set(overtimeRecords.map((req) => req.user_id))];
     const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
-    const csvData = overtimeRecords.map((overtime) => ({
-      user_id: overtime.user_id,
-      user_name: overtime.user.user_information?.name || '',
-      email: overtime.user.email,
-      division: divisionNamesMap.get(overtime.user_id) || '',
+    const csvData = overtimeRecords.map((req) => ({
+      user_id: req.user_id,
+      user_name: req.user?.user_information?.name || '',
+      email: req.user?.email || '',
+      division: divisionNamesMap.get(req.user_id) || '',
       project: '', // REMOVED: project relation
-      work_date: this.csvExport.formatDate(overtime.work_date),
-      title: overtime.title,
-      start_time: overtime.start_time.toISOString().split('T')[1].substring(0, 5),
-      end_time: overtime.end_time.toISOString().split('T')[1].substring(0, 5),
-      total_hours: overtime.total_hours || 0,
-      total_amount: overtime.total_amount || 0,
-      status: overtime.status,
-      reason: overtime.reason || '',
-      created_at: this.csvExport.formatDateTime(overtime.created_at),
+      work_date: this.csvExport.formatDate(req.work_date),
+      title: req.title,
+      start_time: req.overtime?.start_time.toISOString().split('T')[1].substring(0, 5) || '',
+      end_time: req.overtime?.end_time.toISOString().split('T')[1].substring(0, 5) || '',
+      total_hours: req.overtime?.total_hours || 0,
+      total_amount: 0, // Not stored anymore
+      status: req.status,
+      reason: req.reason || '',
+      created_at: this.csvExport.formatDateTime(req.created_at),
     }));
 
     const fieldMapping = {
@@ -382,38 +357,25 @@ export class AttendanceExportService {
       where.user_id = { in: user_ids };
     }
 
-    const requests = await this.prisma.late_early_requests.findMany({
-      where,
-      orderBy: { work_date: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            user_information: {
-              select: {
-                name: true,
-              },
-            },
-            email: true,
-          },
-        },
-      },
+    const requests = await this.attendanceRequestService.findMany({
+      ...where,
+      request_type: 'LATE_EARLY',
     });
 
     // FIX N+1: Batch fetch division names
-    const user_ids = [...new Set(requests.map((request) => request.user_id))];
+    const user_ids = [...new Set(requests.map((req) => req.user_id))];
     const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
-    const csvData = requests.map((request) => ({
-      user_id: request.user_id,
-      user_name: request.user.user_information?.name || '',
-      email: request.user.email,
-      division: divisionNamesMap.get(request.user_id) || '',
-      work_date: this.csvExport.formatDate(request.work_date),
-      request_type: request.request_type,
-      reason: request.reason || '',
-      status: request.status,
-      created_at: this.csvExport.formatDateTime(request.created_at),
+    const csvData = requests.map((req) => ({
+      user_id: req.user_id,
+      user_name: req.user?.user_information?.name || '',
+      email: req.user?.email || '',
+      division: divisionNamesMap.get(req.user_id) || '',
+      work_date: this.csvExport.formatDate(req.work_date),
+      request_type: req.late_early_request?.request_type || '',
+      reason: req.reason || '',
+      status: req.status,
+      created_at: this.csvExport.formatDateTime(req.created_at),
     }));
 
     const fieldMapping = {
@@ -458,38 +420,25 @@ export class AttendanceExportService {
       where.user_id = { in: user_ids };
     }
 
-    const requests = await this.prisma.remote_work_requests.findMany({
-      where,
-      orderBy: { work_date: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            user_information: {
-              select: {
-                name: true,
-              },
-            },
-            email: true,
-          },
-        },
-      },
+    const requests = await this.attendanceRequestService.findMany({
+      ...where,
+      request_type: 'REMOTE_WORK',
     });
 
     // Lấy division names
     // FIX N+1: Batch fetch division names
-    const user_ids = [...new Set(requests.map((request) => request.user_id))];
+    const user_ids = [...new Set(requests.map((req) => req.user_id))];
     const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
-    const csvData = requests.map((request) => ({
-      user_id: request.user_id,
-      user_name: request.user.user_information?.name || '',
-      email: request.user.email,
-      division: divisionNamesMap.get(request.user_id) || '',
-      work_date: this.csvExport.formatDate(request.work_date),
-      reason: request.reason || '',
-      status: request.status,
-      created_at: this.csvExport.formatDateTime(request.created_at),
+    const csvData = requests.map((req) => ({
+      user_id: req.user_id,
+      user_name: req.user?.user_information?.name || '',
+      email: req.user?.email || '',
+      division: divisionNamesMap.get(req.user_id) || '',
+      work_date: this.csvExport.formatDate(req.work_date),
+      reason: req.reason || '',
+      status: req.status,
+      created_at: this.csvExport.formatDateTime(req.created_at),
     }));
 
     const fieldMapping = {

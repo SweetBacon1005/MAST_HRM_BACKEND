@@ -943,32 +943,38 @@ export class DivisionService {
       workingEmployees,
       workingCount,
     ] = await Promise.all([
-      this.prisma.day_offs.findMany({
+      this.prisma.attendance_requests.findMany({
         where: {
           user_id: { in: user_ids },
           work_date: targetDate,
           status: 'APPROVED',
+          request_type: 'DAY_OFF',
           deleted_at: null,
         },
-        include: { user: userSelect },
+        include: { 
+          user: userSelect,
+          day_off: true,
+        },
       }),
 
       Promise.all([
-        this.prisma.day_offs.count({
+        this.prisma.attendance_requests.count({
           where: {
             user_id: { in: user_ids },
             work_date: { gte: startOfMonth, lte: endOfMonth },
             status: 'APPROVED',
-            type: 'PAID',
+            request_type: 'DAY_OFF',
+            day_off: { type: 'PAID' },
             deleted_at: null,
           },
         }),
-        this.prisma.day_offs.count({
+        this.prisma.attendance_requests.count({
           where: {
             user_id: { in: user_ids },
             work_date: { gte: startOfMonth, lte: endOfMonth },
             status: 'APPROVED',
-            type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
+            request_type: 'DAY_OFF',
+            day_off: { type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] } },
             deleted_at: null,
           },
         }),
@@ -1129,11 +1135,12 @@ export class DivisionService {
       };
     }
 
-    const leaveEmployees = await this.prisma.day_offs.findMany({
+    const leaveEmployees = await this.prisma.attendance_requests.findMany({
       where: {
         user_id: { in: user_ids },
         work_date: targetDate,
         status: 'APPROVED',
+        request_type: 'DAY_OFF',
         deleted_at: null,
       },
       include: {
@@ -1149,6 +1156,7 @@ export class DivisionService {
             },
           },
         },
+        day_off: true,
       },
     });
 
@@ -1357,7 +1365,7 @@ export class DivisionService {
     }
 
     const [paidCount, unpaidCount] = await Promise.all([
-      this.prisma.day_offs.count({
+      this.prisma.attendance_requests.count({
         where: {
           user_id: { in: user_ids },
           work_date: {
@@ -1365,11 +1373,12 @@ export class DivisionService {
             lte: endOfMonth,
           },
           status: 'APPROVED',
-          type: 'PAID',
+          request_type: 'DAY_OFF',
+          day_off: { type: 'PAID' },
           deleted_at: null,
         },
       }),
-      this.prisma.day_offs.count({
+      this.prisma.attendance_requests.count({
         where: {
           user_id: { in: user_ids },
           work_date: {
@@ -1377,7 +1386,8 @@ export class DivisionService {
             lte: endOfMonth,
           },
           status: 'APPROVED',
-          type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] },
+          request_type: 'DAY_OFF',
+          day_off: { type: { in: ['UNPAID', 'SICK', 'MATERNITY', 'PERSONAL'] } },
           deleted_at: null,
         },
       }),
@@ -1524,7 +1534,7 @@ export class DivisionService {
         await Promise.all([
           Promise.resolve({ _sum: { late_time: 0 } }),
           Promise.resolve({ _sum: { late_time_approved: 0 } }),
-          this.prisma.over_times_history.aggregate({
+          this.prisma.attendance_requests.findMany({
             where: {
               user_id: { in: user_ids },
               work_date: {
@@ -1532,12 +1542,17 @@ export class DivisionService {
                 lte: endOfMonth,
               },
               status: 'APPROVED',
+              request_type: 'OVERTIME',
               deleted_at: null,
             },
-            _sum: {
-              total_hours: true,
+            include: {
+              overtime: true,
             },
-          }),
+          }).then(requests => ({
+            _sum: {
+              total_hours: requests.reduce((sum, req) => sum + (req.overtime?.total_hours || 0), 0)
+            }
+          })),
         ]);
 
       stats.push({

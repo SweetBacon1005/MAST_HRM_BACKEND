@@ -142,6 +142,11 @@ export const REQUEST_ERRORS = {
   EARLY_MINUTES_REQUIRED: 'Số phút về sớm là bắt buộc',
   LATE_EARLY_MINUTES_REQUIRED: 'Cả số phút đi muộn và về sớm đều là bắt buộc',
   DIVISION_HEAD_ONLY: 'Chỉ Division Head mới có quyền truy cập',
+  INSUFFICIENT_LEAVE_BALANCE_DETAIL: 'Không đủ số dư phép. Hiện có: {current}, cần: {required}',
+  CANNOT_APPROVE_REQUEST_PERMISSION: 'Bạn không có quyền duyệt yêu cầu này',
+  CANNOT_REJECT_REQUEST_PERMISSION: 'Bạn không có quyền từ chối yêu cầu này',
+  CANNOT_UPDATE_REQUEST_PERMISSION: 'Bạn không có quyền cập nhật yêu cầu này',
+  CANNOT_DELETE_REQUEST_PERMISSION: 'Bạn không có quyền xóa yêu cầu này',
 } as const;
 
 // === TIMESHEET ERRORS ===
