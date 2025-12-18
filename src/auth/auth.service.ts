@@ -192,7 +192,6 @@ export class AuthService {
           checkout: null,
           total_work_time: 0,
           status: 'PENDING',
-          // REMOVED: late_time, early_time
           is_complete: false,
           has_attendance: false,
         },

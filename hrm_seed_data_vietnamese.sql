@@ -21,19 +21,6 @@ INSERT INTO `languages` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`)
 (5, 'Chinese', NOW(), NOW(), NULL);
 
 -- ============================================
--- 2. LEVELS (Cấp bậc)
--- ============================================
-TRUNCATE TABLE `levels`;
-INSERT INTO `levels` (`id`, `name`, `coefficient`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Intern', 0.5, NOW(), NOW(), NULL),
-(2, 'Fresher', 0.8, NOW(), NOW(), NULL),
-(3, 'Junior', 1.0, NOW(), NOW(), NULL),
-(4, 'Middle', 1.5, NOW(), NOW(), NULL),
-(5, 'Senior', 2.0, NOW(), NOW(), NULL),
-(6, 'Lead', 2.5, NOW(), NOW(), NULL),
-(7, 'Principal', 3.0, NOW(), NOW(), NULL);
-
--- ============================================
 -- 3. POSITIONS (Vị trí công việc)
 -- ============================================
 TRUNCATE TABLE `positions`;
@@ -368,14 +355,14 @@ WHERE p.name IN (
 -- 8. DIVISIONS (Phòng ban)
 -- ============================================
 TRUNCATE TABLE `divisions`;
-INSERT INTO `divisions` (`id`, `name`, `type`, `status`, `address`, `parent_id`, `founding_at`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Phòng Công Nghệ', 'TECHNICAL', 'ACTIVE', 'Tầng 5-6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', NULL, '2020-01-15', 'Phòng ban công nghệ chính, phát triển sản phẩm phần mềm', NOW(), NOW(), NULL),
-(2, 'Phòng Kinh Doanh', 'BUSINESS', 'ACTIVE', 'Tầng 3, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', NULL, '2020-01-15', 'Phòng kinh doanh và phát triển thị trường', NOW(), NOW(), NULL),
-(3, 'Phòng Hành Chính Nhân Sự', 'OPERATIONS', 'ACTIVE', 'Tầng 2, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', NULL, '2020-01-15', 'Phòng quản lý nhân sự và hành chính', NOW(), NOW(), NULL),
-(4, 'Bộ phận Backend', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', 1, '2020-06-01', 'Phát triển backend và API', NOW(), NOW(), NULL),
-(5, 'Bộ phận Frontend', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', 1, '2020-06-01', 'Phát triển giao diện người dùng', NOW(), NOW(), NULL),
-(6, 'Bộ phận Mobile', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', 1, '2020-06-01', 'Phát triển ứng dụng di động', NOW(), NOW(), NULL),
-(7, 'Bộ phận QA', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', 1, '2020-06-01', 'Đảm bảo chất lượng sản phẩm', NOW(), NOW(), NULL);
+INSERT INTO `divisions` (`id`, `name`, `type`, `status`, `address`, `founding_at`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'Phòng Công Nghệ', 'TECHNICAL', 'ACTIVE', 'Tầng 5-6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng ban công nghệ chính, phát triển sản phẩm phần mềm', NOW(), NOW(), NULL),
+(2, 'Phòng Kinh Doanh', 'BUSINESS', 'ACTIVE', 'Tầng 3, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng kinh doanh và phát triển thị trường', NOW(), NOW(), NULL),
+(3, 'Phòng Hành Chính Nhân Sự', 'OPERATIONS', 'ACTIVE', 'Tầng 2, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng quản lý nhân sự và hành chính', NOW(), NOW(), NULL),
+(4, 'Bộ phận Backend', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển backend và API', NOW(), NOW(), NULL),
+(5, 'Bộ phận Frontend', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển giao diện người dùng', NOW(), NOW(), NULL),
+(6, 'Bộ phận Mobile', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển ứng dụng di động', NOW(), NOW(), NULL),
+(7, 'Bộ phận QA', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Đảm bảo chất lượng sản phẩm', NOW(), NOW(), NULL);
 
 -- ============================================
 -- 9. TEAMS (Nhóm)
@@ -393,15 +380,55 @@ INSERT INTO `teams` (`id`, `name`, `division_id`, `founding_date`, `created_at`,
 -- 10. PROJECTS (Dự án)
 -- ============================================
 TRUNCATE TABLE `projects`;
-INSERT INTO `projects` (`id`, `name`, `code`, `status`, `division_id`, `team_id`, `project_type`, `project_access_type`, `industry`, `progress`, `scope`, `description`, `start_date`, `end_date`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Hệ thống Thương mại điện tử', 'ECOM-2024', 'IN_PROGRESS', 1, 1, 'CUSTOMER', 'RESTRICTED', 'IT', 75.5, 'Full stack development', 'Xây dựng nền tảng thương mại điện tử hiện đại với kiến trúc microservices', '2024-01-01', '2024-12-31', NOW(), NOW(), NULL),
-(2, 'Hệ thống Ngân hàng Core', 'BANK-2024', 'IN_PROGRESS', 1, 2, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 60.0, 'Backend API development', 'Phát triển hệ thống ngân hàng cốt lõi với bảo mật cao', '2024-02-01', '2025-01-31', NOW(), NOW(), NULL),
-(3, 'Hệ thống HRM Nội bộ', 'HRM-2024', 'IN_PROGRESS', 1, 1, 'INTERNAL', 'COMPANY', 'IT', 85.0, 'Full HRM solution', 'Hệ thống quản lý nhân sự toàn diện', '2023-06-01', '2024-06-30', NOW(), NOW(), NULL),
-(4, 'Ứng dụng Mobile Banking', 'MBANK-2024', 'IN_PROGRESS', 1, 5, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 45.0, 'Mobile application', 'Ứng dụng ngân hàng trên iOS và Android', '2024-03-01', '2024-09-30', NOW(), NOW(), NULL),
-(5, 'Hệ thống AI Chatbot', 'AIBOT-2024', 'OPEN', 1, 2, 'START_UP', 'RESTRICTED', 'IT', 30.0, 'AI development', 'Hệ thống chatbot thông minh cho dịch vụ khách hàng', '2024-04-01', '2024-10-31', NOW(), NOW(), NULL);
+INSERT INTO `projects` (`id`, `name`, `code`, `status`, `division_id`, `team_id`, `project_type`, `project_access_type`, `industry`, `scope`, `description`, `start_date`, `end_date`, `created_at`, `updated_at`, `deleted_at`) VALUES
+(1, 'Hệ thống Thương mại điện tử', 'ECOM-2024', 'IN_PROGRESS', 1, 1, 'CUSTOMER', 'RESTRICTED', 'IT', 'Full stack development', 'Xây dựng nền tảng thương mại điện tử hiện đại với kiến trúc microservices', '2024-01-01', '2024-12-31', NOW(), NOW(), NULL),
+(2, 'Hệ thống Ngân hàng Core', 'BANK-2024', 'IN_PROGRESS', 1, 2, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Backend API development', 'Phát triển hệ thống ngân hàng cốt lõi với bảo mật cao', '2024-02-01', '2025-01-31', NOW(), NOW(), NULL),
+(3, 'Hệ thống HRM Nội bộ', 'HRM-2024', 'IN_PROGRESS', 1, 1, 'INTERNAL', 'COMPANY', 'IT', 'Full HRM solution', 'Hệ thống quản lý nhân sự toàn diện', '2023-06-01', '2024-06-30', NOW(), NOW(), NULL),
+(4, 'Ứng dụng Mobile Banking', 'MBANK-2024', 'IN_PROGRESS', 1, 5, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Mobile application', 'Ứng dụng ngân hàng trên iOS và Android', '2024-03-01', '2024-09-30', NOW(), NOW(), NULL),
+(5, 'Hệ thống AI Chatbot', 'AIBOT-2024', 'OPEN', 1, 2, 'START_UP', 'RESTRICTED', 'IT', 'AI development', 'Hệ thống chatbot thông minh cho dịch vụ khách hàng', '2024-04-01', '2024-10-31', NOW(), NOW(), NULL);
 
 -- ============================================
--- 11. USERS (100 người dùng với tên Việt)
+-- 11. PROJECT_MILESTONES (Cột mốc dự án)
+-- ============================================
+TRUNCATE TABLE `project_milestones`;
+INSERT INTO `project_milestones` (`project_id`, `name`, `description`, `start_date`, `end_date`, `status`, `progress`, `order`, `created_at`, `updated_at`, `deleted_at`) VALUES
+-- Project 1: Hệ thống Thương mại điện tử (ECOM-2024)
+(1, 'Thiết kế kiến trúc hệ thống', 'Thiết kế kiến trúc microservices, database schema, API contracts', '2024-01-01', '2024-02-15', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
+(1, 'Phát triển Backend Core', 'Xây dựng các service cốt lõi: User, Product, Order, Payment', '2024-02-16', '2024-05-31', 'IN_PROGRESS', 75.0, 2, NOW(), NOW(), NULL),
+(1, 'Phát triển Frontend', 'Xây dựng giao diện người dùng, admin dashboard', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 60.0, 3, NOW(), NOW(), NULL),
+(1, 'Tích hợp thanh toán', 'Tích hợp các cổng thanh toán: VNPay, MoMo, Stripe', '2024-06-01', '2024-09-30', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
+(1, 'Testing & Deployment', 'Kiểm thử toàn hệ thống và triển khai production', '2024-10-01', '2024-12-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+
+-- Project 2: Hệ thống Ngân hàng Core (BANK-2024)
+(2, 'Phân tích yêu cầu nghiệp vụ', 'Phân tích và thiết kế các module nghiệp vụ ngân hàng', '2024-02-01', '2024-03-31', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
+(2, 'Phát triển Core Banking API', 'Xây dựng API cho các chức năng: Account, Transaction, Loan', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 55.0, 2, NOW(), NOW(), NULL),
+(2, 'Bảo mật & Compliance', 'Triển khai bảo mật, mã hóa, tuân thủ quy định ngân hàng', '2024-07-01', '2024-11-30', 'IN_PROGRESS', 40.0, 3, NOW(), NOW(), NULL),
+(2, 'Tích hợp hệ thống bên thứ 3', 'Tích hợp với các hệ thống: Core Banking, Payment Gateway', '2024-09-01', '2024-12-31', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
+(2, 'UAT & Go-live', 'User Acceptance Testing và triển khai chính thức', '2025-01-01', '2025-01-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+
+-- Project 3: Hệ thống HRM Nội bộ (HRM-2024)
+(3, 'Phát triển module Quản lý nhân sự', 'Xây dựng các tính năng: Employee, Department, Position', '2023-06-01', '2023-09-30', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
+(3, 'Phát triển module Chấm công', 'Xây dựng tính năng: Timesheet, Attendance, Leave', '2023-08-01', '2023-12-31', 'COMPLETED', 100.0, 2, NOW(), NOW(), NULL),
+(3, 'Phát triển module Dự án', 'Xây dựng tính năng: Project, Task, Daily Report', '2023-10-01', '2024-02-29', 'COMPLETED', 100.0, 3, NOW(), NOW(), NULL),
+(3, 'Phát triển module Tài sản', 'Xây dựng tính năng: Asset, Asset Request, Assignment', '2024-01-01', '2024-04-30', 'IN_PROGRESS', 80.0, 4, NOW(), NOW(), NULL),
+(3, 'Tối ưu & Hoàn thiện', 'Tối ưu hiệu năng, sửa lỗi, hoàn thiện tính năng', '2024-05-01', '2024-06-30', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+
+-- Project 4: Ứng dụng Mobile Banking (MBANK-2024)
+(4, 'Thiết kế UI/UX', 'Thiết kế giao diện và trải nghiệm người dùng cho iOS và Android', '2024-03-01', '2024-04-15', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
+(4, 'Phát triển iOS App', 'Xây dựng ứng dụng iOS với Swift/SwiftUI', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 50.0, 2, NOW(), NOW(), NULL),
+(4, 'Phát triển Android App', 'Xây dựng ứng dụng Android với Kotlin/Jetpack Compose', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 45.0, 3, NOW(), NOW(), NULL),
+(4, 'Tích hợp API Backend', 'Tích hợp với Backend API, xử lý authentication', '2024-06-01', '2024-08-31', 'IN_PROGRESS', 30.0, 4, NOW(), NOW(), NULL),
+(4, 'Testing & Release', 'Kiểm thử, fix bug, và phát hành lên App Store/Play Store', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+
+-- Project 5: Hệ thống AI Chatbot (AIBOT-2024)
+(5, 'Nghiên cứu & Thiết kế AI Model', 'Nghiên cứu và thiết kế mô hình AI cho chatbot', '2024-04-01', '2024-06-30', 'IN_PROGRESS', 40.0, 1, NOW(), NOW(), NULL),
+(5, 'Phát triển Chatbot Engine', 'Xây dựng engine xử lý câu hỏi và phản hồi thông minh', '2024-06-01', '2024-08-31', 'PENDING', 0.0, 2, NOW(), NOW(), NULL),
+(5, 'Tích hợp với hệ thống khách hàng', 'Tích hợp chatbot vào website và ứng dụng khách hàng', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 3, NOW(), NOW(), NULL),
+(5, 'Training & Tối ưu AI', 'Huấn luyện mô hình AI với dữ liệu thực tế', '2024-09-01', '2024-10-15', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
+(5, 'Pilot & Launch', 'Chạy thử nghiệm và ra mắt chính thức', '2024-10-16', '2024-10-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL);
+
+-- ============================================
+-- 12. USERS (100 người dùng với tên Việt)
 -- Password: Mast@123 
 -- Hash: $2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO
 -- ============================================
@@ -511,38 +538,39 @@ INSERT INTO `users` (`id`, `email`, `email_verified_at`, `password`, `status`, `
 (100, 'dat.hoang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL);
 
 -- ============================================
--- 12. USER_INFORMATION (100 hồ sơ nhân viên)
--- NOTE: Không còn cột user_id, FK đã chuyển sang users.user_info_id
+-- 13. USER_INFORMATION (100 hồ sơ nhân viên)
+-- NOTE: user_information có user_id trỏ đến users.id (đã đổi chiều)
 -- ============================================
 TRUNCATE TABLE `user_information`;
-INSERT INTO `user_information` (`id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `level_id`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`) VALUES
+INSERT INTO `user_information` (`id`, `user_id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- Key users (6 users)
-(1, 'admin.personal@gmail.com', 'Vietnam', 'Nguyễn Văn Quản Trị', 'EMP001', NULL, 'Male', 'Married', '1985-05-15', 8, '123 Hoàng Quốc Việt, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234001', '0100000001', 7, 'Quản trị hệ thống', 2, NOW(), NOW(), NULL),
-(2, 'divhead@gmail.com', 'Vietnam', 'Trần Thị Hương', 'EMP002', NULL, 'Female', 'Married', '1988-03-20', 8, '456 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Hà Nội', '0901234002', '0100000002', 7, 'Quản lý nhân sự', 1, NOW(), NOW(), NULL),
-(3, 'teamlead@gmail.com', 'Vietnam', 'Lê Văn Thành', 'EMP003', NULL, 'Male', 'Single', '1990-07-10', 10, '789 Láng Hạ, Đống Đa, Hà Nội', 'Hà Nội', '0901234003', '0100000003', 6, 'Quản lý nhóm', 2, NOW(), NOW(), NULL),
-(4, 'pm@gmail.com', 'Vietnam', 'Phạm Thị Loan', 'EMP004', NULL, 'Female', 'Married', '1987-11-25', 8, '234 Lê Duẩn, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234004', '0100000004', 6, 'Quản lý dự án', 2, NOW(), NOW(), NULL),
-(5, 'employee@gmail.com', 'Vietnam', 'Hoàng Văn Em', 'EMP005', NULL, 'Male', 'Single', '1995-09-12', 1, '567 Giải Phóng, Hai Bà Trưng, Hà Nội', 'Hà Nội', '0901234005', '0100000005', 4, 'Backend Development', 1, NOW(), NOW(), NULL),
-(6, 'user@gmail.com', 'Vietnam', 'Nguyễn Văn User', 'EMP006', NULL, 'Male', 'Married', '1992-06-20', 3, '888 Trần Duy Hưng, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234006', '0100000006', 5, 'Full Stack Development', 2, NOW(), NOW(), NULL),
+(1, 1, 'admin.personal@gmail.com', 'Vietnam', 'Nguyễn Văn Quản Trị', 'EMP001', NULL, 'Male', 'Married', '1985-05-15', 8, '123 Hoàng Quốc Việt, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234001', '0100000001', 'Quản trị hệ thống', 2, NOW(), NOW(), NULL),
+(2, 2, 'divhead@gmail.com', 'Vietnam', 'Trần Thị Hương', 'EMP002', NULL, 'Female', 'Married', '1988-03-20', 8, '456 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Hà Nội', '0901234002', '0100000002', 'Quản lý nhân sự', 1, NOW(), NOW(), NULL),
+(3, 3, 'teamlead@gmail.com', 'Vietnam', 'Lê Văn Thành', 'EMP003', NULL, 'Male', 'Single', '1990-07-10', 10, '789 Láng Hạ, Đống Đa, Hà Nội', 'Hà Nội', '0901234003', '0100000003', 'Quản lý nhóm', 2, NOW(), NOW(), NULL),
+(4, 4, 'pm@gmail.com', 'Vietnam', 'Phạm Thị Loan', 'EMP004', NULL, 'Female', 'Married', '1987-11-25', 8, '234 Lê Duẩn, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234004', '0100000004', 'Quản lý dự án', 2, NOW(), NOW(), NULL),
+(5, 5, 'employee@gmail.com', 'Vietnam', 'Hoàng Văn Em', 'EMP005', NULL, 'Male', 'Single', '1995-09-12', 1, '567 Giải Phóng, Hai Bà Trưng, Hà Nội', 'Hà Nội', '0901234005', '0100000005', 'Backend Development', 1, NOW(), NOW(), NULL),
+(6, 6, 'user@gmail.com', 'Vietnam', 'Nguyễn Văn User', 'EMP006', NULL, 'Male', 'Married', '1992-06-20', 3, '888 Trần Duy Hưng, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234006', '0100000006', 'Full Stack Development', 2, NOW(), NOW(), NULL),
 -- 94 nhân viên với đầy đủ thông tin Việt Nam
-(7, 'anh.tran@gmail.com', 'Vietnam', 'Trần Đức Anh', 'EMP007', NULL, 'Male', 'Married', '1991-03-22', 2, '45 Nguyễn Huệ, Quận 1, TP.HCM', 'TP.HCM', '0901234007', '0100000007', 5, 'Frontend Development', 2, NOW(), NOW(), NULL),
-(8, 'huy.le@gmail.com', 'Vietnam', 'Lê Quang Huy', 'EMP008', NULL, 'Male', 'Single', '1994-06-10', 1, '78 Trần Hưng Đạo, Ba Đình, Hà Nội', 'Hà Nội', '0901234008', '0100000008', 4, 'Backend Development', 1, NOW(), NOW(), NULL),
-(9, 'linh.pham@gmail.com', 'Vietnam', 'Phạm Thúy Linh', 'EMP009', NULL, 'Female', 'Single', '1995-08-14', 2, '234 Hai Bà Trưng, Quận 1, TP.HCM', 'TP.HCM', '0901234009', '0100000009', 4, 'Frontend Development', 1, NOW(), NOW(), NULL),
-(10, 'nam.hoang@gmail.com', 'Vietnam', 'Hoàng Thành Nam', 'EMP010', NULL, 'Male', 'Married', '1990-11-28', 3, '56 Lý Thường Kiệt, Đống Đa, Hà Nội', 'Hà Nội', '0901234010', '0100000010', 5, 'Full Stack Development', 2, NOW(), NOW(), NULL),
-(11, 'thu.vu@gmail.com', 'Vietnam', 'Vũ Thu Hà', 'EMP011', NULL, 'Female', 'Single', '1996-02-19', 7, '89 Nguyễn Thị Minh Khai, Quận 3, TP.HCM', 'TP.HCM', '0901234011', '0100000011', 3, 'UI/UX Design', 1, NOW(), NOW(), NULL),
-(12, 'khoa.dang@gmail.com', 'Vietnam', 'Đặng Đình Khoa', 'EMP012', NULL, 'Male', 'Married', '1989-04-07', 1, '123 Cầu Giấy, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234012', '0100000012', 6, 'Backend Development', 2, NOW(), NOW(), NULL),
-(13, 'lan.do@gmail.com', 'Vietnam', 'Đỗ Thị Lan', 'EMP013', NULL, 'Female', 'Married', '1992-07-23', 5, '456 Lê Văn Sỹ, Quận 3, TP.HCM', 'TP.HCM', '0901234013', '0100000013', 4, 'Quality Assurance', 1, NOW(), NOW(), NULL),
-(14, 'tuan.ngo@gmail.com', 'Vietnam', 'Ngô Minh Tuấn', 'EMP014', NULL, 'Male', 'Single', '1994-10-05', 4, '789 Võ Văn Tần, Quận 3, TP.HCM', 'TP.HCM', '0901234014', '0100000014', 4, 'Mobile Development', 1, NOW(), NOW(), NULL),
-(15, 'mai.bui@gmail.com', 'Vietnam', 'Bùi Ngọc Mai', 'EMP015', NULL, 'Female', 'Single', '1997-12-16', 2, '234 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234015', '0100000015', 3, 'Frontend Development', 1, NOW(), NOW(), NULL),
-(16, 'dat.duong@gmail.com', 'Vietnam', 'Dương Thành Đạt', 'EMP016', NULL, 'Male', 'Married', '1991-05-30', 6, '567 Hoàng Diệu, Quận 4, TP.HCM', 'TP.HCM', '0901234016', '0100000016', 5, 'DevOps Engineering', 2, NOW(), NOW(), NULL),
-(17, 'ha.ly@gmail.com', 'Vietnam', 'Lý Thu Hà', 'EMP017', NULL, 'Female', 'Single', '1995-03-18', 9, '89 Pasteur, Quận 1, TP.HCM', 'TP.HCM', '0901234017', '0100000017', 4, 'Business Analysis', 1, NOW(), NOW(), NULL),
-(18, 'son.thai@gmail.com', 'Vietnam', 'Thái Sơn', 'EMP018', NULL, 'Male', 'Married', '1988-09-09', 1, '123 Nguyễn Du, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234018', '0100000018', 6, 'Backend Development', 2, NOW(), NOW(), NULL),
-(19, 'nga.vo@gmail.com', 'Vietnam', 'Võ Hồng Nga', 'EMP019', NULL, 'Female', 'Married', '1990-11-11', 7, '456 Trần Phú, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234019', '0100000019', 5, 'UI/UX Design', 1, NOW(), NOW(), NULL),
-(20, 'phong.phan@gmail.com', 'Vietnam', 'Phan Văn Phong', 'EMP020', NULL, 'Male', 'Single', '1993-06-25', 4, '789 Lê Duẩn, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234020', '0100000020', 4, 'Mobile Development', 1, NOW(), NOW(), NULL);
+(7, 7, 'anh.tran@gmail.com', 'Vietnam', 'Trần Đức Anh', 'EMP007', NULL, 'Male', 'Married', '1991-03-22', 2, '45 Nguyễn Huệ, Quận 1, TP.HCM', 'TP.HCM', '0901234007', '0100000007', 'Frontend Development', 2, NOW(), NOW(), NULL),
+(8, 8, 'huy.le@gmail.com', 'Vietnam', 'Lê Quang Huy', 'EMP008', NULL, 'Male', 'Single', '1994-06-10', 1, '78 Trần Hưng Đạo, Ba Đình, Hà Nội', 'Hà Nội', '0901234008', '0100000008', 'Backend Development', 1, NOW(), NOW(), NULL),
+(9, 9, 'linh.pham@gmail.com', 'Vietnam', 'Phạm Thúy Linh', 'EMP009', NULL, 'Female', 'Single', '1995-08-14', 2, '234 Hai Bà Trưng, Quận 1, TP.HCM', 'TP.HCM', '0901234009', '0100000009', 'Frontend Development', 1, NOW(), NOW(), NULL),
+(10, 10, 'nam.hoang@gmail.com', 'Vietnam', 'Hoàng Thành Nam', 'EMP010', NULL, 'Male', 'Married', '1990-11-28', 3, '56 Lý Thường Kiệt, Đống Đa, Hà Nội', 'Hà Nội', '0901234010', '0100000010', 'Full Stack Development', 2, NOW(), NOW(), NULL),
+(11, 11, 'thu.vu@gmail.com', 'Vietnam', 'Vũ Thu Hà', 'EMP011', NULL, 'Female', 'Single', '1996-02-19', 7, '89 Nguyễn Thị Minh Khai, Quận 3, TP.HCM', 'TP.HCM', '0901234011', '0100000011', 'UI/UX Design', 1, NOW(), NOW(), NULL),
+(12, 12, 'khoa.dang@gmail.com', 'Vietnam', 'Đặng Đình Khoa', 'EMP012', NULL, 'Male', 'Married', '1989-04-07', 1, '123 Cầu Giấy, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234012', '0100000012', 'Backend Development', 2, NOW(), NOW(), NULL),
+(13, 13, 'lan.do@gmail.com', 'Vietnam', 'Đỗ Thị Lan', 'EMP013', NULL, 'Female', 'Married', '1992-07-23', 5, '456 Lê Văn Sỹ, Quận 3, TP.HCM', 'TP.HCM', '0901234013', '0100000013', 'Quality Assurance', 1, NOW(), NOW(), NULL),
+(14, 14, 'tuan.ngo@gmail.com', 'Vietnam', 'Ngô Minh Tuấn', 'EMP014', NULL, 'Male', 'Single', '1994-10-05', 4, '789 Võ Văn Tần, Quận 3, TP.HCM', 'TP.HCM', '0901234014', '0100000014', 'Mobile Development', 1, NOW(), NOW(), NULL),
+(15, 15, 'mai.bui@gmail.com', 'Vietnam', 'Bùi Ngọc Mai', 'EMP015', NULL, 'Female', 'Single', '1997-12-16', 2, '234 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234015', '0100000015', 'Frontend Development', 1, NOW(), NOW(), NULL),
+(16, 16, 'dat.duong@gmail.com', 'Vietnam', 'Dương Thành Đạt', 'EMP016', NULL, 'Male', 'Married', '1991-05-30', 6, '567 Hoàng Diệu, Quận 4, TP.HCM', 'TP.HCM', '0901234016', '0100000016', 'DevOps Engineering', 2, NOW(), NOW(), NULL),
+(17, 17, 'ha.ly@gmail.com', 'Vietnam', 'Lý Thu Hà', 'EMP017', NULL, 'Female', 'Single', '1995-03-18', 9, '89 Pasteur, Quận 1, TP.HCM', 'TP.HCM', '0901234017', '0100000017', 'Business Analysis', 1, NOW(), NOW(), NULL),
+(18, 18, 'son.thai@gmail.com', 'Vietnam', 'Thái Sơn', 'EMP018', NULL, 'Male', 'Married', '1988-09-09', 1, '123 Nguyễn Du, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234018', '0100000018', 'Backend Development', 2, NOW(), NOW(), NULL),
+(19, 19, 'nga.vo@gmail.com', 'Vietnam', 'Võ Hồng Nga', 'EMP019', NULL, 'Female', 'Married', '1990-11-11', 7, '456 Trần Phú, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234019', '0100000019', 'UI/UX Design', 1, NOW(), NOW(), NULL),
+(20, 20, 'phong.phan@gmail.com', 'Vietnam', 'Phan Văn Phong', 'EMP020', NULL, 'Male', 'Single', '1993-06-25', 4, '789 Lê Duẩn, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234020', '0100000020', 'Mobile Development', 1, NOW(), NOW(), NULL);
 
 -- Generate 80 user_information còn lại (id 21-100)
-INSERT INTO `user_information` (`id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `level_id`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `user_information` (`id`, `user_id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
     n + 21 as id,
+    n + 21 as user_id,
     CONCAT(SUBSTRING_INDEX(u.email, '@', 1), '@gmail.com') as personal_email,
     'Vietnam' as nationality,
     CASE 
@@ -573,7 +601,6 @@ SELECT
     'Hà Nội' as temp_address,
     CONCAT('090', LPAD(n + 1234021, 7, '0')) as phone,
     CONCAT('01000000', LPAD(n + 21, 2, '0')) as tax_code,
-    MOD(n, 7) + 1 as level_id,
     CASE 
         WHEN MOD(n, 12) = 0 THEN 'Backend Development'
         WHEN MOD(n, 12) = 1 THEN 'Frontend Development'
@@ -602,36 +629,10 @@ FROM (
 INNER JOIN users u ON u.id = numbers.n + 21
 LIMIT 80;
 
--- Update users.user_info_id to link users -> user_information
-UPDATE `users` SET `user_info_id` = 1 WHERE `id` = 1;
-UPDATE `users` SET `user_info_id` = 2 WHERE `id` = 2;
-UPDATE `users` SET `user_info_id` = 3 WHERE `id` = 3;
-UPDATE `users` SET `user_info_id` = 4 WHERE `id` = 4;
-UPDATE `users` SET `user_info_id` = 5 WHERE `id` = 5;
-UPDATE `users` SET `user_info_id` = 6 WHERE `id` = 6;
-UPDATE `users` SET `user_info_id` = 7 WHERE `id` = 7;
-UPDATE `users` SET `user_info_id` = 8 WHERE `id` = 8;
-UPDATE `users` SET `user_info_id` = 9 WHERE `id` = 9;
-UPDATE `users` SET `user_info_id` = 10 WHERE `id` = 10;
-UPDATE `users` SET `user_info_id` = 11 WHERE `id` = 11;
-UPDATE `users` SET `user_info_id` = 12 WHERE `id` = 12;
-UPDATE `users` SET `user_info_id` = 13 WHERE `id` = 13;
-UPDATE `users` SET `user_info_id` = 14 WHERE `id` = 14;
-UPDATE `users` SET `user_info_id` = 15 WHERE `id` = 15;
-UPDATE `users` SET `user_info_id` = 16 WHERE `id` = 16;
-UPDATE `users` SET `user_info_id` = 17 WHERE `id` = 17;
-UPDATE `users` SET `user_info_id` = 18 WHERE `id` = 18;
-UPDATE `users` SET `user_info_id` = 19 WHERE `id` = 19;
-UPDATE `users` SET `user_info_id` = 20 WHERE `id` = 20;
-
--- Update users 21-100 using dynamic query
-UPDATE `users` u
-INNER JOIN `user_information` ui ON u.id = ui.id
-SET u.user_info_id = ui.id
-WHERE u.id BETWEEN 21 AND 100;
+-- NOTE: Không cần UPDATE users vì user_information.user_id đã được set trực tiếp trong INSERT
 
 -- ============================================
--- 13. EDUCATION (200 bản ghi - 2 per user)
+-- 14. EDUCATION (200 bản ghi - 2 per user)
 -- ✅ Liên kết qua user_info_id
 -- ============================================
 TRUNCATE TABLE `education`;
@@ -678,7 +679,7 @@ CROSS JOIN (
 ) e;
 
 -- ============================================
--- 14. EXPERIENCE (300 bản ghi - 3 per user)
+-- 15. EXPERIENCE (300 bản ghi - 3 per user)
 -- ✅ Liên kết qua user_info_id
 -- ============================================
 TRUNCATE TABLE `experience`;
@@ -720,7 +721,7 @@ CROSS JOIN (
 ) e;
 
 -- ============================================
--- 15. USER_SKILLS (400 bản ghi - 4 per user)
+-- 16. USER_SKILLS (400 bản ghi - 4 per user)
 -- ✅ Liên kết qua user_info_id
 -- ============================================
 TRUNCATE TABLE `user_skills`;
@@ -747,7 +748,7 @@ CROSS JOIN (
 ) s;
 
 -- ============================================
--- 16. USER_ROLE_ASSIGNMENT
+-- 17. USER_ROLE_ASSIGNMENT
 -- ============================================
 -- BASE RULE: Mọi user đều có role EMPLOYEE @ COMPANY scope (tạo sau)
 -- MANAGEMENT ROLES: Admin, HR Manager, Division Heads, Team Leaders, PMs
@@ -826,9 +827,10 @@ INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_i
 (6, 3, 'PROJECT', 5, 1, NOW(), NOW(), NULL);
 
 -- Division Heads (users 7-13) - DIVISION scope
--- User 7: Head of Technology Division (division 1)
+-- User 7: Head of Technology Division (division 1) + HR Manager
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(7, 4, 'DIVISION', 1, 1, NOW(), NOW(), NULL);
+(7, 4, 'DIVISION', 1, 1, NOW(), NOW(), NULL),
+(7, 2, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
 
 -- User 8: Head of Business Division (division 2)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
@@ -1028,7 +1030,7 @@ FROM (
 -- (Base assignment đã được tạo ở trên, không cần thêm gì)
 
 -- ============================================
--- 17. USER_LEAVE_BALANCES
+-- 18. USER_LEAVE_BALANCES
 -- ============================================
 TRUNCATE TABLE `user_leave_balances`;
 INSERT INTO `user_leave_balances` (`user_id`, `paid_leave_balance`, `unpaid_leave_balance`, `annual_paid_leave_quota`, `carry_over_days`, `last_reset_date`, `created_at`, `updated_at`, `deleted_at`)
@@ -1045,7 +1047,7 @@ SELECT
 FROM users WHERE id <= 100;
 
 -- ============================================
--- 18. HOLIDAYS (Ngày lễ Việt Nam)
+-- 19. HOLIDAYS (Ngày lễ Việt Nam)
 -- ============================================
 TRUNCATE TABLE `holidays`;
 INSERT INTO `holidays` (`name`, `type`, `status`, `start_date`, `end_date`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES
@@ -1057,7 +1059,7 @@ INSERT INTO `holidays` (`name`, `type`, `status`, `start_date`, `end_date`, `des
 ('Ngày thành lập Công ty', 'COMPANY', 'ACTIVE', '2024-06-15', '2024-06-15', 'Kỷ niệm thành lập công ty', NOW(), NOW(), NULL);
 
 -- ============================================
--- 19. ROOMS (Phòng họp)
+-- 20. ROOMS (Phòng họp)
 -- ============================================
 TRUNCATE TABLE `rooms`;
 INSERT INTO `rooms` (`name`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
@@ -1069,14 +1071,7 @@ INSERT INTO `rooms` (`name`, `is_active`, `created_at`, `updated_at`, `deleted_a
 ('Phòng phỏng vấn', 1, NOW(), NOW(), NULL);
 
 -- ============================================
--- 20. SCHEDULE_WORKS (Lịch làm việc)
--- ============================================
-TRUNCATE TABLE `schedule_works`;
-INSERT INTO `schedule_works` (`start_date`, `end_date`, `hour_start_morning`, `hour_end_morning`, `hour_start_afternoon`, `hour_end_afternoon`, `type`, `name`, `created_at`, `updated_at`, `deleted_at`) VALUES
-('2024-01-01', '2024-12-31', '2024-01-01 08:00:00', '2024-01-01 12:00:00', '2024-01-01 13:00:00', '2024-01-01 17:00:00', 'NORMAL', 'Lịch làm việc chuẩn 2024', NOW(), NOW(), NULL);
-
--- ============================================
--- 21. DAILY_REPORTS (Báo cáo công việc hàng ngày)
+-- 22. DAILY_REPORTS (Báo cáo công việc hàng ngày)
 -- ============================================
 TRUNCATE TABLE `daily_reports`;
 INSERT INTO `daily_reports` (`user_id`, `project_id`, `title`, `work_date`, `actual_time`, `status`, `approved_by`, `reviewed_at`, `description`, `reject_reason`, `created_at`, `updated_at`)
@@ -1106,62 +1101,7 @@ FROM (
 ) numbers;
 
 -- ============================================
--- 22. ATTENDANCE_SESSIONS (Phiên chấm công - ĐẦY ĐỦ CÁC TRƯỜNG)
--- ============================================
-TRUNCATE TABLE `attendance_sessions`;
-INSERT INTO `attendance_sessions` (
-    `user_id`, 
-    `timesheet_id`,
-    `work_date`, 
-    `session_type`,
-    `checkin_time`, 
-    `checkout_time`, 
-    `duration`,
-    `is_open`,
-    `location_type`,
-    `checkin_photo`,
-    `checkout_photo`,
-    `note`,
-    `status`, 
-    `created_at`, 
-    `updated_at`, 
-    `deleted_at`
-)
-SELECT 
-    MOD(n, 90) + 7 as user_id,
-    NULL as timesheet_id,
-    DATE_SUB(CURDATE(), INTERVAL n DAY) as work_date,
-    'WORK' as session_type,
-    DATE_SUB(DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 8 HOUR), INTERVAL MOD(n, 30) MINUTE) as checkin_time,
-    DATE_SUB(DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 17 HOUR), INTERVAL MOD(n, 20) MINUTE) as checkout_time,
-    (540 - MOD(n, 50)) as duration,
-    0 as is_open,
-    CASE WHEN MOD(n, 5) = 0 THEN 'REMOTE' ELSE 'OFFICE' END as location_type,
-    NULL as checkin_photo,
-    NULL as checkout_photo,
-    CASE 
-        WHEN MOD(n, 15) = 0 THEN 'Đi muộn do tắc đường'
-        WHEN MOD(n, 20) = 0 THEN 'Về sớm do có việc'
-        ELSE NULL
-    END as note,
-    CASE 
-        WHEN MOD(n, 10) < 8 THEN 'APPROVED'
-        WHEN MOD(n, 10) = 8 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    NOW(),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) b
-    WHERE a.N + b.N * 10 < 50
-) numbers;
-
--- ============================================
--- 23. TIME_SHEETS (Bảng công - 3,000 RECORDS: 100 users × 30 ngày)
+-- 24. TIME_SHEETS (Bảng công - 3,000 RECORDS: 100 users × 30 ngày)
 -- Từ 30 ngày trước 26/11/2025 đến 26/11/2025
 -- ============================================
 TRUNCATE TABLE `time_sheets`;
@@ -1172,23 +1112,8 @@ INSERT INTO `time_sheets` (
     `status`, 
     `checkin`, 
     `checkout`, 
-    `checkin_checkout`, 
-    `work_time_morning`, 
-    `work_time_afternoon`, 
-    `total_work_time`, 
-    `break_time`, 
-    `late_time`, 
-    `late_time_approved`,
-    `early_time`, 
-    `early_time_approved`,
     `remote`,
-    `day_off_id`,
-    `has_forgot_checkin_request`,
-    `has_late_early_request`,
-    `has_remote_work_request`,
-    `forgot_checkin_approved`,
-    `late_early_approved`,
-    `remote_work_approved`,
+    `total_work_time`,
     `is_complete`,
     `created_at`, 
     `updated_at`
@@ -1204,27 +1129,8 @@ SELECT
     END as status,
     DATE_ADD(DATE_ADD(work_date, INTERVAL 8 HOUR), INTERVAL MOD((user_id + day_offset), 30) MINUTE) as checkin,
     DATE_SUB(DATE_ADD(work_date, INTERVAL 17 HOUR), INTERVAL MOD((user_id + day_offset), 20) MINUTE) as checkout,
-    CONCAT(
-        DATE_FORMAT(DATE_ADD(DATE_ADD(work_date, INTERVAL 8 HOUR), INTERVAL MOD((user_id + day_offset), 30) MINUTE), '%H:%i'),
-        '-',
-        DATE_FORMAT(DATE_SUB(DATE_ADD(work_date, INTERVAL 17 HOUR), INTERVAL MOD((user_id + day_offset), 20) MINUTE), '%H:%i')
-    ) as checkin_checkout,
-    240 - MOD((user_id + day_offset), 30) as work_time_morning,
-    240 - MOD((user_id + day_offset), 20) as work_time_afternoon,
-    480 - MOD((user_id + day_offset), 50) as total_work_time,
-    60 as break_time,
-    CASE WHEN MOD((user_id + day_offset), 15) = 0 THEN MOD((user_id + day_offset), 30) ELSE 0 END as late_time,
-    CASE WHEN MOD((user_id + day_offset), 15) = 0 THEN MOD((user_id + day_offset), 30) ELSE NULL END as late_time_approved,
-    CASE WHEN MOD((user_id + day_offset), 20) = 0 THEN MOD((user_id + day_offset), 20) ELSE 0 END as early_time,
-    CASE WHEN MOD((user_id + day_offset), 20) = 0 THEN MOD((user_id + day_offset), 20) ELSE NULL END as early_time_approved,
     CASE WHEN MOD((user_id + day_offset), 5) = 0 THEN 'REMOTE' ELSE 'OFFICE' END as remote,
-    NULL as day_off_id,
-    CASE WHEN MOD((user_id + day_offset), 25) = 0 THEN 1 ELSE 0 END as has_forgot_checkin_request,
-    CASE WHEN MOD((user_id + day_offset), 15) = 0 OR MOD((user_id + day_offset), 20) = 0 THEN 1 ELSE 0 END as has_late_early_request,
-    CASE WHEN MOD((user_id + day_offset), 5) = 0 THEN 1 ELSE 0 END as has_remote_work_request,
-    CASE WHEN MOD((user_id + day_offset), 25) = 0 THEN 1 ELSE 0 END as forgot_checkin_approved,
-    CASE WHEN MOD((user_id + day_offset), 15) = 0 OR MOD((user_id + day_offset), 20) = 0 THEN 1 ELSE 0 END as late_early_approved,
-    CASE WHEN MOD((user_id + day_offset), 5) = 0 THEN 1 ELSE 0 END as remote_work_approved,
+    480 - MOD((user_id + day_offset), 50) as total_work_time,
     CASE WHEN MOD((user_id + day_offset), 10) < 8 THEN 1 ELSE 0 END as is_complete,
     NOW(),
     NOW()
@@ -1268,7 +1174,7 @@ FROM (
 ) user_date_matrix;
 
 -- ============================================
--- 24. ASSETS (Tài sản công ty - THEO ĐÚNG SCHEMA)
+-- 25. ASSETS (Tài sản công ty - THEO ĐÚNG SCHEMA)
 -- ============================================
 TRUNCATE TABLE `assets`;
 INSERT INTO `assets` (
@@ -1323,7 +1229,7 @@ INSERT INTO `assets` (
 ('Projector Epson EB-X05', 'Máy chiếu phòng họp', 'ASSET-EQU-002', 'EQUIPMENT', 'Epson', 'EB-X05', 'EPEBX05-001', '2023-01-05', 12000000, '2026-01-05', 'Phòng họp A', 'ASSIGNED', NULL, NULL, '3300 lumens, XGA resolution', 1, NOW(), NOW(), NULL);
 
 -- ============================================
--- 25. NOTIFICATIONS (Thông báo hệ thống - THEO ĐÚNG SCHEMA)
+-- 26. NOTIFICATIONS (Thông báo hệ thống - THEO ĐÚNG SCHEMA)
 -- Schema: title, content, news_id, created_by, timestamps
 -- ============================================
 TRUNCATE TABLE `notifications`;
@@ -1335,7 +1241,7 @@ INSERT INTO `notifications` (`title`, `content`, `news_id`, `created_by`, `creat
 ('Chúc mừng sinh nhật!', 'Chúc mừng sinh nhật Nguyễn Văn Minh! Chúc bạn một ngày sinh nhật vui vẻ và hạnh phúc.', NULL, 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), NULL);
 
 -- ============================================
--- 26. USER_NOTIFICATIONS (Thông báo đến user)
+-- 27. USER_NOTIFICATIONS (Thông báo đến user)
 -- ============================================
 TRUNCATE TABLE `user_notifications`;
 INSERT INTO `user_notifications` (`user_id`, `notification_id`, `is_read`, `read_at`, `created_at`, `updated_at`, `deleted_at`)
@@ -1372,227 +1278,280 @@ FROM (
 ) numbers;
 
 -- ============================================
--- 27. DAY_OFFS (Đơn nghỉ phép)
+-- 28. ATTENDANCE_REQUESTS (Yêu cầu chấm công - BẢNG CHÍNH)
 -- ============================================
-TRUNCATE TABLE `day_offs`;
-INSERT INTO `day_offs` (`user_id`, `work_date`, `duration`, `status`, `type`, `title`, `reason`, `approved_by`, `approved_at`, `is_past`, `balance_deducted`, `created_at`, `updated_at`, `deleted_at`)
+TRUNCATE TABLE `attendance_requests`;
+
+-- Tạo attendance_requests cho DAY_OFF (50 requests)
+INSERT INTO `attendance_requests` (`user_id`, `timesheet_id`, `work_date`, `request_type`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `rejected_reason`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
-    MOD(n, 90) + 7 as user_id,
-    DATE_ADD(CURDATE(), INTERVAL n DAY) as work_date,
+    ts.user_id,
+    ts.id as timesheet_id,
+    ts.work_date,
+    'DAY_OFF' as request_type,
     CASE 
-        WHEN MOD(n, 5) = 0 THEN 'MORNING'
-        WHEN MOD(n, 5) = 1 THEN 'AFTERNOON'
-        ELSE 'FULL_DAY'
-    END as duration,
-    CASE 
-        WHEN n < 30 THEN 'APPROVED'
-        WHEN n < 45 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    CASE 
-        WHEN MOD(n, 6) = 0 THEN 'SICK'
-        WHEN MOD(n, 6) = 1 THEN 'PERSONAL'
-        WHEN MOD(n, 6) = 2 THEN 'UNPAID'
-        ELSE 'PAID'
-    END as type,
-    CASE 
-        WHEN MOD(n, 6) = 0 THEN 'Nghỉ ốm'
-        WHEN MOD(n, 6) = 1 THEN 'Việc gia đình'
-        WHEN MOD(n, 6) = 2 THEN 'Nghỉ không lương'
+        WHEN MOD(MOD(ts.id, 50), 6) = 0 THEN 'Nghỉ ốm'
+        WHEN MOD(MOD(ts.id, 50), 6) = 1 THEN 'Việc gia đình'
+        WHEN MOD(MOD(ts.id, 50), 6) = 2 THEN 'Nghỉ không lương'
         ELSE 'Nghỉ phép năm'
     END as title,
     CASE 
-        WHEN MOD(n, 6) = 0 THEN 'Bị cảm, sốt cao cần nghỉ ngơi'
-        WHEN MOD(n, 6) = 1 THEN 'Có việc gia đình cần giải quyết'
-        WHEN MOD(n, 6) = 2 THEN 'Cần nghỉ để đi du lịch'
+        WHEN MOD(MOD(ts.id, 50), 6) = 0 THEN 'Bị cảm, sốt cao cần nghỉ ngơi'
+        WHEN MOD(MOD(ts.id, 50), 6) = 1 THEN 'Có việc gia đình cần giải quyết'
+        WHEN MOD(MOD(ts.id, 50), 6) = 2 THEN 'Cần nghỉ để đi du lịch'
         ELSE 'Nghỉ phép thường niên'
     END as reason,
-    CASE WHEN n < 45 THEN MOD(n, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN n < 45 THEN DATE_SUB(NOW(), INTERVAL n HOUR) ELSE NULL END as approved_at,
-    0 as is_past,
-    CASE WHEN n < 30 THEN 1 ELSE 0 END as balance_deducted,
-    DATE_SUB(NOW(), INTERVAL (n + 10) HOUR),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5) b
-    WHERE a.N + b.N * 10 < 50
-) numbers;
+    CASE 
+        WHEN MOD(ts.id, 50) < 30 THEN 'APPROVED'
+        WHEN MOD(ts.id, 50) < 45 THEN 'PENDING'
+        ELSE 'REJECTED'
+    END as status,
+    CASE WHEN MOD(ts.id, 50) < 45 THEN MOD(MOD(ts.id, 50), 6) + 7 ELSE NULL END as approved_by,
+    CASE WHEN MOD(ts.id, 50) < 45 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 50) HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 50) >= 45 THEN 'Không đủ số ngày phép còn lại' ELSE NULL END as rejected_reason,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 50) + 10) HOUR) as created_at,
+    NOW() as updated_at,
+    NULL as deleted_at
+FROM time_sheets ts
+WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+  AND MOD(ts.id, 10) = 0  -- Lấy mẫu 1/10 timesheets
+LIMIT 50;
 
--- ============================================
--- 28. OVER_TIMES_HISTORY (Lịch sử làm thêm giờ)
--- ============================================
-TRUNCATE TABLE `over_times_history`;
-INSERT INTO `over_times_history` (`user_id`, `work_date`, `title`, `start_time`, `end_time`, `total_hours`, `hourly_rate`, `total_amount`, `project_id`, `reason`, `status`, `approved_by`, `approved_at`, `created_at`, `updated_at`, `deleted_at`)
+-- Tạo attendance_requests cho REMOTE_WORK (40 requests)
+INSERT INTO `attendance_requests` (`user_id`, `timesheet_id`, `work_date`, `request_type`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `rejected_reason`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
-    MOD(n, 90) + 7 as user_id,
-    DATE_SUB(CURDATE(), INTERVAL n DAY) as work_date,
-    CONCAT('Làm thêm giờ dự án ', CASE MOD(n, 5) + 1 
+    ts.user_id,
+    ts.id as timesheet_id,
+    ts.work_date,
+    'REMOTE_WORK' as request_type,
+    'Xin phép làm việc từ xa' as title,
+    CASE 
+        WHEN MOD(ts.id, 4) = 0 THEN 'Cần đưa con đi học sáng'
+        WHEN MOD(ts.id, 4) = 1 THEN 'Có việc gia đình buổi chiều'
+        WHEN MOD(ts.id, 4) = 2 THEN 'Thời tiết xấu, đường xa'
+        ELSE 'Tăng hiệu suất làm việc tại nhà'
+    END as reason,
+    CASE 
+        WHEN MOD(ts.id, 40) < 25 THEN 'APPROVED'
+        WHEN MOD(ts.id, 40) < 35 THEN 'PENDING'
+        ELSE 'REJECTED'
+    END as status,
+    CASE WHEN MOD(ts.id, 40) < 35 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
+    CASE WHEN MOD(ts.id, 40) < 35 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 40) HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 40) >= 35 THEN 'Yêu cầu không hợp lệ' ELSE NULL END as rejected_reason,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 40) + 8) HOUR) as created_at,
+    NOW() as updated_at,
+    NULL as deleted_at
+FROM time_sheets ts
+WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+  AND MOD(ts.id, 10) = 1  -- Lấy mẫu khác
+LIMIT 40;
+
+-- Tạo attendance_requests cho LATE_EARLY (35 requests)
+INSERT INTO `attendance_requests` (`user_id`, `timesheet_id`, `work_date`, `request_type`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `rejected_reason`, `created_at`, `updated_at`, `deleted_at`)
+SELECT 
+    ts.user_id,
+    ts.id as timesheet_id,
+    ts.work_date,
+    'LATE_EARLY' as request_type,
+    CASE 
+        WHEN MOD(ts.id, 3) = 0 THEN 'Xin phép đi muộn'
+        WHEN MOD(ts.id, 3) = 1 THEN 'Xin phép về sớm'
+        ELSE 'Xin phép đi muộn và về sớm'
+    END as title,
+    CASE 
+        WHEN MOD(ts.id, 3) = 0 THEN 'Xe hỏng trên đường đi làm'
+        WHEN MOD(ts.id, 3) = 1 THEN 'Cần đón con tan trường'
+        ELSE 'Có hẹn khám bệnh'
+    END as reason,
+    CASE 
+        WHEN MOD(ts.id, 35) < 20 THEN 'APPROVED'
+        WHEN MOD(ts.id, 35) < 30 THEN 'PENDING'
+        ELSE 'REJECTED'
+    END as status,
+    CASE WHEN MOD(ts.id, 35) < 30 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
+    CASE WHEN MOD(ts.id, 35) < 30 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 35) * 2 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 35) >= 30 THEN 'Lý do không hợp lệ' ELSE NULL END as rejected_reason,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 35) + 6) HOUR) as created_at,
+    NOW() as updated_at,
+    NULL as deleted_at
+FROM time_sheets ts
+WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+  AND MOD(ts.id, 10) = 2  -- Lấy mẫu khác
+LIMIT 35;
+
+-- Tạo attendance_requests cho FORGOT_CHECKIN (25 requests)
+INSERT INTO `attendance_requests` (`user_id`, `timesheet_id`, `work_date`, `request_type`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `rejected_reason`, `created_at`, `updated_at`, `deleted_at`)
+SELECT 
+    ts.user_id,
+    ts.id as timesheet_id,
+    ts.work_date,
+    'FORGOT_CHECKIN' as request_type,
+    'Xin bổ sung chấm công' as title,
+    CASE 
+        WHEN MOD(ts.id, 4) = 0 THEN 'Quên mang thẻ từ'
+        WHEN MOD(ts.id, 4) = 1 THEN 'Máy chấm công hỏng'
+        WHEN MOD(ts.id, 4) = 2 THEN 'Vào công ty bằng cổng phụ'
+        ELSE 'Điện thoại hết pin không check-in được'
+    END as reason,
+    CASE 
+        WHEN MOD(ts.id, 25) < 15 THEN 'APPROVED'
+        WHEN MOD(ts.id, 25) < 22 THEN 'PENDING'
+        ELSE 'REJECTED'
+    END as status,
+    CASE WHEN MOD(ts.id, 25) < 22 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
+    CASE WHEN MOD(ts.id, 25) < 22 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 25) * 3 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 25) >= 22 THEN 'Không có bằng chứng' ELSE NULL END as rejected_reason,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 25) + 4) HOUR) as created_at,
+    NOW() as updated_at,
+    NULL as deleted_at
+FROM time_sheets ts
+WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+  AND MOD(ts.id, 10) = 3  -- Lấy mẫu khác
+LIMIT 25;
+
+-- Tạo attendance_requests cho OVERTIME (30 requests)
+INSERT INTO `attendance_requests` (`user_id`, `timesheet_id`, `work_date`, `request_type`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `rejected_reason`, `created_at`, `updated_at`, `deleted_at`)
+SELECT 
+    ts.user_id,
+    ts.id as timesheet_id,
+    ts.work_date,
+    'OVERTIME' as request_type,
+    CONCAT('Làm thêm giờ dự án ', CASE MOD(ts.id, 5) + 1 
         WHEN 1 THEN 'E-Commerce'
         WHEN 2 THEN 'Banking Core'
         WHEN 3 THEN 'HRM'
         WHEN 4 THEN 'Mobile Banking'
         ELSE 'AI Chatbot'
     END) as title,
+    'Cần hoàn thành tính năng theo deadline khách hàng yêu cầu' as reason,
+    CASE 
+        WHEN MOD(ts.id, 30) < 20 THEN 'APPROVED'
+        WHEN MOD(ts.id, 30) < 28 THEN 'PENDING'
+        ELSE 'REJECTED'
+    END as status,
+    CASE WHEN MOD(ts.id, 30) < 28 THEN MOD(ts.id, 5) + 7 ELSE NULL END as approved_by,
+    CASE WHEN MOD(ts.id, 30) < 28 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 30) * 2 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 30) >= 28 THEN 'Không đủ lý do chính đáng' ELSE NULL END as rejected_reason,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 30) + 5) HOUR) as created_at,
+    NOW() as updated_at,
+    NULL as deleted_at
+FROM time_sheets ts
+WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
+  AND MOD(ts.id, 10) = 4  -- Lấy mẫu khác
+LIMIT 30;
+
+-- ============================================
+-- 29. DAY_OFFS (Đơn nghỉ phép - Liên kết với attendance_requests)
+-- ============================================
+TRUNCATE TABLE `day_offs`;
+INSERT INTO `day_offs` (`request_id`, `duration`, `type`, `is_past`, `created_at`, `updated_at`, `deleted_at`)
+SELECT 
+    ar.id as request_id,
+    CASE 
+        WHEN MOD(ar.id, 5) = 0 THEN 'MORNING'
+        WHEN MOD(ar.id, 5) = 1 THEN 'AFTERNOON'
+        ELSE 'FULL_DAY'
+    END as duration,
+    CASE 
+        WHEN MOD(ar.id, 6) = 0 THEN 'SICK'
+        WHEN MOD(ar.id, 6) = 1 THEN 'PERSONAL'
+        WHEN MOD(ar.id, 6) = 2 THEN 'UNPAID'
+        ELSE 'PAID'
+    END as type,
+    0 as is_past,
+    ar.created_at,
+    ar.updated_at,
+    NULL as deleted_at
+FROM attendance_requests ar
+WHERE ar.request_type = 'DAY_OFF'
+ORDER BY ar.id;
+
+-- ============================================
+-- 30. OVER_TIMES_HISTORY (Lịch sử làm thêm giờ - Liên kết với attendance_requests)
+-- ============================================
+TRUNCATE TABLE `over_times_history`;
+INSERT INTO `over_times_history` (`request_id`, `start_time`, `end_time`, `total_hours`, `project_id`, `created_at`, `updated_at`, `deleted_at`)
+SELECT 
+    ar.id as request_id,
     '18:00:00' as start_time,
     CASE 
-        WHEN MOD(n, 3) = 0 THEN '21:00:00'
-        WHEN MOD(n, 3) = 1 THEN '22:00:00'
+        WHEN MOD(ar.id, 3) = 0 THEN '21:00:00'
+        WHEN MOD(ar.id, 3) = 1 THEN '22:00:00'
         ELSE '20:00:00'
     END as end_time,
     CASE 
-        WHEN MOD(n, 3) = 0 THEN 3.0
-        WHEN MOD(n, 3) = 1 THEN 4.0
+        WHEN MOD(ar.id, 3) = 0 THEN 3.0
+        WHEN MOD(ar.id, 3) = 1 THEN 4.0
         ELSE 2.0
     END as total_hours,
-    150000 + (MOD(n, 5) * 50000) as hourly_rate,
-    CASE 
-        WHEN MOD(n, 3) = 0 THEN (150000 + (MOD(n, 5) * 50000)) * 3
-        WHEN MOD(n, 3) = 1 THEN (150000 + (MOD(n, 5) * 50000)) * 4
-        ELSE (150000 + (MOD(n, 5) * 50000)) * 2
-    END as total_amount,
-    MOD(n, 5) + 1 as project_id,
-    'Cần hoàn thành tính năng theo deadline khách hàng yêu cầu' as reason,
-    CASE 
-        WHEN n < 20 THEN 'APPROVED'
-        WHEN n < 28 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    CASE WHEN n < 28 THEN MOD(n, 5) + 7 ELSE NULL END as approved_by,
-    CASE WHEN n < 28 THEN DATE_SUB(NOW(), INTERVAL n * 2 HOUR) ELSE NULL END as approved_at,
-    DATE_SUB(NOW(), INTERVAL (n + 5) HOUR),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2) b
-    WHERE a.N + b.N * 10 < 30
-) numbers;
+    MOD(ar.id, 5) + 1 as project_id,
+    ar.created_at,
+    ar.updated_at,
+    NULL as deleted_at
+FROM attendance_requests ar
+WHERE ar.request_type = 'OVERTIME'
+ORDER BY ar.id;
 
 -- ============================================
--- 29. REMOTE_WORK_REQUESTS (Đơn xin làm remote)
+-- 31. REMOTE_WORK_REQUESTS (Đơn xin làm remote - Liên kết với attendance_requests)
 -- ============================================
 TRUNCATE TABLE `remote_work_requests`;
-INSERT INTO `remote_work_requests` (`user_id`, `work_date`, `remote_type`, `duration`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `remote_work_requests` (`request_id`, `remote_type`, `duration`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
-    MOD(n, 90) + 7 as user_id,
-    DATE_ADD(CURDATE(), INTERVAL n DAY) as work_date,
+    ar.id as request_id,
     'REMOTE' as remote_type,
     CASE 
-        WHEN MOD(n, 4) = 0 THEN 'MORNING'
-        WHEN MOD(n, 4) = 1 THEN 'AFTERNOON'
+        WHEN MOD(ar.id, 4) = 0 THEN 'MORNING'
+        WHEN MOD(ar.id, 4) = 1 THEN 'AFTERNOON'
         ELSE 'FULL_DAY'
     END as duration,
-    'Xin phép làm việc từ xa' as title,
-    CASE 
-        WHEN MOD(n, 4) = 0 THEN 'Cần đưa con đi học sáng'
-        WHEN MOD(n, 4) = 1 THEN 'Có việc gia đình buổi chiều'
-        WHEN MOD(n, 4) = 2 THEN 'Thời tiết xấu, đường xa'
-        ELSE 'Tăng hiệu suất làm việc tại nhà'
-    END as reason,
-    CASE 
-        WHEN n < 25 THEN 'APPROVED'
-        WHEN n < 35 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    CASE WHEN n < 35 THEN MOD(n, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN n < 35 THEN DATE_SUB(NOW(), INTERVAL n HOUR) ELSE NULL END as approved_at,
-    DATE_SUB(NOW(), INTERVAL (n + 8) HOUR),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3) b
-    WHERE a.N + b.N * 10 < 40
-) numbers;
+    ar.created_at,
+    ar.updated_at,
+    NULL as deleted_at
+FROM attendance_requests ar
+WHERE ar.request_type = 'REMOTE_WORK'
+ORDER BY ar.id;
 
 -- ============================================
--- 30. LATE_EARLY_REQUESTS (Đơn xin đi muộn/về sớm)
+-- 32. LATE_EARLY_REQUESTS (Đơn xin đi muộn/về sớm - Liên kết với attendance_requests)
 -- ============================================
 TRUNCATE TABLE `late_early_requests`;
-INSERT INTO `late_early_requests` (`user_id`, `work_date`, `request_type`, `title`, `late_minutes`, `early_minutes`, `reason`, `status`, `approved_by`, `approved_at`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `late_early_requests` (`request_id`, `request_type`, `late_minutes`, `early_minutes`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
-    MOD(n, 90) + 7 as user_id,
-    DATE_ADD(CURDATE(), INTERVAL n DAY) as work_date,
+    ar.id as request_id,
     CASE 
-        WHEN MOD(n, 3) = 0 THEN 'LATE'
-        WHEN MOD(n, 3) = 1 THEN 'EARLY'
+        WHEN MOD(ar.id, 3) = 0 THEN 'LATE'
+        WHEN MOD(ar.id, 3) = 1 THEN 'EARLY'
         ELSE 'BOTH'
     END as request_type,
-    CASE 
-        WHEN MOD(n, 3) = 0 THEN 'Xin phép đi muộn'
-        WHEN MOD(n, 3) = 1 THEN 'Xin phép về sớm'
-        ELSE 'Xin phép đi muộn và về sớm'
-    END as title,
-    CASE WHEN MOD(n, 3) != 1 THEN 15 + (MOD(n, 6) * 15) ELSE NULL END as late_minutes,
-    CASE WHEN MOD(n, 3) != 0 THEN 30 + (MOD(n, 4) * 15) ELSE NULL END as early_minutes,
-    CASE 
-        WHEN MOD(n, 3) = 0 THEN 'Xe hỏng trên đường đi làm'
-        WHEN MOD(n, 3) = 1 THEN 'Cần đón con tan trường'
-        ELSE 'Có hẹn khám bệnh'
-    END as reason,
-    CASE 
-        WHEN n < 20 THEN 'APPROVED'
-        WHEN n < 30 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    CASE WHEN n < 30 THEN MOD(n, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN n < 30 THEN DATE_SUB(NOW(), INTERVAL n * 2 HOUR) ELSE NULL END as approved_at,
-    DATE_SUB(NOW(), INTERVAL (n + 6) HOUR),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3) b
-    WHERE a.N + b.N * 10 < 35
-) numbers;
+    CASE WHEN MOD(ar.id, 3) != 1 THEN 15 + (MOD(ar.id, 6) * 15) ELSE NULL END as late_minutes,
+    CASE WHEN MOD(ar.id, 3) != 0 THEN 30 + (MOD(ar.id, 4) * 15) ELSE NULL END as early_minutes,
+    ar.created_at,
+    ar.updated_at,
+    NULL as deleted_at
+FROM attendance_requests ar
+WHERE ar.request_type = 'LATE_EARLY'
+ORDER BY ar.id;
 
 -- ============================================
--- 31. FORGOT_CHECKIN_REQUESTS (Đơn xin bổ sung chấm công)
+-- 33. FORGOT_CHECKIN_REQUESTS (Đơn xin bổ sung chấm công - Liên kết với attendance_requests)
 -- ============================================
 TRUNCATE TABLE `forgot_checkin_requests`;
-INSERT INTO `forgot_checkin_requests` (`user_id`, `work_date`, `checkin_time`, `checkout_time`, `title`, `reason`, `status`, `approved_by`, `approved_at`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `forgot_checkin_requests` (`request_id`, `checkin_time`, `checkout_time`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
-    MOD(n, 90) + 7 as user_id,
-    DATE_SUB(CURDATE(), INTERVAL n DAY) as work_date,
-    DATE_SUB(DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 8 HOUR), INTERVAL MOD(n, 15) MINUTE) as checkin_time,
-    DATE_SUB(DATE_ADD(DATE_SUB(CURDATE(), INTERVAL n DAY), INTERVAL 17 HOUR), INTERVAL MOD(n, 10) MINUTE) as checkout_time,
-    'Xin bổ sung chấm công' as title,
-    CASE 
-        WHEN MOD(n, 4) = 0 THEN 'Quên mang thẻ từ'
-        WHEN MOD(n, 4) = 1 THEN 'Máy chấm công hỏng'
-        WHEN MOD(n, 4) = 2 THEN 'Vào công ty bằng cổng phụ'
-        ELSE 'Điện thoại hết pin không check-in được'
-    END as reason,
-    CASE 
-        WHEN n < 15 THEN 'APPROVED'
-        WHEN n < 22 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    CASE WHEN n < 22 THEN MOD(n, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN n < 22 THEN DATE_SUB(NOW(), INTERVAL n * 3 HOUR) ELSE NULL END as approved_at,
-    DATE_SUB(NOW(), INTERVAL (n + 4) HOUR),
-    NOW(),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2) b
-    WHERE a.N + b.N * 10 < 25
-) numbers;
+    ar.id as request_id,
+    DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 8 HOUR), INTERVAL MOD(ar.id, 15) MINUTE) as checkin_time,
+    DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 17 HOUR), INTERVAL MOD(ar.id, 10) MINUTE) as checkout_time,
+    ar.created_at,
+    ar.updated_at,
+    NULL as deleted_at
+FROM attendance_requests ar
+WHERE ar.request_type = 'FORGOT_CHECKIN'
+ORDER BY ar.id;
 
 -- ============================================
--- 32. ASSET_REQUESTS (Yêu cầu cấp phát tài sản)
+-- 34. ASSET_REQUESTS (Yêu cầu cấp phát tài sản)
 -- ============================================
 TRUNCATE TABLE `asset_requests`;
 INSERT INTO `asset_requests` (`user_id`, `asset_id`, `request_type`, `category`, `description`, `justification`, `expected_date`, `status`, `approved_by`, `approved_at`, `fulfilled_at`, `created_at`, `updated_at`, `deleted_at`)
@@ -1610,7 +1569,7 @@ VALUES
 (30, 16, 'RETURN', 'LAPTOP', 'Trả lại laptop dự phòng', 'Đã được cấp laptop mới', CURDATE(), 'RETURNED', 2, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY), NOW(), NULL);
 
 -- ============================================
--- 33. ROOM_BOOKINGS (Đặt phòng họp)
+-- 35. ROOM_BOOKINGS (Đặt phòng họp)
 -- ============================================
 TRUNCATE TABLE `room_bookings`;
 INSERT INTO `room_bookings` (`room_id`, `title`, `description`, `start_time`, `end_time`, `organizer_id`, `created_at`, `updated_at`, `deleted_at`)
@@ -1651,44 +1610,7 @@ FROM (
 ) numbers;
 
 -- ============================================
--- 34. LEAVE_TRANSACTIONS (Giao dịch phép)
--- ============================================
-TRUNCATE TABLE `leave_transactions`;
-INSERT INTO `leave_transactions` (`user_id`, `transaction_type`, `leave_type`, `amount`, `balance_after`, `description`, `created_at`, `updated_at`, `deleted_at`)
-SELECT 
-    id as user_id,
-    'EARNED' as transaction_type,
-    'PAID' as leave_type,
-    3.0 as amount,
-    36.0 as balance_after,
-    'Cộng phép tháng 1/2024' as description,
-    '2024-01-01 00:00:00',
-    '2024-01-01 00:00:00',
-    NULL
-FROM users 
-WHERE id BETWEEN 7 AND 100
-UNION ALL
--- Một số user đã sử dụng phép
-SELECT 
-    MOD(n, 90) + 7 as user_id,
-    'USED' as transaction_type,
-    'PAID' as leave_type,
-    -1.0 as amount,
-    35.0 - MOD(n, 5) as balance_after,
-    CONCAT('Sử dụng phép ngày ', DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL n DAY), '%d/%m/%Y')) as description,
-    DATE_SUB(NOW(), INTERVAL n * 24 HOUR),
-    DATE_SUB(NOW(), INTERVAL n * 24 HOUR),
-    NULL
-FROM (
-    SELECT a.N + b.N * 10 as n
-    FROM 
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) a,
-        (SELECT 0 AS N UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3) b
-    WHERE a.N + b.N * 10 < 30
-) numbers;
-
--- ============================================
--- 35. ROTATION_MEMBERS (Luân chuyển nhân sự)
+-- 36. ROTATION_MEMBERS (Luân chuyển nhân sự)
 -- ============================================
 TRUNCATE TABLE `rotation_members`;
 INSERT INTO `rotation_members` (`from_id`, `to_id`, `user_id`, `type`, `date_rotation`, `created_at`, `updated_at`, `deleted_at`)
@@ -1794,11 +1716,8 @@ SET FOREIGN_KEY_CHECKS=1;
 -- ✅ Daily Reports: 100 báo cáo
 -- ✅ Holidays: 6 ngày lễ
 -- ✅ Rooms: 6 phòng họp
--- ✅ Schedule Works: 1 lịch làm việc
--- ✅ Attendance Sessions: 50 phiên chấm công
--- ✅ Time Sheets: 50 bảng công
+-- ✅ Time Sheets: 3,000 bảng công (100 users × 30 ngày)
 -- ✅ Assets: 20 tài sản
--- ✅ News: 6 tin tức
 -- ✅ Notifications: 5 thông báo
 -- ✅ User Notifications: 200 thông báo đến users
 -- ✅ Day Offs: 50 đơn nghỉ phép
@@ -1808,8 +1727,9 @@ SET FOREIGN_KEY_CHECKS=1;
 -- ✅ Forgot Checkin Requests: 25 đơn xin bổ sung chấm công
 -- ✅ Asset Requests: 8 yêu cầu cấp phát tài sản
 -- ✅ Room Bookings: 30 đặt phòng họp
--- ✅ Leave Transactions: 124 giao dịch phép (94 EARNED + 30 USED)
 -- ✅ Rotation Members: 5 luân chuyển nhân sự
+-- ✅ Attendance Requests: 180 yêu cầu chấm công
+-- ✅ Project Milestones: 25 cột mốc dự án
 -- 
--- TỔNG CỘNG: 36 BẢNG với ~3,500+ records
+-- TỔNG CỘNG: 35 BẢNG với ~4,000+ records
 -- ============================================

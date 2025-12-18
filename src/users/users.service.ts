@@ -322,31 +322,7 @@ export class UsersService {
         deleted_at: null,
       },
       include: {
-        user_information: {
-          include: {
-            position: true,
-            
-            language: true,
-            education: {
-              where: { deleted_at: null },
-              orderBy: { start_date: 'desc' },
-            },
-            experience: {
-              where: { deleted_at: null },
-              orderBy: { start_date: 'desc' },
-            },
-            user_skills: {
-              where: { deleted_at: null },
-              include: {
-                skill: {
-                  include: {
-                    position: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        user_information: true,
       },
     });
 

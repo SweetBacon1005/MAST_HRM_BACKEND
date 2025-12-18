@@ -27,12 +27,39 @@ import { AuthorizationContextService } from '../services/authorization-context.s
 export const GetAuthContext = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    const user = request.user;
+    let user = request.user;
 
     if (!user) {
       throw new Error(
         'User not found in request. Ensure JwtAuthGuard is applied before GetAuthContext.',
       );
+    }
+
+    // TỐI ƯU: Lazy load roles nếu chưa có
+    if (!user.roleContexts) {
+      const app = request.app;
+      if (app) {
+        try {
+          const roleContextCacheService = app.get('RoleContextCacheService');
+          if (roleContextCacheService) {
+            const roleContexts =
+              await roleContextCacheService.getUserRoleContexts(user.id);
+            
+            // Update user object
+            user = {
+              ...user,
+              roleContexts: roleContexts.roleContexts,
+              highestRoles: roleContexts.highestRoles,
+            };
+            
+            // Update request.user để cache
+            request.user = user;
+          }
+        } catch (error) {
+          // Nếu không load được, user vẫn có thể dùng nhưng không có roles
+          console.warn('Failed to lazy load roles for GetAuthContext:', error);
+        }
+      }
     }
 
     // Get AuthorizationContextService from the app context

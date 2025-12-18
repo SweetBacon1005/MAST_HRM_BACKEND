@@ -307,8 +307,6 @@ export class TimesheetController {
     return this.timesheetService.removeTimesheet(id);
   }
 
-  // Face registeration for check-in/out
-
   @Post('register-face')
   @RequirePermission('user.profile.update')
   @ApiOperation({
