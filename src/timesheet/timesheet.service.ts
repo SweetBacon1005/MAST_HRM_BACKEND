@@ -2492,7 +2492,7 @@ export class TimesheetService {
         );
       }
 
-      // Check 2: Tổng số phút
+      // Check 2: Tổng số phút (request quota)
       const totalMinutesAfterRequest =
         quota.late_early.used_minutes + (requestMinutes || 0);
 
@@ -2501,21 +2501,11 @@ export class TimesheetService {
           `Không đủ quota phút đi muộn/về sớm. Hiện có: ${quota.late_early.remaining_minutes} phút, cần: ${requestMinutes} phút (Đã dùng: ${quota.late_early.used_minutes}/${quota.late_early.minutes_quota} phút)`,
         );
       }
+
     }
   }
 
   async getLateEarlyBalance(user_id: number) {
-    // Lấy quota từ user_leave_balances
-    const leaveBalance = await this.prisma.user_leave_balances.findUnique({
-      where: { user_id },
-      select: {
-        monthly_violation_minutes_quota: true,
-        last_reset_date: true,
-      },
-    });
-
-    const quota = leaveBalance?.monthly_violation_minutes_quota || 60; // Default 60 phút
-
     // Tính tổng phút muộn + sớm từ các requests đã được APPROVE trong tháng hiện tại
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -2545,14 +2535,9 @@ export class TimesheetService {
     return {
       month: now.getMonth() + 1,
       year: now.getFullYear(),
-      quota: quota,
       used_minutes: totalUsedMinutes,
       used_late_minutes: usedLateMinutes,
       used_early_minutes: usedEarlyMinutes,
-      remaining_minutes: Math.max(0, quota - totalUsedMinutes),
-      exceeded: totalUsedMinutes > quota,
-      exceeded_by: Math.max(0, totalUsedMinutes - quota),
-      last_reset_date: leaveBalance?.last_reset_date || null,
     };
   }
 }

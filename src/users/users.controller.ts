@@ -109,4 +109,35 @@ export class UsersController {
   ) {
     return this.usersService.remove(+id, deletedBy);
   }
+
+  @Patch(':id/unregister-face')
+  @RequirePermission('user.update')
+  @ApiOperation({
+    summary: 'Hủy đăng ký khuôn mặt',
+    description: 'Xóa thông tin đăng ký khuôn mặt của user (set register_face_url và register_face_at về null)',
+  })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Hủy đăng ký khuôn mặt thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Hủy đăng ký khuôn mặt thành công' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            email: { type: 'string' },
+            register_face_url: { type: 'null' },
+            register_face_at: { type: 'null' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy user' })
+  unregisterFace(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.unregisterFace(id);
+  }
 }

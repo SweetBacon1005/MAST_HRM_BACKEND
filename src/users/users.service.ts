@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Prisma, ScopeType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
@@ -424,23 +428,39 @@ export class UsersService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    // Loại bỏ password nếu có ai cố gắng gửi (bảo mật)
-    const { password: _password, name, ...safeUpdateData } = updateUserDto as any;
+    if (updateUserDto.email && updateUserDto.email.toLowerCase() !== user.email) {
+      const existingUser = await this.prisma.users.findFirst({
+        where: {
+          email: updateUserDto.email.toLowerCase(),
+          deleted_at: null,
+          id: { not: id },
+        },
+      });
 
-    // Tách dữ liệu: name vào user_information, các trường khác vào users
+      if (existingUser) {
+        throw new BadRequestException('Email đã được sử dụng bởi user khác');
+      }
+    }
+
+    const { name, ...userUpdateData } = updateUserDto;
+
+    const usersUpdateData: any = { ...userUpdateData };
+
+    if (usersUpdateData.email) {
+      usersUpdateData.email = usersUpdateData.email.toLowerCase();
+    }
+
     const updatePromises: Promise<any>[] = [];
 
-    // Cập nhật thông tin trong bảng users (email, role_id, status...)
-    if (Object.keys(safeUpdateData).length > 0) {
+    if (Object.keys(usersUpdateData).length > 0) {
       updatePromises.push(
         this.prisma.users.update({
           where: { id: id },
-          data: safeUpdateData,
-        })
+          data: usersUpdateData,
+        }),
       );
     }
 
-    // Cập nhật name vào bảng user_information
     if (name !== undefined && user.user_information?.id) {
       updatePromises.push(
         this.prisma.user_information.update({
@@ -450,11 +470,10 @@ export class UsersService {
           data: {
             name: name,
           },
-        })
+        }),
       );
     }
 
-    // Thực hiện tất cả update cùng lúc
     await Promise.all(updatePromises);
 
     // Lấy lại user đã update
@@ -483,5 +502,27 @@ export class UsersService {
       },
     });
 
+  }
+
+  async unregisterFace(user_id: number) {
+    const user = await this.findById(user_id);
+
+    if (!user) {
+      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    }
+
+    const updatedUser = await this.prisma.users.update({
+      where: { id: user_id },
+      data: {
+        register_face_url: null,
+        register_face_at: null,
+      },
+    });
+
+    const { password: _, ...result } = updatedUser as any;
+    return {
+      message: 'Hủy đăng ký khuôn mặt thành công',
+      data: result,
+    };
   }
 }

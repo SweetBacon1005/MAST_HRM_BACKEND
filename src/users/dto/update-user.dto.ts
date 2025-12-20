@@ -1,14 +1,13 @@
-import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsInt, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
-import { CreateUserDto } from './create-user.dto';
+import {
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { UserInformationStatus } from '@prisma/client';
 
-// Loại bỏ password và role_id khỏi CreateUserDto
-// role_id được quản lý qua user_role_assignment, không update trực tiếp
-export class UpdateUserDto extends PartialType(
-  OmitType(CreateUserDto, ['password', 'role_id'] as const),
-) {
+export class UpdateUserDto {
   @ApiProperty({
     description: 'Tên người dùng',
     example: 'Nguyễn Văn B',
@@ -26,4 +25,16 @@ export class UpdateUserDto extends PartialType(
   @IsOptional()
   @IsEmail({}, { message: 'Email không hợp lệ' })
   email?: string;
+
+  @ApiProperty({
+    description: 'Trạng thái người dùng',
+    enum: UserInformationStatus,
+    example: UserInformationStatus.ACTIVE,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(UserInformationStatus, {
+    message: 'Trạng thái không hợp lệ',
+  })
+  status?: UserInformationStatus;
 }

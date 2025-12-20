@@ -586,7 +586,6 @@ model user_leave_balances {
   annual_paid_leave_quota         Float     @default(36)
   carry_over_days                 Float     @default(0)
   last_reset_date                 DateTime? @db.Date
-  monthly_violation_minutes_quota Int       @default(60)
   monthly_forgot_checkin_quota    Int       @default(3)
   monthly_late_early_quota        Int       @default(120)
   monthly_late_early_count_quota  Int       @default(3)

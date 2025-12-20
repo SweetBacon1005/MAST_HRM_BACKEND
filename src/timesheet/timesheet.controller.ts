@@ -624,18 +624,16 @@ export class TimesheetController {
   @Get('late-early-balance')
   @RequirePermission('attendance.read')
   @ApiOperation({
-    summary: 'Lấy số phút đi muộn/về sớm còn lại trong tháng',
+    summary: 'Lấy số phút đi muộn/về sớm đã được duyệt trong tháng',
     description: `
-      Trả về thông tin số phút đi muộn/về sớm của user trong tháng hiện tại.
+      Trả về thông tin số phút đi muộn/về sớm đã được duyệt (APPROVED) của user trong tháng hiện tại.
       
       **Response bao gồm:**
-      - quota: Tổng số phút được phép/tháng (mặc định 60 phút)
-      - used_minutes: Tổng số phút đã dùng (late + early)
-      - used_late_minutes: Số phút đi muộn
-      - used_early_minutes: Số phút về sớm
-      - remaining_minutes: Số phút còn lại
-      - exceeded: Đã vượt quota chưa
-      - exceeded_by: Số phút vượt quá (nếu có)
+      - used_minutes: Tổng số phút đã dùng (late + early) từ các requests đã được duyệt
+      - used_late_minutes: Số phút đi muộn đã được duyệt
+      - used_early_minutes: Số phút về sớm đã được duyệt
+      
+      **Lưu ý:** Chỉ tính các requests đã được APPROVE, không có quota giới hạn.
     `,
   })
   @ApiResponse({
@@ -645,14 +643,9 @@ export class TimesheetController {
       example: {
         month: 12,
         year: 2025,
-        quota: 60,
         used_minutes: 45,
         used_late_minutes: 30,
         used_early_minutes: 15,
-        remaining_minutes: 15,
-        exceeded: false,
-        exceeded_by: 0,
-        last_reset_date: '2025-11-30',
       },
     },
   })

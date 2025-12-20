@@ -389,7 +389,7 @@ export class ScheduleAutomationService {
         }
       }
 
-      this.logger.log('🔄 Resetting violation minutes and request quota for new month...');
+      this.logger.log('🔄 Resetting request quota for new month...');
       
       const resetDate = new Date(today);
       resetDate.setHours(0, 0, 0, 0);
@@ -410,7 +410,7 @@ export class ScheduleAutomationService {
         `🎉 Monthly paid leave addition completed: ${updatedCount} users updated with +3 days paid leave`,
       );
       this.logger.log(
-        `✅ Violation minutes and request quota reset completed: ${resetResult.count} users updated`,
+        `✅ Request quota reset completed: ${resetResult.count} users updated`,
       );
     } catch (error) {
       this.logger.error('❌ Error adding monthly paid leave:', error);

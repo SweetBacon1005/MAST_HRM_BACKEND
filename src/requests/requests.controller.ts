@@ -267,9 +267,10 @@ export class RequestsController {
       - Quota phút: Tổng số phút được phép/tháng (mặc định 120 phút)
       - Phải đủ CẢ HAI mới tạo được request
       
-      **4. Late/Early Balance (Violation Minutes):**
-      - Quota phút đi muộn/về sớm/tháng (mặc định 60 phút)
-      - Đã dùng, còn lại, có vượt quota không
+      **4. Late/Early Balance:**
+      - Tổng số phút đi muộn/về sớm đã được duyệt trong tháng
+      - Chỉ tính các requests đã được APPROVE
+      - Không có quota giới hạn
       
       **5. Remote Work & Overtime:**
       - Không có giới hạn quota
@@ -322,14 +323,11 @@ export class RequestsController {
           overall_exceeded: false,
         },
         late_early_balance: {
-          quota: 60,
           used_minutes: 30,
           used_late_minutes: 20,
           used_early_minutes: 10,
-          remaining_minutes: 30,
-          exceeded: false,
-          exceeded_by: 0,
           unit: 'phút',
+          note: 'Tổng số phút đi muộn/về sớm đã được duyệt trong tháng (không có quota giới hạn)',
         },
         remote_work: {
           quota: null,

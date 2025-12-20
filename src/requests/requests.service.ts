@@ -1473,7 +1473,6 @@ export class RequestsService {
         monthly_forgot_checkin_quota: true,
         monthly_late_early_quota: true,
         monthly_late_early_count_quota: true,
-        monthly_violation_minutes_quota: true,
         last_reset_date: true,
       },
     });
@@ -1522,9 +1521,6 @@ export class RequestsService {
     const lateEarlyCountQuota =
       leaveBalanceData?.monthly_late_early_count_quota || 3;
 
-    const violationQuota =
-      leaveBalanceData?.monthly_violation_minutes_quota || 60;
-
     return {
       month: now.getMonth() + 1,
       year: now.getFullYear(),
@@ -1570,14 +1566,11 @@ export class RequestsService {
           totalLateEarlyMinutes >= lateEarlyMinutesQuota,
       },
       late_early_balance: {
-        quota: violationQuota,
         used_minutes: totalUsedMinutes,
         used_late_minutes: usedLateMinutes,
         used_early_minutes: usedEarlyMinutes,
-        remaining_minutes: Math.max(0, violationQuota - totalUsedMinutes),
-        exceeded: totalUsedMinutes > violationQuota,
-        exceeded_by: Math.max(0, totalUsedMinutes - violationQuota),
         unit: 'phút',
+        note: 'Tổng số phút đi muộn/về sớm đã được duyệt trong tháng (không có quota giới hạn)',
       },
       last_reset_date: leaveBalanceData?.last_reset_date || null,
     };
