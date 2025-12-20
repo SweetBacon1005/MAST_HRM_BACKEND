@@ -726,4 +726,112 @@ export class TeamService {
       joined_at: a.created_at,
     }));
   }
+
+  async getMyManagedTeams(userId: number) {
+    // Lấy tất cả team assignments với role TEAM_LEADER của user
+    const teamAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        user_id: userId,
+        role_id: ROLE_IDS.TEAM_LEADER,
+        scope_type: ScopeType.TEAM,
+        deleted_at: null,
+        scope_id: { not: null },
+      },
+      select: {
+        scope_id: true,
+      },
+    });
+
+    const teamIds = teamAssignments
+      .map((a) => a.scope_id)
+      .filter((id): id is number => id !== null);
+
+    if (teamIds.length === 0) {
+      return {
+        message: 'Bạn chưa quản lý team nào',
+        data: [],
+        total: 0,
+      };
+    }
+
+    // Lấy thông tin teams
+    const validTeams = await this.prisma.teams.findMany({
+      where: {
+        id: { in: teamIds },
+        deleted_at: null,
+      },
+      include: {
+        division: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Get member counts and active projects in parallel
+    const [memberCounts, activeProjects] = await Promise.all([
+      this.prisma.user_role_assignment.groupBy({
+        by: ['scope_id'],
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: { in: teamIds },
+          deleted_at: null,
+        },
+        _count: { user_id: true },
+      }),
+      this.prisma.projects.findMany({
+        where: {
+          team_id: { in: teamIds },
+          status: { in: ['OPEN', 'IN_PROGRESS'] },
+          deleted_at: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          team_id: true,
+        },
+      }),
+    ]);
+
+    const memberCountMap = new Map(
+      memberCounts.map((mc) => [mc.scope_id, mc._count.user_id]),
+    );
+
+    const projectsByTeam = new Map<number, Array<{ id: number; name: string }>>();
+    activeProjects.forEach((project) => {
+      if (project.team_id) {
+        if (!projectsByTeam.has(project.team_id)) {
+          projectsByTeam.set(project.team_id, []);
+        }
+        projectsByTeam.get(project.team_id)?.push({
+          id: project.id,
+          name: project.name,
+        });
+      }
+    });
+
+    // Transform data
+    const transformedData = validTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      division_id: team.division_id,
+      division: team.division
+        ? {
+            id: team.division.id,
+            name: team.division.name,
+          }
+        : null,
+      member_count: memberCountMap.get(team.id) || 0,
+      active_projects: projectsByTeam.get(team.id) || [],
+      founding_date: team.founding_date
+        ? team.founding_date.toISOString().split('T')[0]
+        : null,
+      created_at: team.created_at,
+    }));
+
+    return {
+      message: 'Lấy danh sách teams đang quản lý thành công',
+      data: transformedData,
+      total: transformedData.length,
+    };
+  }
 }

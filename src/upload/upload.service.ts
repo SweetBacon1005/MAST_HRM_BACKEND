@@ -7,7 +7,6 @@ import { PresignedUrlResponseDto } from './dto/presigned-url-response.dto';
 @Injectable()
 export class UploadService {
   constructor(private configService: ConfigService) {
-    // Cấu hình Cloudinary
     cloudinary.config({
       cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
       api_key: this.configService.get('CLOUDINARY_API_KEY'),
@@ -15,9 +14,6 @@ export class UploadService {
     });
   }
 
-  /**
-   * Tạo presigned URL để upload ảnh lên Cloudinary
-   */
   async getPresignedUrl(
     user_id: number,
     getPresignedUrlDto: GetPresignedUrlDto,
@@ -25,7 +21,6 @@ export class UploadService {
     try {
       const { file_type, folder = 'avatars' } = getPresignedUrlDto;
 
-      // Kiểm tra loại file được phép
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file_type)) {
         throw new BadRequestException(
@@ -33,11 +28,9 @@ export class UploadService {
         );
       }
 
-      // Tạo public_id duy nhất
       const timestamp = Date.now();
       const public_id = `${folder}/${user_id}_${timestamp}`;
 
-      // Tạo signature cho upload
       const uploadParams = {
         public_id,
         timestamp: Math.round(timestamp / 1000),
@@ -45,13 +38,11 @@ export class UploadService {
         transformation: 'w_500,h_500,c_fill,q_auto:good,f_webp',
       };
 
-      // Tạo signature
       const signature = cloudinary.utils.api_sign_request(
         uploadParams,
         this.configService.get('CLOUDINARY_API_SECRET') || '',
       );
 
-      // Tạo URL upload
       const cloudName = this.configService.get('CLOUDINARY_CLOUD_NAME');
       const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
@@ -63,7 +54,7 @@ export class UploadService {
         api_key: this.configService.get('CLOUDINARY_API_KEY') || '',
         folder,
         transformation: uploadParams.transformation,
-        expires_at: new Date(Date.now() + 60 * 60 * 1000), // 1 giờ
+        expires_at: new Date(Date.now() + 60 * 60 * 1000),
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -85,7 +76,6 @@ export class UploadService {
     try {
       await cloudinary.uploader.destroy(publicId);
     } catch {
-      // Silently fail image deletion
     }
   }
 

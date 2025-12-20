@@ -74,6 +74,69 @@ export class TeamController {
     return this.teamService.create(createTeamDto, assignedBy);
   }
 
+  @Get('managed')
+  @RequirePermission('team.read')
+  @ApiOperation({
+    summary: 'Lấy danh sách teams mà user đang quản lý',
+    description: `
+      Trả về danh sách tất cả teams mà user hiện tại đang có role Team Leader.
+      
+      **Logic:**
+      - Lấy tất cả user_role_assignment của user với role_id = TEAM_LEADER và scope_type = TEAM
+      - Lấy thông tin teams từ scope_id
+      - Bao gồm thông tin division, member count, và projects
+      
+      **Quyền truy cập:**
+      - Mọi user đã đăng nhập đều có thể xem teams mình quản lý
+      - Admin và HR Manager có thể xem tất cả teams (qua API khác)
+    `,
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách teams đang quản lý',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Lấy danh sách teams đang quản lý thành công' },
+        data: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'Team Backend' },
+              division_id: { type: 'number', example: 2 },
+              division: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 2 },
+                  name: { type: 'string', example: 'Phòng Phát Triển' },
+                },
+              },
+              member_count: { type: 'number', example: 5 },
+              active_projects: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    name: { type: 'string' },
+                  },
+                },
+              },
+              founding_date: { type: 'string', example: '2024-01-01' },
+              created_at: { type: 'string', format: 'date-time' },
+            },
+          },
+        },
+        total: { type: 'number', example: 3 },
+      },
+    },
+  })
+  getMyManagedTeams(@GetCurrentUser('id') userId: number) {
+    return this.teamService.getMyManagedTeams(userId);
+  }
+
   @Get()
   @RequirePermission('team.read')
   @ApiOperation({ summary: 'Lấy danh sách teams có phân trang' })

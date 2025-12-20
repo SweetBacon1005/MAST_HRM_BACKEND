@@ -43,31 +43,6 @@ export class ProjectsService {
     });
   }
 
-  private async getUserManagedDivisions(user_id: number): Promise<number[]> {
-    const assignments = await this.prisma.user_role_assignment.findMany({
-      where: {
-        user_id: user_id,
-        scope_type: ScopeType.DIVISION,
-        deleted_at: null,
-        scope_id: { not: null },
-        role: {
-          name: ROLE_NAMES.DIVISION_HEAD,
-          deleted_at: null,
-        },
-      },
-      select: {
-        scope_id: true,
-      },
-    });
-
-    return [
-      ...new Set(
-        assignments
-          .map((a) => a.scope_id)
-          .filter((id): id is number => id !== null),
-      ),
-    ];
-  }
 
   private async getProjectMembersData(projectId: number) {
     const projectAssignments = await this.prisma.user_role_assignment.findMany({
@@ -781,8 +756,8 @@ export class ProjectsService {
 
     const transformedData = data.map((project) => ({
       ...project,
-      start_date: project.start_date.toISOString().split('T')[0],
-      end_date: project.end_date.toISOString().split('T')[0],
+      start_date: project.start_date,
+      end_date: project.end_date,
       member_count: projectMemberCountMap.get(project.id) || 0,
     }));
 
@@ -794,11 +769,6 @@ export class ProjectsService {
     );
   }
 
-  async updateProgress(id: number, progress: number) {
-    throw new BadRequestException(
-      'Tiến độ dự án được tính tự động từ các mốc. Vui lòng cập nhật tiến độ của từng mốc.',
-    );
-  }
 
   async addProjectMember(
     project_id: number,

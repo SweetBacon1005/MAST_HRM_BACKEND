@@ -209,29 +209,6 @@ export class ProjectsController {
     return this.projectsService.findOne(id);
   }
 
-  @Patch(':id/progress')
-  @RequirePermission('project.update')
-  @ApiOperation({ summary: 'Cập nhật tiến độ dự án (0-100)' })
-  @ApiParam({ name: 'id', description: 'ID của dự án' })
-  @ApiResponse({
-    status: 200,
-    description: 'Cập nhật tiến độ thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Dữ liệu không hợp lệ',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy dự án',
-  })
-  updateProgress(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateProgressDto: UpdateProjectProgressDto,
-  ) {
-    return this.projectsService.updateProgress(id, updateProgressDto.progress);
-  }
-
   @Patch(':id')
   @RequirePermission('project.update')
   @ApiOperation({ summary: 'Cập nhật thông tin dự án' })
