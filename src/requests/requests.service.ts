@@ -2477,7 +2477,7 @@ export class RequestsService {
     ]);
 
     const isAdmin = approverRoles.roles.some(
-      (r) => r.name === ROLE_NAMES.ADMIN,
+      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
     );
 
     if (isAdmin) {
@@ -2581,8 +2581,10 @@ export class RequestsService {
     // Lấy TẤT CẢ roles từ DB
     const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
 
-    // Check Admin first (highest priority)
-    const isAdmin = userRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    // Check Admin first (highest priority) - chỉ Admin ở COMPANY scope mới có ALL_ACCESS
+    const isAdmin = userRoles.roles.some(
+      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
+    );
     if (isAdmin) {
       return {
         type: 'ALL_ACCESS',

@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ApprovalStatus, Prisma } from '@prisma/client';
+import { ApprovalStatus, Prisma, ScopeType } from '@prisma/client';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
 import { DAILY_REPORT_ERRORS } from '../common/constants/error-messages.constants';
@@ -91,7 +91,9 @@ export class DailyReportsService {
 
   private async isAdmin(user_id: number): Promise<boolean> {
     const { roles } = await this.roleAssignment.getUserRoles(user_id);
-    return roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    return roles.some(
+      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
+    );
   }
 
   private async buildAccessWhere(
@@ -216,7 +218,12 @@ export class DailyReportsService {
     if (project.project_access_type === 'COMPANY') return true;
 
     const { roles } = await this.roleAssignment.getUserRoles(user_id);
-    if (roles.some((r) => r.name === ROLE_NAMES.ADMIN)) return true;
+    if (
+      roles.some(
+        (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
+      )
+    )
+      return true;
 
     if (
       project.team_id &&

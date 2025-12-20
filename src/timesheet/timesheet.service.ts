@@ -1913,16 +1913,12 @@ export class TimesheetService {
   async getAttendanceLogsPaginated(
     currentuser_id: number,
     paginationDto: AttendanceLogPaginationDto,
-    userRoles?: string[],
+    canViewOtherUsers: boolean = false,
   ) {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const where: any = { deleted_at: null };
 
     if (paginationDto.user_id && paginationDto.user_id !== currentuser_id) {
-      const canViewOtherUsers = userRoles?.some((role) =>
-        ['admin', 'hr', 'manager'].includes(role.toLowerCase()),
-      );
-
       if (!canViewOtherUsers) {
         throw new BadRequestException(
           'Bạn không có quyền xem attendance log của user khác',

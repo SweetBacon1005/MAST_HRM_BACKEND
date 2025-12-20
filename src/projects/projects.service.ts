@@ -1031,7 +1031,9 @@ export class ProjectsService {
     const isPM = managerRoles.roles.some(
       (r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT' && r.scope_id === projectId,
     );
-    const isAdmin = managerRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    const isAdmin = managerRoles.roles.some(
+      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
+    );
 
     if (!isPM && !isAdmin) {
       throw new BadRequestException('Bạn không có quyền thêm thành viên vào dự án này');
@@ -1092,7 +1094,9 @@ export class ProjectsService {
     const isPM = managerRoles.roles.some(
       (r) => r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT' && r.scope_id === projectId,
     );
-    const isAdmin = managerRoles.roles.some((r) => r.name === ROLE_NAMES.ADMIN);
+    const isAdmin = managerRoles.roles.some(
+      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
+    );
 
     if (!isPM && !isAdmin) {
       throw new BadRequestException('Bạn không có quyền xóa thành viên khỏi dự án này');

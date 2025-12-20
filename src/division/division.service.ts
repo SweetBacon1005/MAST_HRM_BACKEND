@@ -672,7 +672,7 @@ export class DivisionService {
   async createRotationMember(
     createRotationDto: CreateRotationMemberDto,
     requesterId: number,
-    roles: string[],
+    isAdmin: boolean,
   ) {
     const { date_rotation, type, ...rest } = createRotationDto;
 
@@ -719,7 +719,8 @@ export class DivisionService {
       );
     }
 
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+    // Nếu không phải Admin ở COMPANY scope, phải là Division Head của division hiện tại
+    if (!isAdmin) {
       const requester = await this.prisma.user_role_assignment.findFirst({
         where: {
           user_id: requesterId,
@@ -2635,10 +2636,11 @@ export class DivisionService {
   async removeUserDivision(
     user_id: number,
     currentuser_id: number,
-    roles: string[],
+    isAdmin: boolean,
   ) {
     let assignmentUser;
-    if (!roles.includes(ROLE_NAMES.ADMIN)) {
+    // Nếu không phải Admin ở COMPANY scope, phải check division assignment
+    if (!isAdmin) {
       assignmentUser = await this.prisma.user_role_assignment.findFirst({
         where: {
           user_id: currentuser_id,

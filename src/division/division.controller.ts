@@ -255,12 +255,12 @@ export class DivisionController {
     @GetCurrentUser('id') requesterId: number,
     @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    // Extract roles array for backward compatibility with service
-    const roles = authContext.roleContexts.map((rc) => rc.roleName);
+    // Check ADMIN với COMPANY scope (chính xác hơn)
+    const isAdmin = authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY);
     return this.divisionService.createRotationMember(
       createRotationDto,
       requesterId,
-      roles,
+      isAdmin,
     );
   }
 
@@ -753,12 +753,12 @@ export class DivisionController {
     @GetCurrentUser('id') currentuser_id: number,
     @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    // Extract roles array for backward compatibility with service
-    const roles = authContext.roleContexts.map((rc) => rc.roleName);
+    // Check ADMIN với COMPANY scope (chính xác hơn)
+    const isAdmin = authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY);
     return this.divisionService.removeUserDivision(
       user_id,
       currentuser_id,
-      roles,
+      isAdmin,
     );
   }
 

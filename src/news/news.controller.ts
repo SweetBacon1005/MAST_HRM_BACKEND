@@ -21,6 +21,8 @@ import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { GetAuthContext } from '../auth/decorators/get-auth-context.decorator';
 import type { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
+import { ScopeType } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
 import { ApproveNewsDto } from './dto/approve-news.dto';
@@ -106,9 +108,9 @@ export class NewsController {
     @GetCurrentUser('id') user_id: number,
     @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    // Extract roles array for backward compatibility with service
-    const roles = authContext.roleContexts.map((rc) => rc.roleName);
-    return this.newsService.remove(id, user_id, roles);
+    // Check ADMIN với COMPANY scope (chính xác hơn)
+    const isAdmin = authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY);
+    return this.newsService.remove(id, user_id, isAdmin);
   }
 
   @Patch(':id/submit')

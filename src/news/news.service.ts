@@ -305,7 +305,7 @@ export class NewsService {
     return updatedNews;
   }
 
-  async remove(id: number, user_id: number, role: string[]) {
+  async remove(id: number, user_id: number, isAdmin: boolean) {
     const existingNews = await this.prisma.news.findUnique({
       where: { id, deleted_at: null },
     });
@@ -314,10 +314,8 @@ export class NewsService {
       throw new NotFoundException(NEWS_ERRORS.NEWS_NOT_FOUND);
     }
 
-    if (
-      existingNews.author_id !== user_id ||
-      (!role.includes(ROLE_NAMES.ADMIN))
-    ) {
+    // Chỉ author hoặc Admin ở COMPANY scope mới được xóa
+    if (existingNews.author_id !== user_id && !isAdmin) {
       throw new ForbiddenException(NEWS_ERRORS.UNAUTHORIZED_DELETE);
     }
 

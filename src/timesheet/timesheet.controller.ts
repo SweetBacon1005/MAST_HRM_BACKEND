@@ -749,12 +749,13 @@ export class TimesheetController {
     @GetAuthContext() authContext: AuthorizationContext,
     @Query() paginationDto: AttendanceLogPaginationDto,
   ) {
-    // Extract roles array from authContext for backward compatibility
-    const userRoles = authContext.roleContexts.map((rc) => rc.roleName);
+    // Check roles với scope chính xác
+    const canViewOtherUsers = authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)
+      || authContext.hasRole(ROLE_NAMES.HR_MANAGER, ScopeType.COMPANY);
     return this.timesheetService.getAttendanceLogsPaginated(
       currentuser_id,
       paginationDto,
-      userRoles,
+      canViewOtherUsers,
     );
   }
 
