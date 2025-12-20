@@ -2385,7 +2385,6 @@ export class TimesheetService {
   }
 
   async getRequestQuota(user_id: number) {
-    // Lấy quota từ user_leave_balances
     const leaveBalance = await this.prisma.user_leave_balances.findUnique({
       where: { user_id },
       select: {
@@ -2505,9 +2504,6 @@ export class TimesheetService {
     }
   }
 
-  /**
-   * Lấy thông tin số phút đi muộn/về sớm còn lại của user trong tháng
-   */
   async getLateEarlyBalance(user_id: number) {
     // Lấy quota từ user_leave_balances
     const leaveBalance = await this.prisma.user_leave_balances.findUnique({
@@ -2520,28 +2516,30 @@ export class TimesheetService {
 
     const quota = leaveBalance?.monthly_violation_minutes_quota || 60; // Default 60 phút
 
-    // Tính tổng phút muộn + sớm trong tháng hiện tại
+    // Tính tổng phút muộn + sớm từ các requests đã được APPROVE trong tháng hiện tại
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const summary = await this.prisma.time_sheets.aggregate({
-      where: {
+    // Lấy các LATE_EARLY requests đã được APPROVE
+    const approvedLateEarlyRequests =
+      await this.attendanceRequestService.findMany({
         user_id,
-        work_date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
+        work_date: { gte: startOfMonth, lte: endOfMonth },
+        request_type: 'LATE_EARLY',
+        status: ApprovalStatus.APPROVED,
         deleted_at: null,
-      },
-      _sum: {
-        // REMOVED: late_time, early_time
-        total_work_time: true,
-      },
-    });
+      });
 
-    const usedLateMinutes = 0; // REMOVED
-    const usedEarlyMinutes = 0; // REMOVED
+    // Tính tổng phút đi muộn và về sớm
+    const usedLateMinutes = approvedLateEarlyRequests.reduce((total, req) => {
+      return total + (req.late_early_request?.late_minutes || 0);
+    }, 0);
+
+    const usedEarlyMinutes = approvedLateEarlyRequests.reduce((total, req) => {
+      return total + (req.late_early_request?.early_minutes || 0);
+    }, 0);
+
     const totalUsedMinutes = usedLateMinutes + usedEarlyMinutes;
 
     return {

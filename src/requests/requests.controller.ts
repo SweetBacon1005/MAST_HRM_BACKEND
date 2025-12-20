@@ -41,6 +41,7 @@ import { OvertimeRequestResponseDto } from './dto/response/overtime-request-resp
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { RequestType } from './interfaces/request.interface';
 import { RequestsService } from './requests.service';
+import { AttendanceRequestType } from '@prisma/client';
 
 @ApiTags('Requests')
 @ApiBearerAuth('JWT-auth')
@@ -246,6 +247,108 @@ export class RequestsController {
     );
   }
 
+  @Get('quotas-balances')
+  @RequirePermission(REQUEST_PERMISSIONS.READ)
+  @ApiOperation({
+    summary: 'Lấy tổng hợp tất cả quota và balance cho các loại request',
+    description: `
+      Trả về thông tin đầy đủ về quỹ thời gian và số lần request còn lại cho tất cả các loại request:
+      
+      **1. Leave Balance (Quỹ thời gian nghỉ phép) - cho DAY_OFF:**
+      - Phép có lương: Quota năm, đã dùng, còn lại
+      - Phép không lương: Còn lại (không có quota)
+      
+      **2. Forgot Checkin Quota - cho FORGOT_CHECKIN:**
+      - Quota: Số lần được phép/tháng (mặc định 3 lần)
+      - Đã dùng, còn lại, có vượt quota không
+      
+      **3. Late/Early Quota - cho LATE_EARLY:**
+      - Quota số lượng: Số requests được phép/tháng (mặc định 3 lần)
+      - Quota phút: Tổng số phút được phép/tháng (mặc định 120 phút)
+      - Phải đủ CẢ HAI mới tạo được request
+      
+      **4. Late/Early Balance (Violation Minutes):**
+      - Quota phút đi muộn/về sớm/tháng (mặc định 60 phút)
+      - Đã dùng, còn lại, có vượt quota không
+      
+      **5. Remote Work & Overtime:**
+      - Không có giới hạn quota
+    `,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lấy thông tin quota và balance thành công',
+    schema: {
+      example: {
+        month: 12,
+        year: 2025,
+        leave_balance: {
+          paid_leave: {
+            quota: 12,
+            used: 5,
+            remaining: 7,
+            unit: 'ngày',
+          },
+          unpaid_leave: {
+            quota: null,
+            used: null,
+            remaining: 0,
+            unit: 'ngày',
+          },
+          carry_over_days: 2,
+        },
+        forgot_checkin_quota: {
+          quota: 3,
+          used: 1,
+          remaining: 2,
+          exceeded: false,
+          unit: 'lần',
+        },
+        late_early_quota: {
+          count: {
+            quota: 3,
+            used: 2,
+            remaining: 1,
+            exceeded: false,
+            unit: 'lần',
+          },
+          minutes: {
+            quota: 120,
+            used: 75,
+            remaining: 45,
+            exceeded: false,
+            unit: 'phút',
+          },
+          overall_exceeded: false,
+        },
+        late_early_balance: {
+          quota: 60,
+          used_minutes: 30,
+          used_late_minutes: 20,
+          used_early_minutes: 10,
+          remaining_minutes: 30,
+          exceeded: false,
+          exceeded_by: 0,
+          unit: 'phút',
+        },
+        remote_work: {
+          quota: null,
+          note: 'Không có giới hạn số lần làm việc từ xa',
+        },
+        overtime: {
+          quota: null,
+          note: 'Không có giới hạn số lần làm thêm giờ',
+        },
+        last_reset_date: '2025-11-30',
+      },
+    },
+  })
+  async getAllRequestQuotasAndBalances(
+    @GetCurrentUser('id') user_id: number,
+  ) {
+    return await this.requestsService.getAllRequestQuotasAndBalances(user_id);
+  }
+
   @Post('late-early')
   @ApiOperation({ summary: 'Tạo request đi muộn/về sớm' })
   @ApiResponse({ status: 201 })
@@ -300,14 +403,8 @@ export class RequestsController {
   })
   @ApiParam({
     name: 'type',
-    enum: [
-      'remote-work',
-      'day-off',
-      'overtime',
-      'late-early',
-      'forgot-checkin',
-    ],
-    example: 'day-off',
+    enum: AttendanceRequestType,
+    example: AttendanceRequestType.DAY_OFF,
   })
   @ApiParam({ name: 'id', example: 1 })
   @ApiResponse({ status: 200, description: 'Request đã được duyệt thành công' })
@@ -318,12 +415,7 @@ export class RequestsController {
   @ApiResponse({ status: 404, description: 'Request không tồn tại' })
   async approveRequest(
     @Param('type')
-    type:
-      | 'remote-work'
-      | 'day-off'
-      | 'overtime'
-      | 'late-early'
-      | 'forgot-checkin',
+    type: AttendanceRequestType,
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser() user: any,
   ) {
@@ -346,14 +438,8 @@ export class RequestsController {
   })
   @ApiParam({
     name: 'type',
-    enum: [
-      'remote-work',
-      'day-off',
-      'overtime',
-      'late-early',
-      'forgot-checkin',
-    ],
-    example: 'day-off',
+    enum: AttendanceRequestType,
+    example: AttendanceRequestType.DAY_OFF,
   })
   @ApiParam({ name: 'id', example: 1 })
   @ApiBody({

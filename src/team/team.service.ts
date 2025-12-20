@@ -377,9 +377,14 @@ export class TeamService {
       throw new NotFoundException(TEAM_ERRORS.TEAM_NOT_FOUND);
     }
 
-    // Validate user exists
-    const user = await this.prisma.users.findFirst({
-      where: { id: dto.user_id, deleted_at: null },
+    const userIds = dto.members.map((m) => m.user_id);
+    
+    // Validate all users exist
+    const users = await this.prisma.users.findMany({
+      where: { 
+        id: { in: userIds },
+        deleted_at: null 
+      },
       include: {
         user_information: {
           select: { name: true, code: true, avatar: true },
@@ -387,29 +392,50 @@ export class TeamService {
       },
     });
 
-    if (!user) {
-      throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
+    if (users.length !== userIds.length) {
+      const foundIds = new Set(users.map((u) => u.id));
+      const missingIds = userIds.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Không tìm thấy user(s) với ID: ${missingIds.join(', ')}`,
+      );
     }
 
-    // Check if user already in THIS team
-    const existing = await this.prisma.user_role_assignment.findFirst({
+    // Check for duplicate user_ids in request
+    const uniqueUserIds = new Set(userIds);
+    if (uniqueUserIds.size !== userIds.length) {
+      throw new BadRequestException(
+        'Danh sách users không được trùng lặp',
+      );
+    }
+
+    // Check which users are already in THIS team
+    const existingAssignments = await this.prisma.user_role_assignment.findMany({
       where: {
-        user_id: dto.user_id,
+        user_id: { in: userIds },
         scope_type: ScopeType.TEAM,
         scope_id: teamId,
         deleted_at: null,
       },
+      select: { user_id: true },
     });
 
-    if (existing) {
-      throw new BadRequestException('User đã là thành viên của team này');
+    const existingUserIds = new Set(
+      existingAssignments.map((a) => a.user_id),
+    );
+    const alreadyInTeam = userIds.filter((id) => existingUserIds.has(id));
+
+    if (alreadyInTeam.length > 0) {
+      throw new BadRequestException(
+        `User(s) với ID ${alreadyInTeam.join(', ')} đã là thành viên của team này`,
+      );
     }
 
-    // Validate user belongs to the same division
-    const userDivisionAssignment =
-      await this.prisma.user_role_assignment.findFirst({
+    // Validate all users belong to the same division
+    // Get all division assignments and group by user_id to get the latest one
+    const allDivisionAssignments =
+      await this.prisma.user_role_assignment.findMany({
         where: {
-          user_id: dto.user_id,
+          user_id: { in: userIds },
           scope_type: ScopeType.DIVISION,
           deleted_at: null,
           scope_id: { not: null },
@@ -417,75 +443,113 @@ export class TeamService {
         orderBy: { created_at: 'desc' },
       });
 
-    if (!userDivisionAssignment) {
-      throw new BadRequestException('User chưa được gán vào division nào');
+    // Group by user_id and take the first (latest) one for each user
+    const userDivisionMap = new Map<number, number | null>();
+    for (const assignment of allDivisionAssignments) {
+      if (!userDivisionMap.has(assignment.user_id) && assignment.scope_id) {
+        userDivisionMap.set(assignment.user_id, assignment.scope_id);
+      }
     }
 
-    if (userDivisionAssignment.scope_id !== team.division_id) {
+    const usersWithoutDivision = userIds.filter(
+      (id) => !userDivisionMap.has(id),
+    );
+    if (usersWithoutDivision.length > 0) {
       throw new BadRequestException(
-        `User thuộc division khác. Chỉ có thể thêm user từ division ${team.division?.name || team.division_id}`,
+        `User(s) với ID ${usersWithoutDivision.join(', ')} chưa được gán vào division nào`,
       );
     }
 
-    // Use default Employee role if not specified
-    const roleId = dto.role_id || ROLE_IDS.EMPLOYEE;
-
-    // Validate role exists
-    const role = await this.prisma.roles.findFirst({
-      where: { id: roleId, deleted_at: null },
-    });
-
-    if (!role) {
-      throw new NotFoundException('Không tìm thấy role');
+    const usersInDifferentDivision = userIds.filter(
+      (id) => userDivisionMap.get(id) !== team.division_id,
+    );
+    if (usersInDifferentDivision.length > 0) {
+      throw new BadRequestException(
+        `User(s) với ID ${usersInDifferentDivision.join(', ')} thuộc division khác. Chỉ có thể thêm user từ division ${team.division?.name || team.division_id}`,
+      );
     }
 
-    // Create team membership
-    const assignment = await this.prisma.user_role_assignment.create({
-      data: {
-        user_id: dto.user_id,
-        role_id: roleId,
-        scope_type: ScopeType.TEAM,
-        scope_id: teamId,
-        assigned_by: assignedBy,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            user_information: {
-              select: { name: true, code: true, avatar: true },
+    // Validate all roles exist (if specified)
+    const roleIds = dto.members
+      .map((m) => m.role_id)
+      .filter((id): id is number => id !== undefined);
+    
+    if (roleIds.length > 0) {
+      const uniqueRoleIds = [...new Set(roleIds)];
+      const roles = await this.prisma.roles.findMany({
+        where: { 
+          id: { in: uniqueRoleIds },
+          deleted_at: null 
+        },
+      });
+
+      if (roles.length !== uniqueRoleIds.length) {
+        const foundRoleIds = new Set(roles.map((r) => r.id));
+        const missingRoleIds = uniqueRoleIds.filter(
+          (id) => !foundRoleIds.has(id),
+        );
+        throw new NotFoundException(
+          `Không tìm thấy role(s) với ID: ${missingRoleIds.join(', ')}`,
+        );
+      }
+    }
+
+    // Create team memberships in batch
+    const assignmentsData = dto.members.map((member) => ({
+      user_id: member.user_id,
+      role_id: member.role_id || ROLE_IDS.EMPLOYEE,
+      scope_type: ScopeType.TEAM,
+      scope_id: teamId,
+      assigned_by: assignedBy,
+    }));
+
+    const assignments = await Promise.all(
+      assignmentsData.map((data) =>
+        this.prisma.user_role_assignment.create({
+          data,
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                user_information: {
+                  select: { name: true, code: true, avatar: true },
+                },
+              },
+            },
+            role: {
+              select: { id: true, name: true },
             },
           },
-        },
-        role: {
-          select: { id: true, name: true },
-        },
-      },
-    });
+        }),
+      ),
+    );
 
     return {
-      message: SUCCESS_MESSAGES.TEAM_MEMBER_ADDED,
+      message: `Đã thêm ${assignments.length} thành viên vào team thành công`,
       data: {
-        assignment_id: assignment.id,
-        user: {
-          id: assignment.user.id,
-          email: assignment.user.email,
-          name: assignment.user.user_information?.name || '',
-          code: assignment.user.user_information?.code || '',
-          avatar: assignment.user.user_information?.avatar || null,
-        },
         team: {
           id: team.id,
           name: team.name,
           division: team.division,
         },
-        role: {
-          id: assignment.role.id,
-          name: assignment.role.name,
-        },
-        description: dto.description || null,
-        created_at: assignment.created_at,
+        members: assignments.map((assignment, index) => ({
+          assignment_id: assignment.id,
+          user: {
+            id: assignment.user.id,
+            email: assignment.user.email,
+            name: assignment.user.user_information?.name || '',
+            code: assignment.user.user_information?.code || '',
+            avatar: assignment.user.user_information?.avatar || null,
+          },
+          role: {
+            id: assignment.role.id,
+            name: assignment.role.name,
+          },
+          description: dto.members[index].description || null,
+          created_at: assignment.created_at,
+        })),
+        total: assignments.length,
       },
     };
   }

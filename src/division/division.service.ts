@@ -305,15 +305,41 @@ export class DivisionService {
       throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
     }
 
-    const users = await this.getDivisionUser(id);
-    if (users.length > 0) {
-      throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
+    // Check division members and their roles
+    const assignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.DIVISION,
+        scope_id: id,
+        deleted_at: null,
+      },
+      include: {
+        role: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (assignments.length === 0) {
+      // No members, can delete
+      return await this.prisma.divisions.update({
+        where: { id },
+        data: { deleted_at: new Date() },
+      });
     }
 
-    return await this.prisma.divisions.update({
-      where: { id },
-      data: { deleted_at: new Date() },
-    });
+    // If only one member and that member is division_head, allow deletion
+    if (assignments.length === 1) {
+      const assignment = assignments[0];
+      if (assignment.role.name === ROLE_NAMES.DIVISION_HEAD) {
+        return await this.prisma.divisions.update({
+          where: { id },
+          data: { deleted_at: new Date() },
+        });
+      }
+    }
+
+    // Otherwise, cannot delete (has multiple members or non-division_head member)
+    throw new BadRequestException(DIVISION_ERRORS.CANNOT_DELETE_WITH_MEMBERS);
   }
 
   async getDivisionHierarchy() {

@@ -18,6 +18,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { GetAuthContext } from '../auth/decorators/get-auth-context.decorator';
+import type { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
@@ -102,8 +104,10 @@ export class NewsController {
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') user_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
+    // Extract roles array for backward compatibility with service
+    const roles = authContext.roleContexts.map((rc) => rc.roleName);
     return this.newsService.remove(id, user_id, roles);
   }
 

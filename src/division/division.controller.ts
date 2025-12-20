@@ -19,6 +19,9 @@ import {
 } from '@nestjs/swagger';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { GetAuthContext } from '../auth/decorators/get-auth-context.decorator';
+import type { AuthorizationContext } from '../auth/services/authorization-context.service';
+import { ScopeType } from '@prisma/client';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
@@ -249,8 +252,10 @@ export class DivisionController {
   createRotationMember(
     @Body() createRotationDto: CreateRotationMemberDto,
     @GetCurrentUser('id') requesterId: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
+    // Extract roles array for backward compatibility with service
+    const roles = authContext.roleContexts.map((rc) => rc.roleName);
     return this.divisionService.createRotationMember(
       createRotationDto,
       requesterId,
@@ -267,10 +272,10 @@ export class DivisionController {
   findAllRotationMembers(
     @Query() paginationDto: RotationMemberPaginationDto,
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    // Nếu là division_head: ép division_id theo division hiện tại của user
-    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
+    // Nếu không phải Admin ở COMPANY scope: ép division_id theo division hiện tại của user
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -396,9 +401,10 @@ export class DivisionController {
   createUserDivision(
     @Body() createUserDivisionDto: CreateUserDivisionDto,
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
+    // Nếu không phải Admin ở COMPANY scope: ép division_id theo division hiện tại của user
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -492,9 +498,10 @@ export class DivisionController {
   findAllUserDivisions(
     @Query() paginationDto: UserDivisionPaginationDto,
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (Array.isArray(roles) && !roles.includes(ROLE_NAMES.ADMIN)) {
+    // Nếu không phải Admin ở COMPANY scope: ép division_id theo division hiện tại của user
+    if (!authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) {
       return this.divisionService
         .findOneUserDivision(currentuser_id)
         .then((userDivision) => {
@@ -743,8 +750,10 @@ export class DivisionController {
   removeUserDivision(
     @Param('user_id', ParseIntPipe) user_id: number,
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
+    // Extract roles array for backward compatibility with service
+    const roles = authContext.roleContexts.map((rc) => rc.roleName);
     return this.divisionService.removeUserDivision(
       user_id,
       currentuser_id,
@@ -855,9 +864,10 @@ export class DivisionController {
     @Param('id', ParseIntPipe) id: number,
     @Query() queryDto: DivisionMembersQueryDto,
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    queryDto.roles = roles;
+    // Extract roles array for backward compatibility with service
+    queryDto.roles = authContext.roleContexts.map((rc) => rc.roleName);
     queryDto.current_user_id = currentuser_id;
     return this.divisionService.getDivisionMembers(id, queryDto);
   }

@@ -19,10 +19,13 @@ import {
 } from '@nestjs/swagger';
 import { ROLE_NAMES } from 'src/auth/constants/role.constants';
 import { GetCurrentUser } from 'src/auth/decorators/get-current-user.decorator';
+import { GetAuthContext } from 'src/auth/decorators/get-auth-context.decorator';
+import type { AuthorizationContext } from 'src/auth/services/authorization-context.service';
 import { ASSET_PERMISSIONS } from '../auth/constants/permission.constants';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import { ScopeType } from '@prisma/client';
 import { AssetsService } from './assets.service';
 import {
   CreateAssetRequestDto,
@@ -38,7 +41,7 @@ import {
 } from './dto/pagination-queries.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 
-@ApiTags('Assets Management')
+@ApiTags('assets management')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('assets')
@@ -365,9 +368,13 @@ export class AssetsController {
   })
   findAllAssetRequests(
     @Query() paginationDto: AssetRequestPaginationDto,
-    @GetCurrentUser('roles') roles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    if (!roles.includes(ROLE_NAMES.HR_MANAGER)) {
+    // Check HR Manager hoặc Admin ở COMPANY scope
+    if (
+      !authContext.hasRole(ROLE_NAMES.HR_MANAGER, ScopeType.COMPANY) &&
+      !authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)
+    ) {
       throw new ForbiddenException(
         'Bạn không có quyền xem danh sách request tài sản',
       );

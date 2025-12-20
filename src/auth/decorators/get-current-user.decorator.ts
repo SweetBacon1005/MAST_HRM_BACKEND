@@ -7,10 +7,16 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common';
  * Usage:
  * - @GetCurrentUser('id') → number
  * - @GetCurrentUser('email') → string
- * - @GetCurrentUser('roles') → string[] (lazy load nếu chưa có)
+ * - @GetCurrentUser('roles') → string[] (DEPRECATED: Dùng @GetAuthContext() thay thế)
  * - @GetCurrentUser() → full user object
  * 
- * TỐI ƯU: Nếu request 'roles' và chưa có roleContexts, sẽ lazy load
+ * ⚠️ LƯU Ý: 
+ * - @GetCurrentUser('roles') KHÔNG chính xác vì không check scope
+ * - Nên dùng @GetAuthContext() để check role kèm scope:
+ *   ```typescript
+ *   @GetAuthContext() authContext: AuthorizationContext
+ *   if (authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY)) { ... }
+ *   ```
  */
 export const GetCurrentUser = createParamDecorator(
   async (data: string | undefined, context: ExecutionContext) => {

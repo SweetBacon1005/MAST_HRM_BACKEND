@@ -1456,6 +1456,133 @@ export class RequestsService {
     };
   }
 
+  async getAllRequestQuotasAndBalances(user_id: number) {
+    await this.validateUser(user_id);
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const leaveBalanceData = await this.prisma.user_leave_balances.findUnique({
+      where: { user_id },
+      select: {
+        paid_leave_balance: true,
+        unpaid_leave_balance: true,
+        annual_paid_leave_quota: true,
+        carry_over_days: true,
+        monthly_forgot_checkin_quota: true,
+        monthly_late_early_quota: true,
+        monthly_late_early_count_quota: true,
+        monthly_violation_minutes_quota: true,
+        last_reset_date: true,
+      },
+    });
+
+    const allRequests = await this.attendanceRequestService.findMany({
+      user_id,
+      work_date: { gte: startOfMonth, lte: endOfMonth },
+      request_type: { in: ['FORGOT_CHECKIN', 'LATE_EARLY'] },
+      deleted_at: null,
+    });
+
+    const forgotCheckinRequests = allRequests.filter(
+      (r) => r.request_type === 'FORGOT_CHECKIN' && r.status !== 'REJECTED',
+    );
+    const forgotCheckinCount = forgotCheckinRequests.length;
+
+    const lateEarlyRequests = allRequests.filter(
+      (r) => r.request_type === 'LATE_EARLY' && r.status !== 'REJECTED',
+    );
+    const lateEarlyRequestCount = lateEarlyRequests.length;
+    const totalLateEarlyMinutes = lateEarlyRequests.reduce((total, req) => {
+      const detail = req.late_early_request;
+      return total + (detail?.late_minutes || 0) + (detail?.early_minutes || 0);
+    }, 0);
+
+    const approvedLateEarlyRequests = allRequests.filter(
+      (r) => r.request_type === 'LATE_EARLY' && r.status === 'APPROVED',
+    );
+    const usedLateMinutes = approvedLateEarlyRequests.reduce((total, req) => {
+      return total + (req.late_early_request?.late_minutes || 0);
+    }, 0);
+    const usedEarlyMinutes = approvedLateEarlyRequests.reduce((total, req) => {
+      return total + (req.late_early_request?.early_minutes || 0);
+    }, 0);
+    const totalUsedMinutes = usedLateMinutes + usedEarlyMinutes;
+
+    const paidLeaveBalance = leaveBalanceData?.paid_leave_balance || 0;
+    const unpaidLeaveBalance = leaveBalanceData?.unpaid_leave_balance || 0;
+    const annualQuota = leaveBalanceData?.annual_paid_leave_quota || 0;
+    const carryOverDays = leaveBalanceData?.carry_over_days || 0;
+
+    const forgotCheckinQuota =
+      leaveBalanceData?.monthly_forgot_checkin_quota || 3;
+    const lateEarlyMinutesQuota =
+      leaveBalanceData?.monthly_late_early_quota || 120;
+    const lateEarlyCountQuota =
+      leaveBalanceData?.monthly_late_early_count_quota || 3;
+
+    const violationQuota =
+      leaveBalanceData?.monthly_violation_minutes_quota || 60;
+
+    return {
+      month: now.getMonth() + 1,
+      year: now.getFullYear(),
+      leave_balance: {
+        paid_leave: {
+          quota: annualQuota,
+          used: annualQuota - paidLeaveBalance,
+          remaining: paidLeaveBalance,
+          unit: 'ngày',
+        },
+        unpaid_leave: {
+          quota: null,
+          used: null,
+          remaining: unpaidLeaveBalance,
+          unit: 'ngày',
+        },
+        carry_over_days: carryOverDays,
+      },
+      forgot_checkin_quota: {
+        quota: forgotCheckinQuota,
+        used: forgotCheckinCount,
+        remaining: Math.max(0, forgotCheckinQuota - forgotCheckinCount),
+        exceeded: forgotCheckinCount >= forgotCheckinQuota,
+        unit: 'lần',
+      },
+      late_early_quota: {
+        count: {
+          quota: lateEarlyCountQuota,
+          used: lateEarlyRequestCount,
+          remaining: Math.max(0, lateEarlyCountQuota - lateEarlyRequestCount),
+          exceeded: lateEarlyRequestCount >= lateEarlyCountQuota,
+          unit: 'lần',
+        },
+        minutes: {
+          quota: lateEarlyMinutesQuota,
+          used: totalLateEarlyMinutes,
+          remaining: Math.max(0, lateEarlyMinutesQuota - totalLateEarlyMinutes),
+          exceeded: totalLateEarlyMinutes >= lateEarlyMinutesQuota,
+          unit: 'phút',
+        },
+        overall_exceeded:
+          lateEarlyRequestCount >= lateEarlyCountQuota ||
+          totalLateEarlyMinutes >= lateEarlyMinutesQuota,
+      },
+      late_early_balance: {
+        quota: violationQuota,
+        used_minutes: totalUsedMinutes,
+        used_late_minutes: usedLateMinutes,
+        used_early_minutes: usedEarlyMinutes,
+        remaining_minutes: Math.max(0, violationQuota - totalUsedMinutes),
+        exceeded: totalUsedMinutes > violationQuota,
+        exceeded_by: Math.max(0, totalUsedMinutes - violationQuota),
+        unit: 'phút',
+      },
+      last_reset_date: leaveBalanceData?.last_reset_date || null,
+    };
+  }
+
   async createLateEarlyRequest(
     dto: CreateLateEarlyRequestDto,
   ): Promise<LateEarlyRequestResponseDto> {
@@ -1769,12 +1896,6 @@ export class RequestsService {
     }
   }
 
-  /**
-   * Approve request với scope-aware authorization
-   * @param type - Request type
-   * @param id - Request ID
-   * @param authContext - Authorization context với scope information
-   */
   async approveRequest(
     type: RequestType,
     id: number,

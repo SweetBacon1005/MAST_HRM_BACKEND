@@ -18,9 +18,13 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
+import { GetAuthContext } from '../auth/decorators/get-auth-context.decorator';
+import type { AuthorizationContext } from '../auth/services/authorization-context.service';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import { ScopeType } from '@prisma/client';
+import { ROLE_NAMES } from '../auth/constants/role.constants';
 import {
   DateRangeValidationPipe,
   DateValidationPipe,
@@ -566,12 +570,13 @@ export class TimesheetController {
   @ApiResponse({ status: 403, description: 'Không có quyền xem thống kê của user khác' })
   getAttendanceStatistics(
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
     @Query() queryDto: AttendanceStatisticsQueryDto,
   ) {
-    const isHrOrAdmin = userRoles?.some((role) =>
-      ['hr_manager', 'admin'].includes(role.toLowerCase()),
-    );
+    // Check HR Manager hoặc Admin ở COMPANY scope
+    const isHrOrAdmin =
+      authContext.hasRole(ROLE_NAMES.HR_MANAGER, ScopeType.COMPANY) ||
+      authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY);
 
     if (queryDto.user_id) {
       if (queryDto.user_id !== currentuser_id && !isHrOrAdmin) {
@@ -748,9 +753,11 @@ export class TimesheetController {
   @ApiResponse({ status: 200 })
   getAttendanceLogs(
     @GetCurrentUser('id') currentuser_id: number,
-    @GetCurrentUser('roles') userRoles: string[],
+    @GetAuthContext() authContext: AuthorizationContext,
     @Query() paginationDto: AttendanceLogPaginationDto,
   ) {
+    // Extract roles array from authContext for backward compatibility
+    const userRoles = authContext.roleContexts.map((rc) => rc.roleName);
     return this.timesheetService.getAttendanceLogsPaginated(
       currentuser_id,
       paginationDto,

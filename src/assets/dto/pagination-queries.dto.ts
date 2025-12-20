@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { AssetCategory, AssetRequestStatus } from '@prisma/client';
+import { AssetCategory, AssetRequestStatus, AssetStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -15,59 +15,21 @@ export class AssetPaginationDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Lọc theo danh mục',
-    example: 'LAPTOP',
-    enum: [
-      'LAPTOP',
-      'DESKTOP',
-      'MONITOR',
-      'KEYBOARD',
-      'MOUSE',
-      'HEADPHONE',
-      'PHONE',
-      'TABLET',
-      'FURNITURE',
-      'EQUIPMENT',
-      'OTHER',
-    ],
+    example: AssetCategory.LAPTOP,
+    enum: AssetCategory,
   })
   @IsOptional()
-  @IsEnum([
-    'LAPTOP',
-    'DESKTOP',
-    'MONITOR',
-    'KEYBOARD',
-    'MOUSE',
-    'HEADPHONE',
-    'PHONE',
-    'TABLET',
-    'FURNITURE',
-    'EQUIPMENT',
-    'OTHER',
-  ])
-  category?: string;
+  @IsEnum(AssetCategory)
+  category?: AssetCategory;
 
   @ApiPropertyOptional({
     description: 'Lọc theo trạng thái',
-    enum: [
-      'AVAILABLE',
-      'ASSIGNED',
-      'MAINTENANCE',
-      'RETIRED',
-      'LOST',
-      'DAMAGED',
-    ],
-    example: 'AVAILABLE',
+    enum: AssetStatus,
+    example: AssetStatus.AVAILABLE,
   })
   @IsOptional()
-  @IsEnum([
-    'AVAILABLE',
-    'ASSIGNED',
-    'MAINTENANCE',
-    'RETIRED',
-    'LOST',
-    'DAMAGED',
-  ])
-  status?: string;
+  @IsEnum(AssetStatus)
+  status?: AssetStatus;
 
   @ApiPropertyOptional({
     description: 'Lọc theo user được gán',

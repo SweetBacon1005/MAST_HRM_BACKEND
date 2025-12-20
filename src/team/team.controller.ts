@@ -247,9 +247,9 @@ export class TeamController {
   @Post(':id/members')
   @RequirePermission('team.member.add')
   @ApiOperation({
-    summary: 'Thêm user vào team',
+    summary: 'Thêm nhiều users vào team cùng lúc',
     description: `
-      Thêm user vào team trong cùng division.
+      Thêm một hoặc nhiều users vào team trong cùng division.
       
       **Quyền truy cập:**
       - Admin: Có thể thêm vào bất kỳ team nào
@@ -261,6 +261,7 @@ export class TeamController {
       - Tất cả các team phải thuộc cùng 1 division với user
       - User chỉ thuộc 1 division duy nhất
       - Role mặc định là Employee nếu không chỉ định
+      - Không được trùng lặp user_id trong cùng request
       
       **Lưu ý về quyền truy cập projects:**
       - Thêm vào team KHÔNG tự động cấp quyền truy cập projects
@@ -272,19 +273,30 @@ export class TeamController {
   @ApiBody({
     type: AddTeamMemberDto,
     examples: {
-      basic: {
-        summary: 'Thêm member cơ bản (role mặc định)',
+      single: {
+        summary: 'Thêm 1 member',
         value: {
-          user_id: 5,
-          description: 'Backend Developer',
+          members: [
+            { user_id: 5, description: 'Backend Developer' },
+          ],
+        },
+      },
+      multiple: {
+        summary: 'Thêm nhiều members cùng lúc',
+        value: {
+          members: [
+            { user_id: 5, role_id: 6, description: 'Backend Developer' },
+            { user_id: 7, description: 'Frontend Developer' },
+            { user_id: 8, role_id: 7, description: 'Senior Developer' },
+          ],
         },
       },
       withRole: {
         summary: 'Thêm member với role cụ thể',
         value: {
-          user_id: 5,
-          role_id: 7,
-          description: 'Senior Frontend Developer',
+          members: [
+            { user_id: 5, role_id: 7, description: 'Senior Frontend Developer' },
+          ],
         },
       },
     },
@@ -295,21 +307,10 @@ export class TeamController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string', example: 'Đã thêm user vào team thành công' },
+        message: { type: 'string', example: 'Đã thêm 3 thành viên vào team thành công' },
         data: {
           type: 'object',
           properties: {
-            assignment_id: { type: 'number', example: 123 },
-            user: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 5 },
-                email: { type: 'string', example: 'user@example.com' },
-                name: { type: 'string', example: 'Nguyễn Văn A' },
-                code: { type: 'string', example: 'NV001' },
-                avatar: { type: 'string', example: 'avatar.jpg' },
-              },
-            },
             team: {
               type: 'object',
               properties: {
@@ -324,26 +325,46 @@ export class TeamController {
                 },
               },
             },
-            role: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 6 },
-                name: { type: 'string', example: 'Employee' },
+            members: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  assignment_id: { type: 'number', example: 123 },
+                  user: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number', example: 5 },
+                      email: { type: 'string', example: 'user@example.com' },
+                      name: { type: 'string', example: 'Nguyễn Văn A' },
+                      code: { type: 'string', example: 'NV001' },
+                      avatar: { type: 'string', nullable: true, example: 'avatar.jpg' },
+                    },
+                  },
+                  role: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number', example: 6 },
+                      name: { type: 'string', example: 'Employee' },
+                    },
+                  },
+                  description: {
+                    type: 'string',
+                    nullable: true,
+                    example: 'Backend Developer',
+                  },
+                  created_at: { type: 'string', format: 'date-time' },
+                },
               },
             },
-            description: {
-              type: 'string',
-              nullable: true,
-              example: 'Backend Developer',
-            },
-            created_at: { type: 'string', format: 'date-time' },
+            total: { type: 'number', example: 3 },
           },
         },
       },
     },
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy team hoặc user' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'User đã là thành viên của team' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy team hoặc user(s)' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'User đã là thành viên của team hoặc thuộc division khác' })
   addMember(
     @Param('id', ParseIntPipe) teamId: number,
     @Body() dto: AddTeamMemberDto,
