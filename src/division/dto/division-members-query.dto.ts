@@ -56,6 +56,10 @@ export class DivisionMembersQueryDto {
   @IsOptional()
   current_user_id?: number;
 
+  @ApiHideProperty()
+  @IsOptional()
+  is_admin?: boolean;
+
   @ApiProperty({
     description: 'Lọc theo vị trí ID',
     example: 1,
@@ -75,16 +79,6 @@ export class DivisionMembersQueryDto {
   @Type(() => Number)
   @IsInt()
   skill_id?: number;
-
-  @ApiProperty({
-    description: 'Lọc theo level ID',
-    example: 1,
-    required: false,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  level_id?: number;
 
   @ApiProperty({
     description: 'Sắp xếp theo trường (name, birthday, join_date)',

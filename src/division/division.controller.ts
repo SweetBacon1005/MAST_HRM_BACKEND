@@ -25,6 +25,7 @@ import { ScopeType } from '@prisma/client';
 import { RequirePermission } from '../auth/decorators/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
+import { RoleContextLoaderGuard } from '../auth/guards/role-context-loader.guard';
 import { DivisionService } from './division.service';
 import { BirthdayQueryDto } from './dto/birthday-query.dto';
 import { CreateDivisionDto } from './dto/create-division.dto';
@@ -47,7 +48,7 @@ import { WorkInfoQueryDto } from './dto/work-info-query.dto';
 
 @ApiTags('divisions')
 @Controller('divisions')
-@UseGuards(JwtAuthGuard, PermissionGuard)
+@UseGuards(JwtAuthGuard, RoleContextLoaderGuard, PermissionGuard)
 @ApiBearerAuth('JWT-auth')
 export class DivisionController {
   constructor(private readonly divisionService: DivisionService) {}
@@ -761,7 +762,6 @@ export class DivisionController {
     );
   }
 
-  // === DIVISION DETAIL ENDPOINTS (WITH PARAM :id) ===
 
   @Get(':id/members')
   @RequirePermission('division.read')
@@ -866,9 +866,10 @@ export class DivisionController {
     @GetCurrentUser('id') currentuser_id: number,
     @GetAuthContext() authContext: AuthorizationContext,
   ) {
-    // Extract roles array for backward compatibility with service
+    const isAdmin = authContext.hasRole(ROLE_NAMES.ADMIN, ScopeType.COMPANY);
     queryDto.roles = authContext.roleContexts.map((rc) => rc.roleName);
     queryDto.current_user_id = currentuser_id;
+    queryDto.is_admin = isAdmin;
     return this.divisionService.getDivisionMembers(id, queryDto);
   }
 

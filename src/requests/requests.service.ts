@@ -78,21 +78,11 @@ export class RequestsService {
     }
   }
 
-  private validateFutureDate(date: Date, allowPast = false): void {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (!allowPast && date < today) {
-      throw new BadRequestException(REQUEST_ERRORS.CANNOT_CREATE_PAST_DATE);
-    }
-  }
-
   async createRemoteWorkRequest(
     dto: CreateRemoteWorkRequestDto,
   ): Promise<RemoteWorkRequestResponseDto> {
     await this.validateUser(dto.user_id);
     const workDate = new Date(dto.work_date);
-    this.validateFutureDate(workDate, false);
 
     const isDuplicate =
       await this.attendanceRequestService.checkDuplicateRequest(
@@ -2860,7 +2850,6 @@ export class RequestsService {
     await this.validateUser(dto.user_id);
 
     const workDate = new Date(dto.work_date);
-    this.validateFutureDate(workDate, false);
 
     if (dto.remote_type === RemoteType.OFFICE) {
       throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);

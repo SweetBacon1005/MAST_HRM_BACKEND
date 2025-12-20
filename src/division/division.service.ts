@@ -393,7 +393,20 @@ export class DivisionService {
     const limit = queryDto.limit || 10;
     const skip = (page - 1) * limit;
 
-    if (!queryDto.roles?.includes(ROLE_NAMES.ADMIN)) {
+    // Kiểm tra division tồn tại
+    const division = await this.prisma.divisions.findFirst({
+      where: {
+        id: division_id,
+        deleted_at: null,
+      },
+    });
+
+    if (!division) {
+      throw new NotFoundException(DIVISION_ERRORS.DIVISION_NOT_FOUND);
+    }
+
+    // Nếu không phải Admin ở COMPANY scope, phải check xem user có thuộc division này không
+    if (!queryDto.is_admin) {
       const userAssignment = await this.prisma.user_role_assignment.findFirst({
         where: {
           user_id: queryDto.current_user_id,
@@ -422,32 +435,108 @@ export class DivisionService {
       }
     }
 
+    // Lấy danh sách user_ids trong division này
+    const divisionAssignments = await this.prisma.user_role_assignment.findMany({
+      where: {
+        scope_type: ScopeType.DIVISION,
+        scope_id: division_id,
+        deleted_at: null,
+      },
+      select: { user_id: true },
+      distinct: ['user_id'],
+    });
+
+    const divisionUserIds = divisionAssignments.map((a) => a.user_id);
+
+    if (divisionUserIds.length === 0) {
+      return buildPaginationResponse([], 0, page, limit);
+    }
+
+    // Nếu có filter theo team_id, chỉ lấy users trong team đó
+    let userIds = divisionUserIds;
+    if (queryDto.team_id) {
+      const teamAssignments = await this.prisma.user_role_assignment.findMany({
+        where: {
+          scope_type: ScopeType.TEAM,
+          scope_id: queryDto.team_id,
+          user_id: { in: divisionUserIds },
+          deleted_at: null,
+        },
+        select: { user_id: true },
+        distinct: ['user_id'],
+      });
+      userIds = teamAssignments.map((a) => a.user_id);
+    }
+
     const userWhere: Prisma.usersWhereInput = {
+      id: { in: userIds },
       deleted_at: null,
       user_information: {
         deleted_at: null,
       },
     };
 
-    if (queryDto.position_id) {
-      userWhere.user_information = {
-        deleted_at: null,
-        position_id: queryDto.position_id,
-      };
+    // Search filter
+    if (queryDto.search) {
+      userWhere.OR = [
+        {
+          user_information: {
+            name: { contains: queryDto.search },
+          },
+        },
+        {
+          email: { contains: queryDto.search },
+        },
+        {
+          user_information: {
+            code: { contains: queryDto.search },
+          },
+        },
+      ];
     }
 
-    // Level filter removed - levels table no longer exists
+    // Build user_information filter
+    const userInfoWhere: Prisma.user_informationWhereInput = {
+      deleted_at: null,
+    };
+
+    if (queryDto.position_id) {
+      userInfoWhere.position_id = queryDto.position_id;
+    }
 
     if (queryDto.skill_id) {
-      userWhere.user_information = {
-        user_skills: {
-          some: {
-            skill_id: queryDto.skill_id,
-            deleted_at: null,
-          },
+      userInfoWhere.user_skills = {
+        some: {
+          skill_id: queryDto.skill_id,
+          deleted_at: null,
         },
       };
     }
+
+    if (Object.keys(userInfoWhere).length > 1) {
+      userWhere.user_information = userInfoWhere;
+    }
+
+    // Lấy team_ids và project_ids trong division để filter role assignments
+    const [divisionTeams, divisionProjects] = await Promise.all([
+      this.prisma.teams.findMany({
+        where: {
+          division_id: division_id,
+          deleted_at: null,
+        },
+        select: { id: true },
+      }),
+      this.prisma.projects.findMany({
+        where: {
+          division_id: division_id,
+          deleted_at: null,
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    const teamIds = divisionTeams.map((t) => t.id);
+    const projectIds = divisionProjects.map((p) => p.id);
 
     let orderBy: Prisma.usersOrderByWithRelationInput = {
       created_at: 'desc',
@@ -497,7 +586,23 @@ export class DivisionService {
             },
           },
           user_role_assignments: {
-            where: { deleted_at: null },
+            where: {
+              deleted_at: null,
+              OR: [
+                { scope_type: ScopeType.DIVISION, scope_id: division_id },
+                ...(teamIds.length > 0
+                  ? [{ scope_type: ScopeType.TEAM, scope_id: { in: teamIds } }]
+                  : []),
+                ...(projectIds.length > 0
+                  ? [
+                      {
+                        scope_type: ScopeType.PROJECT,
+                        scope_id: { in: projectIds },
+                      },
+                    ]
+                  : []),
+              ],
+            },
             include: {
               role: {
                 select: { id: true, name: true },
@@ -510,7 +615,10 @@ export class DivisionService {
         where: userWhere,
       }),
       this.prisma.teams.findMany({
-        where: { deleted_at: null },
+        where: {
+          division_id: division_id,
+          deleted_at: null,
+        },
         include: {
           division: {
             select: { id: true, name: true },
