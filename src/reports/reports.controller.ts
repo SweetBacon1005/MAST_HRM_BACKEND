@@ -274,7 +274,6 @@ export class ReportsController {
     );
   }
 
-  // === EXPORT ROUTE MUST BE BEFORE DYNAMIC ROUTE ===
   @Get('monthly-work-summary/export')
   @RequirePermission('reports.monthly-work-summary.export')
   @ApiOperation({
@@ -512,8 +511,6 @@ export class ReportsController {
       throw new ForbiddenException('Bạn không có quyền xem báo cáo này');
     }
 
-    // TODO: For view-team permission, verify userId is in current user's managed team
-    // This would require additional database check
 
     return this.monthlyWorkSummaryService.getMonthlyWorkSummaryDetail(
       userId,

@@ -4,15 +4,16 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApprovalStatus,
   AttendanceRequestType,
   DayOffDuration,
   DayOffType,
+  LateEarlyType,
   Prisma,
   RemoteType,
   ScopeType,
-  LateEarlyType,
 } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
@@ -36,12 +37,78 @@ export class MonthlyWorkSummaryService {
 
   // Configuration constants
   // NGHIỆP VỤ: 1 ngày = 1 CÔNG (không phải 2 công)
-  private readonly MINIMUM_MORNING_MINUTES = 180; // 3 giờ tối thiểu buổi sáng
-  private readonly MINIMUM_AFTERNOON_MINUTES = 180; // 3 giờ tối thiểu buổi chiều
   private readonly LATE_TOLERANCE_MINUTES = 15; // Đi muộn <= 15 phút không tính vi phạm
   private readonly EARLY_TOLERANCE_MINUTES = 15; // Về sớm <= 15 phút không tính vi phạm
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService,
+  ) {}
+
+  /**
+   * Parse time string "HH:mm" to { hour, minute }
+   */
+  private parseTimeString(timeStr: string): { hour: number; minute: number } {
+    const [hour, minute] = timeStr.split(':').map(Number);
+    return { hour, minute };
+  }
+
+  /**
+   * Get work time configuration from env and parse to minutes
+   */
+  private getWorkTimeConfig(): {
+    startMorningMinutes: number;
+    endMorningMinutes: number;
+    startAfternoonMinutes: number;
+    endAfternoonMinutes: number;
+    morningWorkMinutes: number;
+    afternoonWorkMinutes: number;
+    totalWorkMinutes: number;
+  } {
+    const startMorning = this.configService.get<string>(
+      'START_MORNING_WORK_TIME',
+      '8:30',
+    );
+    const endMorning = this.configService.get<string>(
+      'END_MORNING_WORK_TIME',
+      '12:00',
+    );
+    const startAfternoon = this.configService.get<string>(
+      'START_AFTERNOON_WORK_TIME',
+      '13:00',
+    );
+    const endAfternoon = this.configService.get<string>(
+      'END_AFTERNOON_WORK_TIME',
+      '17:30',
+    );
+
+    const startMorningTime = this.parseTimeString(startMorning);
+    const endMorningTime = this.parseTimeString(endMorning);
+    const startAfternoonTime = this.parseTimeString(startAfternoon);
+    const endAfternoonTime = this.parseTimeString(endAfternoon);
+
+    const startMorningMinutes =
+      startMorningTime.hour * 60 + startMorningTime.minute;
+    const endMorningMinutes = endMorningTime.hour * 60 + endMorningTime.minute;
+    const startAfternoonMinutes =
+      startAfternoonTime.hour * 60 + startAfternoonTime.minute;
+    const endAfternoonMinutes =
+      endAfternoonTime.hour * 60 + endAfternoonTime.minute;
+
+    const morningWorkMinutes = endMorningMinutes - startMorningMinutes;
+    const afternoonWorkMinutes = endAfternoonMinutes - startAfternoonMinutes;
+    const totalWorkMinutes = morningWorkMinutes + afternoonWorkMinutes;
+
+    return {
+      startMorningMinutes,
+      endMorningMinutes,
+      startAfternoonMinutes,
+      endAfternoonMinutes,
+      morningWorkMinutes,
+      afternoonWorkMinutes,
+      totalWorkMinutes,
+    };
+  }
 
   async getMonthlyWorkSummary(
     query: MonthlyWorkSummaryQueryDto,
@@ -375,9 +442,7 @@ export class MonthlyWorkSummaryService {
     });
 
     // Calculate metrics
-    const totalWorkDays = timesheets.filter(
-      (t) => t.is_complete && t.status !== ApprovalStatus.REJECTED,
-    ).length;
+    const totalWorkDays = timesheets.filter((t) => t.is_complete).length;
 
     const totalWorkHours = timesheets.reduce((sum, t) => {
       return sum + (t.total_work_time || 0) / 60;
@@ -401,20 +466,16 @@ export class MonthlyWorkSummaryService {
     );
     const overtimeDays = overtimeRequests.length;
 
-    // Working sessions calculation
     const workingSessionsStats = this.calculateWorkingSessions(
       timesheets,
       dayOffRequests,
-      violationsStats,
     );
 
-    // Absent days
     const absentDays = Math.max(
       0,
       expectedWorkDays - totalWorkDays - leaveDaysStats.totalLeaveDays,
     );
 
-    // Rates
     const attendanceRate =
       expectedWorkDays > 0
         ? parseFloat(((totalWorkDays / expectedWorkDays) * 100).toFixed(2))
@@ -531,8 +592,7 @@ export class MonthlyWorkSummaryService {
     dayOffRequests.forEach((req) => {
       if (!req.day_off) return;
 
-      const days =
-        req.day_off.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
+      const days = req.day_off.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
       totalLeaveDays += days;
 
       if (req.day_off.type === DayOffType.PAID) {
@@ -572,44 +632,29 @@ export class MonthlyWorkSummaryService {
     };
   }
 
-  /**
-   * Tính số công làm việc
-   * NGHIỆP VỤ: 1 ngày làm việc đủ = 1 CÔNG (không phải 2 công)
-   *
-   * XÉT CẢ APPROVED REQUESTS:
-   * - late_time_approved: Đi muộn được duyệt → cộng vào morning
-   * - early_time_approved: Về sớm được duyệt → cộng vào afternoon
-   * - day_off (APPROVED): Nghỉ phép được duyệt → tính đủ
-   */
-  private calculateWorkingSessions(
-    timesheets: any[],
-    dayOffRequests: any[],
-    violationsStats: any,
-  ) {
+  private calculateWorkingSessions(timesheets: any[], dayOffRequests: any[]) {
     let totalSessions = 0;
 
-    // 1 NGÀY = 1 CÔNG DUY NHẤT
-    // Điều kiện: Phải làm đủ CẢ sáng VÀ chiều (hoặc có approved requests)
     timesheets.forEach((timesheet) => {
-      // ✅ CỘNG approved time vào thời gian làm việc
-      // REMOVED: Session-based tracking (work_time_morning/afternoon)
-      // Now determine sessions from total_work_time and day_off duration
       const totalMinutes = timesheet.total_work_time || 0;
-      const totalHours = totalMinutes / 60;
+      const workTimeConfig = this.getWorkTimeConfig();
 
-      // Simple logic: 8+ hours = full day, 4-8 hours = half day
-      let morningOK = totalHours >= 4;
-      let afternoonOK = totalHours >= 8;
+      const morningThreshold = workTimeConfig.morningWorkMinutes;
+      const afternoonThreshold =
+        workTimeConfig.morningWorkMinutes + workTimeConfig.afternoonWorkMinutes;
 
-      // ✅ CHECK nghỉ phép (day_off) được duyệt
+      let morningOK = totalMinutes >= morningThreshold;
+      let afternoonOK = totalMinutes >= afternoonThreshold;
+
       const dayOff = dayOffRequests.find((d) => {
         const timesheetDate = new Date(timesheet.work_date).getTime();
         const dayOffDate = new Date(d.work_date).getTime();
-        return dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED;
+        return (
+          dayOffDate === timesheetDate && d.status === ApprovalStatus.APPROVED
+        );
       });
 
       if (dayOff) {
-        // Nghỉ phép buổi sáng (approved) → tính đủ
         if (
           dayOff.day_off?.duration === DayOffDuration.MORNING ||
           dayOff.day_off?.duration === DayOffDuration.FULL_DAY
@@ -617,7 +662,6 @@ export class MonthlyWorkSummaryService {
           morningOK = true;
         }
 
-        // Nghỉ phép buổi chiều (approved) → tính đủ
         if (
           dayOff.day_off?.duration === DayOffDuration.AFTERNOON ||
           dayOff.day_off?.duration === DayOffDuration.FULL_DAY
@@ -626,19 +670,14 @@ export class MonthlyWorkSummaryService {
         }
       }
 
-      // Tính công
       if (morningOK && afternoonOK) {
-        totalSessions += 1; // Đủ cả 2 buổi = 1 công
+        totalSessions += 1;
       } else if (morningOK || afternoonOK) {
-        totalSessions += 0.5; // Chỉ 1 buổi = 0.5 công
+        totalSessions += 0.5;
       }
-      // Không đủ cả 2 buổi = 0 công
     });
 
-    // Calculate deductions for severe violations (optional, based on company policy)
     const deductedSessions = 0;
-    // For now, we don't deduct sessions for violations
-    // This can be configured based on company policy
 
     const finalSessions = Math.max(0, totalSessions - deductedSessions);
 

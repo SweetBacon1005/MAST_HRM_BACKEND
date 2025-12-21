@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ApprovalStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Matches } from 'class-validator';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -28,16 +27,6 @@ export class TimesheetPaginationDto extends PaginationDto {
     message: 'Ngày kết thúc phải có định dạng YYYY-MM-DD',
   })
   end_date?: string;
-
-  @ApiProperty({
-    description: 'Trạng thái timesheet',
-    example: 'APPROVED',
-    required: false,
-    enum: ApprovalStatus,
-  })
-  @IsOptional()
-  @IsString()
-  status?: ApprovalStatus;
 }
 
 // DayOffRequestPaginationDto and OvertimeRequestPaginationDto moved to /requests module

@@ -94,12 +94,6 @@ model divisions {
   @@index([status])
 }
 
-model migrations {
-  id        Int    @id @default(autoincrement()) @db.UnsignedInt
-  migration String @db.VarChar(255)
-  batch     Int
-}
-
 model permissions {
   id              Int               @id @default(autoincrement())
   name            String            @unique @db.VarChar(255)
@@ -326,7 +320,7 @@ model day_offs {
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
   request_id         Int                 @unique
-  attendance_request attendance_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  attendance_request attendance_requests @relation("DayOffRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([type])
   @@index([duration])
@@ -359,7 +353,6 @@ model time_sheets {
   user                users                 @relation(fields: [user_id], references: [id])
   work_date           DateTime              @db.Date
   type                TimesheetType?        @default(NORMAL)
-  status              ApprovalStatus?       @default(PENDING)
   checkin             DateTime?             @db.DateTime()
   checkout            DateTime?             @db.DateTime()
   remote              RemoteType?           @default(OFFICE)
@@ -375,12 +368,8 @@ model time_sheets {
   @@index([user_id])
   @@index([work_date])
   @@index([user_id, work_date])
-  @@index([status])
   @@index([type])
   @@index([deleted_at])
-  @@index([work_date, status])
-  @@index([user_id, status])
-  @@index([user_id, work_date, status])
   @@index([remote])
   @@index([work_date, remote])
   @@index([user_id, type, work_date])
@@ -390,17 +379,14 @@ model attendance_logs {
   id              Int             @id @default(autoincrement())
   user_id         Int
   user            users           @relation(fields: [user_id], references: [id])
-  timesheet_id    Int? // Link tới time_sheets
+  timesheet_id    Int? 
   timesheet       time_sheets?    @relation(fields: [timesheet_id], references: [id])
-  action_type     String          @db.VarChar(20) // 'checkin', 'checkout', 'break_start', 'break_end'
-  timestamp       DateTime        @db.DateTime() // Thời gian thực hiện hành động
-  work_date       DateTime        @db.Date // Ngày làm việc
+  action_type     String          @db.VarChar(20)
+  timestamp       DateTime        @db.DateTime()
+  work_date       DateTime        @db.Date
   location_type   LocationType?
-  photo_url       String?         @db.VarChar(500) // Ảnh selfie check in/out
-  note            String?         @db.Text // Ghi chú
-  itempodency_key String?         @db.VarChar(255) // Mã định danh check in/out từ thiết bị
-  is_manual       Boolean         @default(false) // Check in/out thủ công bởi admin
-  status          ApprovalStatus? @default(PENDING) // 0: pending, 1: approved, 2: rejected
+  photo_url       String?         @db.VarChar(500)
+  itempodency_key String?         @db.VarChar(255)
   created_at      DateTime        @default(now())
   updated_at      DateTime        @updatedAt
   deleted_at      DateTime?       @db.DateTime()
@@ -411,7 +397,6 @@ model attendance_logs {
   @@index([action_type])
   @@index([timestamp])
   @@index([timesheet_id])
-  @@index([status])
   @@index([itempodency_key])
   @@index([user_id, action_type, work_date]) // Để kiểm tra checkin/checkout trong ngày
   @@index([deleted_at]) // Để tối ưu soft delete queries
@@ -453,7 +438,7 @@ model over_times_history {
   project_id         Int?
   project            projects?           @relation(fields: [project_id], references: [id])
   request_id         Int                 @unique
-  attendance_request attendance_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  attendance_request attendance_requests @relation("OvertimeRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
   @@index([project_id])
@@ -569,7 +554,7 @@ model remote_work_requests {
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
   request_id         Int                 @unique
-  attendance_request attendance_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  attendance_request attendance_requests @relation("RemoteWorkRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
   @@index([remote_type])
@@ -606,7 +591,7 @@ model late_early_requests {
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
   request_id         Int                 @unique
-  attendance_request attendance_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  attendance_request attendance_requests @relation("LateEarlyRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([request_type])
   @@index([deleted_at])
@@ -631,11 +616,11 @@ model attendance_requests {
   created_at             DateTime                 @default(now())
   updated_at             DateTime                 @updatedAt
   deleted_at             DateTime?                @db.DateTime()
-  day_off                day_offs?
-  overtime               over_times_history?
-  remote_work_request    remote_work_requests?
-  late_early_request     late_early_requests?
-  forgot_checkin_request forgot_checkin_requests?
+  day_off                day_offs?                @relation("DayOffRelation")
+  overtime               over_times_history?      @relation("OvertimeRelation")
+  remote_work_request    remote_work_requests?    @relation("RemoteWorkRequestRelation")
+  late_early_request     late_early_requests?     @relation("LateEarlyRequestRelation")
+  forgot_checkin_request forgot_checkin_requests? @relation("ForgotCheckinRequestRelation")
 
   @@unique([user_id, work_date, request_type, deleted_at], name: "unique_user_work_date_request_type")
   @@index([user_id])
@@ -659,7 +644,7 @@ model forgot_checkin_requests {
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
   request_id         Int                 @unique
-  attendance_request attendance_requests @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  attendance_request attendance_requests @relation("ForgotCheckinRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
   @@index([request_id])
@@ -792,19 +777,6 @@ enum LocationType {
   CLIENT_SITE
 }
 
-enum SessionType {
-  WORK
-  BREAK
-  OVERTIME
-}
-
-enum ActionType {
-  CHECKIN
-  CHECKOUT
-  BREAK_START
-  BREAK_END
-}
-
 enum HolidayType {
   NATIONAL
   COMPANY
@@ -813,14 +785,6 @@ enum HolidayType {
 enum HolidayStatus {
   ACTIVE
   INACTIVE
-}
-
-enum WorkShiftType {
-  NORMAL // Ca thường (hành chính)
-  NIGHT // Ca đêm
-  FLEXIBLE // Ca linh hoạt
-  PART_TIME // Ca bán thời gian
-  OVERTIME // Ca tăng ca
 }
 
 enum OtpType {

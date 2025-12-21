@@ -68,9 +68,6 @@ export class QueryBuilderService {
       where.user_id = { in: user_ids };
     }
 
-    if (status) {
-      where.status = status as any; // Prisma enum
-    }
 
     return where;
   }

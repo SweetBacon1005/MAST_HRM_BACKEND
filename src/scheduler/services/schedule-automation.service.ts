@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import {
-  WorkShiftType,
   RemoteType,
   DayOffType,
 } from '@prisma/client';
@@ -57,7 +56,7 @@ export class ScheduleAutomationService {
           },
           deleted_at: null,
           type: {
-            in: [WorkShiftType.NORMAL, WorkShiftType.FLEXIBLE],
+            in: ['NORMAL', 'FLEXIBLE'],
           },
         },
       });
@@ -97,7 +96,7 @@ export class ScheduleAutomationService {
 
       const existingOvertime = await this.prisma.schedule_works.findFirst({
         where: {
-          type: WorkShiftType.OVERTIME,
+          type: 'OVERTIME',
           start_date: nextMonday,
           end_date: nextSunday,
           deleted_at: null,
@@ -108,7 +107,7 @@ export class ScheduleAutomationService {
         await this.prisma.schedule_works.create({
           data: {
             name: `Ca tăng ca tuần ${this.getWeekNumber(nextMonday)}`,
-            type: WorkShiftType.OVERTIME,
+            type: 'OVERTIME',
             start_date: nextMonday,
             end_date: nextSunday,
             hour_start_morning: WORK_HOURS.OVERTIME_EVENING_START,
@@ -144,7 +143,7 @@ export class ScheduleAutomationService {
           end_date: { lt: threeMonthsAgo },
           deleted_at: null,
           type: {
-            in: [WorkShiftType.OVERTIME, WorkShiftType.PART_TIME],
+            in: ['OVERTIME', 'PART_TIME'],
           },
         },
         data: { deleted_at: new Date() },
@@ -177,7 +176,7 @@ export class ScheduleAutomationService {
         where: {
           start_date: { gte: nextMonth },
           end_date: { lte: endOfNextMonth },
-          type: WorkShiftType.NORMAL,
+          type: 'NORMAL',
           deleted_at: null,
         },
       });
@@ -186,7 +185,7 @@ export class ScheduleAutomationService {
         await this.prisma.schedule_works.create({
           data: {
             name: `Ca hành chính - ${nextMonth.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}`,
-            type: WorkShiftType.NORMAL,
+            type: 'NORMAL',
             start_date: nextMonth,
             end_date: endOfNextMonth,
             hour_start_morning: WORK_HOURS.MORNING_START,

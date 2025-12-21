@@ -6,12 +6,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   DayOffType,
   RemoteType,
   ApprovalStatus,
   TimesheetType,
-  WorkShiftType,
   ScopeType,
 } from '@prisma/client';
 import { ATTENDANCE_ERRORS } from '../common/constants/error-messages.constants';
@@ -36,6 +36,7 @@ import {
 import { WorkShiftPaginationDto } from './dto/pagination-queries.dto';
 import { AttendanceRequestService } from '../requests/services/attendance-request.service';
 import { DayOffDetailService } from '../requests/services/day-off-detail.service';
+import { TimesheetService } from '../timesheet/timesheet.service';
 
 @Injectable()
 export class AttendanceService {
@@ -45,6 +46,8 @@ export class AttendanceService {
     private prisma: PrismaService,
     private attendanceRequestService: AttendanceRequestService,
     private dayOffDetailService: DayOffDetailService,
+    private timesheetService: TimesheetService,
+    private configService: ConfigService,
   ) {}
 
   async calculateAttendance(attendanceDto: AttendanceCalculationDto) {
@@ -94,12 +97,17 @@ export class AttendanceService {
     }
 
     // REMOVED: schedule_works table - Using hardcoded schedule
+    const startMorning = this.configService.get<string>('START_MORNING_WORK_TIME', '8:30');
+    const endMorning = this.configService.get<string>('END_MORNING_WORK_TIME', '12:00');
+    const startAfternoon = this.configService.get<string>('START_AFTERNOON_WORK_TIME', '13:00');
+    const endAfternoon = this.configService.get<string>('END_AFTERNOON_WORK_TIME', '17:30');
+
     const workShift = {
-      hour_start_morning: '08:30',
-      hour_end_morning: '12:00',
-      hour_start_afternoon: '13:00',
-      hour_end_afternoon: '17:30',
-      type: WorkShiftType.NORMAL,
+      hour_start_morning: startMorning,
+      hour_end_morning: endMorning,
+      hour_start_afternoon: startAfternoon,
+      hour_end_afternoon: endAfternoon,
+      type: 'NORMAL',
     };
 
     const calculations = this.calculateWorkingTime(
@@ -133,25 +141,28 @@ export class AttendanceService {
       total_work_time: calculations.total_work_minutes,
       remote: is_remote ? RemoteType.REMOTE : RemoteType.OFFICE,
       is_complete: true,
-      status: ApprovalStatus.PENDING,
       type: TimesheetType.NORMAL,
     };
 
     try {
+      let result;
       if (existingAttendance) {
-        const result = await this.prisma.time_sheets.update({
+        result = await this.prisma.time_sheets.update({
           where: { id: existingAttendance.id },
           data: attendanceData,
         });
         this.logger.log(`Cập nhật chấm công thành công cho user ${user_id}`);
-        return result;
       } else {
-        const result = await this.prisma.time_sheets.create({
+        result = await this.prisma.time_sheets.create({
           data: attendanceData,
         });
         this.logger.log(`Tạo chấm công mới thành công cho user ${user_id}`);
-        return result;
       }
+
+      // Cập nhật is_complete dựa trên required_work_time
+      await this.timesheetService.updateTimesheetCompleteStatus(result.id);
+
+      return result;
     } catch (error) {
       this.logger.error(`Lỗi khi lưu chấm công: ${error.message}`, error.stack);
       throw new UnprocessableEntityException(ATTENDANCE_ERRORS.ATTENDANCE_SAVE_FAILED);
@@ -281,7 +292,7 @@ export class AttendanceService {
           hour_end_morning: morning_end,
           hour_start_afternoon: afternoon_start,
           hour_end_afternoon: afternoon_end,
-          type: type || WorkShiftType.NORMAL,
+          type: type || 'NORMAL',
           start_date: new Date(currentYear, 0, 1), // 1/1 năm hiện tại
           end_date: new Date(currentYear, 11, 31), // 31/12 năm hiện tại
         },
@@ -322,9 +333,6 @@ export class AttendanceService {
       };
     }
 
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
-    }
 
     const [data, total] = await Promise.all([
       this.prisma.schedule_works.findMany({
@@ -483,7 +491,7 @@ export class AttendanceService {
       });
       if (!timesheet) {
         timesheet = await this.prisma.time_sheets.create({
-          data: { user_id, work_date: startDateObj, status: ApprovalStatus.PENDING, type: 'NORMAL' },
+          data: { user_id, work_date: startDateObj, type: 'NORMAL' },
         });
       }
 
@@ -621,13 +629,24 @@ export class AttendanceService {
           checkin,
           checkout,
           remote: RemoteType.REMOTE,
-          status: ApprovalStatus.PENDING,
           is_complete: true,
           type: TimesheetType.NORMAL,
           // REMOVED: work_time_morning/afternoon - use total_work_time
-          total_work_time: is_full_day ? 480 : Math.floor(
-            (checkout.getTime() - checkin.getTime()) / (1000 * 60),
-          ),
+          total_work_time: is_full_day 
+            ? (() => {
+                const startMorning = this.configService.get<string>('START_MORNING_WORK_TIME', '8:30');
+                const endMorning = this.configService.get<string>('END_MORNING_WORK_TIME', '12:00');
+                const startAfternoon = this.configService.get<string>('START_AFTERNOON_WORK_TIME', '13:00');
+                const endAfternoon = this.configService.get<string>('END_AFTERNOON_WORK_TIME', '17:30');
+                const parseTime = (timeStr: string) => {
+                  const [hour, minute] = timeStr.split(':').map(Number);
+                  return hour * 60 + minute;
+                };
+                const morningMinutes = parseTime(endMorning) - parseTime(startMorning);
+                const afternoonMinutes = parseTime(endAfternoon) - parseTime(startAfternoon);
+                return morningMinutes + afternoonMinutes;
+              })()
+            : Math.floor((checkout.getTime() - checkin.getTime()) / (1000 * 60)),
         },
       });
 
@@ -1138,7 +1157,6 @@ export class AttendanceService {
           60,
         penalties: 0,
         is_remote: timesheet.remote === RemoteType.REMOTE,
-        status: timesheet.status,
       })),
       generated_at: new Date(),
     };

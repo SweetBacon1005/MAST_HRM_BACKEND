@@ -158,12 +158,9 @@ export class AttendanceExportService {
       },
     });
 
-    // Lấy division names cho tất cả users
-    // FIX N+1: Batch fetch division names for all users
     const user_ids = [...new Set(logs.map((log) => log.user_id))];
     const divisionNamesMap = await this.batchGetDivisionNamesForUsers(user_ids);
 
-    // Transform data for CSV
     const csvData = logs.map((log) => ({
       user_id: log.user_id,
       email: log.user.email,
@@ -173,8 +170,6 @@ export class AttendanceExportService {
       timestamp: this.csvExport.formatDateTime(log.timestamp),
       action_type: log.action_type,
       location_type: log.location_type || '',
-      is_manual: log.is_manual ? 'Thủ công' : 'Tự động',
-      note: log.note || '',
       created_at: this.csvExport.formatDateTime(log.created_at),
     }));
 
@@ -187,8 +182,6 @@ export class AttendanceExportService {
       timestamp: 'Thời gian',
       action_type: 'Loại hành động',
       location_type: 'Địa điểm',
-      is_manual: 'Chấm công',
-      note: 'Ghi chú',
       created_at: 'Ngày tạo',
     };
 

@@ -3,12 +3,12 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
-import { WorkShiftType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -159,16 +159,16 @@ export class WorkShiftDto {
 
   @ApiPropertyOptional({
     description: 'Loại ca làm việc',
-    example: WorkShiftType.NORMAL,
-    enum: WorkShiftType,
-    enumName: 'WorkShiftType',
-    default: WorkShiftType.NORMAL,
+    example: 'NORMAL',
+    enum: ['NORMAL', 'FLEXIBLE', 'OVERTIME', 'PART_TIME'],
+    default: 'NORMAL',
   })
   @IsOptional()
-  @IsEnum(WorkShiftType, {
+  @IsString()
+  @IsIn(['NORMAL', 'FLEXIBLE', 'OVERTIME', 'PART_TIME'], {
     message: 'Loại ca làm việc phải là một trong các giá trị hợp lệ',
   })
-  type?: WorkShiftType;
+  type?: string;
 }
 
 export class PenaltyCalculationDto {

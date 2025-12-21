@@ -20,26 +20,16 @@ export class ip_validationService {
     private readonly configService: ConfigService,
   ) {}
 
-  /**
-   * Kiểm tra IP có được phép check in/out không
-   * @param user_id ID của user
-   * @param client_ip IP của client
-   * @param workDate Ngày làm việc (YYYY-MM-DD)
-   * @returns Kết quả validation
-   */
   async validateIpForAttendance(
     user_id: number,
     client_ip: string,
     workDate: string,
   ): Promise<ip_validationResult> {
     try {
-      // Lấy danh sách IP văn phòng được phép
       const allowed_ips = await this.getOfficeIpAddresses();
       
-      // Kiểm tra IP có trong danh sách văn phòng không
       const is_office_network = this.isIpInAllowedList(client_ip, allowed_ips);
 
-      // Nếu đang ở văn phòng thì cho phép
       if (is_office_network) {
         return {
           isValid: true,
@@ -51,7 +41,6 @@ export class ip_validationService {
         };
       }
 
-      // Nếu không ở văn phòng, kiểm tra có remote work request được duyệt không
       const has_approved_remote_request = await this.checkApprovedRemoteRequest(
         user_id,
         workDate,
@@ -68,7 +57,6 @@ export class ip_validationService {
         };
       }
 
-      // Không được phép check in/out
       return {
         isValid: false,
         is_office_network: false,
@@ -83,7 +71,6 @@ export class ip_validationService {
         error.stack,
       );
       
-      // Trong trường hợp lỗi, cho phép check in/out để không ảnh hưởng đến hoạt động
       return {
         isValid: true,
         is_office_network: false,
@@ -99,7 +86,6 @@ export class ip_validationService {
    * Lấy danh sách IP văn phòng được phép từ environment variables
    */
   async getOfficeIpAddresses(): Promise<string[]> {
-    // Lấy từ environment variables
     const envIps = this.configService.get<string>('OFFICE_IP_ADDRESSES');
     if (envIps) {
       return envIps.split(',').map(ip => ip.trim()).filter(ip => ip.length > 0);
@@ -169,21 +155,16 @@ export class ip_validationService {
     return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet), 0) >>> 0;
   }
 
-  /**
-   * Kiểm tra có remote work request được duyệt cho ngày cụ thể không
-   */
   private async checkApprovedRemoteRequest(
     user_id: number,
     workDate: string,
   ): Promise<boolean> {
     try {
-      // Kiểm tra trong bảng time_sheets có remote work được duyệt không
       const approvedRemoteWork = await this.prisma.time_sheets.findFirst({
         where: {
           user_id: user_id,
           work_date: new Date(workDate),
           remote: 'REMOTE',
-          status: 'APPROVED',
           deleted_at: null,
         },
       });
@@ -191,9 +172,6 @@ export class ip_validationService {
       if (approvedRemoteWork) {
         return true;
       }
-
-      // Kiểm tra trong các bảng requests khác nếu có
-      // TODO: Có thể mở rộng để kiểm tra các loại request khác
 
       return false;
     } catch (error) {
@@ -205,18 +183,13 @@ export class ip_validationService {
     }
   }
 
-  /**
-   * Lấy IP thực của client từ request headers
-   */
   getclient_ip(request: any): string {
-    // Kiểm tra các headers phổ biến cho IP thực
     const xForwardedFor = request.headers['x-forwarded-for'];
     const xRealIp = request.headers['x-real-ip'];
     const xclient_ip = request.headers['x-client-ip'];
     const cfConnectingIp = request.headers['cf-connecting-ip']; // Cloudflare
 
     if (xForwardedFor) {
-      // X-Forwarded-For có thể chứa nhiều IP, lấy IP đầu tiên
       return xForwardedFor.split(',')[0].trim();
     }
 
@@ -232,7 +205,6 @@ export class ip_validationService {
       return cfConnectingIp;
     }
 
-    // Fallback to connection remote address
     return request.connection?.remoteAddress || 
            request.socket?.remoteAddress || 
            request.ip || 
@@ -244,7 +216,6 @@ export class ip_validationService {
    */
   validateIpFormat(ipAddress: string): boolean {
     try {
-      // Kiểm tra IP đơn lẻ
       if (/^(\d{1,3}\.){3}\d{1,3}$/.test(ipAddress)) {
         const parts = ipAddress.split('.');
         return parts.every(part => {
@@ -253,14 +224,12 @@ export class ip_validationService {
         });
       }
 
-      // Kiểm tra CIDR notation
       if (ipAddress.includes('/')) {
         const [network, prefix] = ipAddress.split('/');
         const prefixNum = parseInt(prefix);
         return this.validateIpFormat(network) && prefixNum >= 0 && prefixNum <= 32;
       }
 
-      // Kiểm tra wildcard pattern
       if (ipAddress.includes('*')) {
         const pattern = ipAddress.replace(/\*/g, '255');
         return this.validateIpFormat(pattern);
@@ -272,9 +241,6 @@ export class ip_validationService {
     }
   }
 
-  /**
-   * Lấy thông tin về cấu hình IP hiện tại
-   */
   getIpConfiguration(): {
     source: 'OFFICE_IP_ADDRESSES' | 'DEFAULT_OFFICE_IPS';
     ips: string[];

@@ -5,11 +5,13 @@ import { DayOffDetailService } from 'src/requests/services/day-off-detail.servic
 import { LateEarlyDetailService } from 'src/requests/services/late-early-detail.service';
 import { OvertimeDetailService } from 'src/requests/services/overtime-detail.service';
 import { CsvExportService } from '../common/services/csv-export.service';
+import { TimesheetModule } from '../timesheet/timesheet.module';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
 import { AttendanceExportService } from './services/attendance-export.service';
 
 @Module({
+  imports: [TimesheetModule],
   controllers: [AttendanceController],
   providers: [
     AttendanceService,

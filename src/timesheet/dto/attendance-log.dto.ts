@@ -3,9 +3,8 @@ import {
   ApiProperty,
   ApiPropertyOptional,
 } from '@nestjs/swagger';
-import { ApprovalStatus, LocationType } from '@prisma/client';
+import { LocationType } from '@prisma/client';
 import {
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsIn,
@@ -101,70 +100,13 @@ export class CreateAttendanceLogDto {
   @IsString()
   photo_url?: string;
 
-  @ApiPropertyOptional({
-    description: 'Ghi chú',
-    example: 'Check in từ văn phòng',
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
-
-  @ApiPropertyOptional({
-    description: 'Check in/out thủ công bởi admin',
-    example: false,
-  })
-  @IsOptional()
-  @IsBoolean()
-  is_manual?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'ID người duyệt',
-    example: 456,
-  })
-  @IsOptional()
-  @IsInt()
-  approved_by?: number;
-
-  @ApiPropertyOptional({
-    description: 'Trạng thái (0: pending, 1: approved, 2: rejected)',
-    example: 1,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn([
-    ApprovalStatus.PENDING,
-    ApprovalStatus.APPROVED,
-    ApprovalStatus.REJECTED,
-  ])
-  status?: ApprovalStatus;
 }
 
 export class UpdateAttendanceLogDto {
-  @ApiPropertyOptional({
-    description: 'Ghi chú',
-    example: 'Cập nhật ghi chú',
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
-
   @ApiHideProperty()
   @IsOptional()
   @IsInt()
   user_id?: number;
-
-  @ApiPropertyOptional({
-    description: 'Trạng thái (0: pending, 1: approved, 2: rejected)',
-    example: 1,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn([
-    ApprovalStatus.PENDING,
-    ApprovalStatus.APPROVED,
-    ApprovalStatus.REJECTED,
-  ])
-  status?: ApprovalStatus;
 }
 
 export class AttendanceLogQueryDto {
@@ -201,15 +143,6 @@ export class AttendanceLogQueryDto {
   @IsString()
   @IsIn(['checkin', 'checkout', 'break_start', 'break_end'])
   action_type?: string;
-
-  @ApiPropertyOptional({
-    description: 'Trạng thái',
-    example: 1,
-  })
-  @IsOptional()
-  @IsInt()
-  @IsIn([0, 1, 2])
-  status?: number;
 
   @ApiPropertyOptional({
     description: 'Số trang',

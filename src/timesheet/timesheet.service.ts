@@ -5,13 +5,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { REQUEST } from '@nestjs/core';
 import {
   ApprovalStatus,
   AttendanceRequestType,
   DayOffDuration,
   HolidayStatus,
+  LocationType,
   Prisma,
+  RemoteType,
   ScopeType,
 } from '@prisma/client';
 import type { Request } from 'express';
@@ -49,19 +52,160 @@ import {
 import { UpdateHolidayDto } from './dto/update-holiday.dto';
 import { UpdateTimesheetDto } from './dto/update-timesheet.dto';
 import { DayOffCalculator } from './enums/day-off.enum';
-import { ApprovalStatusManager } from './enums/timesheet-status.enum';
 import { QueryUtil } from './utils/query.util';
 
 @Injectable()
 export class TimesheetService {
   constructor(
     private prisma: PrismaService,
-    private httpService: HttpService,
     private ip_validationService: ip_validationService,
     private uploadService: UploadService,
     private attendanceRequestService: AttendanceRequestService,
+    private configService: ConfigService,
     @Inject(REQUEST) private request: Request,
   ) {}
+
+  private parseTimeString(timeStr: string): { hour: number; minute: number } {
+    const [hour, minute] = timeStr.split(':').map(Number);
+    return { hour, minute };
+  }
+
+  private getWorkTimeConfig(): {
+    startMorningMinutes: number;
+    endMorningMinutes: number;
+    startAfternoonMinutes: number;
+    endAfternoonMinutes: number;
+    totalWorkMinutes: number;
+  } {
+    const startMorning = this.configService.get<string>(
+      'START_MORNING_WORK_TIME',
+      '8:30',
+    );
+    const endMorning = this.configService.get<string>(
+      'END_MORNING_WORK_TIME',
+      '12:00',
+    );
+    const startAfternoon = this.configService.get<string>(
+      'START_AFTERNOON_WORK_TIME',
+      '13:00',
+    );
+    const endAfternoon = this.configService.get<string>(
+      'END_AFTERNOON_WORK_TIME',
+      '17:30',
+    );
+
+    const startMorningTime = this.parseTimeString(startMorning);
+    const endMorningTime = this.parseTimeString(endMorning);
+    const startAfternoonTime = this.parseTimeString(startAfternoon);
+    const endAfternoonTime = this.parseTimeString(endAfternoon);
+
+    const startMorningMinutes =
+      startMorningTime.hour * 60 + startMorningTime.minute;
+    const endMorningMinutes = endMorningTime.hour * 60 + endMorningTime.minute;
+    const startAfternoonMinutes =
+      startAfternoonTime.hour * 60 + startAfternoonTime.minute;
+    const endAfternoonMinutes =
+      endAfternoonTime.hour * 60 + endAfternoonTime.minute;
+
+    const totalWorkMinutes =
+      endMorningMinutes -
+      startMorningMinutes +
+      (endAfternoonMinutes - startAfternoonMinutes);
+
+    return {
+      startMorningMinutes,
+      endMorningMinutes,
+      startAfternoonMinutes,
+      endAfternoonMinutes,
+      totalWorkMinutes,
+    };
+  }
+
+  private async calculateRequiredWorkTime(
+    timesheetId: number,
+  ): Promise<number> {
+    const workTimeConfig = this.getWorkTimeConfig();
+    const DEFAULT_WORK_MINUTES = workTimeConfig.totalWorkMinutes;
+
+    const approvedRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        timesheet_id: timesheetId,
+        status: ApprovalStatus.APPROVED,
+        deleted_at: null,
+      },
+      include: {
+        day_off: {
+          select: {
+            duration: true,
+          },
+        },
+        late_early_request: {
+          select: {
+            late_minutes: true,
+            early_minutes: true,
+          },
+        },
+      },
+    });
+
+    let deductedMinutes = 0;
+
+    const morningWorkMinutes =
+      workTimeConfig.endMorningMinutes - workTimeConfig.startMorningMinutes;
+    const afternoonWorkMinutes =
+      workTimeConfig.endAfternoonMinutes - workTimeConfig.startAfternoonMinutes;
+
+    for (const request of approvedRequests) {
+      if (request.day_off) {
+        switch (request.day_off.duration) {
+          case 'FULL_DAY':
+            deductedMinutes += DEFAULT_WORK_MINUTES;
+            break;
+          case 'MORNING':
+            deductedMinutes += morningWorkMinutes;
+            break;
+          case 'AFTERNOON':
+            deductedMinutes += afternoonWorkMinutes;
+            break;
+        }
+      }
+
+      if (request.late_early_request) {
+        if (request.late_early_request.late_minutes) {
+          deductedMinutes += request.late_early_request.late_minutes;
+        }
+        if (request.late_early_request.early_minutes) {
+          deductedMinutes += request.late_early_request.early_minutes;
+        }
+      }
+    }
+
+    const requiredWorkTime = Math.max(
+      0,
+      DEFAULT_WORK_MINUTES - deductedMinutes,
+    );
+    return requiredWorkTime;
+  }
+
+  async updateTimesheetCompleteStatus(timesheetId: number): Promise<void> {
+    const timesheet = await this.prisma.time_sheets.findFirst({
+      where: { id: timesheetId, deleted_at: null },
+    });
+
+    if (!timesheet) {
+      return;
+    }
+
+    const requiredWorkTime = await this.calculateRequiredWorkTime(timesheetId);
+    const isComplete =
+      timesheet.total_work_time !== null &&
+      timesheet.total_work_time >= requiredWorkTime;
+
+    await this.prisma.time_sheets.update({
+      where: { id: timesheetId },
+      data: { is_complete: isComplete },
+    });
+  }
 
   async createTimesheet(
     createTimesheetDto: CreateTimesheetDto,
@@ -109,7 +253,6 @@ export class TimesheetService {
       throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_ALREADY_EXISTS);
     }
 
-    // Auto-detect if work_date is a holiday
     let timesheetType = createTimesheetDto.type;
     if (!timesheetType || timesheetType === 'NORMAL') {
       const isHoliday = await this.prisma.holidays.findFirst({
@@ -137,7 +280,6 @@ export class TimesheetService {
           ? new Date(createTimesheetDto.checkout)
           : null,
         is_complete: createTimesheetDto.is_complete ? true : false,
-        status: 'PENDING',
         type: timesheetType,
         remote: createTimesheetDto.remote,
       },
@@ -184,21 +326,12 @@ export class TimesheetService {
       );
     }
 
-    if (paginationDto.status) {
-      where.status = paginationDto.status;
-    }
-
     const [data, total] = await Promise.all([
       this.prisma.time_sheets.findMany({
         where,
         skip,
         take,
         orderBy: orderBy || { work_date: 'desc' },
-        include: {
-          user: {
-            select: { email: true },
-          },
-        },
       }),
       this.prisma.time_sheets.count({ where }),
     ]);
@@ -212,84 +345,136 @@ export class TimesheetService {
       );
     }
 
-    const workDates = data.map((t) => {
-      const dateStr = t.work_date.toISOString().split('T')[0];
-      return new Date(dateStr);
+    const timesheetIds = data.map((t) => t.id);
+
+    const allRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: user_id,
+        timesheet_id: { in: timesheetIds },
+        request_type: {
+          in: [
+            'REMOTE_WORK',
+            'DAY_OFF',
+            'OVERTIME',
+            'LATE_EARLY',
+            'FORGOT_CHECKIN',
+          ],
+        },
+        deleted_at: null,
+      },
+      select: {
+        id: true,
+        timesheet_id: true,
+        request_type: true,
+        work_date: true,
+        status: true,
+        reason: true,
+        created_at: true,
+        approved_at: true,
+        approved_by: true,
+        day_off: {
+          select: {
+            id: true,
+            type: true,
+            duration: true,
+          },
+        },
+        overtime: {
+          select: {
+            id: true,
+            start_time: true,
+            end_time: true,
+            total_hours: true,
+          },
+        },
+        remote_work_request: {
+          select: {
+            id: true,
+            remote_type: true,
+          },
+        },
+        late_early_request: {
+          select: {
+            id: true,
+            late_minutes: true,
+            early_minutes: true,
+          },
+        },
+        forgot_checkin_request: {
+          select: {
+            id: true,
+            checkin_time: true,
+            checkout_time: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
 
-    const [
-      allRemoteWorkRequests,
-      allDayOffRequests,
-      allOvertimeRequests,
-      allLateEarlyRequests,
-      allForgotCheckinRequests,
-    ] = await Promise.all([
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: { in: workDates },
-        request_type: 'REMOTE_WORK',
-        deleted_at: null,
-      }),
+    // Group requests by timesheet_id (simple array, no need to group by type)
+    const requestsByTimesheetId = new Map<number, typeof allRequests>();
+    allRequests.forEach((request) => {
+      const timesheetId = request.timesheet_id;
+      if (!requestsByTimesheetId.has(timesheetId)) {
+        requestsByTimesheetId.set(timesheetId, []);
+      }
+      requestsByTimesheetId.get(timesheetId)!.push(request);
+    });
 
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: { in: workDates },
-        request_type: 'DAY_OFF',
-        deleted_at: null,
-      }),
+    const transformRequest = (request: (typeof allRequests)[0]) => {
+      const baseRequest = {
+        id: request.id,
+        request_type: request.request_type,
+        status: request.status,
+        reason: request.reason,
+        created_at: request.created_at,
+        approved_at: request.approved_at,
+        approved_by: request.approved_by,
+      };
 
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: { in: workDates },
-        request_type: 'OVERTIME',
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: { in: workDates },
-        request_type: 'LATE_EARLY',
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: { in: workDates },
-        request_type: 'FORGOT_CHECKIN',
-        deleted_at: null,
-      }),
-    ]);
-
-    const groupByDate = (items: any[]) => {
-      const map = new Map<string, any[]>();
-      items.forEach((item) => {
-        const dateKey = item.work_date.toISOString().split('T')[0];
-        if (!map.has(dateKey)) {
-          map.set(dateKey, []);
-        }
-        map.get(dateKey)!.push(item);
-      });
-      return map;
+      switch (request.request_type) {
+        case 'DAY_OFF':
+          return { ...baseRequest, day_off: request.day_off };
+        case 'OVERTIME':
+          return { ...baseRequest, overtime: request.overtime };
+        case 'REMOTE_WORK':
+          return {
+            ...baseRequest,
+            remote_work_request: request.remote_work_request,
+          };
+        case 'LATE_EARLY':
+          return {
+            ...baseRequest,
+            late_early_request: request.late_early_request,
+          };
+        case 'FORGOT_CHECKIN':
+          return {
+            ...baseRequest,
+            forgot_checkin_request: request.forgot_checkin_request,
+          };
+        default:
+          return baseRequest;
+      }
     };
 
-    const remoteWorkMap = groupByDate(allRemoteWorkRequests);
-    const dayOffMap = groupByDate(allDayOffRequests);
-    const overtimeMap = groupByDate(allOvertimeRequests);
-    const lateEarlyMap = groupByDate(allLateEarlyRequests);
-    const forgotCheckinMap = groupByDate(allForgotCheckinRequests);
-
     const enhancedData = data.map((timesheet) => {
-      const dateKey = timesheet.work_date.toISOString().split('T')[0];
+      const timesheetRequests = requestsByTimesheetId.get(timesheet.id) || [];
 
       return {
-        ...timesheet,
-        requests: {
-          remote_work: remoteWorkMap.get(dateKey) || [],
-          day_off: dayOffMap.get(dateKey) || [],
-          overtime: overtimeMap.get(dateKey) || [],
-          late_early: lateEarlyMap.get(dateKey) || [],
-          forgot_checkin: forgotCheckinMap.get(dateKey) || [],
-        },
+        id: timesheet.id,
+        user_id: timesheet.user_id,
+        work_date: timesheet.work_date,
+        checkin: timesheet.checkin,
+        checkout: timesheet.checkout,
+        type: timesheet.type,
+        remote: timesheet.remote,
+        is_complete: timesheet.is_complete,
+        total_work_time: timesheet.total_work_time,
+        created_at: timesheet.created_at,
+        updated_at: timesheet.updated_at,
+        requests: timesheetRequests.map(transformRequest),
       };
     });
 
@@ -314,16 +499,7 @@ export class TimesheetService {
   }
 
   async updateTimesheet(id: number, updateTimesheetDto: UpdateTimesheetDto) {
-    const timesheet = await this.findTimesheetById(id);
-
-    const currentState = timesheet.status
-      ? timesheet.status
-      : ApprovalStatus.PENDING;
-    if (!ApprovalStatusManager.canEdit(currentState)) {
-      throw new BadRequestException(
-        `Không thể sửa timesheet ở trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
-      );
-    }
+    await this.findTimesheetById(id);
 
     const { is_complete, ...rest } = updateTimesheetDto;
 
@@ -339,7 +515,6 @@ export class TimesheetService {
           ? new Date(updateTimesheetDto.checkout)
           : undefined,
         is_complete: is_complete ? true : false,
-        status: 'PENDING',
         type: 'NORMAL',
         remote: 'OFFICE',
       },
@@ -347,16 +522,7 @@ export class TimesheetService {
   }
 
   async removeTimesheet(id: number) {
-    const timesheet = await this.findTimesheetById(id);
-
-    const currentState = timesheet.status
-      ? timesheet.status
-      : ApprovalStatus.PENDING;
-    if (!ApprovalStatusManager.canDelete(currentState)) {
-      throw new BadRequestException(
-        `Không thể xóa timesheet ở trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
-      );
-    }
+    await this.findTimesheetById(id);
 
     return this.prisma.time_sheets.update({
       where: { id },
@@ -416,6 +582,18 @@ export class TimesheetService {
       throw new BadRequestException(ip_validation.message);
     }
 
+    const remote: RemoteType = ip_validation.has_approved_remote_request
+      ? ip_validation.is_office_network
+        ? 'HYBRID'
+        : 'REMOTE'
+      : 'OFFICE';
+
+    const location_type: LocationType =
+      !ip_validation.is_office_network &&
+      ip_validation.has_approved_remote_request
+        ? 'REMOTE'
+        : 'OFFICE';
+
     const idempotencyKey = `checkin_${user_id}_${today}`;
 
     return this.prisma.$transaction(
@@ -448,17 +626,7 @@ export class TimesheetService {
           throw new BadRequestException('Bạn đã check-in hôm nay rồi');
         }
 
-        // REMOVED: attendance_sessions table no longer exists
         const openSession = null;
-        /*
-        const openSession = await tx.attendance_sessions.findFirst({
-          where: {
-            user_id: user_id,
-            is_open: true,
-            deleted_at: null,
-          },
-        });
-        */
 
         if (openSession) {
           throw new BadRequestException(
@@ -475,7 +643,6 @@ export class TimesheetService {
         });
 
         if (!timesheet) {
-          // Check if today is a holiday
           const isHoliday = await tx.holidays.findFirst({
             where: {
               status: HolidayStatus.ACTIVE,
@@ -489,38 +656,22 @@ export class TimesheetService {
             data: {
               user_id: user_id,
               work_date: new Date(today),
-              status: 'PENDING',
               type: isHoliday ? 'HOLIDAY' : 'NORMAL',
-              remote: checkinDto.remote || 'OFFICE',
+              remote: remote,
             },
           });
         }
 
         const workStartTime = new Date(today);
-        workStartTime.setHours(8, 30, 0, 0);
-        const lateTime =
-          checkin_time > workStartTime
-            ? Math.floor(
-                (checkin_time.getTime() - workStartTime.getTime()) /
-                  (1000 * 60),
-              )
-            : 0;
-
-        // REMOVED: attendance_sessions table no longer exists
-        /*
-        const newSession = await tx.attendance_sessions.create({
-          data: {
-            user_id: user_id,
-            timesheet_id: timesheet.id,
-            checkin_time: checkin_time,
-            is_open: true,
-            checkin_photo: checkinDto.photo_url || null,
-            work_date: new Date(today),
-            location_type: checkinDto.location_type || 'OFFICE',
-            session_type: checkinDto.session_type || 'WORK',
-          },
-        });
-        */
+        const startMorningTime = this.parseTimeString(
+          this.configService.get<string>('START_MORNING_WORK_TIME', '8:30'),
+        );
+        workStartTime.setHours(
+          startMorningTime.hour,
+          startMorningTime.minute,
+          0,
+          0,
+        );
         const newSession = null;
 
         const attendanceLog = await tx.attendance_logs.create({
@@ -530,10 +681,9 @@ export class TimesheetService {
             action_type: 'checkin',
             timestamp: checkin_time,
             work_date: new Date(today),
-            location_type: checkinDto.location_type || 'OFFICE',
+            location_type: location_type,
             photo_url: checkinDto.photo_url,
             itempodency_key: idempotencyKey,
-            status: 'APPROVED',
           },
         });
 
@@ -541,8 +691,7 @@ export class TimesheetService {
           where: { id: timesheet.id },
           data: {
             checkin: checkin_time,
-            // REMOVED: late_time
-            remote: checkinDto.remote || 'OFFICE',
+            remote: remote,
           },
         });
 
@@ -551,13 +700,6 @@ export class TimesheetService {
           attendance_log: attendanceLog,
           session: newSession,
           message: 'Check-in thành công',
-          ip_validation: {
-            client_ip: ip_validation.client_ip,
-            is_office_network: ip_validation.is_office_network,
-            has_approved_remote_request:
-              ip_validation.has_approved_remote_request,
-            validation_message: ip_validation.message,
-          },
         };
       },
       {
@@ -582,6 +724,12 @@ export class TimesheetService {
     if (!ip_validation.isValid) {
       throw new BadRequestException(ip_validation.message);
     }
+
+    const location_type: LocationType =
+      !ip_validation.is_office_network &&
+      ip_validation.has_approved_remote_request
+        ? 'REMOTE'
+        : 'OFFICE';
 
     const idempotencyKey = `checkout_${user_id}_${today}`;
 
@@ -627,18 +775,7 @@ export class TimesheetService {
           );
         }
 
-        // REMOVED: attendance_sessions table no longer exists
         const openSession = null;
-        /*
-        const openSession = await tx.attendance_sessions.findFirst({
-          where: {
-            user_id: user_id,
-            work_date: new Date(today),
-            is_open: true,
-            deleted_at: null,
-          },
-        });
-        */
 
         if (!openSession) {
           throw new BadRequestException(TIMESHEET_ERRORS.TIMESHEET_NOT_FOUND);
@@ -660,8 +797,17 @@ export class TimesheetService {
           throw new BadRequestException(TIMESHEET_ERRORS.INVALID_WORK_TIME);
         }
 
+        const workTimeConfigCheckout = this.getWorkTimeConfig();
+        const endAfternoonTime = this.parseTimeString(
+          this.configService.get<string>('END_AFTERNOON_WORK_TIME', '17:30'),
+        );
         const workEndTime = new Date(today);
-        workEndTime.setHours(17, 30, 0, 0);
+        workEndTime.setHours(
+          endAfternoonTime.hour,
+          endAfternoonTime.minute,
+          0,
+          0,
+        );
         const earlyTime =
           checkout_time < workEndTime
             ? Math.floor(
@@ -674,23 +820,20 @@ export class TimesheetService {
             (1000 * 60),
         );
 
-        const breakTime = 60;
+        // Tính thời gian nghỉ trưa
+        const breakTime =
+          workTimeConfigCheckout.startAfternoonMinutes -
+          workTimeConfigCheckout.endMorningMinutes;
         const netWorkMinutes = Math.max(0, total_work_minutes - breakTime);
 
-        const workTimeMorning = Math.min(240, netWorkMinutes);
-        const workTimeAfternoon = Math.max(0, netWorkMinutes - 240);
-
-        // REMOVED: attendance_sessions table no longer exists
-        /*
-        await tx.attendance_sessions.update({
-          where: { id: openSession.id },
-          data: {
-            checkout_time: checkout_time,
-            checkout_photo: checkoutDto.photo_url || null,
-            is_open: false, // Đóng session khi checkout
-          },
-        });
-        */
+        const morningMinutes =
+          workTimeConfigCheckout.endMorningMinutes -
+          workTimeConfigCheckout.startMorningMinutes;
+        const workTimeMorning = Math.min(
+          Math.max(0, morningMinutes),
+          netWorkMinutes,
+        );
+        const workTimeAfternoon = Math.max(0, netWorkMinutes - morningMinutes);
 
         const attendanceLog = await tx.attendance_logs.create({
           data: {
@@ -699,20 +842,83 @@ export class TimesheetService {
             action_type: 'checkout',
             timestamp: checkout_time,
             work_date: new Date(today),
-            location_type: checkoutDto.location_type || 'OFFICE',
+            location_type: location_type,
             photo_url: checkoutDto.photo_url,
             itempodency_key: idempotencyKey,
-            status: 'APPROVED',
           },
         });
+
+        const workTimeConfigComplete = this.getWorkTimeConfig();
+        const DEFAULT_WORK_MINUTES = workTimeConfigComplete.totalWorkMinutes;
+        let deductedMinutes = 0;
+
+        const morningWorkMinutesCheckout =
+          workTimeConfigComplete.endMorningMinutes -
+          workTimeConfigComplete.startMorningMinutes;
+        const afternoonWorkMinutesCheckout =
+          workTimeConfigComplete.endAfternoonMinutes -
+          workTimeConfigComplete.startAfternoonMinutes;
+
+        const approvedRequests = await tx.attendance_requests.findMany({
+          where: {
+            timesheet_id: todayTimesheet.id,
+            status: ApprovalStatus.APPROVED,
+            deleted_at: null,
+          },
+          include: {
+            day_off: {
+              select: {
+                duration: true,
+              },
+            },
+            late_early_request: {
+              select: {
+                late_minutes: true,
+                early_minutes: true,
+              },
+            },
+          },
+        });
+
+        for (const request of approvedRequests) {
+          if (request.day_off) {
+            switch (request.day_off.duration) {
+              case 'FULL_DAY':
+                deductedMinutes += DEFAULT_WORK_MINUTES;
+                break;
+              case 'MORNING':
+                // Nghỉ ca sáng: trừ thời gian ca sáng thực tế từ env
+                deductedMinutes += morningWorkMinutesCheckout;
+                break;
+              case 'AFTERNOON':
+                // Nghỉ ca chiều: trừ thời gian ca chiều thực tế từ env
+                deductedMinutes += afternoonWorkMinutesCheckout;
+                break;
+            }
+          }
+
+          if (request.late_early_request) {
+            if (request.late_early_request.late_minutes) {
+              deductedMinutes += request.late_early_request.late_minutes;
+            }
+            if (request.late_early_request.early_minutes) {
+              deductedMinutes += request.late_early_request.early_minutes;
+            }
+          }
+        }
+
+        const requiredWorkTime = Math.max(
+          0,
+          DEFAULT_WORK_MINUTES - deductedMinutes,
+        );
+        const isComplete = netWorkMinutes >= requiredWorkTime;
 
         const updatedTimesheet = await tx.time_sheets.update({
           where: { id: todayTimesheet.id },
           data: {
             checkout: checkout_time,
-            // REMOVED: early_time, work_time_morning/afternoon, break_time
             total_work_time: netWorkMinutes,
-            is_complete: true,
+            is_complete: isComplete,
           },
         });
 
@@ -1144,7 +1350,6 @@ export class TimesheetService {
     const rejectedTimesheets = await this.prisma.time_sheets.count({
       where: {
         user_id: user_id,
-        status: ApprovalStatus.REJECTED, // Từ chối
         deleted_at: null,
       },
     });
@@ -1819,8 +2024,6 @@ export class TimesheetService {
         timesheet_id: createAttendanceLogDto.timesheet_id || timesheet?.id,
         timestamp: new Date(createAttendanceLogDto.timestamp),
         work_date: workDate,
-        is_manual: createAttendanceLogDto.is_manual || false,
-        status: createAttendanceLogDto.status || ApprovalStatus.PENDING,
       },
       include: {
         user: {
@@ -1843,7 +2046,6 @@ export class TimesheetService {
       start_date,
       end_date,
       action_type,
-      status,
       page = 1,
       limit = 20,
     } = queryDto;
@@ -1875,10 +2077,6 @@ export class TimesheetService {
 
     if (action_type) {
       where.action_type = action_type;
-    }
-
-    if (status !== undefined) {
-      where.status = status;
     }
 
     const [logs, total] = await Promise.all([
@@ -1997,7 +2195,6 @@ export class TimesheetService {
       where: { id, user_id: updateAttendanceLogDto.user_id },
       data: {
         ...updateAttendanceLogDto,
-        status: updateAttendanceLogDto.status || ApprovalStatus.PENDING,
       },
       include: {
         user: {
@@ -2038,113 +2235,7 @@ export class TimesheetService {
       data: {
         user_id: user_id,
         work_date: targetDate,
-        status: 'PENDING',
         type: 'NORMAL',
-      },
-    });
-  }
-
-  /**
-   * Submit timesheet để chờ duyệt
-   */
-  async submitTimesheet(id: number, user_id: number) {
-    const timesheet = await this.findTimesheetById(id);
-
-    if (timesheet.user_id !== user_id) {
-      throw new BadRequestException('Bạn không có quyền submit timesheet này');
-    }
-
-    if (
-      !ApprovalStatusManager.canTransition(
-        timesheet.status || ApprovalStatus.PENDING,
-        ApprovalStatus.APPROVED,
-      )
-    ) {
-      throw new BadRequestException(
-        `Không thể submit timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(timesheet.status || ApprovalStatus.PENDING)}`,
-      );
-    }
-
-    return this.prisma.time_sheets.update({
-      where: { id },
-      data: { status: 'PENDING' },
-    });
-  }
-
-  /**
-   * Duyệt timesheet (chỉ manager/HR)
-   */
-  async approveTimesheet(id: number, _approverId: number) {
-    const timesheet = await this.findTimesheetById(id);
-
-    const currentState = timesheet.status || ApprovalStatus.PENDING;
-    if (
-      !ApprovalStatusManager.canTransition(
-        currentState,
-        ApprovalStatus.APPROVED,
-      )
-    ) {
-      throw new BadRequestException(
-        `Không thể duyệt timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
-      );
-    }
-
-    return this.prisma.time_sheets.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
-      },
-    });
-  }
-
-  /**
-   * Từ chối timesheet (chỉ manager/HR)
-   */
-  async rejectTimesheet(id: number, _rejectorId: number, _reason?: string) {
-    const timesheet = await this.findTimesheetById(id);
-
-    const currentState = timesheet.status || ApprovalStatus.PENDING;
-    if (
-      !ApprovalStatusManager.canTransition(
-        currentState,
-        ApprovalStatus.REJECTED,
-      )
-    ) {
-      throw new BadRequestException(
-        `Không thể từ chối timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
-      );
-    }
-
-    return this.prisma.time_sheets.update({
-      where: { id },
-      data: {
-        status: 'REJECTED',
-      },
-    });
-  }
-
-  /**
-   * Khóa timesheet sau khi tính lương (chỉ admin/HR)
-   */
-  async lockTimesheet(id: number, _lockerId: number) {
-    const timesheet = await this.findTimesheetById(id);
-
-    const currentState = timesheet.status || ApprovalStatus.PENDING;
-    if (
-      !ApprovalStatusManager.canTransition(
-        currentState,
-        ApprovalStatus.APPROVED,
-      )
-    ) {
-      throw new BadRequestException(
-        `Không thể khóa timesheet từ trạng thái: ${ApprovalStatusManager.getStateName(currentState)}`,
-      );
-    }
-
-    return this.prisma.time_sheets.update({
-      where: { id },
-      data: {
-        status: 'APPROVED',
       },
     });
   }
@@ -2207,7 +2298,7 @@ export class TimesheetService {
       })),
       ...overtimeRequests.map((req) => ({
         ...req,
-        duration_hours: req.overtime?.total_hours || 0, 
+        duration_hours: req.overtime?.total_hours || 0,
         request_type: AttendanceRequestType.OVERTIME,
         start_time: req.overtime?.start_time?.toTimeString().slice(0, 5),
         end_time: req.overtime?.end_time?.toTimeString().slice(0, 5),
@@ -2220,8 +2311,14 @@ export class TimesheetService {
       ...forgotCheckinRequests.map((req) => ({
         ...req,
         request_type: AttendanceRequestType.FORGOT_CHECKIN,
-        checkin_time: req.forgot_checkin_request?.checkin_time?.toTimeString().slice(0, 5) || null,
-        checkout_time: req.forgot_checkin_request?.checkout_time?.toTimeString().slice(0, 5) || null,
+        checkin_time:
+          req.forgot_checkin_request?.checkin_time
+            ?.toTimeString()
+            .slice(0, 5) || null,
+        checkout_time:
+          req.forgot_checkin_request?.checkout_time
+            ?.toTimeString()
+            .slice(0, 5) || null,
       })),
     ];
 
@@ -2229,155 +2326,6 @@ export class TimesheetService {
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
-  }
-
-  async getTimesheetsForApproval(queryDto: any) {
-    const {
-      user_id,
-      month,
-      division_id,
-      team_id,
-      status,
-      page = 1,
-      limit = 20,
-    } = queryDto;
-
-    const where: Prisma.time_sheetsWhereInput = {
-      deleted_at: null,
-      status: status || ApprovalStatus.PENDING,
-    };
-
-    if (user_id) {
-      where.user_id = Number(user_id);
-    }
-
-    if (month) {
-      const [year, monthNum] = month.split('-');
-      const startDate = new Date(`${year}-${monthNum}-01`);
-      const endDate = new Date(parseInt(year), parseInt(monthNum), 0);
-
-      where.work_date = {
-        gte: startDate,
-        lte: endDate,
-      };
-    }
-
-    if (division_id || team_id) {
-      const scopeType = division_id ? ScopeType.DIVISION : ScopeType.TEAM;
-      const scopeId = division_id || team_id;
-
-      const assignments = await this.prisma.user_role_assignment.findMany({
-        where: {
-          scope_type: scopeType,
-          scope_id: Number(scopeId),
-          deleted_at: null,
-        },
-        select: { user_id: true },
-        distinct: ['user_id'],
-      });
-
-      const user_ids = assignments.map((a) => a.user_id);
-      where.user_id = { in: user_ids };
-    }
-
-    const [timesheets, total] = await Promise.all([
-      this.prisma.time_sheets.findMany({
-        where,
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { work_date: 'desc' },
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-        },
-      }),
-      this.prisma.time_sheets.count({ where }),
-    ]);
-
-    return {
-      data: timesheets,
-      pagination: {
-        page,
-        limit,
-        total,
-        total_pages: Math.ceil(total / limit),
-      },
-    };
-  }
-
-  async bulkReviewTimesheets(
-    timesheet_ids: number[],
-    action: 'APPROVE' | 'REJECT',
-    reviewer_id: number,
-    reason?: string,
-  ) {
-    if (action === 'REJECT' && !reason) {
-      throw new BadRequestException(
-        TIMESHEET_ERRORS.REASON_REQUIRED_FOR_REJECT,
-      );
-    }
-
-    const timesheets = await this.prisma.time_sheets.findMany({
-      where: {
-        id: { in: timesheet_ids },
-        deleted_at: null,
-      },
-    });
-
-    if (timesheets.length !== timesheet_ids.length) {
-      throw new NotFoundException(TIMESHEET_ERRORS.SOME_TIMESHEETS_NOT_FOUND);
-    }
-
-    const targetStatus =
-      action === 'APPROVE' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED;
-
-    const invalidTimesheets = timesheets.filter(
-      (t) =>
-        !ApprovalStatusManager.canTransition(
-          t.status || ApprovalStatus.PENDING,
-          targetStatus,
-        ),
-    );
-
-    if (invalidTimesheets.length > 0) {
-      throw new BadRequestException(
-        `${TIMESHEET_ERRORS.CANNOT_REVIEW_INVALID_STATUS}: ${invalidTimesheets.length} timesheet`,
-      );
-    }
-
-    const result = await this.prisma.time_sheets.updateMany({
-      where: {
-        id: { in: timesheet_ids },
-      },
-      data: {
-        status: targetStatus,
-      },
-    });
-
-    const actionText = action === 'APPROVE' ? 'duyệt' : 'từ chối';
-    const countField =
-      action === 'APPROVE' ? 'approved_count' : 'rejected_count';
-    const idsField = action === 'APPROVE' ? 'approved_ids' : 'rejected_ids';
-
-    return {
-      success: true,
-      action,
-      message: `Đã ${actionText} ${result.count} timesheets thành công`,
-      [countField]: result.count,
-      [idsField]: timesheet_ids,
-      reviewer_id: reviewer_id,
-      ...(reason && { reason }),
-    };
   }
 
   async getRequestQuota(user_id: number) {
@@ -2497,7 +2445,6 @@ export class TimesheetService {
           `Không đủ quota phút đi muộn/về sớm. Hiện có: ${quota.late_early.remaining_minutes} phút, cần: ${requestMinutes} phút (Đã dùng: ${quota.late_early.used_minutes}/${quota.late_early.minutes_quota} phút)`,
         );
       }
-
     }
   }
 

@@ -15,4 +15,10 @@ export const envConfig = {
   faceIdentificationUrl: {
     url: process.env.FACE_IDENTIFICATION_URL || 'http://localhost:4000',
   },
+  workTime: {
+    startMorningWorkTime: process.env.START_MORNING_WORK_TIME || '8:30',
+    endMorningWorkTime: process.env.END_MORNING_WORK_TIME || '12:00',
+    startAfternoonWorkTime: process.env.START_AFTERNOON_WORK_TIME || '13:00',
+    endAfternoonWorkTime: process.env.END_AFTERNOON_WORK_TIME || '17:30',
+  },
 };

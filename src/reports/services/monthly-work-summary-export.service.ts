@@ -10,15 +10,11 @@ import {
 export class MonthlyWorkSummaryExportService {
   constructor(private readonly csvExport: CsvExportService) {}
 
-  /**
-   * Export monthly work summary list to CSV
-   */
   exportListToCSV(data: MonthlyWorkSummaryResponseDto): string {
     if (!data.data || data.data.length === 0) {
       return '';
     }
 
-    // Transform data for CSV
     const csvData = data.data.map((summary) => ({
       user_code: summary.user_code || '',
       user_name: summary.user_name,
@@ -47,7 +43,6 @@ export class MonthlyWorkSummaryExportService {
       absent_days: summary.absent_days,
     }));
 
-    // Field mapping to Vietnamese
     const fieldMapping = {
       user_code: 'Mã NV',
       user_name: 'Tên nhân viên',
@@ -79,9 +74,6 @@ export class MonthlyWorkSummaryExportService {
     return this.csvExport.exportWithCustomHeaders(csvData, fieldMapping);
   }
 
-  /**
-   * Export monthly work summary detail to CSV (multiple sheets as separate CSVs)
-   */
   exportDetailToCSV(data: MonthlyWorkSummaryDetailResponseDto): {
     summary: string;
     daily: string;
@@ -89,7 +81,6 @@ export class MonthlyWorkSummaryExportService {
     leaves: string;
     overtimes: string;
   } {
-    // 1. Summary CSV
     const summaryData = [
       {
         user_code: data.summary.user_code || '',
@@ -139,7 +130,6 @@ export class MonthlyWorkSummaryExportService {
     const summaryCsv =
       this.csvExport.exportWithCustomHeaders(summaryData, summaryFieldMapping);
 
-    // 2. Daily Details CSV
     const dailyFieldMapping = {
       date: 'Ngày',
       day_of_week: 'Thứ',
@@ -164,7 +154,6 @@ export class MonthlyWorkSummaryExportService {
           )
         : '';
 
-    // 3. Violations CSV
     const violationsFieldMapping = {
       date: 'Ngày',
       type: 'Loại vi phạm',
@@ -182,7 +171,6 @@ export class MonthlyWorkSummaryExportService {
           )
         : '';
 
-    // 4. Leaves CSV
     const leavesData = data.leave_details.map((leave) => ({
       date: leave.date,
       duration: leave.duration,
@@ -210,7 +198,6 @@ export class MonthlyWorkSummaryExportService {
         ? this.csvExport.exportWithCustomHeaders(leavesData, leavesFieldMapping)
         : '';
 
-    // 5. Overtimes CSV
     const overtimesData = data.overtime_details.map((overtime) => ({
       date: overtime.date,
       title: overtime.title,
@@ -248,9 +235,6 @@ export class MonthlyWorkSummaryExportService {
     };
   }
 
-  /**
-   * Export to Excel with professional formatting
-   */
   async exportListToExcel(
     data: MonthlyWorkSummaryResponseDto,
   ): Promise<Buffer> {
@@ -259,7 +243,6 @@ export class MonthlyWorkSummaryExportService {
       pageSetup: { paperSize: 9, orientation: 'landscape' },
     });
 
-    // Define columns with Vietnamese headers
     worksheet.columns = [
       { header: 'Mã NV', key: 'user_code', width: 12 },
       { header: 'Tên nhân viên', key: 'user_name', width: 25 },
@@ -288,7 +271,6 @@ export class MonthlyWorkSummaryExportService {
       { header: 'Số ngày vắng mặt', key: 'absent_days', width: 15 },
     ];
 
-    // Add data rows
     data.data.forEach((item) => {
       worksheet.addRow({
         user_code: item.user_code || '',
@@ -319,7 +301,6 @@ export class MonthlyWorkSummaryExportService {
       });
     });
 
-    // Style header row
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = {
@@ -330,7 +311,6 @@ export class MonthlyWorkSummaryExportService {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.height = 25;
 
-    // Add borders to all cells
     worksheet.eachRow({ includeEmpty: false }, (row) => {
       row.eachCell((cell) => {
         cell.border = {
@@ -342,23 +322,17 @@ export class MonthlyWorkSummaryExportService {
       });
     });
 
-    // Freeze first row
     worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
 
-    // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
   }
 
-  /**
-   * Export detail to Excel with multiple sheets
-   */
   async exportDetailToExcel(
     data: MonthlyWorkSummaryDetailResponseDto,
   ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
 
-    // Sheet 1: Summary
     const summarySheet = workbook.addWorksheet('Tổng hợp');
     summarySheet.columns = [
       { header: 'Mã NV', key: 'user_code', width: 12 },
@@ -394,7 +368,6 @@ export class MonthlyWorkSummaryExportService {
 
     this.styleSheet(summarySheet);
 
-    // Sheet 2: Daily details
     if (data.daily_details.length > 0) {
       const dailySheet = workbook.addWorksheet('Chi tiết theo ngày');
       dailySheet.columns = [
@@ -418,7 +391,6 @@ export class MonthlyWorkSummaryExportService {
       this.styleSheet(dailySheet);
     }
 
-    // Sheet 3: Violations
     if (data.violations.length > 0) {
       const violationSheet = workbook.addWorksheet('Vi phạm');
       violationSheet.columns = [
@@ -437,7 +409,6 @@ export class MonthlyWorkSummaryExportService {
       this.styleSheet(violationSheet);
     }
 
-    // Sheet 4: Leaves
     if (data.leave_details.length > 0) {
       const leaveSheet = workbook.addWorksheet('Nghỉ phép');
       leaveSheet.columns = [
@@ -462,7 +433,6 @@ export class MonthlyWorkSummaryExportService {
       this.styleSheet(leaveSheet);
     }
 
-    // Sheet 5: Overtimes
     if (data.overtime_details.length > 0) {
       const overtimeSheet = workbook.addWorksheet('Tăng ca');
       overtimeSheet.columns = [
@@ -486,16 +456,11 @@ export class MonthlyWorkSummaryExportService {
       this.styleSheet(overtimeSheet);
     }
 
-    // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
   }
 
-  /**
-   * Apply standard styling to a worksheet
-   */
   private styleSheet(worksheet: ExcelJS.Worksheet) {
-    // Style header row
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
     headerRow.fill = {
@@ -506,7 +471,6 @@ export class MonthlyWorkSummaryExportService {
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
     headerRow.height = 25;
 
-    // Add borders to all cells
     worksheet.eachRow({ includeEmpty: false }, (row) => {
       row.eachCell((cell) => {
         cell.border = {
@@ -518,7 +482,6 @@ export class MonthlyWorkSummaryExportService {
       });
     });
 
-    // Freeze first row
     worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1 }];
   }
 }

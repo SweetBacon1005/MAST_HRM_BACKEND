@@ -7,7 +7,6 @@ import { AuthController } from './auth.controller';
 import { AdminController } from './controllers/admin.controller';
 import { SystemAdminController } from './controllers/system-admin.controller';
 import { RoleAssignmentController } from './controllers/role-assignment.controller';
-import { AuthTestController } from './controllers/auth-test.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
@@ -44,7 +43,6 @@ import { AuthorizationContextService } from './services/authorization-context.se
     AdminController,
     SystemAdminController,
     RoleAssignmentController,
-    AuthTestController, // Phase 1 testing - remove after Phase 2 complete
   ],
   providers: [
     AuthService,

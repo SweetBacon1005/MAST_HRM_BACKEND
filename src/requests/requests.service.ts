@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApprovalStatus,
   DayOffType,
@@ -60,6 +61,7 @@ export class RequestsService {
     private readonly lateEarlyDetailService: LateEarlyDetailService,
     private readonly forgotCheckinDetailService: ForgotCheckinDetailService,
     private readonly overtimeDetailService: OvertimeDetailService,
+    private readonly configService: ConfigService,
   ) {}
 
   private async validateUser(user_id: number): Promise<void> {
@@ -120,7 +122,6 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });
@@ -292,7 +293,6 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });
@@ -442,7 +442,6 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });
@@ -1172,6 +1171,12 @@ export class RequestsService {
       const updatedRequest = await this.attendanceRequestService.findOne(id);
       await this.createTimesheetsForDayOff(updatedRequest);
 
+      if (updatedRequest?.timesheet_id) {
+        await this.timesheetService.updateTimesheetCompleteStatus(
+          updatedRequest.timesheet_id,
+        );
+      }
+
       return {
         success: true,
         message: SUCCESS_MESSAGES.DAY_OFF_APPROVED,
@@ -1231,6 +1236,13 @@ export class RequestsService {
       }
 
       const updatedRequest = await this.attendanceRequestService.findOne(id);
+
+      // Cập nhật is_complete sau khi reject day_off
+      if (updatedRequest?.timesheet_id) {
+        await this.timesheetService.updateTimesheetCompleteStatus(
+          updatedRequest.timesheet_id,
+        );
+      }
 
       return {
         success: true,
@@ -1336,7 +1348,6 @@ export class RequestsService {
             user_id: request.user_id,
             work_date: request.work_date,
             remote: request.remote_work_request?.remote_type,
-            status: ApprovalStatus.PENDING,
             type: 'NORMAL',
           },
         });
@@ -1367,26 +1378,51 @@ export class RequestsService {
       },
     });
 
+    const startMorning = this.configService.get<string>('START_MORNING_WORK_TIME', '8:30');
+    const endMorning = this.configService.get<string>('END_MORNING_WORK_TIME', '12:00');
+    const startAfternoon = this.configService.get<string>('START_AFTERNOON_WORK_TIME', '13:00');
+    const endAfternoon = this.configService.get<string>('END_AFTERNOON_WORK_TIME', '17:30');
+
+    const parseTime = (timeStr: string) => {
+      const [hour, minute] = timeStr.split(':').map(Number);
+      return hour * 60 + minute;
+    };
+
+    const startMorningMinutes = parseTime(startMorning);
+    const endMorningMinutes = parseTime(endMorning);
+    const startAfternoonMinutes = parseTime(startAfternoon);
+    const endAfternoonMinutes = parseTime(endAfternoon);
+
+    const morningWorkMinutes = endMorningMinutes - startMorningMinutes;
+    const afternoonWorkMinutes = endAfternoonMinutes - startAfternoonMinutes;
+    const totalWorkMinutes = morningWorkMinutes + afternoonWorkMinutes;
+    
     const duration = dayOff.day_off?.duration || dayOff.duration;
     const workHours =
       duration === 'FULL_DAY'
         ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
         : duration === 'MORNING'
-          ? { morningHours: 0, afternoonHours: 4 * 60, totalHours: 4 * 60 }
-          : { morningHours: 4 * 60, afternoonHours: 0, totalHours: 4 * 60 };
+          // Nghỉ ca sáng: chỉ cần làm ca chiều
+          ? { morningHours: 0, afternoonHours: afternoonWorkMinutes, totalHours: afternoonWorkMinutes }
+          // Nghỉ ca chiều: chỉ cần làm ca sáng
+          : { morningHours: morningWorkMinutes, afternoonHours: 0, totalHours: morningWorkMinutes };
 
     if (!existingTimesheet) {
-      await this.prisma.time_sheets.create({
+      const newTimesheet = await this.prisma.time_sheets.create({
         data: {
           user_id: dayOff.user_id,
           work_date: workDate,
-          status: 'APPROVED',
           type: 'NORMAL',
           // REMOVED: work_time_morning, work_time_afternoon
           total_work_time: workHours.totalHours,
-          is_complete: dayOff.duration === 'FULL_DAY' ? false : true,
+          is_complete: false, // Sẽ được tính lại sau khi có tất cả requests
         },
       });
+
+      // Cập nhật is_complete sau khi tạo timesheet
+      await this.timesheetService.updateTimesheetCompleteStatus(
+        newTimesheet.id,
+      );
     } else {
       await this.prisma.time_sheets.update({
         where: { id: existingTimesheet.id },
@@ -1395,6 +1431,11 @@ export class RequestsService {
           total_work_time: workHours.totalHours,
         },
       });
+
+      // Cập nhật is_complete sau khi update timesheet
+      await this.timesheetService.updateTimesheetCompleteStatus(
+        existingTimesheet.id,
+      );
     }
   }
 
@@ -1611,7 +1652,6 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });
@@ -1794,6 +1834,13 @@ export class RequestsService {
     const updatedRequest = await this.attendanceRequestService.findOne(id);
     await this.updateTimesheetWithApprovedLateEarly(updatedRequest);
 
+    // Cập nhật is_complete sau khi approve late_early
+    if (updatedRequest?.timesheet_id) {
+      await this.timesheetService.updateTimesheetCompleteStatus(
+        updatedRequest.timesheet_id,
+      );
+    }
+
     return {
       success: true,
       message: SUCCESS_MESSAGES.OPERATION_SUCCESSFUL,
@@ -1830,6 +1877,13 @@ export class RequestsService {
     );
 
     const updatedRequest = await this.attendanceRequestService.findOne(id);
+
+    // Cập nhật is_complete sau khi reject late_early
+    if (updatedRequest?.timesheet_id) {
+      await this.timesheetService.updateTimesheetCompleteStatus(
+        updatedRequest.timesheet_id,
+      );
+    }
 
     return {
       success: true,
@@ -1984,7 +2038,6 @@ export class RequestsService {
         data: {
           user_id: dto.user_id,
           work_date: workDate,
-          status: ApprovalStatus.PENDING,
           type: 'NORMAL',
         },
       });

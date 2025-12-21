@@ -191,7 +191,6 @@ export class AuthService {
           checkin: null,
           checkout: null,
           total_work_time: 0,
-          status: 'PENDING',
           is_complete: false,
           has_attendance: false,
         },
@@ -251,7 +250,6 @@ export class AuthService {
           checkin: true,
           checkout: true,
           total_work_time: true,
-          status: true,
           // REMOVED: late_time, early_time
           is_complete: true,
         },
@@ -416,8 +414,7 @@ export class AuthService {
         checkin: todayTimesheet?.checkin || null,
         checkout: todayTimesheet?.checkout || null,
         total_work_time: todayTimesheet?.total_work_time || 0,
-        status: todayTimesheet?.status || 'PENDING',
-        // REMOVED: late_time, early_time fields
+        // REMOVED: late_time, early_time fields, status field
         is_complete: todayTimesheet?.is_complete || false,
         has_attendance: !!todayTimesheet,
       },

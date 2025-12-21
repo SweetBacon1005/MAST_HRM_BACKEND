@@ -1,18 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { LocationType, RemoteType, SessionType } from '@prisma/client';
-import { IsEnum, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class CheckinDto {
-  @ApiPropertyOptional({
-    description: 'Loại địa điểm',
-    example: 'OFFICE',
-    enum: ['OFFICE', 'REMOTE', 'CLIENT_SITE'],
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(['OFFICE', 'REMOTE', 'CLIENT_SITE'])
-  location_type?: LocationType;
+  // location_type removed - derived from IP validation on server-side
 
   @ApiPropertyOptional({
     description: 'Loại phiên làm việc',
@@ -22,33 +12,7 @@ export class CheckinDto {
   @IsOptional()
   @IsString()
   @IsIn(['WORK', 'OVERTIME', 'BREAK'])
-  session_type?: SessionType;
-
-  @ApiPropertyOptional({
-    description: 'Tọa độ GPS - Latitude',
-    example: 21.0285,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  gps_latitude?: number;
-
-  @ApiPropertyOptional({
-    description: 'Tọa độ GPS - Longitude',
-    example: 105.8542,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  gps_longitude?: number;
-
-  @ApiPropertyOptional({
-    description: 'Địa chỉ IP',
-    example: '192.168.1.100',
-  })
-  @IsOptional()
-  @IsString()
-  ip_address?: string;
+  session_type?: string;
 
   @ApiPropertyOptional({
     description: 'Thông tin thiết bị',
@@ -59,40 +23,17 @@ export class CheckinDto {
   device_info?: string;
 
   @ApiPropertyOptional({
-    description: 'URL ảnh selfie',
+    description: 'URL ảnh selfie (bắt buộc, đã được validate bởi face identification service)',
     example: 'https://example.com/photos/checkin_123.jpg',
   })
   @IsOptional()
   @IsString()
   photo_url?: string;
-
-  @ApiPropertyOptional({
-    description: 'Ghi chú',
-    example: 'Check-in bình thường',
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
-
-  @ApiPropertyOptional({
-    description: 'Làm việc từ xa [OFFICE, REMOTE, HYBRID]',
-    example: RemoteType.OFFICE,
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn([RemoteType.OFFICE, RemoteType.REMOTE, RemoteType.HYBRID])
-  remote?: RemoteType;
 }
 
 export class CheckoutDto {
-  @ApiPropertyOptional({
-    description: 'Loại địa điểm',
-    example: LocationType.OFFICE,
-    enum: LocationType,
-  })
-  @IsOptional()
-  @IsEnum(LocationType)
-  location_type?: LocationType;
+  // location_type removed - derived from IP validation on server-side
+  // ip_address removed - always get from server-side request
 
   @ApiPropertyOptional({
     description: 'Loại phiên làm việc',
@@ -102,33 +43,7 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   @IsIn(['WORK', 'OVERTIME', 'BREAK'])
-  session_type?: SessionType;
-
-  @ApiPropertyOptional({
-    description: 'Tọa độ GPS - Latitude',
-    example: 21.0285,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  gps_latitude?: number;
-
-  @ApiPropertyOptional({
-    description: 'Tọa độ GPS - Longitude',
-    example: 105.8542,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  gps_longitude?: number;
-
-  @ApiPropertyOptional({
-    description: 'Địa chỉ IP',
-    example: '192.168.1.100',
-  })
-  @IsOptional()
-  @IsString()
-  ip_address?: string;
+  session_type?: string;
 
   @ApiPropertyOptional({
     description: 'Thông tin thiết bị',
@@ -145,12 +60,4 @@ export class CheckoutDto {
   @IsOptional()
   @IsString()
   photo_url?: string;
-
-  @ApiPropertyOptional({
-    description: 'Ghi chú',
-    example: 'Check-out hoàn thành công việc',
-  })
-  @IsOptional()
-  @IsString()
-  note?: string;
 }
