@@ -72,12 +72,6 @@ export class DayOffRequestResponseDto {
   rejected_reason: string | null;
 
   @ApiProperty({
-    description: 'Có phải nghỉ phép bù không',
-    example: false,
-  })
-  is_past: boolean;
-
-  @ApiProperty({
     description: 'Thời gian tạo',
     example: '2024-02-09T08:00:00.000Z',
   })

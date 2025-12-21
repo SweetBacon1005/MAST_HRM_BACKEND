@@ -31,7 +31,6 @@ export interface DayOffRequestResponse extends BaseRequestResponse {
   title: string;
   reason?: string;
   note?: string;
-  is_past: boolean;
 }
 
 export interface OvertimeRequestResponse extends BaseRequestResponse {

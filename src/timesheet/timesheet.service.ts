@@ -413,7 +413,6 @@ export class TimesheetService {
       },
     });
 
-    // Group requests by timesheet_id (simple array, no need to group by type)
     const requestsByTimesheetId = new Map<number, typeof allRequests>();
     allRequests.forEach((request) => {
       const timesheetId = request.timesheet_id;

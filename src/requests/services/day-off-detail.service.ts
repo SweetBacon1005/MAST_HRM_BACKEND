@@ -10,14 +10,12 @@ export class DayOffDetailService {
     request_id: number;
     duration: DayOffDuration;
     type: DayOffType;
-    is_past?: boolean;
   }) {
     return this.prisma.day_offs.create({
       data: {
         request_id: data.request_id,
         duration: data.duration,
         type: data.type,
-        is_past: data.is_past || false,
       },
     });
   }
@@ -27,7 +25,6 @@ export class DayOffDetailService {
     data: Partial<{
       duration: DayOffDuration;
       type: DayOffType;
-      is_past: boolean;
     }>,
   ) {
     return this.prisma.day_offs.update({
@@ -41,7 +38,6 @@ export class DayOffDetailService {
     data: Partial<{
       duration: DayOffDuration;
       type: DayOffType;
-      is_past: boolean;
     }>,
   ) {
     return this.prisma.day_offs.update({

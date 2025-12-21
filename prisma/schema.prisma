@@ -270,7 +270,6 @@ model projects {
   updated_at          DateTime             @updatedAt
   deleted_at          DateTime?            @db.DateTime()
   daily_reports       daily_reports[]
-  over_times_history  over_times_history[]
   milestones          project_milestones[]
 
   @@index([deleted_at])
@@ -315,7 +314,6 @@ model day_offs {
   id                 Int                 @id @default(autoincrement())
   duration           DayOffDuration      @default(FULL_DAY)
   type               DayOffType          @default(PAID)
-  is_past            Boolean             @default(false)
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
@@ -435,13 +433,10 @@ model over_times_history {
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  project_id         Int?
-  project            projects?           @relation(fields: [project_id], references: [id])
   request_id         Int                 @unique
   attendance_request attendance_requests @relation("OvertimeRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
-  @@index([project_id])
   @@index([request_id])
 }
 

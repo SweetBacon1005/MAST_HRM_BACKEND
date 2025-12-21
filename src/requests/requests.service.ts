@@ -312,7 +312,6 @@ export class RequestsService {
       request_id: attendanceRequest.id,
       duration: dto.duration,
       type: dto.type,
-      is_past: dto.is_past || false,
     });
 
     const fullRequest = await this.attendanceRequestService.findOne(
@@ -3052,7 +3051,6 @@ export class RequestsService {
       await this.dayOffDetailService.update(existing.day_off.id, {
         duration: dto.duration,
         type: dto.type,
-        is_past: dto.is_past ?? false,
       });
     }
 
@@ -3369,7 +3367,6 @@ export class RequestsService {
       work_date: request.work_date,
       duration: request.day_off?.duration,
       type: request.day_off?.type,
-      is_past: request.day_off?.is_past || false,
       title: request.title,
       reason: request.reason,
       status: request.status,

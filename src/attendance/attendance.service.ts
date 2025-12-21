@@ -508,7 +508,6 @@ export class AttendanceService {
         request_id: attendanceRequest.id,
         duration: 'FULL_DAY',
         type: leave_type as DayOffType,
-        is_past: false,
       });
 
       this.logger.log(

@@ -86,12 +86,4 @@ export class CreateDayOffRequestDto {
   @IsNotEmpty()
   @IsString()
   reason: string;
-
-  @ApiPropertyOptional({
-    description: 'Có phải nghỉ bù không (TRUE: có, FALSE: không)',
-    example: false,
-  })
-  @IsOptional()
-  @IsBoolean()
-  is_past?: boolean;
 }

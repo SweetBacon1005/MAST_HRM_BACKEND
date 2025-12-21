@@ -391,7 +391,6 @@ describe('RequestsService - Comprehensive Tests', () => {
           id: 1,
           ...validDto,
           work_date: new Date(validDto.work_date),
-          is_past: false,
           status: ApprovalStatus.PENDING,
         };
 
