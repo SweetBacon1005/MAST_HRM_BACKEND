@@ -1,11 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { ApprovalStatus, RemoteType } from '@prisma/client';
+import { ApprovalStatus, AttendanceRequestType, RemoteType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsDateString, IsEnum, IsInt, IsOptional } from 'class-validator';
-import { ROLE_NAMES } from '../../auth/constants/role.constants';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class RequestPaginationDto extends PaginationDto {
+  @ApiPropertyOptional({
+    description: 'Lọc theo loại request',
+    enum: AttendanceRequestType,
+    example: AttendanceRequestType.DAY_OFF,
+  })
+  @IsOptional()
+  @IsEnum(AttendanceRequestType)
+  request_type?: AttendanceRequestType;
+
   @ApiPropertyOptional({
     description: 'Lọc theo trạng thái',
     enum: ApprovalStatus,
@@ -41,15 +49,6 @@ export class RequestPaginationDto extends PaginationDto {
   division_id?: number;
 
   @ApiPropertyOptional({
-    description: 'Lọc theo role của người tạo request',
-    enum: ROLE_NAMES,
-    example: ROLE_NAMES.TEAM_LEADER,
-  })
-  @IsOptional()
-  @IsEnum(ROLE_NAMES)
-  requester_role?: string;
-
-  @ApiPropertyOptional({
     description:
       'Lọc theo team ID (Division Head có thể filter teams trong division)',
     example: 5,
@@ -58,11 +57,9 @@ export class RequestPaginationDto extends PaginationDto {
   @Type(() => Number)
   @IsInt()
   team_id?: number;
-}
 
-export class RemoteWorkRequestPaginationDto extends RequestPaginationDto {
   @ApiPropertyOptional({
-    description: 'Lọc theo loại remote work',
+    description: 'Lọc theo loại remote work (chỉ áp dụng khi request_type=REMOTE_WORK)',
     enum: RemoteType,
     example: RemoteType.REMOTE,
   })

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { RequestsService } from './requests.service';
 import { PrismaService } from '../database/prisma.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
@@ -150,11 +151,8 @@ describe('RequestsService', () => {
       expect(service.getAllRequests).toBeDefined();
       expect(service.getAllMyRequests).toBeDefined();
       expect(service.getMyLeaveBalance).toBeDefined();
-      expect(service.findAllRemoteWorkRequests).toBeDefined();
-      expect(service.findAllDayOffRequests).toBeDefined();
-      expect(service.findAllOvertimeRequests).toBeDefined();
-      expect(service.findAllLateEarlyRequests).toBeDefined();
-      expect(service.findAllForgotCheckinRequests).toBeDefined();
+      expect(service.getAllRequests).toBeDefined();
+      expect(service.getAllMyRequests).toBeDefined();
       
       // Update methods
       expect(service.updateRemoteWorkRequest).toBeDefined();
@@ -163,12 +161,8 @@ describe('RequestsService', () => {
       expect(service.updateLateEarlyRequest).toBeDefined();
       expect(service.updateForgotCheckinRequest).toBeDefined();
       
-      // Delete methods
-      expect(service.deleteRemoteWorkRequest).toBeDefined();
-      expect(service.deleteDayOffRequest).toBeDefined();
-      expect(service.deleteOvertimeRequest).toBeDefined();
-      expect(service.deleteLateEarlyRequest).toBeDefined();
-      expect(service.deleteForgotCheckinRequest).toBeDefined();
+      // Delete method
+      expect(service.deleteRequest).toBeDefined();
     });
   });
 
@@ -315,192 +309,56 @@ describe('RequestsService', () => {
       mockActivityLogService = (service as any).activityLogService;
     });
 
-    describe('deleteRemoteWorkRequest', () => {
+    describe('deleteRequest', () => {
       it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue(null);
+        (service as any).attendanceRequestService.findOne.mockResolvedValue(null);
 
         await expect(
-          service.deleteRemoteWorkRequest(1, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu làm việc từ xa');
+          service.deleteRequest(1, 1)
+        ).rejects.toThrow(NotFoundException);
       });
 
       it('should throw ForbiddenException when user is not owner', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue({
+        (service as any).attendanceRequestService.findOne.mockResolvedValue({
           id: 1,
           user_id: 2,
           status: 'PENDING',
         });
 
         await expect(
-          service.deleteRemoteWorkRequest(1, 1)
-        ).rejects.toThrow('Không có quyền thực hiện hành động này');
+          service.deleteRequest(1, 1)
+        ).rejects.toThrow(ForbiddenException);
       });
 
       it('should throw BadRequestException when status is not PENDING', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue({
+        (service as any).attendanceRequestService.findOne.mockResolvedValue({
           id: 1,
           user_id: 1,
           status: 'APPROVED',
         });
 
         await expect(
-          service.deleteRemoteWorkRequest(1, 1)
-        ).rejects.toThrow('Chỉ có thể xóa yêu cầu ở trạng thái CHỜ DUYỆT');
+          service.deleteRequest(1, 1)
+        ).rejects.toThrow(BadRequestException);
       });
 
-      it('should successfully delete request and log activity', async () => {
+      it('should successfully delete request', async () => {
         const mockRequest = {
           id: 1,
           user_id: 1,
           status: 'PENDING',
         };
 
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue(mockRequest);
-        mockPrismaService.remote_work_requests.update.mockResolvedValue({
+        (service as any).attendanceRequestService.findOne.mockResolvedValue(mockRequest);
+        (service as any).attendanceRequestService.softDelete.mockResolvedValue({
           ...mockRequest,
           deleted_at: new Date(),
         });
 
-        const result = await service.deleteRemoteWorkRequest(1, 1);
+        const result = await service.deleteRequest(1, 1);
 
-        expect(result.deleted_at).toBeDefined();
-        expect(mockActivityLogService.logRequestDeleted).toHaveBeenCalledWith(
-          'remote_work',
-          1,
-          1,
-        );
-      });
-    });
-
-    describe('deleteDayOffRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.day_offs.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.deleteDayOffRequest(1, 1)
-        ).rejects.toThrow('Không tìm thấy đơn nghỉ phép');
-      });
-
-      it('should successfully delete request and log activity', async () => {
-        const mockRequest = {
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        };
-
-        mockPrismaService.day_offs.findFirst.mockResolvedValue(mockRequest);
-        mockPrismaService.day_offs.update.mockResolvedValue({
-          ...mockRequest,
-          deleted_at: new Date(),
-        });
-
-        const result = await service.deleteDayOffRequest(1, 1);
-
-        expect(result.deleted_at).toBeDefined();
-        expect(mockActivityLogService.logRequestDeleted).toHaveBeenCalledWith(
-          'day_off',
-          1,
-          1,
-        );
-      });
-    });
-
-    describe('deleteOvertimeRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.over_times_history.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.deleteOvertimeRequest(1, 1)
-        ).rejects.toThrow('Không tìm thấy đơn làm thêm giờ');
-      });
-
-      it('should successfully delete request and log activity', async () => {
-        const mockRequest = {
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        };
-
-        mockPrismaService.over_times_history.findFirst.mockResolvedValue(mockRequest);
-        mockPrismaService.over_times_history.update.mockResolvedValue({
-          ...mockRequest,
-          deleted_at: new Date(),
-        });
-
-        const result = await service.deleteOvertimeRequest(1, 1);
-
-        expect(result.deleted_at).toBeDefined();
-        expect(mockActivityLogService.logRequestDeleted).toHaveBeenCalledWith(
-          'overtime',
-          1,
-          1,
-        );
-      });
-    });
-
-    describe('deleteLateEarlyRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.late_early_requests.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.deleteLateEarlyRequest(1, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu');
-      });
-
-      it('should successfully delete request and log activity', async () => {
-        const mockRequest = {
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        };
-
-        mockPrismaService.late_early_requests.findFirst.mockResolvedValue(mockRequest);
-        mockPrismaService.late_early_requests.update.mockResolvedValue({
-          ...mockRequest,
-          deleted_at: new Date(),
-        });
-
-        const result = await service.deleteLateEarlyRequest(1, 1);
-
-        expect(result.deleted_at).toBeDefined();
-        expect(mockActivityLogService.logRequestDeleted).toHaveBeenCalledWith(
-          'late_early',
-          1,
-          1,
-        );
-      });
-    });
-
-    describe('deleteForgotCheckinRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.forgot_checkin_requests.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.deleteForgotCheckinRequest(1, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu');
-      });
-
-      it('should successfully delete request and log activity', async () => {
-        const mockRequest = {
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        };
-
-        mockPrismaService.forgot_checkin_requests.findFirst.mockResolvedValue(mockRequest);
-        mockPrismaService.forgot_checkin_requests.update.mockResolvedValue({
-          ...mockRequest,
-          deleted_at: new Date(),
-        });
-
-        const result = await service.deleteForgotCheckinRequest(1, 1);
-
-        expect(result.deleted_at).toBeDefined();
-        expect(mockActivityLogService.logRequestDeleted).toHaveBeenCalledWith(
-          'forgot_checkin',
-          1,
-          1,
-        );
+        expect(result.success).toBe(true);
+        expect((service as any).attendanceRequestService.softDelete).toHaveBeenCalledWith(1);
       });
     });
   });

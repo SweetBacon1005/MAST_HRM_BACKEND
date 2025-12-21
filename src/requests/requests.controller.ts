@@ -19,6 +19,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { AttendanceRequestType } from '@prisma/client';
 import { REQUEST_PERMISSIONS } from '../auth/constants/permission.constants';
 import { ROLE_NAMES } from '../auth/constants/role.constants';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
@@ -31,19 +32,15 @@ import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-reque
 import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
-import {
-  RemoteWorkRequestPaginationDto,
-  RequestPaginationDto,
-} from './dto/request-pagination.dto';
+import { RequestPaginationDto } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { RequestType } from './interfaces/request.interface';
 import { RequestsService } from './requests.service';
-import { AttendanceRequestType } from '@prisma/client';
 
-@ApiTags('Requests')
+@ApiTags('requests')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, PermissionGuard)
 @Controller('requests')
@@ -53,9 +50,20 @@ export class RequestsController {
     private readonly authorizationContextService: AuthorizationContextService,
   ) {}
 
-  @Get('my/all')
+  @Get('my')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({ summary: 'Lấy tất cả requests của tôi có phân trang' })
+  @ApiOperation({
+    summary: 'Lấy requests của tôi có phân trang',
+    description:
+      'Có thể filter theo request_type để lấy các loại request cụ thể',
+  })
+  @ApiQuery({
+    name: 'request_type',
+    required: false,
+    enum: AttendanceRequestType,
+    description:
+      'Lọc theo loại request (REMOTE_WORK, DAY_OFF, OVERTIME, LATE_EARLY, FORGOT_CHECKIN)',
+  })
   @ApiResponse({ status: 200 })
   async getAllMyRequests(
     @GetCurrentUser('id') user_id: number,
@@ -85,38 +93,6 @@ export class RequestsController {
     );
   }
 
-  @Get('remote-work')
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary:
-      'Lấy danh sách tất cả đơn remote work (Admin/Division Head/Manager)',
-  })
-  @ApiResponse({ status: 200 })
-  async findAllRemoteWorkRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RemoteWorkRequestPaginationDto,
-  ) {
-    return await this.requestsService.findAllRemoteWorkRequests(
-      paginationDto,
-      user_id,
-    );
-  }
-
-  @Get('remote-work/my')
-  @ApiOperation({
-    summary: 'Lấy danh sách đơn remote work của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200 })
-  async findMyRemoteWorkRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RemoteWorkRequestPaginationDto,
-  ) {
-    return await this.requestsService.findMyRemoteWorkRequests(
-      user_id,
-      paginationDto,
-    );
-  }
-
   @Post('day-off')
   @ApiOperation({ summary: 'Tạo đơn xin nghỉ phép' })
   @ApiResponse({ status: 201 })
@@ -131,37 +107,6 @@ export class RequestsController {
     );
   }
 
-  @Get('day-off')
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary: 'Lấy danh sách tất cả đơn nghỉ phép (Admin/Division Head/Manager)',
-  })
-  @ApiResponse({ status: 200 })
-  async findAllDayOffRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findAllDayOffRequests(
-      paginationDto,
-      user_id,
-    );
-  }
-
-  @Get('day-off/my')
-  @ApiOperation({
-    summary: 'Lấy danh sách đơn nghỉ phép của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200 })
-  async findMyDayOffRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findMyDayOffRequests(
-      user_id,
-      paginationDto,
-    );
-  }
-
   @Post('overtime')
   @ApiOperation({ summary: 'Tạo đơn xin làm thêm giờ' })
   @ApiResponse({ status: 201 })
@@ -173,38 +118,6 @@ export class RequestsController {
     createOvertimeRequestDto.user_id = user_id;
     return await this.requestsService.createOvertimeRequest(
       createOvertimeRequestDto,
-    );
-  }
-
-  @Get('overtime')
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary:
-      'Lấy danh sách tất cả đơn làm thêm giờ (Admin/Division Head/Manager)',
-  })
-  @ApiResponse({ status: 200 })
-  async findAllOvertimeRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findAllOvertimeRequests(
-      paginationDto,
-      user_id,
-    );
-  }
-
-  @Get('overtime/my')
-  @ApiOperation({
-    summary: 'Lấy danh sách đơn làm thêm giờ của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200 })
-  async findMyOvertimeRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findMyOvertimeRequests(
-      user_id,
-      paginationDto,
     );
   }
 
@@ -341,9 +254,7 @@ export class RequestsController {
       },
     },
   })
-  async getAllRequestQuotasAndBalances(
-    @GetCurrentUser('id') user_id: number,
-  ) {
+  async getAllRequestQuotasAndBalances(@GetCurrentUser('id') user_id: number) {
     return await this.requestsService.getAllRequestQuotasAndBalances(user_id);
   }
 
@@ -357,38 +268,6 @@ export class RequestsController {
   ) {
     dto.user_id = user_id;
     return await this.requestsService.createLateEarlyRequest(dto);
-  }
-
-  @Get('late-early')
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary:
-      'Lấy danh sách tất cả late/early requests (Admin/Division Head/Manager)',
-  })
-  @ApiResponse({ status: 200 })
-  async getAllLateEarlyRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findAllLateEarlyRequests(
-      paginationDto,
-      user_id,
-    );
-  }
-
-  @Get('late-early/my')
-  @ApiOperation({
-    summary: 'Lấy danh sách late/early requests của tôi có phân trang',
-  })
-  @ApiResponse({ status: 200 })
-  async getMyLateEarlyRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findMyLateEarlyRequests(
-      user_id,
-      paginationDto,
-    );
   }
 
   @Post(':type/:id/approve')
@@ -499,54 +378,6 @@ export class RequestsController {
     return await this.requestsService.createForgotCheckinRequest(dto);
   }
 
-  @Get('forgot-checkin')
-  @RequirePermission(REQUEST_PERMISSIONS.READ)
-  @ApiOperation({
-    summary:
-      'Lấy tất cả đơn xin bổ sung chấm công (Admin/Division Head/Manager)',
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: ['PENDING', 'APPROVED', 'REJECTED'],
-  })
-  @ApiQuery({ name: 'start_date', required: false, type: String })
-  @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200 })
-  async getAllForgotCheckinRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findAllForgotCheckinRequests(
-      paginationDto,
-      user_id,
-    );
-  }
-
-  @Get('forgot-checkin/my')
-  @ApiOperation({ summary: 'Lấy đơn xin bổ sung chấm công của tôi' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    enum: ['PENDING', 'APPROVED', 'REJECTED'],
-  })
-  @ApiQuery({ name: 'start_date', required: false, type: String })
-  @ApiQuery({ name: 'end_date', required: false, type: String })
-  @ApiResponse({ status: 200 })
-  async getMyForgotCheckinRequests(
-    @GetCurrentUser('id') user_id: number,
-    @Query() paginationDto: RequestPaginationDto,
-  ) {
-    return await this.requestsService.findMyForgotCheckinRequests(
-      user_id,
-      paginationDto,
-    );
-  }
-
   @Get(':type/:id')
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
@@ -619,6 +450,15 @@ export class RequestsController {
   @RequirePermission(REQUEST_PERMISSIONS.READ)
   @ApiOperation({
     summary: 'Lấy requests theo phân quyền role với enhanced filtering',
+    description:
+      'Có thể filter theo request_type để lấy các loại request cụ thể',
+  })
+  @ApiQuery({
+    name: 'request_type',
+    required: false,
+    enum: AttendanceRequestType,
+    description:
+      'Lọc theo loại request (REMOTE_WORK, DAY_OFF, OVERTIME, LATE_EARLY, FORGOT_CHECKIN)',
   })
   @ApiQuery({
     name: 'division_id',
@@ -757,14 +597,6 @@ export class RequestsController {
     return await this.requestsService.updateRemoteWorkRequest(id, dto, user_id);
   }
 
-  @Delete('remote-work/:id')
-  async deleteRemoteWork(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') user_id: number,
-  ) {
-    return await this.requestsService.deleteRemoteWorkRequest(id, user_id);
-  }
-
   @Patch('day-off/:id')
   async updateDayOff(
     @Param('id', ParseIntPipe) id: number,
@@ -772,14 +604,6 @@ export class RequestsController {
     @GetCurrentUser('id') user_id: number,
   ) {
     return await this.requestsService.updateDayOffRequest(id, dto, user_id);
-  }
-
-  @Delete('day-off/:id')
-  async deleteDayOff(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') user_id: number,
-  ) {
-    return await this.requestsService.deleteDayOffRequest(id, user_id);
   }
 
   @Patch('overtime/:id')
@@ -791,14 +615,6 @@ export class RequestsController {
     return await this.requestsService.updateOvertimeRequest(id, dto, user_id);
   }
 
-  @Delete('overtime/:id')
-  async deleteOvertime(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') user_id: number,
-  ) {
-    return await this.requestsService.deleteOvertimeRequest(id, user_id);
-  }
-
   @Patch('late-early/:id')
   async updateLateEarly(
     @Param('id', ParseIntPipe) id: number,
@@ -806,14 +622,6 @@ export class RequestsController {
     @GetCurrentUser('id') user_id: number,
   ) {
     return await this.requestsService.updateLateEarlyRequest(id, dto, user_id);
-  }
-
-  @Delete('late-early/:id')
-  async deleteLateEarly(
-    @Param('id', ParseIntPipe) id: number,
-    @GetCurrentUser('id') user_id: number,
-  ) {
-    return await this.requestsService.deleteLateEarlyRequest(id, user_id);
   }
 
   @Patch('forgot-checkin/:id')
@@ -829,11 +637,17 @@ export class RequestsController {
     );
   }
 
-  @Delete('forgot-checkin/:id')
-  async deleteForgotCheckin(
+  @Delete(':id')
+  @ApiOperation({ summary: 'Xóa request (id là id của attendance_request)' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID của attendance_request (bảng chính)',
+    type: Number,
+  })
+  async deleteRequest(
     @Param('id', ParseIntPipe) id: number,
     @GetCurrentUser('id') user_id: number,
   ) {
-    return await this.requestsService.deleteForgotCheckinRequest(id, user_id);
+    return await this.requestsService.deleteRequest(id, user_id);
   }
 }

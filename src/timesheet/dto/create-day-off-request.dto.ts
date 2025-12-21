@@ -1,11 +1,6 @@
-import {
-  ApiHideProperty,
-  ApiProperty,
-  ApiPropertyOptional,
-} from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
 import { DayOffDuration, DayOffType } from '@prisma/client';
 import {
-  IsBoolean,
   IsDateString,
   IsIn,
   IsNotEmpty,

@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   ApprovalStatus,
+  DayOffDuration,
   DayOffType,
   RemoteType,
   ScopeType,
@@ -31,10 +32,7 @@ import { TimesheetService } from '../timesheet/timesheet.service';
 import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
 import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
 import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
-import {
-  RemoteWorkRequestPaginationDto,
-  RequestPaginationDto,
-} from './dto/request-pagination.dto';
+import { RequestPaginationDto } from './dto/request-pagination.dto';
 import { DayOffRequestResponseDto } from './dto/response/day-off-request-response.dto';
 import { ForgotCheckinRequestResponseDto } from './dto/response/forgot-checkin-request-response.dto';
 import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-response.dto';
@@ -149,116 +147,6 @@ export class RequestsService {
     return this.mapToRemoteWorkRequestResponse(fullRequest);
   }
 
-  async findAllRemoteWorkRequests(
-    paginationDto: RemoteWorkRequestPaginationDto = {},
-    user_id: number,
-  ) {
-    const accessScope = await this.determineAccessScope(user_id);
-
-    let user_idsFilter: number[] | undefined;
-
-    if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        user_idsFilter = await this.getDivisionuser_ids(
-          accessScope.division_ids,
-        );
-      } else {
-        user_idsFilter = [];
-      }
-    } else if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getUserIdsByRole(
-        ROLE_NAMES.DIVISION_HEAD,
-      );
-      user_idsFilter = [user_id, ...divisionHeaduser_ids];
-    }
-
-    if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
-      return buildPaginationResponse(
-        [],
-        0,
-        paginationDto.page || 1,
-        paginationDto.limit || 10,
-      );
-    }
-
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
-      request_type: 'REMOTE_WORK',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Filter by remote_type if needed
-    const filteredRequests = paginationDto.remote_type
-      ? requests.filter(
-          (r) =>
-            r.remote_work_request?.remote_type === paginationDto.remote_type,
-        )
-      : requests;
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = filteredRequests
-      .slice(start, end)
-      .map((r) => this.mapToRemoteWorkRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      filteredRequests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findMyRemoteWorkRequests(
-    user_id: number,
-    paginationDto: RemoteWorkRequestPaginationDto = {},
-  ) {
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      request_type: 'REMOTE_WORK',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Filter by remote_type if needed
-    const filteredRequests = paginationDto.remote_type
-      ? requests.filter(
-          (r) =>
-            r.remote_work_request?.remote_type === paginationDto.remote_type,
-        )
-      : requests;
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = filteredRequests
-      .slice(start, end)
-      .map((r) => this.mapToRemoteWorkRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      filteredRequests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
   async createDayOffRequest(
     dto: CreateDayOffRequestDto,
   ): Promise<DayOffRequestResponseDto> {
@@ -274,7 +162,7 @@ export class RequestsService {
     if (isDuplicate)
       throw new BadRequestException(REQUEST_ERRORS.DAY_OFF_ALREADY_EXISTS);
 
-    const dayOffAmount = dto.duration === 'FULL_DAY' ? 1 : 0.5;
+    const dayOffAmount = dto.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
     if (dto.type === DayOffType.PAID) {
       const leaveBalance =
         await this.leaveBalanceService.getOrCreateLeaveBalance(dto.user_id);
@@ -318,87 +206,6 @@ export class RequestsService {
       attendanceRequest.id,
     );
     return this.mapToDayOffRequestResponse(fullRequest);
-  }
-
-  async findAllDayOffRequests(
-    paginationDto: RequestPaginationDto = {},
-    user_id?: number,
-  ) {
-    let user_idsFilter: number[] | undefined;
-
-    if (user_id) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
-
-      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-    }
-
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
-      request_type: 'DAY_OFF',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = requests
-      .slice(start, end)
-      .map((r) => this.mapToDayOffRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      requests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findMyDayOffRequests(
-    user_id: number,
-    paginationDto: RequestPaginationDto = {},
-  ) {
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      request_type: 'DAY_OFF',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = requests
-      .slice(start, end)
-      .map((r) => this.mapToDayOffRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      requests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
   }
 
   async createOvertimeRequest(
@@ -474,90 +281,6 @@ export class RequestsService {
     return this.mapToOvertimeRequestResponse(fullRequest);
   }
 
-  async findAllOvertimeRequests(
-    paginationDto: RequestPaginationDto = {},
-    user_id?: number,
-  ) {
-    let user_idsFilter: number[] | undefined;
-
-    if (user_id) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
-
-      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-    }
-
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_idsFilter ? { in: user_idsFilter } : undefined,
-      request_type: 'OVERTIME',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = requests
-      .slice(start, end)
-      .map((r) => this.mapToOvertimeRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      requests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findMyOvertimeRequests(
-    user_id: number,
-    paginationDto: RequestPaginationDto = {},
-  ) {
-    const requests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      request_type: 'OVERTIME',
-      status: paginationDto.status as ApprovalStatus,
-      work_date:
-        paginationDto.start_date && paginationDto.end_date
-          ? {
-              gte: new Date(paginationDto.start_date),
-              lte: new Date(paginationDto.end_date),
-            }
-          : undefined,
-      deleted_at: null,
-    });
-
-    // Apply pagination
-    const start = ((paginationDto.page || 1) - 1) * (paginationDto.limit || 10);
-    const end = start + (paginationDto.limit || 10);
-    const data = requests
-      .slice(start, end)
-      .map((r) => this.mapToOvertimeRequestResponse(r));
-
-    return buildPaginationResponse(
-      data,
-      requests.length,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  /**
-   * Lấy requests cho Division Head (chỉ trong division mình quản lý)
-   */
   async getDivisionRequests(
     divisionHeadId: number,
     paginationDto: RequestPaginationDto = {},
@@ -575,15 +298,12 @@ export class RequestsService {
       );
     }
 
-    const divisionuser_ids = await this.getDivisionuser_ids(division_ids);
+    const divisionUserIds = await this.getDivisionUserIds(division_ids);
 
-    return await this.getRequestsByuser_ids(divisionuser_ids, paginationDto);
+    return await this.getRequestsByUserIds(divisionUserIds, paginationDto);
   }
 
-  /**
-   * Lấy requests theo user IDs với pagination
-   */
-  async getRequestsByuser_ids(
+  async getRequestsByUserIds(
     user_ids: number[],
     paginationDto: RequestPaginationDto = {},
   ) {
@@ -599,82 +319,71 @@ export class RequestsService {
     const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
     const whereConditions = this.buildWhereConditions(paginationDto);
 
-    const userFilter = { user_id: { in: user_ids } };
+    const where: any = {
+      user_id: { in: user_ids },
+      deleted_at: null,
+    };
 
-    const workDateFilter =
-      paginationDto.start_date && paginationDto.end_date
-        ? {
-            gte: new Date(paginationDto.start_date),
-            lte: new Date(paginationDto.end_date),
-          }
-        : undefined;
+    if (paginationDto.request_type) {
+      where.request_type = paginationDto.request_type;
+    }
 
-    const [
-      remoteWorkData,
-      dayOffData,
-      overtimeData,
-      lateEarlyData,
-      forgotCheckinData,
-    ] = await Promise.all([
-      this.attendanceRequestService.findMany({
-        user_id: { in: user_ids },
-        request_type: 'REMOTE_WORK',
-        status: whereConditions.status,
-        work_date: workDateFilter,
-        deleted_at: null,
-      }),
-      this.attendanceRequestService.findMany({
-        user_id: { in: user_ids },
-        request_type: 'DAY_OFF',
-        status: whereConditions.status,
-        work_date: workDateFilter,
-        deleted_at: null,
-      }),
-      this.attendanceRequestService.findMany({
-        user_id: { in: user_ids },
-        request_type: 'OVERTIME',
-        status: whereConditions.status,
-        work_date: workDateFilter,
-        deleted_at: null,
-      }),
-      this.attendanceRequestService.findMany({
-        user_id: { in: user_ids },
-        request_type: 'LATE_EARLY',
-        status: whereConditions.status,
-        work_date: workDateFilter,
-        deleted_at: null,
-      }),
-      this.attendanceRequestService.findMany({
-        user_id: { in: user_ids },
-        request_type: 'FORGOT_CHECKIN',
-        status: whereConditions.status,
-        work_date: workDateFilter,
-        deleted_at: null,
-      }),
-    ]);
+    if (whereConditions.status) {
+      where.status = whereConditions.status;
+    }
 
-    const allRequests = [
-      ...remoteWorkData.map((req) => ({
-        ...this.mapToRemoteWorkRequestResponse(req),
-        type: 'remote_work' as const,
-      })),
-      ...dayOffData.map((req) => ({
-        ...this.mapToDayOffRequestResponse(req),
-        type: 'day_off' as const,
-      })),
-      ...overtimeData.map((req) => ({
-        ...this.mapToOvertimeRequestResponse(req),
-        type: 'overtime' as const,
-      })),
-      ...lateEarlyData.map((req) => ({
-        ...this.mapToLateEarlyRequestResponse(req),
-        type: 'late_early' as const,
-      })),
-      ...forgotCheckinData.map((req) => ({
-        ...this.mapToForgotCheckinRequestResponse(req),
-        type: 'forgot_checkin' as const,
-      })),
-    ];
+    if (paginationDto.start_date && paginationDto.end_date) {
+      where.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
+
+    const allAttendanceRequests =
+      await this.attendanceRequestService.findMany(where);
+
+    let filteredRequests = allAttendanceRequests;
+
+    if (
+      paginationDto.request_type === 'REMOTE_WORK' &&
+      paginationDto.remote_type
+    ) {
+      filteredRequests = allAttendanceRequests.filter(
+        (r) => r.remote_work_request?.remote_type === paginationDto.remote_type,
+      );
+    }
+
+    const allRequests = filteredRequests.map((req) => {
+      switch (req.request_type) {
+        case 'REMOTE_WORK':
+          return {
+            ...this.mapToRemoteWorkRequestResponse(req),
+            type: 'remote_work' as const,
+          };
+        case 'DAY_OFF':
+          return {
+            ...this.mapToDayOffRequestResponse(req),
+            type: 'day_off' as const,
+          };
+        case 'OVERTIME':
+          return {
+            ...this.mapToOvertimeRequestResponse(req),
+            type: 'overtime' as const,
+          };
+        case 'LATE_EARLY':
+          return {
+            ...this.mapToLateEarlyRequestResponse(req),
+            type: 'late_early' as const,
+          };
+        case 'FORGOT_CHECKIN':
+          return {
+            ...this.mapToForgotCheckinRequestResponse(req),
+            type: 'forgot_checkin' as const,
+          };
+        default:
+          return null;
+      }
+    }).filter((req) => req !== null);
 
     allRequests.sort(
       (a, b) =>
@@ -722,7 +431,6 @@ export class RequestsService {
         throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
 
-    // Query attendance_requests
     const request = await this.attendanceRequestService.findOne(requestId);
 
     if (!request) {
@@ -765,7 +473,7 @@ export class RequestsService {
 
     if (accessScope.type === 'DIVISION_ONLY') {
       if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        const divisionuser_ids = await this.getDivisionuser_ids(
+        const divisionuser_ids = await this.getDivisionUserIds(
           accessScope.division_ids,
         );
         user_ids = divisionuser_ids;
@@ -785,7 +493,7 @@ export class RequestsService {
       user_ids = [accessScope.user_id!, ...divisionHeaduser_ids];
     } else if (accessScope.type === 'ALL_ACCESS') {
       if (paginationDto.division_id) {
-        const divisionuser_ids = await this.getDivisionuser_ids([
+        const divisionuser_ids = await this.getDivisionUserIds([
           paginationDto.division_id,
         ]);
         user_ids = divisionuser_ids;
@@ -810,17 +518,8 @@ export class RequestsService {
       user_ids = [requesterId!];
     }
 
-    if (paginationDto.requester_role) {
-      const roleuser_ids = await this.getUserIdsByRole(
-        paginationDto.requester_role,
-      );
-      user_ids = user_ids
-        ? user_ids.filter((id) => roleuser_ids.includes(id))
-        : roleuser_ids;
-    }
-
     if (user_ids && user_ids.length > 0) {
-      const result = await this.getRequestsByuser_ids(user_ids, paginationDto);
+      const result = await this.getRequestsByUserIds(user_ids, paginationDto);
 
       return {
         ...result,
@@ -834,7 +533,6 @@ export class RequestsService {
             team_restriction: accessScope.type === 'TEAM_ONLY',
             project_restriction: accessScope.type === 'PROJECT_ONLY',
             division_id: paginationDto.division_id,
-            requester_role: paginationDto.requester_role,
           },
         },
       };
@@ -889,74 +587,66 @@ export class RequestsService {
 
     const whereConditions: any = { user_id: user_id, deleted_at: null };
 
+    if (paginationDto.request_type) {
+      whereConditions.request_type = paginationDto.request_type;
+    }
+
     if (paginationDto.status) {
       whereConditions.status = paginationDto.status;
     }
 
-    const dateFilter =
-      paginationDto.start_date && paginationDto.end_date
-        ? {
-            gte: new Date(paginationDto.start_date),
-            lte: new Date(paginationDto.end_date),
-          }
-        : undefined;
+    if (paginationDto.start_date && paginationDto.end_date) {
+      whereConditions.work_date = {
+        gte: new Date(paginationDto.start_date),
+        lte: new Date(paginationDto.end_date),
+      };
+    }
 
-    const [
-      remoteWorkData,
-      dayOffData,
-      overtimeData,
-      lateEarlyData,
-      forgotCheckinData,
-    ] = await Promise.all([
-      this.attendanceRequestService.findMany({
-        ...whereConditions,
-        request_type: 'REMOTE_WORK',
-        work_date: dateFilter,
-      }),
-      this.attendanceRequestService.findMany({
-        ...whereConditions,
-        request_type: 'DAY_OFF',
-        work_date: dateFilter,
-      }),
-      this.attendanceRequestService.findMany({
-        ...whereConditions,
-        request_type: 'OVERTIME',
-        work_date: dateFilter,
-      }),
-      this.attendanceRequestService.findMany({
-        ...whereConditions,
-        request_type: 'LATE_EARLY',
-        work_date: dateFilter,
-      }),
-      this.attendanceRequestService.findMany({
-        ...whereConditions,
-        request_type: 'FORGOT_CHECKIN',
-        work_date: dateFilter,
-      }),
-    ]);
+    const allAttendanceRequests =
+      await this.attendanceRequestService.findMany(whereConditions);
 
-    const allRequests = [
-      ...remoteWorkData.map((req) => ({
-        ...this.mapToRemoteWorkRequestResponse(req),
-        request_type: 'REMOTE_WORK' as const,
-      })),
-      ...dayOffData.map((req) => ({
-        ...this.mapToDayOffRequestResponse(req),
-        request_type: 'DAY_OFF' as const,
-      })),
-      ...overtimeData.map((req) => ({
-        ...this.mapToOvertimeRequestResponse(req),
-        request_type: 'OVERTIME' as const,
-      })),
-      ...lateEarlyData.map((req) => ({
-        ...this.mapToLateEarlyRequestResponse(req),
-        request_type: 'LATE_EARLY' as const,
-      })),
-      ...forgotCheckinData.map((req) => ({
-        ...this.mapToForgotCheckinRequestResponse(req),
-        request_type: 'FORGOT_CHECKIN' as const,
-      })),
-    ];
+    let filteredRequests = allAttendanceRequests;
+
+    if (
+      paginationDto.request_type === 'REMOTE_WORK' &&
+      paginationDto.remote_type
+    ) {
+      filteredRequests = allAttendanceRequests.filter(
+        (r) => r.remote_work_request?.remote_type === paginationDto.remote_type,
+      );
+    }
+
+    const allRequests = filteredRequests.map((req) => {
+      switch (req.request_type) {
+        case 'REMOTE_WORK':
+          return {
+            ...this.mapToRemoteWorkRequestResponse(req),
+            request_type: 'REMOTE_WORK' as const,
+          };
+        case 'DAY_OFF':
+          return {
+            ...this.mapToDayOffRequestResponse(req),
+            request_type: 'DAY_OFF' as const,
+          };
+        case 'OVERTIME':
+          return {
+            ...this.mapToOvertimeRequestResponse(req),
+            request_type: 'OVERTIME' as const,
+          };
+        case 'LATE_EARLY':
+          return {
+            ...this.mapToLateEarlyRequestResponse(req),
+            request_type: 'LATE_EARLY' as const,
+          };
+        case 'FORGOT_CHECKIN':
+          return {
+            ...this.mapToForgotCheckinRequestResponse(req),
+            request_type: 'FORGOT_CHECKIN' as const,
+          };
+        default:
+          return null;
+      }
+    }).filter((req) => req !== null);
 
     const sortField =
       orderBy && typeof orderBy === 'object' && orderBy.created_at
@@ -985,13 +675,11 @@ export class RequestsService {
   }
 
   async getMyRequestsStats(user_id: number) {
-    // Fetch all requests for this user
     const allRequests = await this.attendanceRequestService.findMany({
       user_id: user_id,
       deleted_at: null,
     });
 
-    // Group by request_type and status
     const getStatusCounts = (requests: any[]) => {
       const result = { total: 0, pending: 0, approved: 0, rejected: 0 };
       requests.forEach((req) => {
@@ -1377,10 +1065,22 @@ export class RequestsService {
       },
     });
 
-    const startMorning = this.configService.get<string>('START_MORNING_WORK_TIME', '8:30');
-    const endMorning = this.configService.get<string>('END_MORNING_WORK_TIME', '12:00');
-    const startAfternoon = this.configService.get<string>('START_AFTERNOON_WORK_TIME', '13:00');
-    const endAfternoon = this.configService.get<string>('END_AFTERNOON_WORK_TIME', '17:30');
+    const startMorning = this.configService.get<string>(
+      'START_MORNING_WORK_TIME',
+      '8:30',
+    );
+    const endMorning = this.configService.get<string>(
+      'END_MORNING_WORK_TIME',
+      '12:00',
+    );
+    const startAfternoon = this.configService.get<string>(
+      'START_AFTERNOON_WORK_TIME',
+      '13:00',
+    );
+    const endAfternoon = this.configService.get<string>(
+      'END_AFTERNOON_WORK_TIME',
+      '17:30',
+    );
 
     const parseTime = (timeStr: string) => {
       const [hour, minute] = timeStr.split(':').map(Number);
@@ -1395,16 +1095,24 @@ export class RequestsService {
     const morningWorkMinutes = endMorningMinutes - startMorningMinutes;
     const afternoonWorkMinutes = endAfternoonMinutes - startAfternoonMinutes;
     const totalWorkMinutes = morningWorkMinutes + afternoonWorkMinutes;
-    
+
     const duration = dayOff.day_off?.duration || dayOff.duration;
     const workHours =
       duration === 'FULL_DAY'
         ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
         : duration === 'MORNING'
-          // Nghỉ ca sáng: chỉ cần làm ca chiều
-          ? { morningHours: 0, afternoonHours: afternoonWorkMinutes, totalHours: afternoonWorkMinutes }
-          // Nghỉ ca chiều: chỉ cần làm ca sáng
-          : { morningHours: morningWorkMinutes, afternoonHours: 0, totalHours: morningWorkMinutes };
+          ? 
+            {
+              morningHours: 0,
+              afternoonHours: afternoonWorkMinutes,
+              totalHours: afternoonWorkMinutes,
+            }
+            : 
+            {
+              morningHours: morningWorkMinutes,
+              afternoonHours: 0,
+              totalHours: morningWorkMinutes,
+            };
 
     if (!existingTimesheet) {
       const newTimesheet = await this.prisma.time_sheets.create({
@@ -1412,13 +1120,11 @@ export class RequestsService {
           user_id: dayOff.user_id,
           work_date: workDate,
           type: 'NORMAL',
-          // REMOVED: work_time_morning, work_time_afternoon
           total_work_time: workHours.totalHours,
-          is_complete: false, // Sẽ được tính lại sau khi có tất cả requests
+          is_complete: false, 
         },
       });
 
-      // Cập nhật is_complete sau khi tạo timesheet
       await this.timesheetService.updateTimesheetCompleteStatus(
         newTimesheet.id,
       );
@@ -1426,29 +1132,21 @@ export class RequestsService {
       await this.prisma.time_sheets.update({
         where: { id: existingTimesheet.id },
         data: {
-          // REMOVED: work_time_morning, work_time_afternoon
           total_work_time: workHours.totalHours,
         },
       });
 
-      // Cập nhật is_complete sau khi update timesheet
       await this.timesheetService.updateTimesheetCompleteStatus(
         existingTimesheet.id,
       );
     }
   }
 
-  /**
-   * Lấy thông tin leave balance của user
-   */
   async getMyLeaveBalance(user_id: number) {
     await this.validateUser(user_id);
     return await this.leaveBalanceService.getLeaveBalanceStats(user_id);
   }
 
-  /**
-   * Kiểm tra có đủ leave balance để tạo đơn không
-   */
   async checkLeaveBalanceAvailability(
     user_id: number,
     leaveType: DayOffType,
@@ -1677,134 +1375,6 @@ export class RequestsService {
       attendanceRequest.id,
     );
     return this.mapToLateEarlyRequestResponse(fullRequest);
-  }
-
-  async findAllLateEarlyRequests(
-    paginationDto: RequestPaginationDto = {},
-    user_id?: number,
-  ) {
-    let user_idsFilter: number[] | undefined;
-
-    if (user_id) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
-
-      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-    }
-
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const where: any = {
-      deleted_at: null,
-      request_type: 'LATE_EARLY',
-    };
-
-    if (user_idsFilter !== undefined) {
-      where.user_id = { in: user_idsFilter };
-    }
-
-    if (paginationDto.status) {
-      where.status = paginationDto.status as ApprovalStatus;
-    }
-
-    if (paginationDto.start_date && paginationDto.end_date) {
-      where.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [requests, total] = await Promise.all([
-      this.prisma.attendance_requests.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  code: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          late_early_request: true,
-        },
-        orderBy: orderBy || { created_at: 'desc' },
-        skip,
-        take,
-      }),
-      this.attendanceRequestService.count(where),
-    ]);
-
-    return buildPaginationResponse(
-      requests.map((r) => this.mapToLateEarlyRequestResponse(r)),
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async getLateEarlyRequests(
-    user_id?: number,
-    paginationDto: RequestPaginationDto = {},
-  ): Promise<any> {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const whereClause: any = {
-      user_id: user_id,
-      deleted_at: null,
-      request_type: 'LATE_EARLY',
-    };
-
-    const [requests, total] = await Promise.all([
-      this.prisma.attendance_requests.findMany({
-        where: whereClause,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  code: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          late_early_request: true,
-        },
-        orderBy: orderBy || { created_at: 'desc' },
-        skip,
-        take,
-      }),
-      this.attendanceRequestService.count(whereClause),
-    ]);
-
-    return buildPaginationResponse(
-      requests.map((r) => this.mapToLateEarlyRequestResponse(r)),
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findMyLateEarlyRequests(
-    user_id: number,
-    paginationDto: RequestPaginationDto = {},
-  ): Promise<any> {
-    return this.getLateEarlyRequests(user_id, paginationDto);
   }
 
   async approveLateEarlyRequest(
@@ -2071,138 +1641,6 @@ export class RequestsService {
     return this.mapToForgotCheckinRequestResponse(fullRequest);
   }
 
-  async findAllForgotCheckinRequests(
-    paginationDto: RequestPaginationDto = {},
-    user_id?: number,
-  ) {
-    let user_idsFilter: number[] | undefined;
-
-    if (user_id) {
-      user_idsFilter = await this.getuser_idsFilterByRole(user_id);
-
-      if (user_idsFilter !== undefined && user_idsFilter.length === 0) {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-    }
-
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const whereConditions: any = {
-      deleted_at: null,
-      request_type: 'FORGOT_CHECKIN',
-    };
-
-    if (user_idsFilter !== undefined) {
-      whereConditions.user_id = { in: user_idsFilter };
-    }
-
-    if (paginationDto.status) {
-      whereConditions.status = paginationDto.status as ApprovalStatus;
-    }
-
-    if (paginationDto.start_date && paginationDto.end_date) {
-      whereConditions.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [requests, total] = await Promise.all([
-      this.prisma.attendance_requests.findMany({
-        where: whereConditions,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  code: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          forgot_checkin_request: true,
-        },
-        skip,
-        take,
-        orderBy,
-      }),
-      this.attendanceRequestService.count(whereConditions),
-    ]);
-
-    return buildPaginationResponse(
-      requests.map((r) => this.mapToForgotCheckinRequestResponse(r)),
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
-  async findMyForgotCheckinRequests(
-    user_id: number,
-    paginationDto: RequestPaginationDto = {},
-  ) {
-    const { skip, take, orderBy } = buildPaginationQuery(paginationDto);
-
-    const whereConditions: any = {
-      user_id: user_id,
-      deleted_at: null,
-      request_type: 'FORGOT_CHECKIN',
-    };
-
-    if (paginationDto.status) {
-      whereConditions.status = paginationDto.status;
-    }
-
-    if (paginationDto.start_date && paginationDto.end_date) {
-      whereConditions.work_date = {
-        gte: new Date(paginationDto.start_date),
-        lte: new Date(paginationDto.end_date),
-      };
-    }
-
-    const [requests, total] = await Promise.all([
-      this.prisma.attendance_requests.findMany({
-        where: whereConditions,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              user_information: {
-                select: {
-                  name: true,
-                  code: true,
-                  avatar: true,
-                },
-              },
-            },
-          },
-          forgot_checkin_request: true,
-        },
-        skip,
-        take,
-        orderBy,
-      }),
-      this.attendanceRequestService.count(whereConditions),
-    ]);
-
-    return buildPaginationResponse(
-      requests.map((r) => this.mapToForgotCheckinRequestResponse(r)),
-      total,
-      paginationDto.page || 1,
-      paginationDto.limit || 10,
-    );
-  }
-
   async approveForgotCheckinRequest(
     id: number,
     authContext: AuthorizationContext,
@@ -2363,7 +1801,7 @@ export class RequestsService {
       .filter((id): id is number => id !== null);
   }
 
-  private async getDivisionuser_ids(division_ids: number[]): Promise<number[]> {
+  private async getDivisionUserIds(division_ids: number[]): Promise<number[]> {
     const assignments = await this.prisma.user_role_assignment.findMany({
       where: {
         scope_type: ScopeType.DIVISION,
@@ -2436,9 +1874,6 @@ export class RequestsService {
     return [...new Set(roleUsers.map((r) => r.user_id))];
   }
 
-  /**
-   * Build where conditions từ pagination DTO
-   */
   private buildWhereConditions(paginationDto: RequestPaginationDto): any {
     const whereConditions: any = { deleted_at: null };
 
@@ -2449,40 +1884,14 @@ export class RequestsService {
     return whereConditions;
   }
 
-  private async getUserManagedDivisions(user_id: number): Promise<number[]> {
-    const assignments = await this.prisma.user_role_assignment.findMany({
-      where: {
-        user_id: user_id,
-        scope_type: ScopeType.DIVISION,
-        deleted_at: null,
-        scope_id: { not: null },
-        role: {
-          name: ROLE_NAMES.DIVISION_HEAD,
-          deleted_at: null,
-        },
-      },
-      select: {
-        scope_id: true,
-      },
-    });
-
-    return [
-      ...new Set(
-        assignments
-          .map((a) => a.scope_id)
-          .filter((id): id is number => id !== null),
-      ),
-    ];
-  }
-
-  private async getuser_idsFilterByRole(
+  private async getUserIdsFilterByRole(
     user_id: number,
   ): Promise<number[] | undefined> {
     const accessScope = await this.determineAccessScope(user_id);
 
     if (accessScope.type === 'DIVISION_ONLY') {
       if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        return await this.getDivisionuser_ids(accessScope.division_ids);
+        return await this.getDivisionUserIds(accessScope.division_ids);
       }
       return [];
     }
@@ -2522,7 +1931,6 @@ export class RequestsService {
     approverId: number,
     requestUserId: number,
   ): Promise<boolean> {
-    // Lấy roles từ DB - không tin parameter từ controller
     const [approverRoles, ownerRoles] = await Promise.all([
       this.roleAssignmentService.getUserRoles(approverId),
       this.roleAssignmentService.getUserRoles(requestUserId),
@@ -2540,7 +1948,6 @@ export class RequestsService {
       return false;
     }
 
-    // Division Head: Approve trong division của mình
     const approverDivisions = approverRoles.roles
       .filter(
         (r) =>
@@ -2558,7 +1965,6 @@ export class RequestsService {
       }
     }
 
-    // Team Leader: Approve trong team của mình
     const approverTeams = approverRoles.roles
       .filter(
         (r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM',
@@ -2574,7 +1980,6 @@ export class RequestsService {
       }
     }
 
-    // Project Manager: Approve members trong project của mình
     const approverProjects = approverRoles.roles
       .filter(
         (r) =>
@@ -2613,8 +2018,6 @@ export class RequestsService {
   }
 
   /**
-   * REFACTORED: Tự lấy roles từ DB và xử lý MULTIPLE roles
-   * Không nhận role parameter từ controller nữa
    */
   private async determineAccessScope(user_id: number): Promise<{
     type:
@@ -2630,10 +2033,8 @@ export class RequestsService {
     team_ids?: number[];
     user_id?: number;
   }> {
-    // Lấy TẤT CẢ roles từ DB
     const userRoles = await this.roleAssignmentService.getUserRoles(user_id);
 
-    // Check Admin first (highest priority) - chỉ Admin ở COMPANY scope mới có ALL_ACCESS
     const isAdmin = userRoles.roles.some(
       (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
     );
@@ -2644,7 +2045,6 @@ export class RequestsService {
       };
     }
 
-    // Collect all scopes from ALL roles user has
     const managedDivisions = userRoles.roles
       .filter(
         (r) =>
@@ -2668,18 +2068,15 @@ export class RequestsService {
       .map((r) => r.scope_id)
       .filter((id): id is number => id !== null);
 
-    // Determine access type based on roles
-    // Division Head has highest scope after Admin
     if (managedDivisions.length > 0) {
       return {
         type: 'DIVISION_ONLY',
         division_ids: managedDivisions,
-        team_ids: managedTeams, // Include teams too if has both roles
+        team_ids: managedTeams, 
         projectIds: managedProjects,
       };
     }
 
-    // If user has both Team Leader and Project Manager
     if (managedTeams.length > 0 || managedProjects.length > 0) {
       return {
         type: managedTeams.length > 0 ? 'TEAM_ONLY' : 'PROJECT_ONLY',
@@ -2688,15 +2085,11 @@ export class RequestsService {
       };
     }
 
-    // Default: Only see their own requests
     return {
       type: 'SELF_ONLY',
     };
   }
 
-  /**
-   * Lấy danh sách leadership roles
-   */
   private getLeadershipRoles(): string[] {
     return [
       ROLE_NAMES.DIVISION_HEAD,
@@ -2986,10 +2379,6 @@ export class RequestsService {
     return { success: true, message: SUCCESS_MESSAGES.DELETED_SUCCESSFULLY };
   }
 
-  async deleteRemoteWorkRequest(id: number, user_id: number) {
-    return this.deleteRequest(id, user_id);
-  }
-
   async updateDayOffRequest(
     id: number,
     dto: CreateDayOffRequestDto,
@@ -3057,10 +2446,6 @@ export class RequestsService {
     const updated = await this.attendanceRequestService.findOne(id);
 
     return this.mapToDayOffRequestResponse(updated);
-  }
-
-  async deleteDayOffRequest(id: number, user_id: number) {
-    return this.deleteRequest(id, user_id);
   }
 
   async updateOvertimeRequest(
@@ -3147,10 +2532,6 @@ export class RequestsService {
     return this.mapToOvertimeRequestResponse(updated);
   }
 
-  async deleteOvertimeRequest(id: number, user_id: number) {
-    return this.deleteRequest(id, user_id);
-  }
-
   async updateLateEarlyRequest(
     id: number,
     dto: CreateLateEarlyRequestDto,
@@ -3224,10 +2605,6 @@ export class RequestsService {
     const updated = await this.attendanceRequestService.findOne(id);
 
     return this.mapToLateEarlyRequestResponse(updated);
-  }
-
-  async deleteLateEarlyRequest(id: number, user_id: number) {
-    return this.deleteRequest(id, user_id);
   }
 
   async updateForgotCheckinRequest(
@@ -3309,10 +2686,6 @@ export class RequestsService {
     const updated = await this.attendanceRequestService.findOne(id);
 
     return this.mapToForgotCheckinRequestResponse(updated);
-  }
-
-  async deleteForgotCheckinRequest(id: number, user_id: number) {
-    return this.deleteRequest(id, user_id);
   }
 
   private mapToRemoteWorkRequestResponse(
