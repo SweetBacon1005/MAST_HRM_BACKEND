@@ -1445,7 +1445,7 @@ LIMIT 30;
 -- 29. DAY_OFFS (Đơn nghỉ phép - Liên kết với attendance_requests)
 -- ============================================
 TRUNCATE TABLE `day_offs`;
-INSERT INTO `day_offs` (`request_id`, `duration`, `type`, `is_past`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `day_offs` (`request_id`, `duration`, `type`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
     ar.id as request_id,
     CASE 
@@ -1459,7 +1459,6 @@ SELECT
         WHEN MOD(ar.id, 6) = 2 THEN 'UNPAID'
         ELSE 'PAID'
     END as type,
-    0 as is_past,
     ar.created_at,
     ar.updated_at,
     NULL as deleted_at
