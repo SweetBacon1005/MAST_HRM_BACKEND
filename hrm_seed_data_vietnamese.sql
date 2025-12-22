@@ -14,29 +14,29 @@ SET CHARACTER SET utf8mb4;
 -- ============================================
 TRUNCATE TABLE `languages`;
 INSERT INTO `languages` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Vietnamese', NOW(), NOW(), NULL),
-(2, 'English', NOW(), NOW(), NULL),
-(3, 'Japanese', NOW(), NOW(), NULL),
-(4, 'Korean', NOW(), NOW(), NULL),
-(5, 'Chinese', NOW(), NOW(), NULL);
+(1, 'Vietnamese', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'English', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Japanese', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Korean', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Chinese', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 3. POSITIONS (Vị trí công việc)
 -- ============================================
 TRUNCATE TABLE `positions`;
 INSERT INTO `positions` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Backend Developer', NOW(), NOW(), NULL),
-(2, 'Frontend Developer', NOW(), NOW(), NULL),
-(3, 'Full Stack Developer', NOW(), NOW(), NULL),
-(4, 'Mobile Developer', NOW(), NOW(), NULL),
-(5, 'QA Tester', NOW(), NOW(), NULL),
-(6, 'DevOps Engineer', NOW(), NOW(), NULL),
-(7, 'UI/UX Designer', NOW(), NOW(), NULL),
-(8, 'Project Manager', NOW(), NOW(), NULL),
-(9, 'Business Analyst', NOW(), NOW(), NULL),
-(10, 'Scrum Master', NOW(), NOW(), NULL),
-(11, 'Data Engineer', NOW(), NOW(), NULL),
-(12, 'Security Engineer', NOW(), NOW(), NULL);
+(1, 'Backend Developer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Frontend Developer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Full Stack Developer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Mobile Developer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'QA Tester', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'DevOps Engineer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(7, 'UI/UX Designer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(8, 'Project Manager', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(9, 'Business Analyst', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(10, 'Scrum Master', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(11, 'Data Engineer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(12, 'Security Engineer', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 4. SKILLS (Kỹ năng)
@@ -44,64 +44,64 @@ INSERT INTO `positions` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`)
 TRUNCATE TABLE `skills`;
 INSERT INTO `skills` (`id`, `name`, `position_id`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- Backend skills
-(1, 'Node.js', 1, NOW(), NOW(), NULL),
-(2, 'NestJS', 1, NOW(), NOW(), NULL),
-(3, 'Express.js', 1, NOW(), NOW(), NULL),
-(4, 'PHP', 1, NOW(), NOW(), NULL),
-(5, 'Laravel', 1, NOW(), NOW(), NULL),
-(6, 'Java', 1, NOW(), NOW(), NULL),
-(7, 'Spring Boot', 1, NOW(), NOW(), NULL),
-(8, 'Python', 1, NOW(), NOW(), NULL),
-(9, 'Django', 1, NOW(), NOW(), NULL),
-(10, 'PostgreSQL', 1, NOW(), NOW(), NULL),
-(11, 'MySQL', 1, NOW(), NOW(), NULL),
-(12, 'MongoDB', 1, NOW(), NOW(), NULL),
+(1, 'Node.js', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'NestJS', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Express.js', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'PHP', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Laravel', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'Java', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(7, 'Spring Boot', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(8, 'Python', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(9, 'Django', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(10, 'PostgreSQL', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(11, 'MySQL', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(12, 'MongoDB', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Frontend skills
-(13, 'React.js', 2, NOW(), NOW(), NULL),
-(14, 'Vue.js', 2, NOW(), NOW(), NULL),
-(15, 'Angular', 2, NOW(), NOW(), NULL),
-(16, 'Next.js', 2, NOW(), NOW(), NULL),
-(17, 'TypeScript', 2, NOW(), NOW(), NULL),
-(18, 'JavaScript', 2, NOW(), NOW(), NULL),
-(19, 'HTML/CSS', 2, NOW(), NOW(), NULL),
-(20, 'Tailwind CSS', 2, NOW(), NOW(), NULL),
+(13, 'React.js', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(14, 'Vue.js', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(15, 'Angular', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(16, 'Next.js', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(17, 'TypeScript', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(18, 'JavaScript', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(19, 'HTML/CSS', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(20, 'Tailwind CSS', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Mobile skills
-(21, 'React Native', 4, NOW(), NOW(), NULL),
-(22, 'Flutter', 4, NOW(), NOW(), NULL),
-(23, 'iOS Native', 4, NOW(), NOW(), NULL),
-(24, 'Android Native', 4, NOW(), NOW(), NULL),
+(21, 'React Native', 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(22, 'Flutter', 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(23, 'iOS Native', 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(24, 'Android Native', 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Testing skills
-(25, 'Manual Testing', 5, NOW(), NOW(), NULL),
-(26, 'Automation Testing', 5, NOW(), NOW(), NULL),
-(27, 'Selenium', 5, NOW(), NOW(), NULL),
-(28, 'Jest', 5, NOW(), NOW(), NULL),
+(25, 'Manual Testing', 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(26, 'Automation Testing', 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(27, 'Selenium', 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(28, 'Jest', 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- DevOps skills
-(29, 'Docker', 6, NOW(), NOW(), NULL),
-(30, 'Kubernetes', 6, NOW(), NOW(), NULL),
-(31, 'AWS', 6, NOW(), NOW(), NULL),
-(32, 'CI/CD', 6, NOW(), NOW(), NULL),
-(33, 'Azure', 6, NOW(), NOW(), NULL),
+(29, 'Docker', 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(30, 'Kubernetes', 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(31, 'AWS', 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(32, 'CI/CD', 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(33, 'Azure', 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Design skills
-(34, 'Figma', 7, NOW(), NOW(), NULL),
-(35, 'Adobe XD', 7, NOW(), NOW(), NULL),
-(36, 'Sketch', 7, NOW(), NOW(), NULL),
+(34, 'Figma', 7, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(35, 'Adobe XD', 7, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(36, 'Sketch', 7, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Other skills
-(37, 'Agile/Scrum', 8, NOW(), NOW(), NULL),
-(38, 'JIRA', 8, NOW(), NOW(), NULL),
-(39, 'Git', 1, NOW(), NOW(), NULL),
-(40, 'REST API', 1, NOW(), NOW(), NULL);
+(37, 'Agile/Scrum', 8, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(38, 'JIRA', 8, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(39, 'Git', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(40, 'REST API', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 5. ROLES (Vai trò) - 6 roles
 -- ============================================
 TRUNCATE TABLE `roles`;
 INSERT INTO `roles` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'admin', NOW(), NOW(), NULL),
-(2, 'hr_manager', NOW(), NOW(), NULL),
-(3, 'project_manager', NOW(), NOW(), NULL),
-(4, 'division_head', NOW(), NOW(), NULL),
-(5, 'team_leader', NOW(), NOW(), NULL),
-(6, 'employee', NOW(), NOW(), NULL);
+(1, 'admin', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'hr_manager', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'project_manager', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'division_head', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'team_leader', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'employee', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 6. PERMISSIONS (108 permissions - Complete RBAC)
@@ -110,122 +110,122 @@ INSERT INTO `roles` (`id`, `name`, `created_at`, `updated_at`, `deleted_at`) VAL
 TRUNCATE TABLE `permissions`;
 INSERT INTO `permissions` (`name`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- User Management (5)
-('user.read', NOW(), NOW(), NULL),
-('user.create', NOW(), NOW(), NULL),
-('user.update', NOW(), NOW(), NULL),
-('user.delete', NOW(), NOW(), NULL),
-('user.profile.update', NOW(), NOW(), NULL),
+('user.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('user.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('user.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('user.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('user.profile.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Project Management (5)
-('project.read', NOW(), NOW(), NULL),
-('project.create', NOW(), NOW(), NULL),
-('project.update', NOW(), NOW(), NULL),
-('project.delete', NOW(), NOW(), NULL),
-('project.assign', NOW(), NOW(), NULL),
+('project.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('project.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('project.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('project.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('project.assign', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Timesheet Management (6)
-('timesheet.read', NOW(), NOW(), NULL),
-('timesheet.create', NOW(), NOW(), NULL),
-('timesheet.update', NOW(), NOW(), NULL),
-('timesheet.delete', NOW(), NOW(), NULL),
-('timesheet.approve', NOW(), NOW(), NULL),
-('timesheet.statistics', NOW(), NOW(), NULL),
+('timesheet.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('timesheet.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('timesheet.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('timesheet.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('timesheet.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('timesheet.statistics', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Attendance Management (4)
-('attendance.read', NOW(), NOW(), NULL),
-('attendance.manage', NOW(), NOW(), NULL),
-('attendance.checkin', NOW(), NOW(), NULL),
-('attendance.statistics', NOW(), NOW(), NULL),
+('attendance.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('attendance.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('attendance.checkin', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('attendance.statistics', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Leave Management (4)
-('leave.read', NOW(), NOW(), NULL),
-('leave.create', NOW(), NOW(), NULL),
-('leave.approve', NOW(), NOW(), NULL),
-('leave.balance.manage', NOW(), NOW(), NULL),
+('leave.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('leave.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('leave.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('leave.balance.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Request Management (4)
-('request.read', NOW(), NOW(), NULL),
-('request.create', NOW(), NOW(), NULL),
-('request.approve', NOW(), NOW(), NULL),
-('request.reject', NOW(), NOW(), NULL),
+('request.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('request.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('request.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('request.reject', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Division Management (8)
-('division.read', NOW(), NOW(), NULL),
-('division.create', NOW(), NOW(), NULL),
-('division.update', NOW(), NOW(), NULL),
-('division.delete', NOW(), NOW(), NULL),
-('division.assignment.read', NOW(), NOW(), NULL),
-('division.assignment.create', NOW(), NOW(), NULL),
-('division.assignment.update', NOW(), NOW(), NULL),
-('division.assignment.delete', NOW(), NOW(), NULL),
+('division.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.assignment.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.assignment.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.assignment.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.assignment.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Report & Analytics (3)
-('report.read', NOW(), NOW(), NULL),
-('report.export', NOW(), NOW(), NULL),
-('analytics.view', NOW(), NOW(), NULL),
+('report.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('report.export', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('analytics.view', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- System Administration (3)
-('system.admin', NOW(), NOW(), NULL),
-('system.config', NOW(), NOW(), NULL),
-('system.backup', NOW(), NOW(), NULL),
+('system.admin', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('system.config', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('system.backup', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Organization Management (3)
-('organization.read', NOW(), NOW(), NULL),
-('organization.manage', NOW(), NOW(), NULL),
-('division.manage', NOW(), NOW(), NULL),
+('organization.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('organization.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('division.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Team Management (5)
-('team.read', NOW(), NOW(), NULL),
-('team.create', NOW(), NOW(), NULL),
-('team.update', NOW(), NOW(), NULL),
-('team.delete', NOW(), NOW(), NULL),
-('team.manage', NOW(), NOW(), NULL),
+('team.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('team.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('team.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('team.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('team.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- News Management (6)
-('news.read', NOW(), NOW(), NULL),
-('news.create', NOW(), NOW(), NULL),
-('news.update', NOW(), NOW(), NULL),
-('news.delete', NOW(), NOW(), NULL),
-('news.submit', NOW(), NOW(), NULL),
-('news.approve', NOW(), NOW(), NULL),
+('news.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('news.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('news.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('news.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('news.submit', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('news.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Notification Management (5)
-('notification.read', NOW(), NOW(), NULL),
-('notification.create', NOW(), NOW(), NULL),
-('notification.update', NOW(), NOW(), NULL),
-('notification.delete', NOW(), NOW(), NULL),
-('notification.manage', NOW(), NOW(), NULL),
+('notification.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('notification.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('notification.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('notification.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('notification.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Asset Management (7)
-('asset.create', NOW(), NOW(), NULL),
-('asset.read', NOW(), NOW(), NULL),
-('asset.update', NOW(), NOW(), NULL),
-('asset.delete', NOW(), NOW(), NULL),
-('asset.assign', NOW(), NOW(), NULL),
-('asset.unassign', NOW(), NOW(), NULL),
-('asset.statistics', NOW(), NOW(), NULL),
+('asset.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.assign', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.unassign', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.statistics', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Asset Request Management (4)
-('asset.request.create', NOW(), NOW(), NULL),
-('asset.request.read', NOW(), NOW(), NULL),
-('asset.request.approve', NOW(), NOW(), NULL),
-('asset.request.reject', NOW(), NOW(), NULL),
+('asset.request.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.request.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.request.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('asset.request.reject', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Contract & Device Management - Legacy (4)
-('contract.read', NOW(), NOW(), NULL),
-('contract.manage', NOW(), NOW(), NULL),
-('device.read', NOW(), NOW(), NULL),
-('device.manage', NOW(), NOW(), NULL),
+('contract.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('contract.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('device.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('device.manage', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Personnel Transfer Management (6)
-('personnel.transfer.read', NOW(), NOW(), NULL),
-('personnel.transfer.create', NOW(), NOW(), NULL),
-('personnel.transfer.update', NOW(), NOW(), NULL),
-('personnel.transfer.approve', NOW(), NOW(), NULL),
-('personnel.transfer.reject', NOW(), NOW(), NULL),
-('personnel.transfer.delete', NOW(), NOW(), NULL),
+('personnel.transfer.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('personnel.transfer.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('personnel.transfer.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('personnel.transfer.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('personnel.transfer.reject', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('personnel.transfer.delete', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Role Management (9)
-('role.view', NOW(), NOW(), NULL),
-('role.assign', NOW(), NOW(), NULL),
-('role.manage.employee', NOW(), NOW(), NULL),
-('role.manage.team_leader', NOW(), NOW(), NULL),
-('role.manage.division_head', NOW(), NOW(), NULL),
-('role.manage.project_manager', NOW(), NOW(), NULL),
-('role.manage.hr_manager', NOW(), NOW(), NULL),
-('role.manage.admin', NOW(), NOW(), NULL),
-('role.manage.all', NOW(), NOW(), NULL),
+('role.view', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.assign', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.employee', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.team_leader', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.division_head', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.project_manager', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.hr_manager', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.admin', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('role.manage.all', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- Daily Report Management (7)
-('daily.read', NOW(), NOW(), NULL),
-('daily.create', NOW(), NOW(), NULL),
-('daily.update', NOW(), NOW(), NULL),
-('daily.remove', NOW(), NOW(), NULL),
-('daily.submit', NOW(), NOW(), NULL),
-('daily.approve', NOW(), NOW(), NULL),
-('daily.reject', NOW(), NOW(), NULL);
+('daily.read', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.create', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.update', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.remove', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.submit', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.approve', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('daily.reject', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 7. PERMISSION_ROLE (Gán quyền theo role hierarchy)
@@ -234,11 +234,11 @@ TRUNCATE TABLE `permission_role`;
 
 -- ADMIN - Full access (all permissions)
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 1, NOW(), NOW() FROM `permissions` p;
+SELECT p.id, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p;
 
 -- HR_MANAGER - HR operations
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 2, NOW(), NOW() FROM `permissions` p
+SELECT p.id, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p
 WHERE p.name IN (
     'user.read', 'user.create', 'user.update', 'user.profile.update',
     'timesheet.read', 'timesheet.statistics',
@@ -263,7 +263,7 @@ WHERE p.name IN (
 
 -- PROJECT_MANAGER - Project management
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 3, NOW(), NOW() FROM `permissions` p
+SELECT p.id, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p
 WHERE p.name IN (
     'user.read', 'user.profile.update',
     'project.read', 'project.create', 'project.update', 'project.assign',
@@ -284,7 +284,7 @@ WHERE p.name IN (
 
 -- DIVISION_HEAD - Division management
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 4, NOW(), NOW() FROM `permissions` p
+SELECT p.id, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p
 WHERE p.name IN (
     'user.read', 'user.update', 'user.profile.update',
     'project.read', 'project.update', 'project.assign',
@@ -310,7 +310,7 @@ WHERE p.name IN (
 
 -- TEAM_LEADER - Team management
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 5, NOW(), NOW() FROM `permissions` p
+SELECT p.id, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p
 WHERE p.name IN (
     'user.read', 'user.profile.update',
     'project.read', 'project.update',
@@ -332,7 +332,7 @@ WHERE p.name IN (
 
 -- EMPLOYEE - Basic access
 INSERT INTO `permission_role` (`permission_id`, `role_id`, `created_at`, `updated_at`)
-SELECT p.id, 6, NOW(), NOW() FROM `permissions` p
+SELECT p.id, 6, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR) FROM `permissions` p
 WHERE p.name IN (
     'user.read', 'user.profile.update',
     'project.read',
@@ -356,36 +356,36 @@ WHERE p.name IN (
 -- ============================================
 TRUNCATE TABLE `divisions`;
 INSERT INTO `divisions` (`id`, `name`, `type`, `status`, `address`, `founding_at`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Phòng Công Nghệ', 'TECHNICAL', 'ACTIVE', 'Tầng 5-6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng ban công nghệ chính, phát triển sản phẩm phần mềm', NOW(), NOW(), NULL),
-(2, 'Phòng Kinh Doanh', 'BUSINESS', 'ACTIVE', 'Tầng 3, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng kinh doanh và phát triển thị trường', NOW(), NOW(), NULL),
-(3, 'Phòng Hành Chính Nhân Sự', 'OPERATIONS', 'ACTIVE', 'Tầng 2, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng quản lý nhân sự và hành chính', NOW(), NOW(), NULL),
-(4, 'Bộ phận Backend', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển backend và API', NOW(), NOW(), NULL),
-(5, 'Bộ phận Frontend', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển giao diện người dùng', NOW(), NOW(), NULL),
-(6, 'Bộ phận Mobile', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển ứng dụng di động', NOW(), NOW(), NULL),
-(7, 'Bộ phận QA', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Đảm bảo chất lượng sản phẩm', NOW(), NOW(), NULL);
+(1, 'Phòng Công Nghệ', 'TECHNICAL', 'ACTIVE', 'Tầng 5-6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng ban công nghệ chính, phát triển sản phẩm phần mềm', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Phòng Kinh Doanh', 'BUSINESS', 'ACTIVE', 'Tầng 3, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng kinh doanh và phát triển thị trường', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Phòng Hành Chính Nhân Sự', 'OPERATIONS', 'ACTIVE', 'Tầng 2, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-01-15', 'Phòng quản lý nhân sự và hành chính', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Bộ phận Backend', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển backend và API', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Bộ phận Frontend', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển giao diện người dùng', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'Bộ phận Mobile', 'TECHNICAL', 'ACTIVE', 'Tầng 6, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Phát triển ứng dụng di động', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(7, 'Bộ phận QA', 'TECHNICAL', 'ACTIVE', 'Tầng 5, Tòa nhà Innovation Tower, 72 Trần Đăng Ninh, Cầu Giấy, Hà Nội', '2020-06-01', 'Đảm bảo chất lượng sản phẩm', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 9. TEAMS (Nhóm)
 -- ============================================
 TRUNCATE TABLE `teams`;
 INSERT INTO `teams` (`id`, `name`, `division_id`, `founding_date`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Backend Team Alpha', 4, '2020-06-15', NOW(), NOW(), NULL),
-(2, 'Backend Team Beta', 4, '2020-07-01', NOW(), NOW(), NULL),
-(3, 'Frontend Team Gamma', 5, '2020-06-15', NOW(), NOW(), NULL),
-(4, 'Frontend Team Delta', 5, '2020-07-01', NOW(), NOW(), NULL),
-(5, 'Mobile Team 1', 6, '2020-08-01', NOW(), NOW(), NULL),
-(6, 'QA Team 1', 7, '2020-06-15', NOW(), NOW(), NULL);
+(1, 'Backend Team Alpha', 4, '2020-06-15', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Backend Team Beta', 4, '2020-07-01', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Frontend Team Gamma', 5, '2020-06-15', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Frontend Team Delta', 5, '2020-07-01', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Mobile Team 1', 6, '2020-08-01', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'QA Team 1', 7, '2020-06-15', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 10. PROJECTS (Dự án)
 -- ============================================
 TRUNCATE TABLE `projects`;
 INSERT INTO `projects` (`id`, `name`, `code`, `status`, `division_id`, `team_id`, `project_type`, `project_access_type`, `industry`, `scope`, `description`, `start_date`, `end_date`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 'Hệ thống Thương mại điện tử', 'ECOM-2024', 'IN_PROGRESS', 1, 1, 'CUSTOMER', 'RESTRICTED', 'IT', 'Full stack development', 'Xây dựng nền tảng thương mại điện tử hiện đại với kiến trúc microservices', '2024-01-01', '2024-12-31', NOW(), NOW(), NULL),
-(2, 'Hệ thống Ngân hàng Core', 'BANK-2024', 'IN_PROGRESS', 1, 2, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Backend API development', 'Phát triển hệ thống ngân hàng cốt lõi với bảo mật cao', '2024-02-01', '2025-01-31', NOW(), NOW(), NULL),
-(3, 'Hệ thống HRM Nội bộ', 'HRM-2024', 'IN_PROGRESS', 1, 1, 'INTERNAL', 'COMPANY', 'IT', 'Full HRM solution', 'Hệ thống quản lý nhân sự toàn diện', '2023-06-01', '2024-06-30', NOW(), NOW(), NULL),
-(4, 'Ứng dụng Mobile Banking', 'MBANK-2024', 'IN_PROGRESS', 1, 5, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Mobile application', 'Ứng dụng ngân hàng trên iOS và Android', '2024-03-01', '2024-09-30', NOW(), NOW(), NULL),
-(5, 'Hệ thống AI Chatbot', 'AIBOT-2024', 'OPEN', 1, 2, 'START_UP', 'RESTRICTED', 'IT', 'AI development', 'Hệ thống chatbot thông minh cho dịch vụ khách hàng', '2024-04-01', '2024-10-31', NOW(), NOW(), NULL);
+(1, 'Hệ thống Thương mại điện tử', 'ECOM-2024', 'IN_PROGRESS', 1, 1, 'CUSTOMER', 'RESTRICTED', 'IT', 'Full stack development', 'Xây dựng nền tảng thương mại điện tử hiện đại với kiến trúc microservices', '2024-01-01', '2024-12-31', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Hệ thống Ngân hàng Core', 'BANK-2024', 'IN_PROGRESS', 1, 2, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Backend API development', 'Phát triển hệ thống ngân hàng cốt lõi với bảo mật cao', '2024-02-01', '2025-01-31', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Hệ thống HRM Nội bộ', 'HRM-2024', 'IN_PROGRESS', 1, 1, 'INTERNAL', 'COMPANY', 'IT', 'Full HRM solution', 'Hệ thống quản lý nhân sự toàn diện', '2023-06-01', '2024-06-30', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Ứng dụng Mobile Banking', 'MBANK-2024', 'IN_PROGRESS', 1, 5, 'CUSTOMER', 'RESTRICTED', 'FINANCE', 'Mobile application', 'Ứng dụng ngân hàng trên iOS và Android', '2024-03-01', '2024-09-30', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Hệ thống AI Chatbot', 'AIBOT-2024', 'OPEN', 1, 2, 'START_UP', 'RESTRICTED', 'IT', 'AI development', 'Hệ thống chatbot thông minh cho dịch vụ khách hàng', '2024-04-01', '2024-10-31', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 11. PROJECT_MILESTONES (Cột mốc dự án)
@@ -393,39 +393,39 @@ INSERT INTO `projects` (`id`, `name`, `code`, `status`, `division_id`, `team_id`
 TRUNCATE TABLE `project_milestones`;
 INSERT INTO `project_milestones` (`project_id`, `name`, `description`, `start_date`, `end_date`, `status`, `progress`, `order`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- Project 1: Hệ thống Thương mại điện tử (ECOM-2024)
-(1, 'Thiết kế kiến trúc hệ thống', 'Thiết kế kiến trúc microservices, database schema, API contracts', '2024-01-01', '2024-02-15', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
-(1, 'Phát triển Backend Core', 'Xây dựng các service cốt lõi: User, Product, Order, Payment', '2024-02-16', '2024-05-31', 'IN_PROGRESS', 75.0, 2, NOW(), NOW(), NULL),
-(1, 'Phát triển Frontend', 'Xây dựng giao diện người dùng, admin dashboard', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 60.0, 3, NOW(), NOW(), NULL),
-(1, 'Tích hợp thanh toán', 'Tích hợp các cổng thanh toán: VNPay, MoMo, Stripe', '2024-06-01', '2024-09-30', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
-(1, 'Testing & Deployment', 'Kiểm thử toàn hệ thống và triển khai production', '2024-10-01', '2024-12-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+(1, 'Thiết kế kiến trúc hệ thống', 'Thiết kế kiến trúc microservices, database schema, API contracts', '2024-01-01', '2024-02-15', 'COMPLETED', 100.0, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(1, 'Phát triển Backend Core', 'Xây dựng các service cốt lõi: User, Product, Order, Payment', '2024-02-16', '2024-05-31', 'IN_PROGRESS', 75.0, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(1, 'Phát triển Frontend', 'Xây dựng giao diện người dùng, admin dashboard', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 60.0, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(1, 'Tích hợp thanh toán', 'Tích hợp các cổng thanh toán: VNPay, MoMo, Stripe', '2024-06-01', '2024-09-30', 'PENDING', 0.0, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(1, 'Testing & Deployment', 'Kiểm thử toàn hệ thống và triển khai production', '2024-10-01', '2024-12-31', 'PENDING', 0.0, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Project 2: Hệ thống Ngân hàng Core (BANK-2024)
-(2, 'Phân tích yêu cầu nghiệp vụ', 'Phân tích và thiết kế các module nghiệp vụ ngân hàng', '2024-02-01', '2024-03-31', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
-(2, 'Phát triển Core Banking API', 'Xây dựng API cho các chức năng: Account, Transaction, Loan', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 55.0, 2, NOW(), NOW(), NULL),
-(2, 'Bảo mật & Compliance', 'Triển khai bảo mật, mã hóa, tuân thủ quy định ngân hàng', '2024-07-01', '2024-11-30', 'IN_PROGRESS', 40.0, 3, NOW(), NOW(), NULL),
-(2, 'Tích hợp hệ thống bên thứ 3', 'Tích hợp với các hệ thống: Core Banking, Payment Gateway', '2024-09-01', '2024-12-31', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
-(2, 'UAT & Go-live', 'User Acceptance Testing và triển khai chính thức', '2025-01-01', '2025-01-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+(2, 'Phân tích yêu cầu nghiệp vụ', 'Phân tích và thiết kế các module nghiệp vụ ngân hàng', '2024-02-01', '2024-03-31', 'COMPLETED', 100.0, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Phát triển Core Banking API', 'Xây dựng API cho các chức năng: Account, Transaction, Loan', '2024-04-01', '2024-08-31', 'IN_PROGRESS', 55.0, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Bảo mật & Compliance', 'Triển khai bảo mật, mã hóa, tuân thủ quy định ngân hàng', '2024-07-01', '2024-11-30', 'IN_PROGRESS', 40.0, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'Tích hợp hệ thống bên thứ 3', 'Tích hợp với các hệ thống: Core Banking, Payment Gateway', '2024-09-01', '2024-12-31', 'PENDING', 0.0, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'UAT & Go-live', 'User Acceptance Testing và triển khai chính thức', '2025-01-01', '2025-01-31', 'PENDING', 0.0, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Project 3: Hệ thống HRM Nội bộ (HRM-2024)
-(3, 'Phát triển module Quản lý nhân sự', 'Xây dựng các tính năng: Employee, Department, Position', '2023-06-01', '2023-09-30', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
-(3, 'Phát triển module Chấm công', 'Xây dựng tính năng: Timesheet, Attendance, Leave', '2023-08-01', '2023-12-31', 'COMPLETED', 100.0, 2, NOW(), NOW(), NULL),
-(3, 'Phát triển module Dự án', 'Xây dựng tính năng: Project, Task, Daily Report', '2023-10-01', '2024-02-29', 'COMPLETED', 100.0, 3, NOW(), NOW(), NULL),
-(3, 'Phát triển module Tài sản', 'Xây dựng tính năng: Asset, Asset Request, Assignment', '2024-01-01', '2024-04-30', 'IN_PROGRESS', 80.0, 4, NOW(), NOW(), NULL),
-(3, 'Tối ưu & Hoàn thiện', 'Tối ưu hiệu năng, sửa lỗi, hoàn thiện tính năng', '2024-05-01', '2024-06-30', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+(3, 'Phát triển module Quản lý nhân sự', 'Xây dựng các tính năng: Employee, Department, Position', '2023-06-01', '2023-09-30', 'COMPLETED', 100.0, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Phát triển module Chấm công', 'Xây dựng tính năng: Timesheet, Attendance, Leave', '2023-08-01', '2023-12-31', 'COMPLETED', 100.0, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Phát triển module Dự án', 'Xây dựng tính năng: Project, Task, Daily Report', '2023-10-01', '2024-02-29', 'COMPLETED', 100.0, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Phát triển module Tài sản', 'Xây dựng tính năng: Asset, Asset Request, Assignment', '2024-01-01', '2024-04-30', 'IN_PROGRESS', 80.0, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'Tối ưu & Hoàn thiện', 'Tối ưu hiệu năng, sửa lỗi, hoàn thiện tính năng', '2024-05-01', '2024-06-30', 'PENDING', 0.0, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Project 4: Ứng dụng Mobile Banking (MBANK-2024)
-(4, 'Thiết kế UI/UX', 'Thiết kế giao diện và trải nghiệm người dùng cho iOS và Android', '2024-03-01', '2024-04-15', 'COMPLETED', 100.0, 1, NOW(), NOW(), NULL),
-(4, 'Phát triển iOS App', 'Xây dựng ứng dụng iOS với Swift/SwiftUI', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 50.0, 2, NOW(), NOW(), NULL),
-(4, 'Phát triển Android App', 'Xây dựng ứng dụng Android với Kotlin/Jetpack Compose', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 45.0, 3, NOW(), NOW(), NULL),
-(4, 'Tích hợp API Backend', 'Tích hợp với Backend API, xử lý authentication', '2024-06-01', '2024-08-31', 'IN_PROGRESS', 30.0, 4, NOW(), NOW(), NULL),
-(4, 'Testing & Release', 'Kiểm thử, fix bug, và phát hành lên App Store/Play Store', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 5, NOW(), NOW(), NULL),
+(4, 'Thiết kế UI/UX', 'Thiết kế giao diện và trải nghiệm người dùng cho iOS và Android', '2024-03-01', '2024-04-15', 'COMPLETED', 100.0, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Phát triển iOS App', 'Xây dựng ứng dụng iOS với Swift/SwiftUI', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 50.0, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Phát triển Android App', 'Xây dựng ứng dụng Android với Kotlin/Jetpack Compose', '2024-04-16', '2024-07-31', 'IN_PROGRESS', 45.0, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Tích hợp API Backend', 'Tích hợp với Backend API, xử lý authentication', '2024-06-01', '2024-08-31', 'IN_PROGRESS', 30.0, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'Testing & Release', 'Kiểm thử, fix bug, và phát hành lên App Store/Play Store', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Project 5: Hệ thống AI Chatbot (AIBOT-2024)
-(5, 'Nghiên cứu & Thiết kế AI Model', 'Nghiên cứu và thiết kế mô hình AI cho chatbot', '2024-04-01', '2024-06-30', 'IN_PROGRESS', 40.0, 1, NOW(), NOW(), NULL),
-(5, 'Phát triển Chatbot Engine', 'Xây dựng engine xử lý câu hỏi và phản hồi thông minh', '2024-06-01', '2024-08-31', 'PENDING', 0.0, 2, NOW(), NOW(), NULL),
-(5, 'Tích hợp với hệ thống khách hàng', 'Tích hợp chatbot vào website và ứng dụng khách hàng', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 3, NOW(), NOW(), NULL),
-(5, 'Training & Tối ưu AI', 'Huấn luyện mô hình AI với dữ liệu thực tế', '2024-09-01', '2024-10-15', 'PENDING', 0.0, 4, NOW(), NOW(), NULL),
-(5, 'Pilot & Launch', 'Chạy thử nghiệm và ra mắt chính thức', '2024-10-16', '2024-10-31', 'PENDING', 0.0, 5, NOW(), NOW(), NULL);
+(5, 'Nghiên cứu & Thiết kế AI Model', 'Nghiên cứu và thiết kế mô hình AI cho chatbot', '2024-04-01', '2024-06-30', 'IN_PROGRESS', 40.0, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Phát triển Chatbot Engine', 'Xây dựng engine xử lý câu hỏi và phản hồi thông minh', '2024-06-01', '2024-08-31', 'PENDING', 0.0, 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Tích hợp với hệ thống khách hàng', 'Tích hợp chatbot vào website và ứng dụng khách hàng', '2024-08-01', '2024-09-30', 'PENDING', 0.0, 3, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Training & Tối ưu AI', 'Huấn luyện mô hình AI với dữ liệu thực tế', '2024-09-01', '2024-10-15', 'PENDING', 0.0, 4, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'Pilot & Launch', 'Chạy thử nghiệm và ra mắt chính thức', '2024-10-16', '2024-10-31', 'PENDING', 0.0, 5, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 12. USERS (100 người dùng với tên Việt)
@@ -435,107 +435,107 @@ INSERT INTO `project_milestones` (`project_id`, `name`, `description`, `start_da
 TRUNCATE TABLE `users`;
 INSERT INTO `users` (`id`, `email`, `email_verified_at`, `password`, `status`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- Key users (6 users)
-(1, 'admin@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(2, 'division@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(3, 'teamlead@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(4, 'pm@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(5, 'employee@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(6, 'user@example.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
+(1, 'admin@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 'division@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 'teamlead@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 'pm@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 'employee@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 'user@example.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- 94 nhân viên với tên Việt
-(7, 'anh.tran@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(8, 'huy.le@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(9, 'linh.pham@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(10, 'nam.hoang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(11, 'thu.vu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(12, 'khoa.dang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(13, 'lan.do@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(14, 'tuan.ngo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(15, 'mai.bui@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(16, 'dat.duong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(17, 'ha.ly@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(18, 'son.thai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(19, 'nga.vo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(20, 'phong.phan@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(21, 'hoa.truong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(22, 'dung.dinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(23, 'huong.ha@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(24, 'bao.cao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(25, 'thao.ta@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(26, 'khanh.to@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(27, 'phuong.lam@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(28, 'vinh.chu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(29, 'trang.trinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(30, 'hung.dao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(31, 'yen.mai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(32, 'quan.kieu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(33, 'hanh.huynh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(34, 'thang.luong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(35, 'giang.vuong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(36, 'duc.nguyen@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(37, 'chau.tran@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(38, 'long.le@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(39, 'tam.pham@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(40, 'kien.hoang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(41, 'xuan.vu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(42, 'binh.dang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(43, 'loan.do@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(44, 'hai.ngo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(45, 'diem.bui@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(46, 'quang.duong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(47, 'nhung.ly@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(48, 'tai.thai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(49, 'bich.vo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(50, 'duy.phan@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(51, 'hang.truong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(52, 'tu.dinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(53, 'diep.ha@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(54, 'trung.cao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(55, 'hien.ta@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(56, 'cong.to@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(57, 'nhan.lam@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(58, 'khang.chu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(59, 'thuy.trinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(60, 'hoc.dao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(61, 'van.mai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(62, 'nhat.kieu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(63, 'kieu.huynh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(64, 'manh.luong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(65, 'ngoc.vuong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(66, 'phuc.nguyen@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(67, 'han.tran@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(68, 'tien.le@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(69, 'lam.pham@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(70, 'nghia.hoang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(71, 'anh.vu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(72, 'hoang.dang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(73, 'viet.do@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(74, 'thanh.ngo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(75, 'thu.bui@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(76, 'hieu.duong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(77, 'oanh.ly@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(78, 'cuong.thai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(79, 'tram.vo@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(80, 'hau.phan@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(81, 'kim.truong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(82, 'bach.dinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(83, 'ly.ha@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(84, 'ngan.cao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(85, 'tan.ta@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(86, 'quy.to@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(87, 'uyen.lam@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(88, 'khai.chu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(89, 'gam.trinh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(90, 'dan.dao@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(91, 'vy.mai@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(92, 'phat.kieu@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(93, 'tuyet.huynh@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(94, 'tinh.luong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(95, 'my.vuong@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(96, 'danh.nguyen@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(97, 'hanh.tran@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(98, 'tho.le@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(99, 'suong.pham@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL),
-(100, 'dat.hoang@company.com', NOW(), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', NOW(), NOW(), NULL);
+(7, 'anh.tran@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(8, 'huy.le@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(9, 'linh.pham@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(10, 'nam.hoang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(11, 'thu.vu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(12, 'khoa.dang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(13, 'lan.do@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(14, 'tuan.ngo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(15, 'mai.bui@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(16, 'dat.duong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(17, 'ha.ly@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(18, 'son.thai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(19, 'nga.vo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(20, 'phong.phan@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(21, 'hoa.truong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(22, 'dung.dinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(23, 'huong.ha@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(24, 'bao.cao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(25, 'thao.ta@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(26, 'khanh.to@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(27, 'phuong.lam@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(28, 'vinh.chu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(29, 'trang.trinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(30, 'hung.dao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(31, 'yen.mai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(32, 'quan.kieu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(33, 'hanh.huynh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(34, 'thang.luong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(35, 'giang.vuong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(36, 'duc.nguyen@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(37, 'chau.tran@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(38, 'long.le@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(39, 'tam.pham@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(40, 'kien.hoang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(41, 'xuan.vu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(42, 'binh.dang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(43, 'loan.do@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(44, 'hai.ngo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(45, 'diem.bui@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(46, 'quang.duong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(47, 'nhung.ly@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(48, 'tai.thai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(49, 'bich.vo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(50, 'duy.phan@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(51, 'hang.truong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(52, 'tu.dinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(53, 'diep.ha@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(54, 'trung.cao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(55, 'hien.ta@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(56, 'cong.to@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(57, 'nhan.lam@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(58, 'khang.chu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(59, 'thuy.trinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(60, 'hoc.dao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(61, 'van.mai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(62, 'nhat.kieu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(63, 'kieu.huynh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(64, 'manh.luong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(65, 'ngoc.vuong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(66, 'phuc.nguyen@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(67, 'han.tran@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(68, 'tien.le@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(69, 'lam.pham@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(70, 'nghia.hoang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(71, 'anh.vu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(72, 'hoang.dang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(73, 'viet.do@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(74, 'thanh.ngo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(75, 'thu.bui@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(76, 'hieu.duong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(77, 'oanh.ly@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(78, 'cuong.thai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(79, 'tram.vo@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(80, 'hau.phan@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(81, 'kim.truong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(82, 'bach.dinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(83, 'ly.ha@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(84, 'ngan.cao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(85, 'tan.ta@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(86, 'quy.to@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(87, 'uyen.lam@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(88, 'khai.chu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(89, 'gam.trinh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(90, 'dan.dao@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(91, 'vy.mai@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(92, 'phat.kieu@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(93, 'tuyet.huynh@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(94, 'tinh.luong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(95, 'my.vuong@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(96, 'danh.nguyen@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(97, 'hanh.tran@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(98, 'tho.le@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(99, 'suong.pham@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(100, 'dat.hoang@company.com', DATE_SUB(NOW(), INTERVAL 7 HOUR), '$2b$12$8QqSc2XXr7gP2nrALLSnXeewDP8ojey2P7GcAyuuw9naC8asc4eCO', 'ACTIVE', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 13. USER_INFORMATION (100 hồ sơ nhân viên)
@@ -544,27 +544,27 @@ INSERT INTO `users` (`id`, `email`, `email_verified_at`, `password`, `status`, `
 TRUNCATE TABLE `user_information`;
 INSERT INTO `user_information` (`id`, `user_id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`) VALUES
 -- Key users (6 users)
-(1, 1, 'admin.personal@gmail.com', 'Vietnam', 'Nguyễn Văn Quản Trị', 'EMP001', NULL, 'Male', 'Married', '1985-05-15', 8, '123 Hoàng Quốc Việt, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234001', '0100000001', 'Quản trị hệ thống', 2, NOW(), NOW(), NULL),
-(2, 2, 'divhead@gmail.com', 'Vietnam', 'Trần Thị Hương', 'EMP002', NULL, 'Female', 'Married', '1988-03-20', 8, '456 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Hà Nội', '0901234002', '0100000002', 'Quản lý nhân sự', 1, NOW(), NOW(), NULL),
-(3, 3, 'teamlead@gmail.com', 'Vietnam', 'Lê Văn Thành', 'EMP003', NULL, 'Male', 'Single', '1990-07-10', 10, '789 Láng Hạ, Đống Đa, Hà Nội', 'Hà Nội', '0901234003', '0100000003', 'Quản lý nhóm', 2, NOW(), NOW(), NULL),
-(4, 4, 'pm@gmail.com', 'Vietnam', 'Phạm Thị Loan', 'EMP004', NULL, 'Female', 'Married', '1987-11-25', 8, '234 Lê Duẩn, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234004', '0100000004', 'Quản lý dự án', 2, NOW(), NOW(), NULL),
-(5, 5, 'employee@gmail.com', 'Vietnam', 'Hoàng Văn Em', 'EMP005', NULL, 'Male', 'Single', '1995-09-12', 1, '567 Giải Phóng, Hai Bà Trưng, Hà Nội', 'Hà Nội', '0901234005', '0100000005', 'Backend Development', 1, NOW(), NOW(), NULL),
-(6, 6, 'user@gmail.com', 'Vietnam', 'Nguyễn Văn User', 'EMP006', NULL, 'Male', 'Married', '1992-06-20', 3, '888 Trần Duy Hưng, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234006', '0100000006', 'Full Stack Development', 2, NOW(), NOW(), NULL),
+(1, 1, 'admin.personal@gmail.com', 'Vietnam', 'Nguyễn Văn Quản Trị', 'EMP001', NULL, 'Male', 'Married', '1985-05-15', 8, '123 Hoàng Quốc Việt, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234001', '0100000001', 'Quản trị hệ thống', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(2, 2, 'divhead@gmail.com', 'Vietnam', 'Trần Thị Hương', 'EMP002', NULL, 'Female', 'Married', '1988-03-20', 8, '456 Nguyễn Trãi, Thanh Xuân, Hà Nội', 'Hà Nội', '0901234002', '0100000002', 'Quản lý nhân sự', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(3, 3, 'teamlead@gmail.com', 'Vietnam', 'Lê Văn Thành', 'EMP003', NULL, 'Male', 'Single', '1990-07-10', 10, '789 Láng Hạ, Đống Đa, Hà Nội', 'Hà Nội', '0901234003', '0100000003', 'Quản lý nhóm', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(4, 4, 'pm@gmail.com', 'Vietnam', 'Phạm Thị Loan', 'EMP004', NULL, 'Female', 'Married', '1987-11-25', 8, '234 Lê Duẩn, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234004', '0100000004', 'Quản lý dự án', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(5, 5, 'employee@gmail.com', 'Vietnam', 'Hoàng Văn Em', 'EMP005', NULL, 'Male', 'Single', '1995-09-12', 1, '567 Giải Phóng, Hai Bà Trưng, Hà Nội', 'Hà Nội', '0901234005', '0100000005', 'Backend Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 6, 'user@gmail.com', 'Vietnam', 'Nguyễn Văn User', 'EMP006', NULL, 'Male', 'Married', '1992-06-20', 3, '888 Trần Duy Hưng, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234006', '0100000006', 'Full Stack Development', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 -- 94 nhân viên với đầy đủ thông tin Việt Nam
-(7, 7, 'anh.tran@gmail.com', 'Vietnam', 'Trần Đức Anh', 'EMP007', NULL, 'Male', 'Married', '1991-03-22', 2, '45 Nguyễn Huệ, Quận 1, TP.HCM', 'TP.HCM', '0901234007', '0100000007', 'Frontend Development', 2, NOW(), NOW(), NULL),
-(8, 8, 'huy.le@gmail.com', 'Vietnam', 'Lê Quang Huy', 'EMP008', NULL, 'Male', 'Single', '1994-06-10', 1, '78 Trần Hưng Đạo, Ba Đình, Hà Nội', 'Hà Nội', '0901234008', '0100000008', 'Backend Development', 1, NOW(), NOW(), NULL),
-(9, 9, 'linh.pham@gmail.com', 'Vietnam', 'Phạm Thúy Linh', 'EMP009', NULL, 'Female', 'Single', '1995-08-14', 2, '234 Hai Bà Trưng, Quận 1, TP.HCM', 'TP.HCM', '0901234009', '0100000009', 'Frontend Development', 1, NOW(), NOW(), NULL),
-(10, 10, 'nam.hoang@gmail.com', 'Vietnam', 'Hoàng Thành Nam', 'EMP010', NULL, 'Male', 'Married', '1990-11-28', 3, '56 Lý Thường Kiệt, Đống Đa, Hà Nội', 'Hà Nội', '0901234010', '0100000010', 'Full Stack Development', 2, NOW(), NOW(), NULL),
-(11, 11, 'thu.vu@gmail.com', 'Vietnam', 'Vũ Thu Hà', 'EMP011', NULL, 'Female', 'Single', '1996-02-19', 7, '89 Nguyễn Thị Minh Khai, Quận 3, TP.HCM', 'TP.HCM', '0901234011', '0100000011', 'UI/UX Design', 1, NOW(), NOW(), NULL),
-(12, 12, 'khoa.dang@gmail.com', 'Vietnam', 'Đặng Đình Khoa', 'EMP012', NULL, 'Male', 'Married', '1989-04-07', 1, '123 Cầu Giấy, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234012', '0100000012', 'Backend Development', 2, NOW(), NOW(), NULL),
-(13, 13, 'lan.do@gmail.com', 'Vietnam', 'Đỗ Thị Lan', 'EMP013', NULL, 'Female', 'Married', '1992-07-23', 5, '456 Lê Văn Sỹ, Quận 3, TP.HCM', 'TP.HCM', '0901234013', '0100000013', 'Quality Assurance', 1, NOW(), NOW(), NULL),
-(14, 14, 'tuan.ngo@gmail.com', 'Vietnam', 'Ngô Minh Tuấn', 'EMP014', NULL, 'Male', 'Single', '1994-10-05', 4, '789 Võ Văn Tần, Quận 3, TP.HCM', 'TP.HCM', '0901234014', '0100000014', 'Mobile Development', 1, NOW(), NOW(), NULL),
-(15, 15, 'mai.bui@gmail.com', 'Vietnam', 'Bùi Ngọc Mai', 'EMP015', NULL, 'Female', 'Single', '1997-12-16', 2, '234 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234015', '0100000015', 'Frontend Development', 1, NOW(), NOW(), NULL),
-(16, 16, 'dat.duong@gmail.com', 'Vietnam', 'Dương Thành Đạt', 'EMP016', NULL, 'Male', 'Married', '1991-05-30', 6, '567 Hoàng Diệu, Quận 4, TP.HCM', 'TP.HCM', '0901234016', '0100000016', 'DevOps Engineering', 2, NOW(), NOW(), NULL),
-(17, 17, 'ha.ly@gmail.com', 'Vietnam', 'Lý Thu Hà', 'EMP017', NULL, 'Female', 'Single', '1995-03-18', 9, '89 Pasteur, Quận 1, TP.HCM', 'TP.HCM', '0901234017', '0100000017', 'Business Analysis', 1, NOW(), NOW(), NULL),
-(18, 18, 'son.thai@gmail.com', 'Vietnam', 'Thái Sơn', 'EMP018', NULL, 'Male', 'Married', '1988-09-09', 1, '123 Nguyễn Du, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234018', '0100000018', 'Backend Development', 2, NOW(), NOW(), NULL),
-(19, 19, 'nga.vo@gmail.com', 'Vietnam', 'Võ Hồng Nga', 'EMP019', NULL, 'Female', 'Married', '1990-11-11', 7, '456 Trần Phú, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234019', '0100000019', 'UI/UX Design', 1, NOW(), NOW(), NULL),
-(20, 20, 'phong.phan@gmail.com', 'Vietnam', 'Phan Văn Phong', 'EMP020', NULL, 'Male', 'Single', '1993-06-25', 4, '789 Lê Duẩn, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234020', '0100000020', 'Mobile Development', 1, NOW(), NOW(), NULL);
+(7, 7, 'anh.tran@gmail.com', 'Vietnam', 'Trần Đức Anh', 'EMP007', NULL, 'Male', 'Married', '1991-03-22', 2, '45 Nguyễn Huệ, Quận 1, TP.HCM', 'TP.HCM', '0901234007', '0100000007', 'Frontend Development', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(8, 8, 'huy.le@gmail.com', 'Vietnam', 'Lê Quang Huy', 'EMP008', NULL, 'Male', 'Single', '1994-06-10', 1, '78 Trần Hưng Đạo, Ba Đình, Hà Nội', 'Hà Nội', '0901234008', '0100000008', 'Backend Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(9, 9, 'linh.pham@gmail.com', 'Vietnam', 'Phạm Thúy Linh', 'EMP009', NULL, 'Female', 'Single', '1995-08-14', 2, '234 Hai Bà Trưng, Quận 1, TP.HCM', 'TP.HCM', '0901234009', '0100000009', 'Frontend Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(10, 10, 'nam.hoang@gmail.com', 'Vietnam', 'Hoàng Thành Nam', 'EMP010', NULL, 'Male', 'Married', '1990-11-28', 3, '56 Lý Thường Kiệt, Đống Đa, Hà Nội', 'Hà Nội', '0901234010', '0100000010', 'Full Stack Development', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(11, 11, 'thu.vu@gmail.com', 'Vietnam', 'Vũ Thu Hà', 'EMP011', NULL, 'Female', 'Single', '1996-02-19', 7, '89 Nguyễn Thị Minh Khai, Quận 3, TP.HCM', 'TP.HCM', '0901234011', '0100000011', 'UI/UX Design', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(12, 12, 'khoa.dang@gmail.com', 'Vietnam', 'Đặng Đình Khoa', 'EMP012', NULL, 'Male', 'Married', '1989-04-07', 1, '123 Cầu Giấy, Cầu Giấy, Hà Nội', 'Hà Nội', '0901234012', '0100000012', 'Backend Development', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(13, 13, 'lan.do@gmail.com', 'Vietnam', 'Đỗ Thị Lan', 'EMP013', NULL, 'Female', 'Married', '1992-07-23', 5, '456 Lê Văn Sỹ, Quận 3, TP.HCM', 'TP.HCM', '0901234013', '0100000013', 'Quality Assurance', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(14, 14, 'tuan.ngo@gmail.com', 'Vietnam', 'Ngô Minh Tuấn', 'EMP014', NULL, 'Male', 'Single', '1994-10-05', 4, '789 Võ Văn Tần, Quận 3, TP.HCM', 'TP.HCM', '0901234014', '0100000014', 'Mobile Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(15, 15, 'mai.bui@gmail.com', 'Vietnam', 'Bùi Ngọc Mai', 'EMP015', NULL, 'Female', 'Single', '1997-12-16', 2, '234 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234015', '0100000015', 'Frontend Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(16, 16, 'dat.duong@gmail.com', 'Vietnam', 'Dương Thành Đạt', 'EMP016', NULL, 'Male', 'Married', '1991-05-30', 6, '567 Hoàng Diệu, Quận 4, TP.HCM', 'TP.HCM', '0901234016', '0100000016', 'DevOps Engineering', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(17, 17, 'ha.ly@gmail.com', 'Vietnam', 'Lý Thu Hà', 'EMP017', NULL, 'Female', 'Single', '1995-03-18', 9, '89 Pasteur, Quận 1, TP.HCM', 'TP.HCM', '0901234017', '0100000017', 'Business Analysis', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(18, 18, 'son.thai@gmail.com', 'Vietnam', 'Thái Sơn', 'EMP018', NULL, 'Male', 'Married', '1988-09-09', 1, '123 Nguyễn Du, Hoàn Kiếm, Hà Nội', 'Hà Nội', '0901234018', '0100000018', 'Backend Development', 2, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(19, 19, 'nga.vo@gmail.com', 'Vietnam', 'Võ Hồng Nga', 'EMP019', NULL, 'Female', 'Married', '1990-11-11', 7, '456 Trần Phú, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234019', '0100000019', 'UI/UX Design', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(20, 20, 'phong.phan@gmail.com', 'Vietnam', 'Phan Văn Phong', 'EMP020', NULL, 'Male', 'Single', '1993-06-25', 4, '789 Lê Duẩn, Hải Châu, Đà Nẵng', 'Đà Nẵng', '0901234020', '0100000020', 'Mobile Development', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Generate 80 user_information còn lại (id 21-100)
 INSERT INTO `user_information` (`id`, `user_id`, `personal_email`, `nationality`, `name`, `code`, `avatar`, `gender`, `marital`, `birthday`, `position_id`, `address`, `temp_address`, `phone`, `tax_code`, `expertise`, `language_id`, `created_at`, `updated_at`, `deleted_at`)
@@ -616,8 +616,8 @@ SELECT
         ELSE 'Security Engineering'
     END as expertise,
     MOD(n, 5) + 1 as language_id,
-    NOW() as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as updated_at,
     NULL as deleted_at
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -668,8 +668,8 @@ SELECT
     END as description,
     DATE_SUB('2018-09-01', INTERVAL (user_info_id * education_num * 180) MOD 2000 DAY) as start_date,
     DATE_SUB('2022-06-30', INTERVAL (user_info_id * education_num * 90) MOD 1500 DAY) as end_date,
-    NOW() as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as updated_at,
     NULL as deleted_at
 FROM (
     SELECT id as user_info_id FROM user_information WHERE id <= 100
@@ -710,8 +710,8 @@ SELECT
     END as company,
     DATE_SUB('2024-01-01', INTERVAL (user_info_id * exp_num * 365) MOD 3650 DAY) as start_date,
     DATE_SUB('2024-01-01', INTERVAL (user_info_id * exp_num * 180) MOD 1825 DAY) as end_date,
-    NOW() as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as updated_at,
     NULL as deleted_at
 FROM (
     SELECT id as user_info_id FROM user_information WHERE id <= 100
@@ -737,8 +737,8 @@ SELECT
     MOD(user_info_id * skill_num, 5) + 1 as experience,
     (MOD(user_info_id * skill_num, 48) + 6) as months_experience,
     CASE WHEN skill_num = 1 THEN 1 ELSE 0 END as is_main,
-    NOW() as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 7 HOUR) as updated_at,
     NULL as deleted_at
 FROM (
     SELECT id as user_info_id FROM user_information WHERE id <= 100
@@ -771,19 +771,19 @@ TRUNCATE TABLE `user_role_assignment`;
 
 -- Admin (user 1)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(1, 1, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
+(1, 1, 'COMPANY', NULL, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- HR Manager (user 2) - COMPANY scope
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(2, 2, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
+(2, 2, 'COMPANY', NULL, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Team Leader (user 3) - TEAM scope
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(3, 5, 'TEAM', 1, 1, NOW(), NOW(), NULL);
+(3, 5, 'TEAM', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Project Manager (user 4) - PROJECT scope
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(4, 3, 'PROJECT', 1, 1, NOW(), NOW(), NULL);
+(4, 3, 'PROJECT', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Employee (user 5) - No additional role (only base EMPLOYEE@COMPANY)
 -- (Role này sẽ được tạo bởi base assignment ở phần sau)
@@ -793,114 +793,114 @@ INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_i
 
 -- User 6: Admin role
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(6, 1, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
+(6, 1, 'COMPANY', NULL, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 6: HR Manager role
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(6, 2, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
+(6, 2, 'COMPANY', NULL, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 6: Division Heads for ALL divisions (7 assignments)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(6, 4, 'DIVISION', 1, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 2, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 3, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 4, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 5, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 6, 1, NOW(), NOW(), NULL),
-(6, 4, 'DIVISION', 7, 1, NOW(), NOW(), NULL);
+(6, 4, 'DIVISION', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 6, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 4, 'DIVISION', 7, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 6: Team Leaders for ALL teams (6 assignments)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(6, 5, 'TEAM', 1, 1, NOW(), NOW(), NULL),
-(6, 5, 'TEAM', 2, 1, NOW(), NOW(), NULL),
-(6, 5, 'TEAM', 3, 1, NOW(), NOW(), NULL),
-(6, 5, 'TEAM', 4, 1, NOW(), NOW(), NULL),
-(6, 5, 'TEAM', 5, 1, NOW(), NOW(), NULL),
-(6, 5, 'TEAM', 6, 1, NOW(), NOW(), NULL);
+(6, 5, 'TEAM', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 5, 'TEAM', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 5, 'TEAM', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 5, 'TEAM', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 5, 'TEAM', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 5, 'TEAM', 6, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 6: Project Managers for ALL projects (5 assignments)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(6, 3, 'PROJECT', 1, 1, NOW(), NOW(), NULL),
-(6, 3, 'PROJECT', 2, 1, NOW(), NOW(), NULL),
-(6, 3, 'PROJECT', 3, 1, NOW(), NOW(), NULL),
-(6, 3, 'PROJECT', 4, 1, NOW(), NOW(), NULL),
-(6, 3, 'PROJECT', 5, 1, NOW(), NOW(), NULL);
+(6, 3, 'PROJECT', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 3, 'PROJECT', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 3, 'PROJECT', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 3, 'PROJECT', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(6, 3, 'PROJECT', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Division Heads (users 7-13) - DIVISION scope
 -- User 7: Head of Technology Division (division 1) + HR Manager
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(7, 4, 'DIVISION', 1, 1, NOW(), NOW(), NULL),
-(7, 2, 'COMPANY', NULL, 1, NOW(), NOW(), NULL);
+(7, 4, 'DIVISION', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+(7, 2, 'COMPANY', NULL, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 8: Head of Business Division (division 2)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(8, 4, 'DIVISION', 2, 1, NOW(), NOW(), NULL);
+(8, 4, 'DIVISION', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 9: Head of HR Division (division 3)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(9, 4, 'DIVISION', 3, 1, NOW(), NOW(), NULL);
+(9, 4, 'DIVISION', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 10: Head of Backend Division (division 4)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(10, 4, 'DIVISION', 4, 1, NOW(), NOW(), NULL);
+(10, 4, 'DIVISION', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 11: Head of Frontend Division (division 5)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(11, 4, 'DIVISION', 5, 1, NOW(), NOW(), NULL);
+(11, 4, 'DIVISION', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 12: Head of Mobile Division (division 6)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(12, 4, 'DIVISION', 6, 1, NOW(), NOW(), NULL);
+(12, 4, 'DIVISION', 6, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 13: Head of QA Division (division 7)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(13, 4, 'DIVISION', 7, 1, NOW(), NOW(), NULL);
+(13, 4, 'DIVISION', 7, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Team Leaders (users 14-19) - TEAM scope
 -- User 14: Leader of Backend Team Alpha (team 1)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(14, 5, 'TEAM', 1, 1, NOW(), NOW(), NULL);
+(14, 5, 'TEAM', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 15: Leader of Backend Team Beta (team 2)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(15, 5, 'TEAM', 2, 1, NOW(), NOW(), NULL);
+(15, 5, 'TEAM', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 16: Leader of Frontend Team Gamma (team 3)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(16, 5, 'TEAM', 3, 1, NOW(), NOW(), NULL);
+(16, 5, 'TEAM', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 17: Leader of Frontend Team Delta (team 4)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(17, 5, 'TEAM', 4, 1, NOW(), NOW(), NULL);
+(17, 5, 'TEAM', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 18: Leader of Mobile Team 1 (team 5)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(18, 5, 'TEAM', 5, 1, NOW(), NOW(), NULL);
+(18, 5, 'TEAM', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 19: Leader of QA Team 1 (team 6)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(19, 5, 'TEAM', 6, 1, NOW(), NOW(), NULL);
+(19, 5, 'TEAM', 6, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- Project Managers (users 20-24) - PROJECT scope
 -- User 20: PM of E-Commerce project (project 1)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(20, 3, 'PROJECT', 1, 1, NOW(), NOW(), NULL);
+(20, 3, 'PROJECT', 1, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 21: PM of Banking Core project (project 2)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(21, 3, 'PROJECT', 2, 1, NOW(), NOW(), NULL);
+(21, 3, 'PROJECT', 2, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 22: PM of HRM project (project 3)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(22, 3, 'PROJECT', 3, 1, NOW(), NOW(), NULL);
+(22, 3, 'PROJECT', 3, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 23: PM of Mobile Banking project (project 4)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(23, 3, 'PROJECT', 4, 1, NOW(), NOW(), NULL);
+(23, 3, 'PROJECT', 4, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- User 24: PM of AI Chatbot project (project 5)
 INSERT INTO `user_role_assignment` (`user_id`, `role_id`, `scope_type`, `scope_id`, `assigned_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-(24, 3, 'PROJECT', 5, 1, NOW(), NOW(), NULL);
+(24, 3, 'PROJECT', 5, 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- EMPLOYEES DISTRIBUTION STRATEGY (STRICT HIERARCHY)
@@ -924,8 +924,8 @@ SELECT
     'COMPANY' as scope_type,
     NULL as scope_id,
     1 as assigned_by,
-    NOW(),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM users
 WHERE id BETWEEN 1 AND 100;
@@ -947,8 +947,8 @@ SELECT
         ELSE 7               -- QA Division (7 people)
     END as scope_id,
     1 as assigned_by,
-    NOW(),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -984,8 +984,8 @@ SELECT
         ELSE 7               -- 4 people for QA Division
     END as scope_id,
     1 as assigned_by,
-    NOW(),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -1014,8 +1014,8 @@ SELECT
         ELSE 6               -- Team 6 (QA, division_id=7): users 92-95
     END as scope_id,
     1 as assigned_by,
-    NOW(),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -1041,8 +1041,8 @@ SELECT
     36,
     MOD(id, 5),
     '2024-01-01',
-    NOW(),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM users WHERE id <= 100;
 
@@ -1051,24 +1051,24 @@ FROM users WHERE id <= 100;
 -- ============================================
 TRUNCATE TABLE `holidays`;
 INSERT INTO `holidays` (`name`, `type`, `status`, `start_date`, `end_date`, `description`, `created_at`, `updated_at`, `deleted_at`) VALUES
-('Tết Nguyên Đán 2024', 'NATIONAL', 'ACTIVE', '2024-02-10', '2024-02-14', 'Tết Âm lịch Giáp Thìn', NOW(), NOW(), NULL),
-('Giỗ Tổ Hùng Vương 2024', 'NATIONAL', 'ACTIVE', '2024-04-18', '2024-04-18', 'Giỗ Tổ Hùng Vương 10/3 Âm lịch', NOW(), NOW(), NULL),
-('Ngày Giải phóng miền Nam 30/4', 'NATIONAL', 'ACTIVE', '2024-04-30', '2024-05-01', 'Ngày thống nhất đất nước', NOW(), NOW(), NULL),
-('Ngày Quốc tế Lao động 1/5', 'NATIONAL', 'ACTIVE', '2024-05-01', '2024-05-01', 'Ngày Quốc tế Lao động', NOW(), NOW(), NULL),
-('Quốc Khánh 2/9', 'NATIONAL', 'ACTIVE', '2024-09-02', '2024-09-02', 'Quốc khánh nước Việt Nam Dân chủ Cộng hòa', NOW(), NOW(), NULL),
-('Ngày thành lập Công ty', 'COMPANY', 'ACTIVE', '2024-06-15', '2024-06-15', 'Kỷ niệm thành lập công ty', NOW(), NOW(), NULL);
+('Tết Nguyên Đán 2024', 'NATIONAL', 'ACTIVE', '2024-02-10', '2024-02-14', 'Tết Âm lịch Giáp Thìn', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Giỗ Tổ Hùng Vương 2024', 'NATIONAL', 'ACTIVE', '2024-04-18', '2024-04-18', 'Giỗ Tổ Hùng Vương 10/3 Âm lịch', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Ngày Giải phóng miền Nam 30/4', 'NATIONAL', 'ACTIVE', '2024-04-30', '2024-05-01', 'Ngày thống nhất đất nước', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Ngày Quốc tế Lao động 1/5', 'NATIONAL', 'ACTIVE', '2024-05-01', '2024-05-01', 'Ngày Quốc tế Lao động', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Quốc Khánh 2/9', 'NATIONAL', 'ACTIVE', '2024-09-02', '2024-09-02', 'Quốc khánh nước Việt Nam Dân chủ Cộng hòa', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Ngày thành lập Công ty', 'COMPANY', 'ACTIVE', '2024-06-15', '2024-06-15', 'Kỷ niệm thành lập công ty', DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 20. ROOMS (Phòng họp)
 -- ============================================
 TRUNCATE TABLE `rooms`;
 INSERT INTO `rooms` (`name`, `is_active`, `created_at`, `updated_at`, `deleted_at`) VALUES
-('Phòng họp A', 1, NOW(), NOW(), NULL),
-('Phòng họp B', 1, NOW(), NOW(), NULL),
-('Phòng họp C', 1, NOW(), NOW(), NULL),
-('Hội trường lớn', 1, NOW(), NOW(), NULL),
-('Phòng đào tạo', 1, NOW(), NOW(), NULL),
-('Phòng phỏng vấn', 1, NOW(), NOW(), NULL);
+('Phòng họp A', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Phòng họp B', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Phòng họp C', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Hội trường lớn', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Phòng đào tạo', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Phòng phỏng vấn', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 22. DAILY_REPORTS (Báo cáo công việc hàng ngày)
@@ -1087,11 +1087,11 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(n, 10) < 9 THEN 4 ELSE NULL END as approved_by,
-    CASE WHEN MOD(n, 10) < 9 THEN DATE_SUB(NOW(), INTERVAL n * 2 HOUR) ELSE NULL END as reviewed_at,
+    CASE WHEN MOD(n, 10) < 9 THEN DATE_SUB(NOW(), INTERVAL (n * 2 + 14) HOUR) ELSE NULL END as reviewed_at,
     'Hoàn thành công việc được giao đúng deadline. Tham gia họp team và review code.' as description,
     CASE WHEN MOD(n, 10) = 9 THEN 'Báo cáo thiếu chi tiết về công việc đã làm' ELSE NULL END as reject_reason,
-    DATE_SUB(NOW(), INTERVAL n * 3 HOUR) as created_at,
-    DATE_SUB(NOW(), INTERVAL n * 2 HOUR) as updated_at
+    DATE_SUB(NOW(), INTERVAL (n * 3 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL (n * 2 + 14) HOUR) as updated_at
 FROM (
     SELECT a.N + b.N * 10 as n
     FROM 
@@ -1109,7 +1109,6 @@ INSERT INTO `time_sheets` (
     `user_id`, 
     `work_date`, 
     `type`, 
-    `status`, 
     `checkin`, 
     `checkout`, 
     `remote`,
@@ -1122,18 +1121,13 @@ SELECT
     user_id,
     work_date,
     'NORMAL' as type,
-    CASE 
-        WHEN MOD((user_id + day_offset), 10) < 8 THEN 'APPROVED'
-        WHEN MOD((user_id + day_offset), 10) = 8 THEN 'PENDING'
-        ELSE 'REJECTED'
-    END as status,
-    DATE_ADD(DATE_ADD(work_date, INTERVAL 8 HOUR), INTERVAL MOD((user_id + day_offset), 30) MINUTE) as checkin,
-    DATE_SUB(DATE_ADD(work_date, INTERVAL 17 HOUR), INTERVAL MOD((user_id + day_offset), 20) MINUTE) as checkout,
+    DATE_SUB(DATE_ADD(DATE_ADD(work_date, INTERVAL 8 HOUR), INTERVAL MOD((user_id + day_offset), 30) MINUTE), INTERVAL 7 HOUR) as checkin,
+    DATE_SUB(DATE_SUB(DATE_ADD(work_date, INTERVAL 17 HOUR), INTERVAL MOD((user_id + day_offset), 20) MINUTE), INTERVAL 7 HOUR) as checkout,
     CASE WHEN MOD((user_id + day_offset), 5) = 0 THEN 'REMOTE' ELSE 'OFFICE' END as remote,
     480 - MOD((user_id + day_offset), 50) as total_work_time,
     CASE WHEN MOD((user_id + day_offset), 10) < 8 THEN 1 ELSE 0 END as is_complete,
-    NOW(),
-    NOW()
+    DATE_SUB(NOW(), INTERVAL 14 HOUR),
+    DATE_SUB(NOW(), INTERVAL 14 HOUR)
 FROM (
     SELECT 
         u.user_id,
@@ -1199,34 +1193,34 @@ INSERT INTO `assets` (
     `deleted_at`
 ) VALUES
 -- Laptops
-('Laptop Dell Latitude 5420 #001', 'Laptop cho Backend Developer', 'ASSET-LAP-001', 'LAPTOP', 'Dell', 'Latitude 5420', 'DL5420-001', '2023-01-15', 25000000, '2026-01-15', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-01-20', 'CPU i7, 16GB RAM, 512GB SSD', 1, NOW(), NOW(), NULL),
-('Laptop Dell Latitude 5420 #002', 'Laptop cho Backend Developer', 'ASSET-LAP-002', 'LAPTOP', 'Dell', 'Latitude 5420', 'DL5420-002', '2023-01-15', 25000000, '2026-01-15', 'Tầng 5 - Khu Backend', 'ASSIGNED', 8, '2023-01-20', 'CPU i7, 16GB RAM, 512GB SSD', 1, NOW(), NOW(), NULL),
-('MacBook Pro 14 M2 #001', 'MacBook cho iOS Developer', 'ASSET-LAP-003', 'LAPTOP', 'Apple', 'MacBook Pro 14 M2', 'MBP14M2-001', '2023-02-10', 45000000, '2024-02-10', 'Tầng 6 - Khu Mobile', 'ASSIGNED', 9, '2023-02-15', 'M2 Pro, 16GB RAM, 512GB SSD', 1, NOW(), NOW(), NULL),
-('MacBook Pro 14 M2 #002', 'MacBook cho iOS Developer', 'ASSET-LAP-004', 'LAPTOP', 'Apple', 'MacBook Pro 14 M2', 'MBP14M2-002', '2023-02-10', 45000000, '2024-02-10', 'Tầng 6 - Khu Mobile', 'ASSIGNED', 10, '2023-02-15', 'M2 Pro, 16GB RAM, 512GB SSD', 1, NOW(), NOW(), NULL),
-('Laptop HP EliteBook #001', 'Laptop dự phòng', 'ASSET-LAP-005', 'LAPTOP', 'HP', 'EliteBook 840 G8', 'HPEB-001', '2023-04-01', 22000000, '2026-04-01', 'Kho tài sản', 'AVAILABLE', NULL, NULL, 'CPU i5, 8GB RAM, 256GB SSD', 1, NOW(), NOW(), NULL),
-('Laptop HP EliteBook #002', 'Laptop dự phòng', 'ASSET-LAP-006', 'LAPTOP', 'HP', 'EliteBook 840 G8', 'HPEB-002', '2023-04-01', 22000000, '2026-04-01', 'Kho tài sản', 'AVAILABLE', NULL, NULL, 'CPU i5, 8GB RAM, 256GB SSD', 1, NOW(), NOW(), NULL),
+('Laptop Dell Latitude 5420 #001', 'Laptop cho Backend Developer', 'ASSET-LAP-001', 'LAPTOP', 'Dell', 'Latitude 5420', 'DL5420-001', '2023-01-15', 25000000, '2026-01-15', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-01-20', 'CPU i7, 16GB RAM, 512GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Laptop Dell Latitude 5420 #002', 'Laptop cho Backend Developer', 'ASSET-LAP-002', 'LAPTOP', 'Dell', 'Latitude 5420', 'DL5420-002', '2023-01-15', 25000000, '2026-01-15', 'Tầng 5 - Khu Backend', 'ASSIGNED', 8, '2023-01-20', 'CPU i7, 16GB RAM, 512GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('MacBook Pro 14 M2 #001', 'MacBook cho iOS Developer', 'ASSET-LAP-003', 'LAPTOP', 'Apple', 'MacBook Pro 14 M2', 'MBP14M2-001', '2023-02-10', 45000000, '2024-02-10', 'Tầng 6 - Khu Mobile', 'ASSIGNED', 9, '2023-02-15', 'M2 Pro, 16GB RAM, 512GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('MacBook Pro 14 M2 #002', 'MacBook cho iOS Developer', 'ASSET-LAP-004', 'LAPTOP', 'Apple', 'MacBook Pro 14 M2', 'MBP14M2-002', '2023-02-10', 45000000, '2024-02-10', 'Tầng 6 - Khu Mobile', 'ASSIGNED', 10, '2023-02-15', 'M2 Pro, 16GB RAM, 512GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Laptop HP EliteBook #001', 'Laptop dự phòng', 'ASSET-LAP-005', 'LAPTOP', 'HP', 'EliteBook 840 G8', 'HPEB-001', '2023-04-01', 22000000, '2026-04-01', 'Kho tài sản', 'AVAILABLE', NULL, NULL, 'CPU i5, 8GB RAM, 256GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Laptop HP EliteBook #002', 'Laptop dự phòng', 'ASSET-LAP-006', 'LAPTOP', 'HP', 'EliteBook 840 G8', 'HPEB-002', '2023-04-01', 22000000, '2026-04-01', 'Kho tài sản', 'AVAILABLE', NULL, NULL, 'CPU i5, 8GB RAM, 256GB SSD', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Monitors
-('Dell Monitor 27" #001', 'Màn hình phụ 27 inch', 'ASSET-MON-001', 'MONITOR', 'Dell', 'U2722DE', 'DLMON27-001', '2023-01-20', 5000000, '2026-01-20', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-01-25', 'QHD 2560x1440, IPS, USB-C', 1, NOW(), NOW(), NULL),
-('Dell Monitor 27" #002', 'Màn hình phụ 27 inch', 'ASSET-MON-002', 'MONITOR', 'Dell', 'U2722DE', 'DLMON27-002', '2023-01-20', 5000000, '2026-01-20', 'Tầng 5 - Khu Backend', 'ASSIGNED', 8, '2023-01-25', 'QHD 2560x1440, IPS, USB-C', 1, NOW(), NOW(), NULL),
+('Dell Monitor 27" #001', 'Màn hình phụ 27 inch', 'ASSET-MON-001', 'MONITOR', 'Dell', 'U2722DE', 'DLMON27-001', '2023-01-20', 5000000, '2026-01-20', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-01-25', 'QHD 2560x1440, IPS, USB-C', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Dell Monitor 27" #002', 'Màn hình phụ 27 inch', 'ASSET-MON-002', 'MONITOR', 'Dell', 'U2722DE', 'DLMON27-002', '2023-01-20', 5000000, '2026-01-20', 'Tầng 5 - Khu Backend', 'ASSIGNED', 8, '2023-01-25', 'QHD 2560x1440, IPS, USB-C', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Phones
-('iPhone 14 Pro #001', 'iPhone test cho QA', 'ASSET-PHO-001', 'PHONE', 'Apple', 'iPhone 14 Pro', 'IP14PRO-001', '2023-03-01', 30000000, '2024-03-01', 'Tầng 5 - Khu QA', 'ASSIGNED', 2, '2023-03-05', '256GB, Deep Purple', 1, NOW(), NOW(), NULL),
-('iPhone 14 Pro #002', 'iPhone test cho QA', 'ASSET-PHO-002', 'PHONE', 'Apple', 'iPhone 14 Pro', 'IP14PRO-002', '2023-03-01', 30000000, '2024-03-01', 'Tầng 5 - Khu QA', 'ASSIGNED', 3, '2023-03-05', '256GB, Space Black', 1, NOW(), NOW(), NULL),
-('Samsung Galaxy S23 #001', 'Android test phone', 'ASSET-PHO-003', 'PHONE', 'Samsung', 'Galaxy S23', 'SGS23-001', '2023-03-10', 22000000, '2024-03-10', 'Tầng 5 - Khu QA', 'ASSIGNED', 4, '2023-03-15', '256GB, Phantom Black', 1, NOW(), NOW(), NULL),
+('iPhone 14 Pro #001', 'iPhone test cho QA', 'ASSET-PHO-001', 'PHONE', 'Apple', 'iPhone 14 Pro', 'IP14PRO-001', '2023-03-01', 30000000, '2024-03-01', 'Tầng 5 - Khu QA', 'ASSIGNED', 2, '2023-03-05', '256GB, Deep Purple', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('iPhone 14 Pro #002', 'iPhone test cho QA', 'ASSET-PHO-002', 'PHONE', 'Apple', 'iPhone 14 Pro', 'IP14PRO-002', '2023-03-01', 30000000, '2024-03-01', 'Tầng 5 - Khu QA', 'ASSIGNED', 3, '2023-03-05', '256GB, Space Black', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Samsung Galaxy S23 #001', 'Android test phone', 'ASSET-PHO-003', 'PHONE', 'Samsung', 'Galaxy S23', 'SGS23-001', '2023-03-10', 22000000, '2024-03-10', 'Tầng 5 - Khu QA', 'ASSIGNED', 4, '2023-03-15', '256GB, Phantom Black', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Peripherals
-('Logitech MX Keys #001', 'Bàn phím cơ', 'ASSET-KEY-001', 'KEYBOARD', 'Logitech', 'MX Keys', 'MXKEY-001', '2023-02-01', 2500000, '2025-02-01', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-02-05', 'Wireless, Backlit', 1, NOW(), NOW(), NULL),
-('Logitech MX Master 3 #001', 'Chuột không dây', 'ASSET-MOU-001', 'MOUSE', 'Logitech', 'MX Master 3', 'MXM3-001', '2023-02-01', 2000000, '2025-02-01', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-02-05', 'Wireless, 4000 DPI', 1, NOW(), NOW(), NULL),
+('Logitech MX Keys #001', 'Bàn phím cơ', 'ASSET-KEY-001', 'KEYBOARD', 'Logitech', 'MX Keys', 'MXKEY-001', '2023-02-01', 2500000, '2025-02-01', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-02-05', 'Wireless, Backlit', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Logitech MX Master 3 #001', 'Chuột không dây', 'ASSET-MOU-001', 'MOUSE', 'Logitech', 'MX Master 3', 'MXM3-001', '2023-02-01', 2000000, '2025-02-01', 'Tầng 5 - Khu Backend', 'ASSIGNED', 7, '2023-02-05', 'Wireless, 4000 DPI', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Furniture
-('Herman Miller Chair #001', 'Ghế ergonomic cho admin', 'ASSET-FUR-001', 'FURNITURE', 'Herman Miller', 'Aeron Chair', 'HMC-001', '2023-01-10', 15000000, NULL, 'Tầng 2 - Phòng Admin', 'ASSIGNED', 1, '2023-01-15', 'Size B, Adjustable Arms', 1, NOW(), NOW(), NULL),
-('Standing Desk #001', 'Bàn đứng cho HR Manager', 'ASSET-FUR-002', 'FURNITURE', 'Flexispot', 'E7 Pro Plus', 'STDESK-001', '2023-01-10', 12000000, '2025-01-10', 'Tầng 2 - Phòng HR', 'ASSIGNED', 2, '2023-01-15', 'Electric Height Adjustable', 1, NOW(), NOW(), NULL),
+('Herman Miller Chair #001', 'Ghế ergonomic cho admin', 'ASSET-FUR-001', 'FURNITURE', 'Herman Miller', 'Aeron Chair', 'HMC-001', '2023-01-10', 15000000, NULL, 'Tầng 2 - Phòng Admin', 'ASSIGNED', 1, '2023-01-15', 'Size B, Adjustable Arms', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Standing Desk #001', 'Bàn đứng cho HR Manager', 'ASSET-FUR-002', 'FURNITURE', 'Flexispot', 'E7 Pro Plus', 'STDESK-001', '2023-01-10', 12000000, '2025-01-10', 'Tầng 2 - Phòng HR', 'ASSIGNED', 2, '2023-01-15', 'Electric Height Adjustable', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
 
 -- Equipment
-('iPad Pro 12.9 #001', 'Tablet cho design', 'ASSET-TAB-001', 'TABLET', 'Apple', 'iPad Pro 12.9', 'IPADP129-001', '2023-05-01', 28000000, '2024-05-01', 'Xưởng bảo trì', 'MAINTENANCE', NULL, NULL, 'M2, 256GB, Space Gray - Đang sửa màn hình', 1, NOW(), NOW(), NULL),
-('Sony Camera A7 III', 'Camera cho marketing', 'ASSET-EQU-001', 'EQUIPMENT', 'Sony', 'Alpha A7 III', 'SONYA7III-001', '2023-02-20', 45000000, '2024-02-20', 'Tầng 3 - Phòng Marketing', 'ASSIGNED', NULL, NULL, 'Full-frame mirrorless, 24.2MP', 1, NOW(), NOW(), NULL),
-('Projector Epson EB-X05', 'Máy chiếu phòng họp', 'ASSET-EQU-002', 'EQUIPMENT', 'Epson', 'EB-X05', 'EPEBX05-001', '2023-01-05', 12000000, '2026-01-05', 'Phòng họp A', 'ASSIGNED', NULL, NULL, '3300 lumens, XGA resolution', 1, NOW(), NOW(), NULL);
+('iPad Pro 12.9 #001', 'Tablet cho design', 'ASSET-TAB-001', 'TABLET', 'Apple', 'iPad Pro 12.9', 'IPADP129-001', '2023-05-01', 28000000, '2024-05-01', 'Xưởng bảo trì', 'MAINTENANCE', NULL, NULL, 'M2, 256GB, Space Gray - Đang sửa màn hình', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Sony Camera A7 III', 'Camera cho marketing', 'ASSET-EQU-001', 'EQUIPMENT', 'Sony', 'Alpha A7 III', 'SONYA7III-001', '2023-02-20', 45000000, '2024-02-20', 'Tầng 3 - Phòng Marketing', 'ASSIGNED', NULL, NULL, 'Full-frame mirrorless, 24.2MP', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL),
+('Projector Epson EB-X05', 'Máy chiếu phòng họp', 'ASSET-EQU-002', 'EQUIPMENT', 'Epson', 'EB-X05', 'EPEBX05-001', '2023-01-05', 12000000, '2026-01-05', 'Phòng họp A', 'ASSIGNED', NULL, NULL, '3300 lumens, XGA resolution', 1, DATE_SUB(NOW(), INTERVAL 7 HOUR), DATE_SUB(NOW(), INTERVAL 7 HOUR), NULL);
 
 -- ============================================
 -- 26. NOTIFICATIONS (Thông báo hệ thống - THEO ĐÚNG SCHEMA)
@@ -1234,11 +1228,11 @@ INSERT INTO `assets` (
 -- ============================================
 TRUNCATE TABLE `notifications`;
 INSERT INTO `notifications` (`title`, `content`, `news_id`, `created_by`, `created_at`, `updated_at`, `deleted_at`) VALUES
-('Nhắc nhở chấm công', 'Đừng quên check-in khi đến công ty! Hệ thống chấm công sẽ tự động ghi nhận thời gian của bạn.', NULL, 1, DATE_SUB(NOW(), INTERVAL 8 DAY), NOW(), NULL),
-('Cập nhật hệ thống HRM', 'Hệ thống sẽ bảo trì từ 22:00-23:00 hôm nay để nâng cấp tính năng mới. Vui lòng lưu công việc trước khi bảo trì.', NULL, 1, DATE_SUB(NOW(), INTERVAL 6 DAY), NOW(), NULL),
-('Họp team Backend', 'Meeting lúc 14:00 hôm nay tại phòng họp A. Chủ đề: Review code và planning cho sprint mới.', NULL, 10, DATE_SUB(NOW(), INTERVAL 4 DAY), NOW(), NULL),
-('Duyệt timesheet tháng 11', 'Vui lòng kiểm tra và duyệt timesheet cho nhân viên trước ngày 30/11. Có 50 timesheet đang chờ duyệt.', NULL, 1, DATE_SUB(NOW(), INTERVAL 3 DAY), NOW(), NULL),
-('Chúc mừng sinh nhật!', 'Chúc mừng sinh nhật Nguyễn Văn Minh! Chúc bạn một ngày sinh nhật vui vẻ và hạnh phúc.', NULL, 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), NULL);
+('Nhắc nhở chấm công', 'Đừng quên check-in khi đến công ty! Hệ thống chấm công sẽ tự động ghi nhận thời gian của bạn.', NULL, 1, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+('Cập nhật hệ thống HRM', 'Hệ thống sẽ bảo trì từ 22:00-23:00 hôm nay để nâng cấp tính năng mới. Vui lòng lưu công việc trước khi bảo trì.', NULL, 1, DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+('Họp team Backend', 'Meeting lúc 14:00 hôm nay tại phòng họp A. Chủ đề: Review code và planning cho sprint mới.', NULL, 10, DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+('Duyệt timesheet tháng 11', 'Vui lòng kiểm tra và duyệt timesheet cho nhân viên trước ngày 30/11. Có 50 timesheet đang chờ duyệt.', NULL, 1, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+('Chúc mừng sinh nhật!', 'Chúc mừng sinh nhật Nguyễn Văn Minh! Chúc bạn một ngày sinh nhật vui vẻ và hạnh phúc.', NULL, 2, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL);
 
 -- ============================================
 -- 27. USER_NOTIFICATIONS (Thông báo đến user)
@@ -1251,7 +1245,7 @@ SELECT
     CASE WHEN MOD(n, 3) = 0 THEN 1 ELSE 0 END as is_read,
     CASE WHEN MOD(n, 3) = 0 THEN DATE_SUB(NOW(), INTERVAL 6 DAY) ELSE NULL END as read_at,
     DATE_SUB(NOW(), INTERVAL 7 DAY),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -1267,7 +1261,7 @@ SELECT
     CASE WHEN MOD(n, 2) = 0 THEN 1 ELSE 0 END,
     CASE WHEN MOD(n, 2) = 0 THEN DATE_SUB(NOW(), INTERVAL 4 DAY) ELSE NULL END,
     DATE_SUB(NOW(), INTERVAL 5 DAY),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL 7 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -1307,10 +1301,10 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(ts.id, 50) < 45 THEN MOD(MOD(ts.id, 50), 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN MOD(ts.id, 50) < 45 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 50) HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 50) < 45 THEN DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 50) + 14) HOUR) ELSE NULL END as approved_at,
     CASE WHEN MOD(ts.id, 50) >= 45 THEN 'Không đủ số ngày phép còn lại' ELSE NULL END as rejected_reason,
-    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 50) + 10) HOUR) as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 50) + 10 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 14 HOUR) as updated_at,
     NULL as deleted_at
 FROM time_sheets ts
 WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
@@ -1337,10 +1331,10 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(ts.id, 40) < 35 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN MOD(ts.id, 40) < 35 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 40) HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 40) < 35 THEN DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 40) + 14) HOUR) ELSE NULL END as approved_at,
     CASE WHEN MOD(ts.id, 40) >= 35 THEN 'Yêu cầu không hợp lệ' ELSE NULL END as rejected_reason,
-    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 40) + 8) HOUR) as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 40) + 8 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 14 HOUR) as updated_at,
     NULL as deleted_at
 FROM time_sheets ts
 WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
@@ -1370,10 +1364,10 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(ts.id, 35) < 30 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN MOD(ts.id, 35) < 30 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 35) * 2 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 35) < 30 THEN DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 35) * 2 + 14) HOUR) ELSE NULL END as approved_at,
     CASE WHEN MOD(ts.id, 35) >= 30 THEN 'Lý do không hợp lệ' ELSE NULL END as rejected_reason,
-    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 35) + 6) HOUR) as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 35) + 6 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 14 HOUR) as updated_at,
     NULL as deleted_at
 FROM time_sheets ts
 WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
@@ -1400,10 +1394,10 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(ts.id, 25) < 22 THEN MOD(ts.id, 6) + 7 ELSE NULL END as approved_by,
-    CASE WHEN MOD(ts.id, 25) < 22 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 25) * 3 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 25) < 22 THEN DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 25) * 3 + 14) HOUR) ELSE NULL END as approved_at,
     CASE WHEN MOD(ts.id, 25) >= 22 THEN 'Không có bằng chứng' ELSE NULL END as rejected_reason,
-    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 25) + 4) HOUR) as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 25) + 4 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 14 HOUR) as updated_at,
     NULL as deleted_at
 FROM time_sheets ts
 WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
@@ -1431,10 +1425,10 @@ SELECT
         ELSE 'REJECTED'
     END as status,
     CASE WHEN MOD(ts.id, 30) < 28 THEN MOD(ts.id, 5) + 7 ELSE NULL END as approved_by,
-    CASE WHEN MOD(ts.id, 30) < 28 THEN DATE_SUB(NOW(), INTERVAL MOD(ts.id, 30) * 2 HOUR) ELSE NULL END as approved_at,
+    CASE WHEN MOD(ts.id, 30) < 28 THEN DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 30) * 2 + 14) HOUR) ELSE NULL END as approved_at,
     CASE WHEN MOD(ts.id, 30) >= 28 THEN 'Không đủ lý do chính đáng' ELSE NULL END as rejected_reason,
-    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 30) + 5) HOUR) as created_at,
-    NOW() as updated_at,
+    DATE_SUB(NOW(), INTERVAL (MOD(ts.id, 30) + 5 + 14) HOUR) as created_at,
+    DATE_SUB(NOW(), INTERVAL 14 HOUR) as updated_at,
     NULL as deleted_at
 FROM time_sheets ts
 WHERE ts.work_date BETWEEN DATE_SUB(CURDATE(), INTERVAL 29 DAY) AND CURDATE()
@@ -1470,7 +1464,7 @@ ORDER BY ar.id;
 -- 30. OVER_TIMES_HISTORY (Lịch sử làm thêm giờ - Liên kết với attendance_requests)
 -- ============================================
 TRUNCATE TABLE `over_times_history`;
-INSERT INTO `over_times_history` (`request_id`, `start_time`, `end_time`, `total_hours`, `project_id`, `created_at`, `updated_at`, `deleted_at`)
+INSERT INTO `over_times_history` (`request_id`, `start_time`, `end_time`, `total_hours`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
     ar.id as request_id,
     '18:00:00' as start_time,
@@ -1484,7 +1478,6 @@ SELECT
         WHEN MOD(ar.id, 3) = 1 THEN 4.0
         ELSE 2.0
     END as total_hours,
-    MOD(ar.id, 5) + 1 as project_id,
     ar.created_at,
     ar.updated_at,
     NULL as deleted_at
@@ -1540,8 +1533,8 @@ TRUNCATE TABLE `forgot_checkin_requests`;
 INSERT INTO `forgot_checkin_requests` (`request_id`, `checkin_time`, `checkout_time`, `created_at`, `updated_at`, `deleted_at`)
 SELECT 
     ar.id as request_id,
-    DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 8 HOUR), INTERVAL MOD(ar.id, 15) MINUTE) as checkin_time,
-    DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 17 HOUR), INTERVAL MOD(ar.id, 10) MINUTE) as checkout_time,
+    DATE_SUB(DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 8 HOUR), INTERVAL MOD(ar.id, 15) MINUTE), INTERVAL 7 HOUR) as checkin_time,
+    DATE_SUB(DATE_SUB(DATE_ADD(ar.work_date, INTERVAL 17 HOUR), INTERVAL MOD(ar.id, 10) MINUTE), INTERVAL 7 HOUR) as checkout_time,
     ar.created_at,
     ar.updated_at,
     NULL as deleted_at
@@ -1556,16 +1549,16 @@ TRUNCATE TABLE `asset_requests`;
 INSERT INTO `asset_requests` (`user_id`, `asset_id`, `request_type`, `category`, `description`, `justification`, `expected_date`, `status`, `approved_by`, `approved_at`, `fulfilled_at`, `created_at`, `updated_at`, `deleted_at`)
 VALUES
 -- Yêu cầu cấp phát mới
-(25, NULL, 'REQUEST', 'LAPTOP', 'Cần laptop Dell Latitude 5420 cho công việc', 'Nhân viên mới vào làm, cần trang thiết bị', DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 2 DAY), NULL, DATE_SUB(NOW(), INTERVAL 5 DAY), NOW(), NULL),
-(26, NULL, 'REQUEST', 'MONITOR', 'Cần màn hình phụ 27 inch', 'Làm việc với nhiều cửa sổ, cần màn hình lớn', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'PENDING', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 DAY), NOW(), NULL),
-(27, NULL, 'REQUEST', 'KEYBOARD', 'Cần bàn phím cơ Logitech', 'Bàn phím cũ bị hỏng', DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 HOUR), DATE_SUB(NOW(), INTERVAL 4 DAY), NOW(), NULL),
-(28, NULL, 'REQUEST', 'MOUSE', 'Cần chuột không dây', 'Chuột dây bị đứt', DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'FULFILLED', 2, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY), NOW(), NULL),
-(29, NULL, 'REQUEST', 'HEADPHONE', 'Cần tai nghe chống ồn', 'Làm việc cần tập trung, văn phòng ồn', DATE_ADD(CURDATE(), INTERVAL 10 DAY), 'REJECTED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NULL, DATE_SUB(NOW(), INTERVAL 5 DAY), NOW(), NULL),
+(25, NULL, 'REQUEST', 'LAPTOP', 'Cần laptop Dell Latitude 5420 cho công việc', 'Nhân viên mới vào làm, cần trang thiết bị', DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 2 DAY), NULL, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(26, NULL, 'REQUEST', 'MONITOR', 'Cần màn hình phụ 27 inch', 'Làm việc với nhiều cửa sổ, cần màn hình lớn', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'PENDING', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(27, NULL, 'REQUEST', 'KEYBOARD', 'Cần bàn phím cơ Logitech', 'Bàn phím cũ bị hỏng', DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL (1 + 14) HOUR), DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(28, NULL, 'REQUEST', 'MOUSE', 'Cần chuột không dây', 'Chuột dây bị đứt', DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'FULFILLED', 2, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(29, NULL, 'REQUEST', 'HEADPHONE', 'Cần tai nghe chống ồn', 'Làm việc cần tập trung, văn phòng ồn', DATE_ADD(CURDATE(), INTERVAL 10 DAY), 'REJECTED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NULL, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
 -- Yêu cầu bảo trì
-(7, 1, 'MAINTENANCE', 'LAPTOP', 'Laptop chạy chậm, cần nâng cấp RAM', 'Máy lag khi chạy nhiều ứng dụng', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NULL, DATE_SUB(NOW(), INTERVAL 3 DAY), NOW(), NULL),
-(8, 2, 'MAINTENANCE', 'LAPTOP', 'Pin laptop chai, cần thay pin', 'Pin chỉ dùng được 1 giờ', DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'PENDING', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 DAY), NOW(), NULL),
+(7, 1, 'MAINTENANCE', 'LAPTOP', 'Laptop chạy chậm, cần nâng cấp RAM', 'Máy lag khi chạy nhiều ứng dụng', DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'APPROVED', 2, DATE_SUB(NOW(), INTERVAL 1 DAY), NULL, DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(8, 2, 'MAINTENANCE', 'LAPTOP', 'Pin laptop chai, cần thay pin', 'Pin chỉ dùng được 1 giờ', DATE_ADD(CURDATE(), INTERVAL 7 DAY), 'PENDING', NULL, NULL, NULL, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
 -- Yêu cầu trả lại
-(30, 16, 'RETURN', 'LAPTOP', 'Trả lại laptop dự phòng', 'Đã được cấp laptop mới', CURDATE(), 'RETURNED', 2, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY), NOW(), NULL);
+(30, 16, 'RETURN', 'LAPTOP', 'Trả lại laptop dự phòng', 'Đã được cấp laptop mới', CURDATE(), 'RETURNED', 2, DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL);
 
 -- ============================================
 -- 35. ROOM_BOOKINGS (Đặt phòng họp)
@@ -1597,8 +1590,8 @@ SELECT
         INTERVAL (10 + (MOD(n, 8))) HOUR
     ) as end_time,
     MOD(n, 13) + 7 as organizer_id,
-    DATE_SUB(NOW(), INTERVAL (50 - n) HOUR),
-    NOW(),
+    DATE_SUB(NOW(), INTERVAL (50 - n + 14) HOUR),
+    DATE_SUB(NOW(), INTERVAL 14 HOUR),
     NULL
 FROM (
     SELECT a.N + b.N * 10 as n
@@ -1615,11 +1608,11 @@ TRUNCATE TABLE `rotation_members`;
 INSERT INTO `rotation_members` (`from_id`, `to_id`, `user_id`, `type`, `date_rotation`, `created_at`, `updated_at`, `deleted_at`)
 VALUES
 -- Luân chuyển giữa các division
-(4, 5, 35, 'PERMANENT', '2024-03-01', DATE_SUB(NOW(), INTERVAL 60 DAY), NOW(), NULL),
-(5, 6, 42, 'TEMPORARY', '2024-04-15', DATE_SUB(NOW(), INTERVAL 45 DAY), NOW(), NULL),
-(4, 7, 48, 'PERMANENT', '2024-05-01', DATE_SUB(NOW(), INTERVAL 30 DAY), NOW(), NULL),
-(6, 4, 56, 'TEMPORARY', '2024-06-01', DATE_SUB(NOW(), INTERVAL 15 DAY), NOW(), NULL),
-(7, 5, 63, 'PERMANENT', '2024-06-15', DATE_SUB(NOW(), INTERVAL 10 DAY), NOW(), NULL);
+(4, 5, 35, 'PERMANENT', '2024-03-01', DATE_SUB(NOW(), INTERVAL 60 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(5, 6, 42, 'TEMPORARY', '2024-04-15', DATE_SUB(NOW(), INTERVAL 45 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(4, 7, 48, 'PERMANENT', '2024-05-01', DATE_SUB(NOW(), INTERVAL 30 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(6, 4, 56, 'TEMPORARY', '2024-06-01', DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL),
+(7, 5, 63, 'PERMANENT', '2024-06-15', DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_SUB(NOW(), INTERVAL 14 HOUR), NULL);
 
 SET FOREIGN_KEY_CHECKS=1;
 
