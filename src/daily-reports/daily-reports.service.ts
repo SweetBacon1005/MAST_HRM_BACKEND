@@ -470,8 +470,8 @@ export class DailyReportsService {
         ...updateData,
         status: ApprovalStatus.PENDING,
         approved_by: null,
-        reviewed_at: null,
-        reject_reason: null,
+        approved_at: null,
+        rejected_reason: null,
       },
     });
   }
@@ -514,8 +514,8 @@ export class DailyReportsService {
       data: {
         status: ApprovalStatus.APPROVED,
         approved_by: authContext.userId,
-        reviewed_at: new Date(),
-        reject_reason: null,
+        approved_at: new Date(),
+        rejected_reason: null,
       },
     });
   }
@@ -543,8 +543,8 @@ export class DailyReportsService {
       data: {
         status: ApprovalStatus.REJECTED,
         approved_by: authContext.userId,
-        reviewed_at: new Date(),
-        reject_reason: reason,
+        approved_at: new Date(),
+        rejected_reason: reason,
       },
     });
   }
@@ -601,8 +601,8 @@ export class DailyReportsService {
       data: {
         status: ApprovalStatus.APPROVED,
         approved_by: authContext.userId,
-        reviewed_at: new Date(),
-        reject_reason: null,
+        approved_at: new Date(),
+        rejected_reason: null,
       },
     });
 
@@ -707,13 +707,13 @@ export class DailyReportsService {
     const updateData: any = {
       status: action === 'approve' ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED,
       approved_by: authContext.userId,
-      reviewed_at: new Date(),
+      approved_at: new Date(),
     };
 
     if (action === 'reject') {
-      updateData.reject_reason = rejectReason;
+      updateData.rejected_reason = rejectReason;
     } else {
-      updateData.reject_reason = null;
+      updateData.rejected_reason = null;
     }
 
     const result = await this.prisma.daily_reports.updateMany({
@@ -739,7 +739,7 @@ export class DailyReportsService {
     };
 
     if (action === 'reject') {
-      response.reject_reason = rejectReason;
+      response.rejected_reason = rejectReason;
     }
 
     return response;

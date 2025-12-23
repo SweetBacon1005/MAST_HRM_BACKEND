@@ -1685,7 +1685,14 @@ export class DivisionService {
             },
           }).then(requests => ({
             _sum: {
-              total_hours: requests.reduce((sum, req) => sum + (req.overtime?.total_hours || 0), 0)
+              total_hours: requests.reduce((sum, req) => {
+                if (req.overtime?.start_time && req.overtime?.end_time) {
+                  const startMinutes = req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes();
+                  const endMinutes = req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes();
+                  return sum + (endMinutes - startMinutes) / 60;
+                }
+                return sum;
+              }, 0)
             }
           })),
         ]);

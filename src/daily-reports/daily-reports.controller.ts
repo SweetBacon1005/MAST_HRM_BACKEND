@@ -101,16 +101,16 @@ export class DailyReportsController {
     schema: { 
       type: 'object', 
       properties: { 
-        reject_reason: { type: 'string', example: 'Thiếu mô tả chi tiết' } 
+        rejected_reason: { type: 'string', example: 'Thiếu mô tả chi tiết' } 
       }, 
-      required: ['reject_reason'] 
+      required: ['rejected_reason'] 
     } 
   })
   @ApiResponse({ status: HttpStatus.OK, type: DailyReportEntity })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Không tìm thấy daily report' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền từ chối (ngoài scope quản lý)' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Chỉ từ chối được khi PENDING' })
-  async reject(@Param('id', ParseIntPipe) id: number, @GetCurrentUser() user: any, @Body('reject_reason') reason: string) {
+  async reject(@Param('id', ParseIntPipe) id: number, @GetCurrentUser() user: any, @Body('rejected_reason') reason: string) {
     const authContext = await this.authorizationContextService.createContext(user);
     return this.service.reject(id, authContext, reason);
   }
@@ -254,7 +254,7 @@ export class DailyReportsController {
       dto.report_ids,
       authContext,
       dto.action || BatchAction.APPROVE,
-      dto.reject_reason,
+      dto.rejected_reason,
     );
   }
 

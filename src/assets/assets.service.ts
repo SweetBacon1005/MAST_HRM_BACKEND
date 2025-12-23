@@ -755,7 +755,7 @@ export class AssetsService {
           approved_by: reviewBy,
           approved_at: new Date(),
           notes: reviewDto.notes,
-          rejection_reason: reviewDto.rejection_reason,
+          rejected_reason: reviewDto.rejected_reason,
           updated_at: new Date(),
         },
       });

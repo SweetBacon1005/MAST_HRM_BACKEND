@@ -93,7 +93,7 @@ export class ReviewAssetRequestDto {
   })
   @IsOptional()
   @IsString()
-  rejection_reason?: string;
+  rejected_reason?: string;
 }
 
 export class FulfillAssetRequestDto {

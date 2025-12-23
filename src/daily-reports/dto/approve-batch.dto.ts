@@ -36,5 +36,5 @@ export class ApproveBatchDto {
   @ValidateIf((o) => o.action === BatchAction.REJECT)
   @IsString()
   @IsOptional()
-  reject_reason?: string;
+  rejected_reason?: string;
 }

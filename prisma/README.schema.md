@@ -215,9 +215,9 @@ This document describes all Prisma models (tables) and their fields.
 - status: ApprovalStatus?
 - approved_by: Int?
 - approved_by_user: users?
-- reviewed_at: DateTime?
+- approved_at: DateTime?
 - description: String?
-- reject_reason: String?
+- rejected_reason: String?
 - created_at: DateTime
 - updated_at: DateTime
 
@@ -312,7 +312,6 @@ This document describes all Prisma models (tables) and their fields.
 - approved_by_user: users?
 - approved_at: DateTime?
 - rejected_reason: String?
-- is_past: Boolean
 - balance_deducted: Boolean
 - deduction_transaction_id: Int?
 - created_at: DateTime
@@ -447,7 +446,6 @@ This document describes all Prisma models (tables) and their fields.
 - title: String
 - start_time: DateTime
 - end_time: DateTime
-- total_hours: Float?
 - hourly_rate: Float?
 - total_amount: Float?
 - project_id: Int?
@@ -556,7 +554,7 @@ This document describes all Prisma models (tables) and their fields.
 - approved_by: Int?
 - approver: users?
 - approved_at: DateTime?
-- rejection_reason: String?
+- rejected_reason: String?
 - fulfilled_at: DateTime?
 - notes: String?
 - created_at: DateTime
@@ -687,7 +685,7 @@ This document describes all Prisma models (tables) and their fields.
 - reason: String?
 - reviewer_id: Int?
 - reviewer: users?
-- reviewed_at: DateTime?
+- approved_at: DateTime?
 - created_at: DateTime
 - updated_at: DateTime
 - deleted_at: DateTime?

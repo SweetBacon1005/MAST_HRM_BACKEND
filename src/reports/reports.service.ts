@@ -285,10 +285,14 @@ export class ReportsService {
     const totalearly_minutes = 0;
 
     // Tính toán thống kê overtime
-    const totalOvertimeHours = overtimeRequests.reduce(
-      (sum, ot) => sum + (ot.overtime?.total_hours || 0),
-      0,
-    );
+    const totalOvertimeHours = overtimeRequests.reduce((sum, ot) => {
+      if (ot.overtime?.start_time && ot.overtime?.end_time) {
+        const startMinutes = ot.overtime.start_time.getHours() * 60 + ot.overtime.start_time.getMinutes();
+        const endMinutes = ot.overtime.end_time.getHours() * 60 + ot.overtime.end_time.getMinutes();
+        return sum + (endMinutes - startMinutes) / 60;
+      }
+      return sum;
+    }, 0);
     const overtimeCount = overtimeRequests.length;
 
     // Tính toán thống kê leave
@@ -880,12 +884,20 @@ export class ReportsService {
     const totalStats = overtimeRecords.reduce(
       (acc, record) => {
         acc.total_records++;
-        acc.total_hours += record.overtime?.total_hours || 0;
+        if (record.overtime?.start_time && record.overtime?.end_time) {
+          const startMinutes = record.overtime.start_time.getHours() * 60 + record.overtime.start_time.getMinutes();
+          const endMinutes = record.overtime.end_time.getHours() * 60 + record.overtime.end_time.getMinutes();
+          acc.total_hours += (endMinutes - startMinutes) / 60;
+        }
         acc.total_amount += 0;
 
         if (record.status === 'APPROVED') {
           acc.approved_records++;
-          acc.approved_hours += record.overtime?.total_hours || 0;
+          if (record.overtime?.start_time && record.overtime?.end_time) {
+            const startMinutes = record.overtime.start_time.getHours() * 60 + record.overtime.start_time.getMinutes();
+            const endMinutes = record.overtime.end_time.getHours() * 60 + record.overtime.end_time.getMinutes();
+            acc.approved_hours += (endMinutes - startMinutes) / 60;
+          }
           acc.approved_amount += 0;
         }
 
@@ -917,12 +929,20 @@ export class ReportsService {
       }
 
       acc[user_id].total_sessions++;
-      acc[user_id].total_hours += record.overtime?.total_hours || 0;
+      if (record.overtime?.start_time && record.overtime?.end_time) {
+        const startMinutes = record.overtime.start_time.getHours() * 60 + record.overtime.start_time.getMinutes();
+        const endMinutes = record.overtime.end_time.getHours() * 60 + record.overtime.end_time.getMinutes();
+        acc[user_id].total_hours += (endMinutes - startMinutes) / 60;
+      }
       acc[user_id].total_amount += 0;
 
       if (record.status === 'APPROVED') {
         acc[user_id].approved_sessions++;
-        acc[user_id].approved_hours += record.overtime?.total_hours || 0;
+        if (record.overtime?.start_time && record.overtime?.end_time) {
+          const startMinutes = record.overtime.start_time.getHours() * 60 + record.overtime.start_time.getMinutes();
+          const endMinutes = record.overtime.end_time.getHours() * 60 + record.overtime.end_time.getMinutes();
+          acc[user_id].approved_hours += (endMinutes - startMinutes) / 60;
+        }
         acc[user_id].approved_amount += 0;
       }
 

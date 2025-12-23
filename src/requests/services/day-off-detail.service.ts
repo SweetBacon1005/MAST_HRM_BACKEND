@@ -20,19 +20,6 @@ export class DayOffDetailService {
     });
   }
 
-  async update(
-    id: number,
-    data: Partial<{
-      duration: DayOffDuration;
-      type: DayOffType;
-    }>,
-  ) {
-    return this.prisma.day_offs.update({
-      where: { id },
-      data,
-    });
-  }
-
   async updateDayOffDetail(
     request_id: number,
     data: Partial<{

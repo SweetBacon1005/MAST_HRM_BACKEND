@@ -872,7 +872,7 @@
                            "type":  "users?"
                        },
                        {
-                           "name":  "reviewed_at",
+                           "name":  "approved_at",
                            "type":  "DateTime?"
                        },
                        {
@@ -880,7 +880,7 @@
                            "type":  "String?"
                        },
                        {
-                           "name":  "reject_reason",
+                           "name":  "rejected_reason",
                            "type":  "String?"
                        },
                        {
@@ -2257,7 +2257,7 @@
                            "type":  "DateTime?"
                        },
                        {
-                           "name":  "rejection_reason",
+                           "name":  "rejected_reason",
                            "type":  "String?"
                        },
                        {
@@ -2789,7 +2789,7 @@
                            "type":  "users?"
                        },
                        {
-                           "name":  "reviewed_at",
+                           "name":  "approved_at",
                            "type":  "DateTime?"
                        },
                        {

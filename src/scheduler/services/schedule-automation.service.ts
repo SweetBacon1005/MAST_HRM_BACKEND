@@ -275,8 +275,6 @@ export class ScheduleAutomationService {
           is_complete: false,
           remote: RemoteType.OFFICE,
           total_work_time: 0,
-          late_time: 0,
-          early_time: 0,
         }));
 
         const result = await this.prisma.time_sheets.createMany({

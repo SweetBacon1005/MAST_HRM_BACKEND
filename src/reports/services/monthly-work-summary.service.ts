@@ -276,7 +276,10 @@ export class MonthlyWorkSummaryService {
         id: req.id,
         date: req.work_date.toISOString().split('T')[0],
         title: req.title,
-        total_hours: req.overtime?.total_hours || 0,
+        total_hours: req.overtime?.start_time && req.overtime?.end_time
+          ? ((req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes()) - 
+             (req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes())) / 60
+          : 0,
         status: req.status,
         approved_by_name:
           req.approved_by_user?.user_information?.name || undefined,
@@ -460,10 +463,14 @@ export class MonthlyWorkSummaryService {
     ).length;
 
     // Overtime
-    const overtimeHours = overtimeRequests.reduce(
-      (sum, ot) => sum + (ot.overtime?.total_hours || 0),
-      0,
-    );
+    const overtimeHours = overtimeRequests.reduce((sum, ot) => {
+      if (ot.overtime?.start_time && ot.overtime?.end_time) {
+        const startMinutes = ot.overtime.start_time.getHours() * 60 + ot.overtime.start_time.getMinutes();
+        const endMinutes = ot.overtime.end_time.getHours() * 60 + ot.overtime.end_time.getMinutes();
+        return sum + (endMinutes - startMinutes) / 60;
+      }
+      return sum;
+    }, 0);
     const overtimeDays = overtimeRequests.length;
 
     const workingSessionsStats = this.calculateWorkingSessions(

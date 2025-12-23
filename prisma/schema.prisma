@@ -222,9 +222,9 @@ model daily_reports {
   status           ApprovalStatus? @default(PENDING)
   approved_by      Int?
   approved_by_user users?          @relation("approved_by_user", fields: [approved_by], references: [id])
-  reviewed_at      DateTime?       @db.DateTime()
+  approved_at      DateTime?       @db.DateTime()
   description      String?         @db.Text
-  reject_reason    String?         @db.MediumText
+  rejected_reason    String?         @db.MediumText
   created_at       DateTime        @default(now())
   updated_at       DateTime        @updatedAt
 
@@ -311,19 +311,17 @@ model users {
 }
 
 model day_offs {
-  id                 Int                 @id @default(autoincrement())
+  request_id         Int                 @id
   duration           DayOffDuration      @default(FULL_DAY)
   type               DayOffType          @default(PAID)
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  request_id         Int                 @unique
   attendance_request attendance_requests @relation("DayOffRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([type])
   @@index([duration])
   @@index([deleted_at])
-  @@index([request_id])
 }
 
 model holidays {
@@ -426,18 +424,15 @@ model rotation_members {
 }
 
 model over_times_history {
-  id                 Int                 @id @default(autoincrement())
+  request_id         Int                 @id
   start_time         DateTime            @db.Time()
   end_time           DateTime            @db.Time()
-  total_hours        Float?
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  request_id         Int                 @unique
   attendance_request attendance_requests @relation("OvertimeRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
-  @@index([request_id])
 }
 
 model user_role_assignment {
@@ -526,7 +521,7 @@ model asset_requests {
   approved_by      Int?
   approver         users?             @relation("AssetRequestApprover", fields: [approved_by], references: [id])
   approved_at      DateTime?          @db.DateTime()
-  rejection_reason String?            @db.Text
+  rejected_reason String?            @db.Text
   fulfilled_at     DateTime?          @db.DateTime()
   notes            String?            @db.Text
   created_at       DateTime           @default(now())
@@ -542,19 +537,17 @@ model asset_requests {
 }
 
 model remote_work_requests {
-  id                 Int                 @id @default(autoincrement())
+  request_id         Int                 @id
   remote_type        RemoteType          @default(REMOTE)
   duration           DayOffDuration      @default(FULL_DAY)
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  request_id         Int                 @unique
   attendance_request attendance_requests @relation("RemoteWorkRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
   @@index([remote_type])
   @@index([duration])
-  @@index([request_id])
 }
 
 model user_leave_balances {
@@ -578,19 +571,17 @@ model user_leave_balances {
 }
 
 model late_early_requests {
-  id                 Int                 @id @default(autoincrement())
+  request_id         Int                 @id
   request_type       LateEarlyType
   late_minutes       Int?
   early_minutes      Int?
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  request_id         Int                 @unique
   attendance_request attendance_requests @relation("LateEarlyRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([request_type])
   @@index([deleted_at])
-  @@index([request_id])
 }
 
 model attendance_requests {
@@ -632,17 +623,15 @@ model attendance_requests {
 }
 
 model forgot_checkin_requests {
-  id                 Int                 @id @default(autoincrement())
+  request_id         Int                 @id
   checkin_time       DateTime?           @db.DateTime()
   checkout_time      DateTime?           @db.DateTime()
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
   deleted_at         DateTime?           @db.DateTime()
-  request_id         Int                 @unique
   attendance_request attendance_requests @relation("ForgotCheckinRequestRelation", fields: [request_id], references: [id], onDelete: Cascade)
 
   @@index([deleted_at])
-  @@index([request_id])
 }
 
 model notifications {
@@ -693,7 +682,7 @@ model news {
   reason        String?         @db.Text
   reviewer_id   Int?
   reviewer      users?          @relation("NewsReviewer", fields: [reviewer_id], references: [id])
-  reviewed_at   DateTime?       @db.DateTime()
+  approved_at   DateTime?       @db.DateTime()
   created_at    DateTime        @default(now())
   updated_at    DateTime        @updatedAt
   deleted_at    DateTime?       @db.DateTime()
@@ -721,7 +710,6 @@ enum TimesheetType {
 enum RemoteType {
   OFFICE
   REMOTE
-  HYBRID
 }
 
 enum TimesheetRequestType {

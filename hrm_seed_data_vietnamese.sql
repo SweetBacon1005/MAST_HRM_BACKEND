@@ -1074,7 +1074,7 @@ INSERT INTO `rooms` (`name`, `is_active`, `created_at`, `updated_at`, `deleted_a
 -- 22. DAILY_REPORTS (Báo cáo công việc hàng ngày)
 -- ============================================
 TRUNCATE TABLE `daily_reports`;
-INSERT INTO `daily_reports` (`user_id`, `project_id`, `title`, `work_date`, `actual_time`, `status`, `approved_by`, `reviewed_at`, `description`, `reject_reason`, `created_at`, `updated_at`)
+INSERT INTO `daily_reports` (`user_id`, `project_id`, `title`, `work_date`, `actual_time`, `status`, `approved_by`, `approved_at`, `description`, `rejected_reason`, `created_at`, `updated_at`)
 SELECT 
     MOD(n, 95) + 6 as user_id,
     MOD(n, 5) + 1 as project_id,

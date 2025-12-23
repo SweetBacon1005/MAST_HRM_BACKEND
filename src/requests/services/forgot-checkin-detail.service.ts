@@ -19,24 +19,11 @@ export class ForgotCheckinDetailService {
     });
   }
 
-  async update(
-    id: number,
-    data: Partial<{
-      checkin_time: Date | null;
-      checkout_time: Date | null;
-    }>,
-  ) {
-    return this.prisma.forgot_checkin_requests.update({
-      where: { id },
-      data,
-    });
-  }
-
   async updateForgotCheckinDetail(
     request_id: number,
     data: Partial<{
-      checkin_time: Date;
-      checkout_time: Date;
+      checkin_time: Date | null;
+      checkout_time: Date | null;
     }>,
   ) {
     return this.prisma.forgot_checkin_requests.update({

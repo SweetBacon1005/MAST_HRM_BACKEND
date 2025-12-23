@@ -272,7 +272,6 @@ export class RequestsService {
       request_id: attendanceRequest.id,
       start_time: startTime,
       end_time: endTime,
-      total_hours: totalHours,
     });
 
     const fullRequest = await this.attendanceRequestService.findOne(
@@ -2337,13 +2336,10 @@ export class RequestsService {
     });
 
     if (existing.remote_work_request) {
-      await this.remoteWorkDetailService.update(
-        existing.remote_work_request.id,
-        {
-          remote_type: dto.remote_type,
-          duration: dto.duration,
-        },
-      );
+      await this.remoteWorkDetailService.updateRemoteWorkDetail(id, {
+        remote_type: dto.remote_type,
+        duration: dto.duration,
+      });
     }
 
     const updated = await this.attendanceRequestService.findOne(id);
@@ -2437,7 +2433,7 @@ export class RequestsService {
     });
 
     if (existing.day_off) {
-      await this.dayOffDetailService.update(existing.day_off.id, {
+      await this.dayOffDetailService.updateDayOffDetail(id, {
         duration: dto.duration,
         type: dto.type,
       });
@@ -2518,12 +2514,9 @@ export class RequestsService {
     });
 
     if (existing.overtime) {
-      await this.overtimeDetailService.update(existing.overtime.id, {
+      await this.overtimeDetailService.updateOvertimeDetail(id, {
         start_time: startTime,
         end_time: endTime,
-        total_hours: totalHours,
-        hourly_rate: hourlyRate,
-        total_amount: totalAmount,
       });
     }
 
@@ -2595,10 +2588,10 @@ export class RequestsService {
     });
 
     if (existing.late_early_request) {
-      await this.lateEarlyDetailService.update(existing.late_early_request.id, {
+      await this.lateEarlyDetailService.updateLateEarlyDetail(id, {
         request_type: dto.request_type,
-        late_minutes: dto.late_minutes || null,
-        early_minutes: dto.early_minutes || null,
+        late_minutes: dto.late_minutes ?? null,
+        early_minutes: dto.early_minutes ?? null,
       });
     }
 
@@ -2674,13 +2667,10 @@ export class RequestsService {
     });
 
     if (existing.forgot_checkin_request) {
-      await this.forgotCheckinDetailService.update(
-        existing.forgot_checkin_request.id,
-        {
-          checkin_time: checkinDateTime,
-          checkout_time: checkoutDateTime,
-        },
-      );
+      await this.forgotCheckinDetailService.updateForgotCheckinDetail(id, {
+        checkin_time: checkinDateTime ?? null,
+        checkout_time: checkoutDateTime ?? null,
+      });
     }
 
     const updated = await this.attendanceRequestService.findOne(id);
@@ -2708,18 +2698,33 @@ export class RequestsService {
     } as RemoteWorkRequestResponseDto;
   }
 
+  /**
+   * Tính tổng số giờ từ start_time và end_time
+   */
+  private calculateTotalHours(startTime: Date | null, endTime: Date | null): number | null {
+    if (!startTime || !endTime) {
+      return null;
+    }
+    const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+    const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+    return (endMinutes - startMinutes) / 60;
+  }
+
   private mapToOvertimeRequestResponse(
     request: any,
   ): OvertimeRequestResponseDto {
+    const startTime = request.overtime?.start_time;
+    const endTime = request.overtime?.end_time;
+    const totalHours = this.calculateTotalHours(startTime, endTime);
+
     return {
       id: request.id,
       user_id: request.user_id,
       work_date: request.work_date,
       title: request.title,
-      start_time:
-        request.overtime?.start_time?.toTimeString().slice(0, 5) || '',
-      end_time: request.overtime?.end_time?.toTimeString().slice(0, 5) || '',
-      total_hours: request.overtime?.total_hours || null,
+      start_time: startTime?.toTimeString().slice(0, 5) || '',
+      end_time: endTime?.toTimeString().slice(0, 5) || '',
+      total_hours: totalHours,
       hourly_rate: null,
       total_amount: null,
       reason: request.reason,

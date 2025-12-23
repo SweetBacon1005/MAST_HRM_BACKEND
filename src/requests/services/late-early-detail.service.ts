@@ -17,26 +17,12 @@ export class LateEarlyDetailService {
     });
   }
 
-  async update(
-    id: number,
-    data: Partial<{
-      request_type: LateEarlyType;
-      late_minutes: number | null;
-      early_minutes: number | null;
-    }>,
-  ) {
-    return this.prisma.late_early_requests.update({
-      where: { id },
-      data,
-    });
-  }
-
   async updateLateEarlyDetail(
     request_id: number,
     data: Partial<{
       request_type: LateEarlyType;
-      late_minutes: number;
-      early_minutes: number;
+      late_minutes: number | null;
+      early_minutes: number | null;
     }>,
   ) {
     return this.prisma.late_early_requests.update({

@@ -252,7 +252,7 @@ export class NewsService {
       data: {
         status: NewsStatus.PENDING,
         reviewer_id: null,
-        reviewed_at: null,
+        approved_at: null,
       },
     });
 
@@ -283,7 +283,7 @@ export class NewsService {
         reason: reason,
         status: status as NewsStatus,
         reviewer_id: reviewerId,
-        reviewed_at: new Date(),
+        approved_at: new Date(),
       },
     });
 

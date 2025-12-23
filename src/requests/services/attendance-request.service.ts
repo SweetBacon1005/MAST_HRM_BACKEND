@@ -57,11 +57,7 @@ export class AttendanceRequestService {
         },
         timesheet: true,
         day_off: true,
-        overtime: {
-          include: {
-            project: true,
-          },
-        },
+        overtime: true,
         remote_work_request: true,
         late_early_request: true,
         forgot_checkin_request: true,
@@ -103,11 +99,7 @@ export class AttendanceRequestService {
         },
         timesheet: true,
         day_off: true,
-        overtime: {
-          include: {
-            project: true,
-          },
-        },
+        overtime: true,
         remote_work_request: true,
         late_early_request: true,
         forgot_checkin_request: true,

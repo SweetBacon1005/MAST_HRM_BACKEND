@@ -26,13 +26,13 @@ export class DailyReportEntity {
   approved_by: number | null;
 
   @ApiPropertyOptional({ example: '2025-01-16T10:30:00.000Z', description: 'Thời gian duyệt/từ chối' })
-  reviewed_at: Date | null;
+  approved_at: Date | null;
 
   @ApiPropertyOptional({ example: 'Sửa các lỗi priority P1, viết unit test', description: 'Mô tả chi tiết công việc' })
   description: string | null;
 
   @ApiPropertyOptional({ example: 'Thiếu mô tả chi tiết', description: 'Lý do từ chối' })
-  reject_reason: string | null;
+  rejected_reason: string | null;
 
   @ApiProperty({ example: '2025-01-15T08:00:00.000Z', description: 'Thời gian tạo' })
   created_at: Date;

@@ -16,19 +16,6 @@ export class RemoteWorkDetailService {
     });
   }
 
-  async update(
-    id: number,
-    data: Partial<{
-      remote_type: RemoteType;
-      duration: DayOffDuration;
-    }>,
-  ) {
-    return this.prisma.remote_work_requests.update({
-      where: { id },
-      data,
-    });
-  }
-
   async updateRemoteWorkDetail(
     request_id: number,
     data: Partial<{

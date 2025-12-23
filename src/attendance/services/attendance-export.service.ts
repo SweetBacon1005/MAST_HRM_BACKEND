@@ -255,9 +255,6 @@ export class AttendanceExportService {
     return this.csvExport.exportWithCustomHeaders(csvData, fieldMapping);
   }
 
-  /**
-   * Export overtime records to CSV
-   */
   async exportOvertimeRecords(
     startDate?: string,
     endDate?: string,
@@ -301,7 +298,10 @@ export class AttendanceExportService {
       title: req.title,
       start_time: req.overtime?.start_time.toISOString().split('T')[1].substring(0, 5) || '',
       end_time: req.overtime?.end_time.toISOString().split('T')[1].substring(0, 5) || '',
-      total_hours: req.overtime?.total_hours || 0,
+      total_hours: req.overtime?.start_time && req.overtime?.end_time
+        ? ((req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes()) - 
+           (req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes())) / 60
+        : 0,
       total_amount: 0, // Not stored anymore
       status: req.status,
       reason: req.reason || '',

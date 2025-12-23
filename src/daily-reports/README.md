@@ -105,8 +105,8 @@ Module Daily Reports quản lý báo cáo công việc hàng ngày của nhân v
       "description": "Hoàn thành UI login page và tích hợp API authentication",
       "status": "PENDING",
       "approved_by": null,
-      "reviewed_at": null,
-      "reject_reason": null,
+      "approved_at": null,
+      "rejected_reason": null,
       "created_at": "2024-01-20T17:00:00Z",
       "updated_at": "2024-01-20T17:00:00Z"
     }
@@ -150,8 +150,8 @@ Module Daily Reports quản lý báo cáo công việc hàng ngày của nhân v
   "description": "Hoàn thành UI login page và tích hợp API authentication",
   "status": "APPROVED",
   "approved_by": 3,
-  "reviewed_at": "2024-01-20T18:00:00Z",
-  "reject_reason": null,
+  "approved_at": "2024-01-20T18:00:00Z",
+  "rejected_reason": null,
   "created_at": "2024-01-20T17:00:00Z",
   "updated_at": "2024-01-20T18:00:00Z"
 }
@@ -230,8 +230,8 @@ Module Daily Reports quản lý báo cáo công việc hàng ngày của nhân v
   "project_id": 1,
   "status": "APPROVED",
   "approved_by": 3,
-  "reviewed_at": "2024-01-20T18:00:00Z",
-  "reject_reason": null
+  "approved_at": "2024-01-20T18:00:00Z",
+  "rejected_reason": null
 }
 ```
 
@@ -260,7 +260,7 @@ Module Daily Reports quản lý báo cáo công việc hàng ngày của nhân v
 **Request Body:**
 ```json
 {
-  "reject_reason": "Thiếu mô tả chi tiết công việc"
+  "rejected_reason": "Thiếu mô tả chi tiết công việc"
 }
 ```
 
@@ -272,8 +272,8 @@ Module Daily Reports quản lý báo cáo công việc hàng ngày của nhân v
   "project_id": 1,
   "status": "REJECTED",
   "approved_by": 3,
-  "reviewed_at": "2024-01-20T18:00:00Z",
-  "reject_reason": "Thiếu mô tả chi tiết công việc"
+  "approved_at": "2024-01-20T18:00:00Z",
+  "rejected_reason": "Thiếu mô tả chi tiết công việc"
 }
 ```
 
@@ -311,7 +311,7 @@ User phải thuộc dự án:
 ### 3. Update Rules
 - Chỉ có thể sửa khi status là REJECTED
 - Sau khi sửa, status tự động chuyển về PENDING
-- Clear approved_by, reviewed_at, reject_reason
+- Clear approved_by, approved_at, rejected_reason
 
 ### 4. Delete Rules
 - Chỉ có thể xóa khi status là PENDING

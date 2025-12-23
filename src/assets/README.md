@@ -60,7 +60,7 @@ model asset_requests {
   status          AssetRequestStatus  @default(PENDING)
   approved_by     Int?
   approved_at     DateTime?
-  rejection_reason String?            @db.Text
+  rejected_reason String?            @db.Text
   fulfilled_at    DateTime?
   returned_at     DateTime?
   notes           String?             @db.Text
@@ -271,7 +271,7 @@ Content-Type: application/json
 
 {
   "action": "REJECT",
-  "rejection_reason": "Không có tài sản phù hợp trong kho",
+  "rejected_reason": "Không có tài sản phù hợp trong kho",
   "notes": "Vui lòng chờ đợt mua sắm tiếp theo"
 }
 ```

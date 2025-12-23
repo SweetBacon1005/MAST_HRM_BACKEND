@@ -9,26 +9,9 @@ export class OvertimeDetailService {
     request_id: number;
     start_time: Date;
     end_time: Date;
-    total_hours?: number;
     project_id?: number;
   }) {
     return this.prisma.over_times_history.create({
-      data,
-    });
-  }
-
-  async update(
-    id: number,
-    data: Partial<{
-      start_time: Date;
-      end_time: Date;
-      total_hours: number;
-      hourly_rate: number | null;
-      total_amount: number | null;
-    }>,
-  ) {
-    return this.prisma.over_times_history.update({
-      where: { id },
       data,
     });
   }
@@ -38,7 +21,6 @@ export class OvertimeDetailService {
     data: Partial<{
       start_time: Date;
       end_time: Date;
-      total_hours: number;
       project_id: number;
     }>,
   ) {
@@ -51,9 +33,6 @@ export class OvertimeDetailService {
   async findOvertimeByRequestId(request_id: number) {
     return this.prisma.over_times_history.findUnique({
       where: { request_id },
-      include: {
-        project: true,
-      },
     });
   }
 }

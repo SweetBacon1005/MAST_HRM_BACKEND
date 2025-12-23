@@ -374,35 +374,34 @@ export class TimesheetService {
         approved_by: true,
         day_off: {
           select: {
-            id: true,
+            request_id: true,
             type: true,
             duration: true,
           },
         },
         overtime: {
           select: {
-            id: true,
+            request_id: true,
             start_time: true,
             end_time: true,
-            total_hours: true,
           },
         },
         remote_work_request: {
           select: {
-            id: true,
+            request_id: true,
             remote_type: true,
           },
         },
         late_early_request: {
           select: {
-            id: true,
+            request_id: true,
             late_minutes: true,
             early_minutes: true,
           },
         },
         forgot_checkin_request: {
           select: {
-            id: true,
+            request_id: true,
             checkin_time: true,
             checkout_time: true,
           },
@@ -583,7 +582,7 @@ export class TimesheetService {
 
     const remote: RemoteType = ip_validation.has_approved_remote_request
       ? ip_validation.is_office_network
-        ? 'HYBRID'
+        ? 'REMOTE'
         : 'REMOTE'
       : 'OFFICE';
 
@@ -1803,10 +1802,14 @@ export class TimesheetService {
     const totallate_minutes = 0;
     const totalearly_minutes = 0; // REMOVED
 
-    const totalOvertimeHours = overtimeRequests.reduce(
-      (sum, req) => sum + (req.overtime?.total_hours || 0),
-      0,
-    );
+    const totalOvertimeHours = overtimeRequests.reduce((sum, req) => {
+      if (req.overtime?.start_time && req.overtime?.end_time) {
+        const startMinutes = req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes();
+        const endMinutes = req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes();
+        return sum + (endMinutes - startMinutes) / 60;
+      }
+      return sum;
+    }, 0);
     const overtimeCount = overtimeRequests.length;
 
     let paidLeaveDays = 0;
@@ -2297,7 +2300,10 @@ export class TimesheetService {
       })),
       ...overtimeRequests.map((req) => ({
         ...req,
-        duration_hours: req.overtime?.total_hours || 0,
+        duration_hours: req.overtime?.start_time && req.overtime?.end_time
+          ? ((req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes()) - 
+             (req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes())) / 60
+          : 0,
         request_type: AttendanceRequestType.OVERTIME,
         start_time: req.overtime?.start_time?.toTimeString().slice(0, 5),
         end_time: req.overtime?.end_time?.toTimeString().slice(0, 5),
@@ -2448,12 +2454,10 @@ export class TimesheetService {
   }
 
   async getLateEarlyBalance(user_id: number) {
-    // Tính tổng phút muộn + sớm từ các requests đã được APPROVE trong tháng hiện tại
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    // Lấy các LATE_EARLY requests đã được APPROVE
     const approvedLateEarlyRequests =
       await this.attendanceRequestService.findMany({
         user_id,
@@ -2463,7 +2467,6 @@ export class TimesheetService {
         deleted_at: null,
       });
 
-    // Tính tổng phút đi muộn và về sớm
     const usedLateMinutes = approvedLateEarlyRequests.reduce((total, req) => {
       return total + (req.late_early_request?.late_minutes || 0);
     }, 0);
