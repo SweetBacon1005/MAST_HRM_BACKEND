@@ -364,4 +364,237 @@ describe('RequestsService', () => {
       await expect(service.deleteRequest(1, 1)).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('createOvertimeRequest', () => {
+    it('nên tạo đơn làm thêm giờ thành công', async () => {
+      const createDto: CreateOvertimeRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        start_time: '18:00',
+        end_time: '20:00',
+        title: 'Làm thêm giờ',
+        reason: 'Hoàn thành dự án',
+      };
+      const mockUser = { id: 1 };
+      const mockTimesheet = { id: 1 };
+      const mockAttendanceRequest = {
+        id: 1,
+        user_id: 1,
+        work_date: new Date(createDto.work_date),
+        request_type: 'OVERTIME',
+        status: ApprovalStatus.PENDING,
+        overtime: {
+          start_time: new Date(`1970-01-01T${createDto.start_time}:00Z`),
+          end_time: new Date(`1970-01-01T${createDto.end_time}:00Z`),
+        },
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockPrismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      mockAttendanceRequestService.createAttendanceRequest.mockResolvedValue({
+        id: 1,
+        timesheet_id: 1,
+      });
+      mockOvertimeDetailService.createOvertimeDetail.mockResolvedValue({});
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockAttendanceRequest);
+
+      const result = await service.createOvertimeRequest(createDto);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(1);
+      expect(result.start_time).toBeDefined();
+    });
+
+    it('nên throw BadRequestException khi thời gian làm thêm trùng với giờ làm việc', async () => {
+      const createDto: CreateOvertimeRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        start_time: '10:00',
+        end_time: '12:00',
+        title: 'Test',
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue({ id: 1 });
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+
+      await expect(service.createOvertimeRequest(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('createLateEarlyRequest', () => {
+    it('nên tạo đơn đi muộn/về sớm thành công', async () => {
+      const createDto: CreateLateEarlyRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        request_type: 'LATE',
+        late_minutes: 30,
+        title: 'Đi muộn',
+        reason: 'Kẹt xe',
+      };
+      const mockUser = { id: 1 };
+      const mockTimesheet = { id: 1 };
+      const mockAttendanceRequest = {
+        id: 1,
+        user_id: 1,
+        work_date: new Date(createDto.work_date),
+        request_type: 'LATE_EARLY',
+        status: ApprovalStatus.PENDING,
+        late_early_request: {
+          request_type: 'LATE',
+          late_minutes: 30,
+        },
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockTimesheetService.validateRequestQuota.mockResolvedValue(undefined);
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockPrismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      mockAttendanceRequestService.createAttendanceRequest.mockResolvedValue({
+        id: 1,
+        timesheet_id: 1,
+      });
+      mockLateEarlyDetailService.createLateEarlyDetail.mockResolvedValue({});
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockAttendanceRequest);
+
+      const result = await service.createLateEarlyRequest(createDto);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(1);
+      expect(result.late_minutes).toBe(30);
+    });
+  });
+
+  describe('createForgotCheckinRequest', () => {
+    it('nên tạo đơn bổ sung chấm công thành công', async () => {
+      const createDto: CreateForgotCheckinRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        checkin_time: '08:30',
+        checkout_time: '17:30',
+        title: 'Bổ sung chấm công',
+        reason: 'Quên chấm công',
+      };
+      const mockUser = { id: 1 };
+      const mockTimesheet = { id: 1 };
+      const mockAttendanceRequest = {
+        id: 1,
+        user_id: 1,
+        work_date: new Date(createDto.work_date),
+        request_type: 'FORGOT_CHECKIN',
+        status: ApprovalStatus.PENDING,
+        forgot_checkin_request: {
+          checkin_time: new Date(`${createDto.work_date} ${createDto.checkin_time}`),
+          checkout_time: new Date(`${createDto.work_date} ${createDto.checkout_time}`),
+        },
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockTimesheetService.validateRequestQuota.mockResolvedValue(undefined);
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockPrismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      mockAttendanceRequestService.createAttendanceRequest.mockResolvedValue({
+        id: 1,
+        timesheet_id: 1,
+      });
+      mockForgotCheckinDetailService.createForgotCheckinDetail.mockResolvedValue({});
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockAttendanceRequest);
+
+      const result = await service.createForgotCheckinRequest(createDto);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBe(1);
+      expect(result.checkin_time).toBeDefined();
+    });
+  });
+
+  describe('getMyRequestsStats', () => {
+    it('nên lấy thống kê requests của tôi thành công', async () => {
+      const user_id = 1;
+      const mockRequests = [
+        {
+          id: 1,
+          user_id: 1,
+          request_type: 'REMOTE_WORK',
+          status: ApprovalStatus.PENDING,
+        },
+        {
+          id: 2,
+          user_id: 1,
+          request_type: 'DAY_OFF',
+          status: ApprovalStatus.APPROVED,
+        },
+      ];
+
+      mockAttendanceRequestService.findMany.mockResolvedValue(mockRequests);
+
+      const result = await service.getMyRequestsStats(user_id);
+
+      expect(result.total).toBeDefined();
+      expect(result.pending).toBeDefined();
+      expect(result.approved).toBeDefined();
+      expect(result.rejected).toBeDefined();
+    });
+  });
+
+  describe('getMyLeaveBalance', () => {
+    it('nên lấy số dư phép của tôi thành công', async () => {
+      const user_id = 1;
+      const mockBalance = {
+        paid_leave_balance: 10,
+        unpaid_leave_balance: 5,
+      };
+
+      mockLeaveBalanceService.getLeaveBalanceStats.mockResolvedValue(mockBalance);
+
+      const result = await service.getMyLeaveBalance(user_id);
+
+      expect(result).toEqual(mockBalance);
+    });
+  });
+
+  describe('checkLeaveBalanceAvailability', () => {
+    it('nên kiểm tra số dư phép có đủ', async () => {
+      const user_id = 1;
+      const leaveType = DayOffType.PAID;
+      const requestedDays = 5;
+      const mockBalance = {
+        paid_leave_balance: 10,
+        unpaid_leave_balance: 5,
+      };
+
+      mockLeaveBalanceService.getOrCreateLeaveBalance.mockResolvedValue(mockBalance);
+
+      const result = await service.checkLeaveBalanceAvailability(
+        user_id,
+        leaveType,
+        requestedDays,
+      );
+
+      expect(result.available).toBe(true);
+      expect(result.current_balance).toBe(10);
+    });
+
+    it('nên kiểm tra số dư phép không đủ', async () => {
+      const user_id = 1;
+      const leaveType = DayOffType.PAID;
+      const requestedDays = 15;
+      const mockBalance = {
+        paid_leave_balance: 10,
+        unpaid_leave_balance: 5,
+      };
+
+      mockLeaveBalanceService.getOrCreateLeaveBalance.mockResolvedValue(mockBalance);
+
+      const result = await service.checkLeaveBalanceAvailability(
+        user_id,
+        leaveType,
+        requestedDays,
+      );
+
+      expect(result.available).toBe(false);
+    });
+  });
 });

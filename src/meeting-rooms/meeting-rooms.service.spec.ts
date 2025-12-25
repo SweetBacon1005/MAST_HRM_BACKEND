@@ -111,6 +111,48 @@ describe('MeetingRoomsService', () => {
       expect(result.data).toHaveLength(1);
       expect(result.pagination.total).toBe(total);
     });
+
+    it('nên lọc theo search', async () => {
+      const query: RoomPaginationDto = {
+        page: 1,
+        limit: 10,
+        search: 'Phòng A',
+      };
+
+      mockPrismaService.rooms.findMany.mockResolvedValue([]);
+      mockPrismaService.rooms.count.mockResolvedValue(0);
+
+      await service.findAllRooms(query);
+
+      expect(mockPrismaService.rooms.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: { contains: 'Phòng A' },
+          }),
+        }),
+      );
+    });
+
+    it('nên lọc theo is_active', async () => {
+      const query: RoomPaginationDto = {
+        page: 1,
+        limit: 10,
+        is_active: true,
+      };
+
+      mockPrismaService.rooms.findMany.mockResolvedValue([]);
+      mockPrismaService.rooms.count.mockResolvedValue(0);
+
+      await service.findAllRooms(query);
+
+      expect(mockPrismaService.rooms.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            is_active: true,
+          }),
+        }),
+      );
+    });
   });
 
   describe('findOneRoom', () => {
@@ -276,6 +318,112 @@ describe('MeetingRoomsService', () => {
         BadRequestException,
       );
     });
+
+    it('nên throw BadRequestException khi thời gian đặt phòng vượt quá 4 giờ', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '14:00', // 5 giờ
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.createBooking(1, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi phòng đã được đặt trong khoảng thời gian đó', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+      const existingBooking = {
+        id: 1,
+        room_id: 1,
+        start_time: new Date(`${bookingDate}T09:30:00`),
+        end_time: new Date(`${bookingDate}T10:30:00`),
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          $queryRaw: jest.fn(),
+          room_bookings: {
+            findFirst: jest.fn().mockResolvedValueOnce(existingBooking), // Overlapping booking
+          },
+        };
+        return callback(tx);
+      });
+
+      await expect(service.createBooking(1, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi organizer đã có lịch trùng', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const user_id = 1;
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+      const conflictingBooking = {
+        id: 1,
+        organizer_id: user_id,
+        start_time: new Date(`${bookingDate}T09:30:00`),
+        end_time: new Date(`${bookingDate}T10:30:00`),
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+      mockPrismaService.$transaction.mockImplementation(async (callback) => {
+        const tx = {
+          $queryRaw: jest.fn(),
+          room_bookings: {
+            findFirst: jest
+              .fn()
+              .mockResolvedValueOnce(null) // No room conflict
+              .mockResolvedValueOnce(conflictingBooking), // Organizer conflict
+          },
+        };
+        return callback(tx);
+      });
+
+      await expect(service.createBooking(user_id, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   describe('findAllBookings', () => {
@@ -297,6 +445,33 @@ describe('MeetingRoomsService', () => {
       mockPrismaService.room_bookings.count.mockResolvedValue(total);
 
       const result = await service.findAllBookings(query);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(total);
+    });
+  });
+
+  describe('findMyBookings', () => {
+    it('nên lấy danh sách lịch đặt phòng của tôi', async () => {
+      const user_id = 1;
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockBookings = [
+        {
+          id: 1,
+          title: 'Họp team',
+          organizer_id: user_id,
+          room: { id: 1, name: 'Phòng A' },
+        },
+      ];
+      const total = 1;
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue(mockBookings);
+      mockPrismaService.room_bookings.count.mockResolvedValue(total);
+
+      const result = await service.findMyBookings(user_id, query);
 
       expect(result.data).toHaveLength(1);
       expect(result.pagination.total).toBe(total);
@@ -378,6 +553,47 @@ describe('MeetingRoomsService', () => {
       mockPrismaService.room_bookings.findFirst.mockResolvedValue(existingBooking);
 
       await expect(service.updateBooking(1, 1, {})).rejects.toThrow(ForbiddenException);
+    });
+
+    it('nên throw BadRequestException khi cập nhật với thời gian trùng với booking khác', async () => {
+      const id = 1;
+      const user_id = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const updateBookingDto: UpdateBookingDto = {
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date(`${bookingDate}T08:00:00`),
+        end_time: new Date(`${bookingDate}T09:00:00`),
+      };
+      const mockRoom = {
+        id: 1,
+        is_active: true,
+      };
+      const overlappingBooking = {
+        id: 2,
+        room_id: 1,
+        start_time: new Date(`${bookingDate}T09:30:00`),
+        end_time: new Date(`${bookingDate}T10:30:00`),
+      };
+
+      mockPrismaService.room_bookings.findFirst
+        .mockResolvedValueOnce(existingBooking)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(overlappingBooking);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.updateBooking(id, user_id, updateBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 

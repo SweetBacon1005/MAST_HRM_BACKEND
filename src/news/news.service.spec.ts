@@ -15,8 +15,6 @@ jest.mock('isomorphic-dompurify', () => ({
 
 describe('NewsService', () => {
   let service: NewsService;
-  let prismaService: PrismaService;
-  let notificationsService: NotificationsService;
 
   const mockPrismaService = {
     news: {
@@ -55,8 +53,6 @@ describe('NewsService', () => {
     }).compile();
 
     service = module.get<NewsService>(NewsService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    notificationsService = module.get<NotificationsService>(NotificationsService);
   });
 
   afterEach(() => {
@@ -146,6 +142,71 @@ describe('NewsService', () => {
           where: expect.objectContaining({
             status: NewsStatus.PENDING,
           }),
+        }),
+      );
+    });
+
+    it('nên lọc theo author_id', async () => {
+      const paginationDto: NewsPaginationDto = {
+        page: 1,
+        limit: 10,
+        author_id: 1,
+      };
+
+      mockPrismaService.news.findMany.mockResolvedValue([]);
+      mockPrismaService.news.count.mockResolvedValue(0);
+
+      await service.findAll(paginationDto);
+
+      expect(mockPrismaService.news.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            author_id: 1,
+          }),
+        }),
+      );
+    });
+
+    it('nên tìm kiếm theo search', async () => {
+      const paginationDto: NewsPaginationDto = {
+        page: 1,
+        limit: 10,
+        search: 'test',
+      };
+
+      mockPrismaService.news.findMany.mockResolvedValue([]);
+      mockPrismaService.news.count.mockResolvedValue(0);
+
+      await service.findAll(paginationDto);
+
+      expect(mockPrismaService.news.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { title: { contains: 'test' } },
+              { content: { contains: 'test' } },
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('nên sắp xếp theo title', async () => {
+      const paginationDto: NewsPaginationDto = {
+        page: 1,
+        limit: 10,
+        sort_by: 'title',
+        sort_order: 'asc',
+      };
+
+      mockPrismaService.news.findMany.mockResolvedValue([]);
+      mockPrismaService.news.count.mockResolvedValue(0);
+
+      await service.findAll(paginationDto);
+
+      expect(mockPrismaService.news.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { title: 'asc' },
         }),
       );
     });
@@ -251,6 +312,37 @@ describe('NewsService', () => {
       await expect(
         service.update(1, { title: 'New' }, 1),
       ).rejects.toThrow(NEWS_ERRORS.CANNOT_UPDATE_STATUS);
+    });
+
+    it('nên sanitize content khi cập nhật', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateNewsDto: UpdateNewsDto = {
+        content: '<script>alert("xss")</script><p>Safe content</p>',
+      };
+      const existingNews = {
+        id,
+        author_id: user_id,
+        status: NewsStatus.DRAFT,
+        content: 'Old content',
+      };
+      const updatedNews = {
+        ...existingNews,
+        ...updateNewsDto,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(existingNews);
+      mockPrismaService.news.update.mockResolvedValue(updatedNews);
+
+      await service.update(id, updateNewsDto, user_id);
+
+      expect(mockPrismaService.news.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            content: expect.any(String),
+          }),
+        }),
+      );
     });
   });
 
@@ -385,6 +477,30 @@ describe('NewsService', () => {
       await expect(
         service.approveOrReject(1, 'APPROVED', 1),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('nên xử lý lỗi khi tạo notification thất bại', async () => {
+      const id = 1;
+      const reviewerId = 2;
+      const existingNews = {
+        id,
+        status: NewsStatus.PENDING,
+        title: 'Tin tức',
+      };
+      const updatedNews = {
+        ...existingNews,
+        status: NewsStatus.APPROVED,
+        reviewer_id: reviewerId,
+        approved_at: new Date(),
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(existingNews);
+      mockPrismaService.news.update.mockResolvedValue(updatedNews);
+      mockNotificationsService.create.mockRejectedValue(new Error('Notification error'));
+
+      const result = await service.approveOrReject(id, 'APPROVED', reviewerId);
+
+      expect(result.status).toBe(NewsStatus.APPROVED);
     });
   });
 

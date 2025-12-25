@@ -362,4 +362,240 @@ describe('UserProfileService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('updateEducation', () => {
+    it('nên cập nhật thông tin học vấn thành công', async () => {
+      const educationId = 1;
+      const updateDto = {
+        user_id: 1,
+        name: 'Đại học (cập nhật)',
+        major: 'Công nghệ thông tin',
+      };
+      const existingEducation = {
+        id: educationId,
+        user_info_id: 1,
+      };
+      const updatedEducation = {
+        ...existingEducation,
+        ...updateDto,
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findFirst.mockResolvedValue(existingEducation);
+      mockPrismaService.education.update.mockResolvedValue(updatedEducation);
+
+      const result = await service.updateEducation(educationId, updateDto);
+
+      expect(result).toEqual(updatedEducation);
+    });
+
+    it('nên throw NotFoundException khi không tìm thấy education', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateEducation(999, { user_id: 1, name: 'Test' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteEducation', () => {
+    it('nên xóa thông tin học vấn thành công', async () => {
+      const educationId = 1;
+      const user_id = 1;
+      const existingEducation = {
+        id: educationId,
+        user_info_id: 1,
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: user_id,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findFirst.mockResolvedValue(existingEducation);
+      mockPrismaService.education.update.mockResolvedValue({
+        ...existingEducation,
+        deleted_at: new Date(),
+      });
+
+      const result = await service.deleteEducation(educationId, user_id);
+
+      expect(result.message).toBe('Xóa thông tin học vấn thành công');
+    });
+  });
+
+  describe('updateExperience', () => {
+    it('nên cập nhật thông tin kinh nghiệm thành công', async () => {
+      const experienceId = 1;
+      const updateDto = {
+        user_id: 1,
+        job_title: 'Senior Developer',
+        company: 'Company B',
+      };
+      const existingExperience = {
+        id: experienceId,
+        user_info_id: 1,
+      };
+      const updatedExperience = {
+        ...existingExperience,
+        ...updateDto,
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findFirst.mockResolvedValue(existingExperience);
+      mockPrismaService.experience.update.mockResolvedValue(updatedExperience);
+
+      const result = await service.updateExperience(experienceId, updateDto);
+
+      expect(result).toEqual(updatedExperience);
+    });
+  });
+
+  describe('deleteExperience', () => {
+    it('nên xóa thông tin kinh nghiệm thành công', async () => {
+      const experienceId = 1;
+      const user_id = 1;
+      const existingExperience = {
+        id: experienceId,
+        user_info_id: 1,
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: user_id,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findFirst.mockResolvedValue(existingExperience);
+      mockPrismaService.experience.update.mockResolvedValue({
+        ...existingExperience,
+        deleted_at: new Date(),
+      });
+
+      const result = await service.deleteExperience(experienceId, user_id);
+
+      expect(result.message).toBe('Xóa thông tin kinh nghiệm thành công');
+    });
+  });
+
+  describe('updateUserSkill', () => {
+    it('nên cập nhật user skill thành công', async () => {
+      const userskill_id = 1;
+      const updateDto = {
+        user_id: 1,
+        skill_id: 1,
+        experience: 5,
+      };
+      const existingUserSkill = {
+        id: userskill_id,
+        user_info_id: 1,
+      };
+      const mockSkill = { id: 1, name: 'JavaScript' };
+      const updatedUserSkill = {
+        ...existingUserSkill,
+        ...updateDto,
+        skill: mockSkill,
+      };
+
+      mockPrismaService.user_skills.findFirst.mockResolvedValue(existingUserSkill);
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.skills.findFirst.mockResolvedValue(mockSkill);
+      mockPrismaService.user_skills.update.mockResolvedValue(updatedUserSkill);
+
+      const result = await service.updateUserSkill(userskill_id, updateDto);
+
+      expect(result).toEqual(updatedUserSkill);
+    });
+
+    it('nên throw ForbiddenException khi không phải owner', async () => {
+      const existingUserSkill = {
+        id: 1,
+        user_info_id: 2,
+      };
+
+      mockPrismaService.user_skills.findFirst.mockResolvedValue(existingUserSkill);
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+
+      await expect(
+        service.updateUserSkill(1, { user_id: 1, skill_id: 1 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('deleteUserSkill', () => {
+    it('nên xóa user skill thành công', async () => {
+      const userskill_id = 1;
+      const user_id = 1;
+      const existingUserSkill = {
+        id: userskill_id,
+        user_info_id: 1,
+      };
+
+      mockPrismaService.user_skills.findFirst.mockResolvedValue(existingUserSkill);
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: user_id,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.user_skills.update.mockResolvedValue({
+        ...existingUserSkill,
+        deleted_at: new Date(),
+      });
+
+      const result = await service.deleteUserSkill(userskill_id, user_id);
+
+      expect(result.message).toBe('Xóa thông tin kỹ năng thành công');
+    });
+  });
+
+  describe('getSkillsByPosition', () => {
+    it('nên lấy danh sách skills theo position', async () => {
+      const position_id = 1;
+      const mockSkills = [
+        { id: 1, name: 'JavaScript', position_id },
+        { id: 2, name: 'TypeScript', position_id },
+      ];
+
+      mockPrismaService.skills.findMany.mockResolvedValue(mockSkills);
+
+      const result = await service.getSkillsByPosition(position_id);
+
+      expect(result).toEqual(mockSkills);
+    });
+  });
+
+  describe('updateAvatar', () => {
+    it('nên cập nhật avatar thành công', async () => {
+      const user_id = 1;
+      const avatarUrl = 'https://example.com/avatar.jpg';
+      const mockUser = {
+        id: user_id,
+        user_information: { id: 1 },
+      };
+      const updatedUser = {
+        ...mockUser,
+        user_information: { ...mockUser.user_information, avatar: avatarUrl },
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockPrismaService.users.update.mockResolvedValue(updatedUser);
+
+      const result = await service.updateAvatar(user_id, avatarUrl);
+
+      expect(result.avatar_url).toBe(avatarUrl);
+      expect(result.message).toBe('Cập nhật avatar thành công');
+    });
+  });
 });
