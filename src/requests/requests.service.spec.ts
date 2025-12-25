@@ -1,365 +1,367 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { RequestsService } from './requests.service';
 import { PrismaService } from '../database/prisma.service';
 import { LeaveBalanceService } from '../leave-management/services/leave-balance.service';
-import { PermissionCheckerService } from '../auth/services/permission-checker.service';
-import { ActivityLogService } from '../common/services/activity-log.service';
+import { TimesheetService } from '../timesheet/timesheet.service';
 import { RoleAssignmentService } from '../auth/services/role-assignment.service';
-import { DayOffDuration, DayOffType, LateEarlyType, RemoteType } from '@prisma/client';
+import { AttendanceRequestService } from './services/attendance-request.service';
+import { DayOffDetailService } from './services/day-off-detail.service';
+import { RemoteWorkDetailService } from './services/remote-work-detail.service';
+import { LateEarlyDetailService } from './services/late-early-detail.service';
+import { ForgotCheckinDetailService } from './services/forgot-checkin-detail.service';
+import { OvertimeDetailService } from './services/overtime-detail.service';
+import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
+import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
+import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
+import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
+import { ApprovalStatus, DayOffDuration, DayOffType, RemoteType } from '@prisma/client';
+import { REQUEST_ERRORS, USER_ERRORS } from '../common/constants/error-messages.constants';
+import { AuthorizationContext } from '../auth/services/authorization-context.service';
+import { RequestType } from './interfaces/request.interface';
 
 describe('RequestsService', () => {
   let service: RequestsService;
+  let prismaService: PrismaService;
+  let attendanceRequestService: AttendanceRequestService;
+  let leaveBalanceService: LeaveBalanceService;
+  let timesheetService: TimesheetService;
+
+  const mockPrismaService = {
+    users: {
+      findFirst: jest.fn(),
+    },
+    time_sheets: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    attendance_requests: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
+  };
+
+  const mockAttendanceRequestService = {
+    checkDuplicateRequest: jest.fn(),
+    findMany: jest.fn(),
+    createAttendanceRequest: jest.fn(),
+    findOne: jest.fn(),
+    approve: jest.fn(),
+    reject: jest.fn(),
+    update: jest.fn(),
+    softDelete: jest.fn(),
+  };
+
+  const mockLeaveBalanceService = {
+    getOrCreateLeaveBalance: jest.fn(),
+    getLeaveBalanceStats: jest.fn(),
+    deductLeaveBalance: jest.fn(),
+    refundLeaveBalance: jest.fn(),
+  };
+
+  const mockTimesheetService = {
+    validateRequestQuota: jest.fn(),
+    updateTimesheetCompleteStatus: jest.fn(),
+  };
+
+  const mockRoleAssignmentService = {
+    getUserRoles: jest.fn(),
+  };
+
+  const mockDayOffDetailService = {
+    createDayOffDetail: jest.fn(),
+    updateDayOffDetail: jest.fn(),
+  };
+
+  const mockRemoteWorkDetailService = {
+    createRemoteWorkDetail: jest.fn(),
+    updateRemoteWorkDetail: jest.fn(),
+  };
+
+  const mockLateEarlyDetailService = {
+    createLateEarlyDetail: jest.fn(),
+    updateLateEarlyDetail: jest.fn(),
+  };
+
+  const mockForgotCheckinDetailService = {
+    createForgotCheckinDetail: jest.fn(),
+    updateForgotCheckinDetail: jest.fn(),
+  };
+
+  const mockOvertimeDetailService = {
+    createOvertimeDetail: jest.fn(),
+    updateOvertimeDetail: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn(),
+  };
 
   beforeEach(async () => {
-    const mockPrismaService = {
-      users: { findFirst: jest.fn() },
-      remote_work_requests: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        findMany: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn(),
-      },
-      day_offs: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        findMany: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn(),
-      },
-      over_times_history: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        findMany: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn(),
-      },
-      late_early_requests: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        findMany: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn(),
-      },
-      forgot_checkin_requests: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        findMany: jest.fn(),
-        update: jest.fn(),
-        count: jest.fn(),
-      },
-      time_sheets: { 
-        findFirst: jest.fn(), 
-        create: jest.fn(), 
-        update: jest.fn() 
-      },
-      projects: { findFirst: jest.fn() },
-      user_information: { findFirst: jest.fn() },
-      user_role_assignment: { findMany: jest.fn() },
-      $transaction: jest.fn((callback) => callback(mockPrismaService)),
-    };
-
-    const mockLeaveBalanceService = {
-      getOrCreateLeaveBalance: jest.fn(),
-      getLeaveBalanceStats: jest.fn(),
-      getLeaveTransactionHistory: jest.fn(),
-      deductLeaveBalance: jest.fn(),
-      refundLeaveBalance: jest.fn(),
-    };
-
-    const mockPermissionChecker = {
-      createUserContext: jest.fn(),
-      canAccessRequest: jest.fn(),
-    };
-
-    const mockActivityLogService = {
-      logRequestCreated: jest.fn(),
-      logRequestUpdated: jest.fn(),
-      logRequestDeleted: jest.fn(),
-      logRequestView: jest.fn(),
-    };
-
-    const mockRoleAssignmentService = {
-      getUserRoles: jest.fn(),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RequestsService,
-        { provide: PrismaService, useValue: mockPrismaService },
-        { provide: LeaveBalanceService, useValue: mockLeaveBalanceService },
-        { provide: PermissionCheckerService, useValue: mockPermissionChecker },
-        { provide: ActivityLogService, useValue: mockActivityLogService },
-        { provide: RoleAssignmentService, useValue: mockRoleAssignmentService },
+        {
+          provide: PrismaService,
+          useValue: mockPrismaService,
+        },
+        {
+          provide: LeaveBalanceService,
+          useValue: mockLeaveBalanceService,
+        },
+        {
+          provide: TimesheetService,
+          useValue: mockTimesheetService,
+        },
+        {
+          provide: RoleAssignmentService,
+          useValue: mockRoleAssignmentService,
+        },
+        {
+          provide: AttendanceRequestService,
+          useValue: mockAttendanceRequestService,
+        },
+        {
+          provide: DayOffDetailService,
+          useValue: mockDayOffDetailService,
+        },
+        {
+          provide: RemoteWorkDetailService,
+          useValue: mockRemoteWorkDetailService,
+        },
+        {
+          provide: LateEarlyDetailService,
+          useValue: mockLateEarlyDetailService,
+        },
+        {
+          provide: ForgotCheckinDetailService,
+          useValue: mockForgotCheckinDetailService,
+        },
+        {
+          provide: OvertimeDetailService,
+          useValue: mockOvertimeDetailService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
+        },
       ],
     }).compile();
 
     service = module.get<RequestsService>(RequestsService);
+    prismaService = module.get<PrismaService>(PrismaService);
+    attendanceRequestService = module.get<AttendanceRequestService>(AttendanceRequestService);
+    leaveBalanceService = module.get<LeaveBalanceService>(LeaveBalanceService);
+    timesheetService = module.get<TimesheetService>(TimesheetService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('should have getAllRequests method', () => {
-    expect(service.getAllRequests).toBeDefined();
-  });
+  describe('createRemoteWorkRequest', () => {
+    it('nên tạo đơn làm việc từ xa thành công', async () => {
+      const createDto: CreateRemoteWorkRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        remote_type: RemoteType.REMOTE,
+        duration: DayOffDuration.FULL_DAY,
+        title: 'Làm việc từ xa',
+        reason: 'Có việc gia đình',
+      };
+      const mockUser = { id: 1 };
+      const mockTimesheet = { id: 1, user_id: 1, work_date: new Date(createDto.work_date) };
+      const mockAttendanceRequest = {
+        id: 1,
+        user_id: 1,
+        work_date: new Date(createDto.work_date),
+        request_type: 'REMOTE_WORK',
+        status: ApprovalStatus.PENDING,
+        remote_work_request: {
+          remote_type: RemoteType.REMOTE,
+          duration: DayOffDuration.FULL_DAY,
+        },
+      };
 
-  it('should have createRemoteWorkRequest method', () => {
-    expect(service.createRemoteWorkRequest).toBeDefined();
-  });
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockAttendanceRequestService.findMany.mockResolvedValue([]);
+      mockPrismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      mockAttendanceRequestService.createAttendanceRequest.mockResolvedValue({
+        id: 1,
+        timesheet_id: 1,
+      });
+      mockRemoteWorkDetailService.createRemoteWorkDetail.mockResolvedValue({});
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockAttendanceRequest);
 
-  it('should have createDayOffRequest method', () => {
-    expect(service.createDayOffRequest).toBeDefined();
-  });
+      const result = await service.createRemoteWorkRequest(createDto);
 
-  it('should have createOvertimeRequest method', () => {
-    expect(service.createOvertimeRequest).toBeDefined();
-  });
+      expect(result).toBeDefined();
+      expect(result.remote_type).toBe(RemoteType.REMOTE);
+    });
 
-  it('should have createLateEarlyRequest method', () => {
-    expect(service.createLateEarlyRequest).toBeDefined();
-  });
+    it('nên throw NotFoundException khi user không tồn tại', async () => {
+      mockPrismaService.users.findFirst.mockResolvedValue(null);
 
-  it('should have createForgotCheckinRequest method', () => {
-    expect(service.createForgotCheckinRequest).toBeDefined();
-  });
+      await expect(
+        service.createRemoteWorkRequest({
+          user_id: 999,
+          work_date: '2024-12-20',
+          remote_type: RemoteType.REMOTE,
+          duration: DayOffDuration.FULL_DAY,
+          title: 'Test',
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
 
-  it('should have approveRequest method', () => {
-    expect(service.approveRequest).toBeDefined();
-  });
+    it('nên throw BadRequestException khi đã có request trùng', async () => {
+      const createDto: CreateRemoteWorkRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        remote_type: RemoteType.REMOTE,
+        duration: DayOffDuration.FULL_DAY,
+        title: 'Test',
+      };
 
-  it('should have rejectRequest method', () => {
-    expect(service.rejectRequest).toBeDefined();
-  });
+      mockPrismaService.users.findFirst.mockResolvedValue({ id: 1 });
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(true);
 
-  it('should have getAllMyRequests method', () => {
-    expect(service.getAllMyRequests).toBeDefined();
-  });
-
-  // Basic validation tests
-  describe('Service Methods', () => {
-    it('should have all required methods', () => {
-      expect(service.createRemoteWorkRequest).toBeDefined();
-      expect(service.createDayOffRequest).toBeDefined();
-      expect(service.createOvertimeRequest).toBeDefined();
-      expect(service.createLateEarlyRequest).toBeDefined();
-      expect(service.createForgotCheckinRequest).toBeDefined();
-      expect(service.approveRequest).toBeDefined();
-      expect(service.rejectRequest).toBeDefined();
-      expect(service.getAllRequests).toBeDefined();
-      expect(service.getAllMyRequests).toBeDefined();
-      expect(service.getMyLeaveBalance).toBeDefined();
-      expect(service.getAllRequests).toBeDefined();
-      expect(service.getAllMyRequests).toBeDefined();
-      
-      // Update methods
-      expect(service.updateRemoteWorkRequest).toBeDefined();
-      expect(service.updateDayOffRequest).toBeDefined();
-      expect(service.updateOvertimeRequest).toBeDefined();
-      expect(service.updateLateEarlyRequest).toBeDefined();
-      expect(service.updateForgotCheckinRequest).toBeDefined();
-      
-      // Delete method
-      expect(service.deleteRequest).toBeDefined();
+      await expect(service.createRemoteWorkRequest(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
-  describe('Update Methods', () => {
-    let mockPrismaService: any;
-    let mockActivityLogService: any;
+  describe('createDayOffRequest', () => {
+    it('nên tạo đơn nghỉ phép thành công', async () => {
+      const createDto: CreateDayOffRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        duration: DayOffDuration.FULL_DAY,
+        type: DayOffType.PAID,
+        title: 'Nghỉ phép',
+        reason: 'Có việc riêng',
+      };
+      const mockUser = { id: 1 };
+      const mockLeaveBalance = {
+        paid_leave_balance: 10,
+        unpaid_leave_balance: 5,
+      };
+      const mockTimesheet = { id: 1 };
+      const mockAttendanceRequest = {
+        id: 1,
+        user_id: 1,
+        work_date: new Date(createDto.work_date),
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.PENDING,
+        day_off: {
+          duration: DayOffDuration.FULL_DAY,
+          type: DayOffType.PAID,
+        },
+      };
 
-    beforeEach(() => {
-      mockPrismaService = (service as any).prisma;
-      mockActivityLogService = (service as any).activityLogService;
+      mockPrismaService.users.findFirst.mockResolvedValue(mockUser);
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockLeaveBalanceService.getOrCreateLeaveBalance.mockResolvedValue(mockLeaveBalance);
+      mockPrismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      mockAttendanceRequestService.createAttendanceRequest.mockResolvedValue({
+        id: 1,
+        timesheet_id: 1,
+      });
+      mockDayOffDetailService.createDayOffDetail.mockResolvedValue({});
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockAttendanceRequest);
+
+      const result = await service.createDayOffRequest(createDto);
+
+      expect(result).toBeDefined();
+      expect(result.type).toBe(DayOffType.PAID);
     });
 
-    describe('updateRemoteWorkRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue(null);
+    it('nên throw BadRequestException khi không đủ số dư phép', async () => {
+      const createDto: CreateDayOffRequestDto = {
+        user_id: 1,
+        work_date: '2024-12-20',
+        duration: DayOffDuration.FULL_DAY,
+        type: DayOffType.PAID,
+        title: 'Nghỉ phép',
+      };
+      const mockLeaveBalance = {
+        paid_leave_balance: 0,
+      };
 
-        await expect(
-          service.updateRemoteWorkRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            remote_type: RemoteType.OFFICE, 
-            duration: 'FULL_DAY',
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu làm việc từ xa');
-      });
+      mockPrismaService.users.findFirst.mockResolvedValue({ id: 1 });
+      mockAttendanceRequestService.checkDuplicateRequest.mockResolvedValue(false);
+      mockLeaveBalanceService.getOrCreateLeaveBalance.mockResolvedValue(mockLeaveBalance);
 
-      it('should throw ForbiddenException when user is not owner', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue({
-          id: 1,
-          user_id: 2,
-          status: 'REJECTED',
-        });
-
-        await expect(
-          service.updateRemoteWorkRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            remote_type: RemoteType.OFFICE, 
-            duration: DayOffDuration.FULL_DAY,
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không có quyền thực hiện hành động này');
-      });
-
-      it('should throw BadRequestException when status is not REJECTED', async () => {
-        mockPrismaService.remote_work_requests.findFirst.mockResolvedValue({
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        });
-
-        await expect(
-          service.updateRemoteWorkRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            remote_type: RemoteType.OFFICE, 
-            duration: DayOffDuration.FULL_DAY,
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Yêu cầu chỉ được cập nhật khi ở trạng thái BỊ TỪ CHỐI');
-      });
-    });
-
-    describe('updateDayOffRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.day_offs.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.updateDayOffRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            duration: DayOffDuration.FULL_DAY,
-            type: DayOffType.PAID,
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không tìm thấy đơn nghỉ phép');
-      });
-    });
-
-    describe('updateOvertimeRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.over_times_history.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.updateOvertimeRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            start_time: '18:00',
-            end_time: '20:00',
-            project_id: 1,
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không tìm thấy đơn làm thêm giờ');
-      });
-    });
-
-    describe('updateLateEarlyRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.late_early_requests.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.updateLateEarlyRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            request_type: LateEarlyType.LATE,
-            late_minutes: 30,
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu');
-      });
-    });
-
-    describe('updateForgotCheckinRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        mockPrismaService.forgot_checkin_requests.findFirst.mockResolvedValue(null);
-
-        await expect(
-          service.updateForgotCheckinRequest(1, { 
-            user_id: 1, 
-            work_date: '2024-01-15', 
-            checkin_time: '08:00',
-            checkout_time: '17:00',
-            title: 'Test',
-            reason: 'Test'
-          }, 1)
-        ).rejects.toThrow('Không tìm thấy yêu cầu');
-      });
+      await expect(service.createDayOffRequest(createDto)).rejects.toThrow(BadRequestException);
     });
   });
 
-  describe('Delete Methods', () => {
-    let mockPrismaService: any;
-    let mockActivityLogService: any;
-
-    beforeEach(() => {
-      mockPrismaService = (service as any).prisma;
-      mockActivityLogService = (service as any).activityLogService;
-    });
-
-    describe('deleteRequest', () => {
-      it('should throw NotFoundException when request not found', async () => {
-        (service as any).attendanceRequestService.findOne.mockResolvedValue(null);
-
-        await expect(
-          service.deleteRequest(1, 1)
-        ).rejects.toThrow(NotFoundException);
-      });
-
-      it('should throw ForbiddenException when user is not owner', async () => {
-        (service as any).attendanceRequestService.findOne.mockResolvedValue({
-          id: 1,
-          user_id: 2,
-          status: 'PENDING',
-        });
-
-        await expect(
-          service.deleteRequest(1, 1)
-        ).rejects.toThrow(ForbiddenException);
-      });
-
-      it('should throw BadRequestException when status is not PENDING', async () => {
-        (service as any).attendanceRequestService.findOne.mockResolvedValue({
+  describe('getAllMyRequests', () => {
+    it('nên lấy danh sách requests của tôi thành công', async () => {
+      const user_id = 1;
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockRequests = [
+        {
           id: 1,
           user_id: 1,
-          status: 'APPROVED',
-        });
+          request_type: 'REMOTE_WORK',
+          status: ApprovalStatus.PENDING,
+          remote_work_request: {
+            remote_type: RemoteType.REMOTE,
+          },
+        },
+      ];
 
-        await expect(
-          service.deleteRequest(1, 1)
-        ).rejects.toThrow(BadRequestException);
-      });
+      mockAttendanceRequestService.findMany.mockResolvedValue(mockRequests);
 
-      it('should successfully delete request', async () => {
-        const mockRequest = {
-          id: 1,
-          user_id: 1,
-          status: 'PENDING',
-        };
+      const result = await service.getAllMyRequests(user_id, paginationDto);
 
-        (service as any).attendanceRequestService.findOne.mockResolvedValue(mockRequest);
-        (service as any).attendanceRequestService.softDelete.mockResolvedValue({
-          ...mockRequest,
-          deleted_at: new Date(),
-        });
+      expect(result.data).toBeDefined();
+      expect(result.pagination).toBeDefined();
+    });
+  });
 
-        const result = await service.deleteRequest(1, 1);
+  describe('deleteRequest', () => {
+    it('nên xóa request thành công', async () => {
+      const id = 1;
+      const user_id = 1;
+      const mockRequest = {
+        id,
+        user_id,
+        status: ApprovalStatus.PENDING,
+      };
 
-        expect(result.success).toBe(true);
-        expect((service as any).attendanceRequestService.softDelete).toHaveBeenCalledWith(1);
-      });
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockRequest);
+      mockAttendanceRequestService.softDelete.mockResolvedValue({});
+
+      const result = await service.deleteRequest(id, user_id);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('nên throw NotFoundException khi không tìm thấy request', async () => {
+      mockAttendanceRequestService.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteRequest(999, 1)).rejects.toThrow(NotFoundException);
+    });
+
+    it('nên throw ForbiddenException khi không phải owner', async () => {
+      const mockRequest = {
+        id: 1,
+        user_id: 2,
+        status: ApprovalStatus.PENDING,
+      };
+
+      mockAttendanceRequestService.findOne.mockResolvedValue(mockRequest);
+
+      await expect(service.deleteRequest(1, 1)).rejects.toThrow(ForbiddenException);
     });
   });
 });
