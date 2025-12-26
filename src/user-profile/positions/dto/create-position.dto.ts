@@ -13,13 +13,6 @@ export class CreatePositionDto {
   name: string;
 
   @ApiProperty({
-    description: 'ID của level',
-    example: 1,
-  })
-  @IsNumber()
-  level_id: number;
-
-  @ApiProperty({
     description: 'Mô tả vị trí',
     example: 'Phát triển phần mềm',
     required: false,

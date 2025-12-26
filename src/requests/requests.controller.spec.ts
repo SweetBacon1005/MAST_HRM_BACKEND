@@ -1,19 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
-import { RequestsController } from './requests.controller';
-import { RequestsService } from './requests.service';
-import { AuthorizationContextService } from '../auth/services/authorization-context.service';
-import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
-import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
-import { CreateOvertimeRequestDto } from '../timesheet/dto/create-overtime-request.dto';
-import { CreateLateEarlyRequestDto } from './dto/create-late-early-request.dto';
-import { CreateForgotCheckinRequestDto } from './dto/create-forgot-checkin-request.dto';
-import { RequestPaginationDto } from './dto/request-pagination.dto';
-import { RemoteType, DayOffDuration, DayOffType, ApprovalStatus } from '@prisma/client';
+import {
+  ApprovalStatus,
+  AttendanceRequestType,
+  DayOffDuration,
+  DayOffType,
+  RemoteType,
+} from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionGuard } from '../auth/guards/permission.guard';
-import { AuthorizationContext } from '../auth/services/authorization-context.service';
-import { RequestType } from './interfaces/request.interface';
+import {
+  AuthorizationContext,
+  AuthorizationContextService,
+} from '../auth/services/authorization-context.service';
+import { CreateDayOffRequestDto } from '../timesheet/dto/create-day-off-request.dto';
+import { CreateRemoteWorkRequestDto } from './dto/create-remote-work-request.dto';
+import { RequestPaginationDto } from './dto/request-pagination.dto';
+import { RequestsController } from './requests.controller';
+import { RequestsService } from './requests.service';
 
 describe('RequestsController', () => {
   let controller: RequestsController;
@@ -94,9 +97,14 @@ describe('RequestsController', () => {
         status: ApprovalStatus.PENDING,
       };
 
-      mockRequestsService.createRemoteWorkRequest.mockResolvedValue(mockRequest);
+      mockRequestsService.createRemoteWorkRequest.mockResolvedValue(
+        mockRequest,
+      );
 
-      const result = await controller.createRemoteWorkRequest(createDto, user_id);
+      const result = await controller.createRemoteWorkRequest(
+        createDto,
+        user_id,
+      );
 
       expect(service.createRemoteWorkRequest).toHaveBeenCalledWith(createDto);
       expect(result).toEqual(mockRequest);
@@ -112,6 +120,7 @@ describe('RequestsController', () => {
         duration: DayOffDuration.FULL_DAY,
         type: DayOffType.PAID,
         title: 'Nghỉ phép',
+        reason: 'Lý do nghỉ phép',
       };
       const mockRequest = {
         id: 1,
@@ -156,14 +165,17 @@ describe('RequestsController', () => {
 
       const result = await controller.getAllMyRequests(user_id, paginationDto);
 
-      expect(service.getAllMyRequests).toHaveBeenCalledWith(user_id, paginationDto);
+      expect(service.getAllMyRequests).toHaveBeenCalledWith(
+        user_id,
+        paginationDto,
+      );
       expect(result).toEqual(mockResult);
     });
   });
 
   describe('approveRequest', () => {
     it('nên duyệt request thành công', async () => {
-      const type = RequestType.DAY_OFF;
+      const type = AttendanceRequestType.DAY_OFF;
       const id = 1;
       const user = { id: 2 };
       const mockAuthContext = {
@@ -179,19 +191,25 @@ describe('RequestsController', () => {
         },
       };
 
-      mockAuthorizationContextService.createContext.mockResolvedValue(mockAuthContext);
+      mockAuthorizationContextService.createContext.mockResolvedValue(
+        mockAuthContext,
+      );
       mockRequestsService.approveRequest.mockResolvedValue(mockResult);
 
       const result = await controller.approveRequest(type, id, user);
 
-      expect(service.approveRequest).toHaveBeenCalledWith(type, id, mockAuthContext);
+      expect(service.approveRequest).toHaveBeenCalledWith(
+        type,
+        id,
+        mockAuthContext,
+      );
       expect(result).toEqual(mockResult);
     });
   });
 
   describe('rejectRequest', () => {
     it('nên từ chối request thành công', async () => {
-      const type = 'day-off' as RequestType;
+      const type = 'day-off';
       const id = 1;
       const user = { id: 2 };
       const rejectedReason = 'Không có lý do chính đáng';
@@ -208,12 +226,24 @@ describe('RequestsController', () => {
         },
       };
 
-      mockAuthorizationContextService.createContext.mockResolvedValue(mockAuthContext);
+      mockAuthorizationContextService.createContext.mockResolvedValue(
+        mockAuthContext,
+      );
       mockRequestsService.rejectRequest.mockResolvedValue(mockResult);
 
-      const result = await controller.rejectRequest(type, id, user, rejectedReason);
+      const result = await controller.rejectRequest(
+        type,
+        id,
+        user,
+        rejectedReason,
+      );
 
-      expect(service.rejectRequest).toHaveBeenCalledWith(type, id, mockAuthContext, rejectedReason);
+      expect(service.rejectRequest).toHaveBeenCalledWith(
+        type,
+        id,
+        mockAuthContext,
+        rejectedReason,
+      );
       expect(result).toEqual(mockResult);
     });
   });
@@ -236,4 +266,3 @@ describe('RequestsController', () => {
     });
   });
 });
-

@@ -105,6 +105,7 @@ describe('UserProfileController', () => {
         major: 'Công nghệ thông tin',
         start_date: '2020-01-01',
         end_date: '2024-01-01',
+        description: 'Description',
       };
       const mockEducation = {
         id: 1,
@@ -151,6 +152,7 @@ describe('UserProfileController', () => {
         user_id,
         skill_id: 1,
         experience: 3,
+        months_experience: 36,
       };
       const mockUserSkill = {
         id: 1,

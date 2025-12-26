@@ -32,7 +32,19 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:timesheet": "jest --testPathPatterns=timesheet",
+    "test:meeting-rooms": "jest --testPathPatterns=meeting-rooms",
+    "test:news": "jest --testPathPatterns=news",
+    "test:requests": "jest --testPathPatterns=requests",
+    "test:user-profile": "jest --testPathPatterns=user-profile",
+    "test:modules": "jest --testPathPatterns=\"(timesheet|meeting-rooms|news|requests|user-profile)\"",
+    "test:cov:timesheet": "jest --testPathPatterns=timesheet --coverage --coverageReporters=text --coverageReporters=text-summary",
+    "test:cov:meeting-rooms": "jest --testPathPatterns=meeting-rooms --coverage --coverageReporters=text --coverageReporters=text-summary",
+    "test:cov:news": "jest --testPathPatterns=news --coverage --coverageReporters=text --coverageReporters=text-summary",
+    "test:cov:requests": "jest --testPathPatterns=requests --coverage --coverageReporters=text --coverageReporters=text-summary",
+    "test:cov:user-profile": "jest --testPathPatterns=user-profile --coverage --coverageReporters=text --coverageReporters=text-summary",
+    "test:cov:modules": "jest --config jest.coverage.config.js --testPathPatterns=\"(timesheet|meeting-rooms|news|requests|user-profile)\" --coverage --coverageReporters=html --coverageReporters=text --coverageReporters=text-summary"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

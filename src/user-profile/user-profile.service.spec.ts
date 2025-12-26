@@ -24,41 +24,50 @@ describe('UserProfileService', () => {
       update: jest.fn(),
       create: jest.fn(),
     },
-    positions: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-    },
-    languages: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-    },
-    skills: {
-      findFirst: jest.fn(),
-      create: jest.fn(),
-      findMany: jest.fn(),
-      update: jest.fn(),
-    },
-    education: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      update: jest.fn(),
-    },
-    experience: {
-      create: jest.fn(),
-      findMany: jest.fn(),
-      findFirst: jest.fn(),
-      update: jest.fn(),
-    },
+      positions: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      languages: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      skills: {
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      education: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
+      experience: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        count: jest.fn(),
+      },
     user_skills: {
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+      count: jest.fn(),
     },
     user_role_assignment: {
       findFirst: jest.fn(),
@@ -167,6 +176,7 @@ describe('UserProfileService', () => {
         major: 'Công nghệ thông tin',
         start_date: '2020-01-01',
         end_date: '2024-01-01',
+        description: 'Description',
       };
       const mockUser = {
         id: 1,
@@ -196,6 +206,7 @@ describe('UserProfileService', () => {
           major: 'Test',
           start_date: '2020-01-01',
           end_date: '2024-01-01',
+          description: 'Description',
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -236,6 +247,7 @@ describe('UserProfileService', () => {
         skill_id: 1,
         experience: 3,
         is_main: true,
+        months_experience: 3,
       };
       const mockSkill = { id: 1, name: 'JavaScript' };
       const mockUser = {
@@ -266,6 +278,7 @@ describe('UserProfileService', () => {
           user_id: 1,
           skill_id: 999,
           experience: 3,
+          months_experience: 3,
         }),
       ).rejects.toThrow(NotFoundException);
     });
@@ -596,6 +609,523 @@ describe('UserProfileService', () => {
 
       expect(result.avatar_url).toBe(avatarUrl);
       expect(result.message).toBe('Cập nhật avatar thành công');
+    });
+
+    it('nên throw NotFoundException khi không tìm thấy user', async () => {
+      mockPrismaService.users.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateAvatar(999, 'https://example.com/avatar.jpg')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('getEducations - Lấy danh sách học vấn', () => {
+    it('nên trả về danh sách học vấn', async () => {
+      const mockEducations = [
+        {
+          id: 1,
+          name: 'Đại học',
+          major: 'Công nghệ thông tin',
+          start_date: new Date('2020-01-01'),
+          end_date: new Date('2024-01-01'),
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findMany.mockResolvedValue(mockEducations);
+
+      const result = await service.getEducations(1);
+
+      expect(result).toEqual(mockEducations);
+    });
+
+    it('nên trả về mảng rỗng khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getEducations(999);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getEducationsPaginated - Lấy danh sách học vấn có phân trang', () => {
+    it('nên trả về danh sách học vấn có phân trang', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockEducations = [
+        {
+          id: 1,
+          name: 'Đại học',
+          major: 'Công nghệ thông tin',
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findMany.mockResolvedValue(mockEducations);
+      mockPrismaService.education.count.mockResolvedValue(1);
+
+      const result = await service.getEducationsPaginated(1, paginationDto);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+    });
+
+    it('nên lọc theo name', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+        name: 'Đại học',
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findMany.mockResolvedValue([]);
+      mockPrismaService.education.count.mockResolvedValue(0);
+
+      await service.getEducationsPaginated(1, paginationDto);
+
+      expect(mockPrismaService.education.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: expect.objectContaining({
+              contains: 'Đại học',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('nên trả về empty khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getEducationsPaginated(999, { page: 1, limit: 10 });
+
+      expect(result.data).toEqual([]);
+      expect(result.pagination.total).toBe(0);
+    });
+  });
+
+  describe('getExperiences - Lấy danh sách kinh nghiệm', () => {
+    it('nên trả về danh sách kinh nghiệm', async () => {
+      const mockExperiences = [
+        {
+          id: 1,
+          job_title: 'Developer',
+          company: 'Company A',
+          start_date: new Date('2020-01-01'),
+          end_date: new Date('2024-01-01'),
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findMany.mockResolvedValue(mockExperiences);
+
+      const result = await service.getExperiences(1);
+
+      expect(result).toEqual(mockExperiences);
+    });
+
+    it('nên trả về mảng rỗng khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getExperiences(999);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getExperiencesPaginated - Lấy danh sách kinh nghiệm có phân trang', () => {
+    it('nên trả về danh sách kinh nghiệm có phân trang', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockExperiences = [
+        {
+          id: 1,
+          job_title: 'Developer',
+          company: 'Company A',
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findMany.mockResolvedValue(mockExperiences);
+      mockPrismaService.experience.count.mockResolvedValue(1);
+
+      const result = await service.getExperiencesPaginated(1, paginationDto);
+
+      expect(result).toBeDefined();
+      if ('data' in result && 'pagination' in result) {
+        expect((result as any).data).toHaveLength(1);
+        expect((result as any).pagination.total).toBe(1);
+      }
+    });
+
+    it('nên lọc theo company_name', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+        company_name: 'Company A',
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findMany.mockResolvedValue([]);
+      mockPrismaService.experience.count.mockResolvedValue(0);
+
+      await service.getExperiencesPaginated(1, paginationDto);
+
+      expect(mockPrismaService.experience.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            company: expect.objectContaining({
+              contains: 'Company A',
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('nên trả về empty object khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getExperiencesPaginated(999, { page: 1, limit: 10 });
+
+      expect(result).toEqual({});
+      expect((result as any).data).toBeUndefined();
+    });
+  });
+
+  describe('getUserSkills - Lấy danh sách kỹ năng của user', () => {
+    it('nên trả về danh sách kỹ năng', async () => {
+      const mockUserSkills = [
+        {
+          id: 1,
+          skill_id: 1,
+          experience: 3,
+          skill: { id: 1, name: 'JavaScript' },
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.user_skills.findMany.mockResolvedValue(mockUserSkills);
+
+      const result = await service.getUserSkills(1);
+
+      expect(result).toEqual(mockUserSkills);
+    });
+
+    it('nên trả về mảng rỗng khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getUserSkills(999);
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getUserSkillsPaginated - Lấy danh sách kỹ năng có phân trang', () => {
+    it('nên trả về danh sách kỹ năng có phân trang', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockUserSkills = [
+        {
+          id: 1,
+          skill_id: 1,
+          experience: 3,
+          skill: { id: 1, name: 'JavaScript' },
+        },
+      ];
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.user_skills.findMany.mockResolvedValue(mockUserSkills);
+      mockPrismaService.user_skills.count.mockResolvedValue(1);
+
+      const result = await service.getUserSkillsPaginated(1, paginationDto);
+
+      expect(result.data).toHaveLength(1);
+    });
+
+    it('nên lọc theo skill_id', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+        skill_id: 1,
+      };
+
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.user_skills.findMany.mockResolvedValue([]);
+      mockPrismaService.user_skills.count.mockResolvedValue(0);
+
+      await service.getUserSkillsPaginated(1, paginationDto);
+
+      expect(mockPrismaService.user_skills.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            skill_id: { equals: 1 },
+          }),
+        }),
+      );
+    });
+
+    it('nên trả về empty khi không có user_information', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue(null);
+
+      const result = await service.getUserSkillsPaginated(999, { page: 1, limit: 10 });
+
+      expect(result.data).toEqual([]);
+    });
+  });
+
+  describe('getUserCertificatesPaginated - Lấy danh sách chứng chỉ có phân trang', () => {
+    it('nên trả về danh sách chứng chỉ rỗng', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+
+      const result = await service.getUserCertificatesPaginated(1, paginationDto);
+
+      expect(result.data).toEqual([]);
+      expect(result.pagination.total).toBe(0);
+    });
+  });
+
+  describe('getPositions - Lấy tất cả positions', () => {
+    it('nên trả về danh sách positions', async () => {
+      const mockPositions = [
+        { id: 1, name: 'Developer' },
+        { id: 2, name: 'Manager' },
+      ];
+
+      mockPrismaService.positions.findMany.mockResolvedValue(mockPositions);
+
+      const result = await service.getPositions();
+
+      expect(result).toEqual(mockPositions);
+    });
+  });
+
+  describe('getLanguages - Lấy tất cả languages', () => {
+    it('nên trả về danh sách languages', async () => {
+      const mockLanguages = [
+        { id: 1, name: 'Vietnamese' },
+        { id: 2, name: 'English' },
+      ];
+
+      mockPrismaService.languages.findMany.mockResolvedValue(mockLanguages);
+
+      const result = await service.getLanguages();
+
+      expect(result).toEqual(mockLanguages);
+    });
+  });
+
+  describe('getPositionsPaginated - Lấy danh sách positions có phân trang', () => {
+    it('nên trả về danh sách positions có phân trang', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockPositions = [{ id: 1, name: 'Developer' }];
+
+      mockPrismaService.positions.findMany.mockResolvedValue(mockPositions);
+      mockPrismaService.positions.count.mockResolvedValue(1);
+
+      const result = await service.getPositionsPaginated(paginationDto);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+    });
+
+    it('nên lọc theo search', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+        search: 'Developer',
+      };
+
+      mockPrismaService.positions.findMany.mockResolvedValue([]);
+      mockPrismaService.positions.count.mockResolvedValue(0);
+
+      await service.getPositionsPaginated(paginationDto);
+
+      expect(mockPrismaService.positions.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: expect.objectContaining({
+              contains: 'Developer',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('getLanguagesPaginated - Lấy danh sách languages có phân trang', () => {
+    it('nên trả về danh sách languages có phân trang', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+      };
+      const mockLanguages = [{ id: 1, name: 'Vietnamese' }];
+
+      mockPrismaService.languages.findMany.mockResolvedValue(mockLanguages);
+      mockPrismaService.languages.count.mockResolvedValue(1);
+
+      const result = await service.getLanguagesPaginated(paginationDto);
+
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
+    });
+
+    it('nên lọc theo search', async () => {
+      const paginationDto = {
+        page: 1,
+        limit: 10,
+        search: 'Vietnamese',
+      };
+
+      mockPrismaService.languages.findMany.mockResolvedValue([]);
+      mockPrismaService.languages.count.mockResolvedValue(0);
+
+      await service.getLanguagesPaginated(paginationDto);
+
+      expect(mockPrismaService.languages.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            name: expect.objectContaining({
+              contains: 'Vietnamese',
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateUserInformation - Edge cases', () => {
+    it('nên throw NotFoundException khi position không tồn tại', async () => {
+      const updateDto: UpdateUserInformationDto = {
+        name: 'Updated Name',
+        position_id: 999,
+        language_id: 1,
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.positions.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateUserInformation(1, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('nên throw NotFoundException khi language không tồn tại', async () => {
+      const updateDto: UpdateUserInformationDto = {
+        name: 'Updated Name',
+        position_id: 1,
+        language_id: 999,
+      };
+
+      mockPrismaService.users.findFirst.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.positions.findFirst.mockResolvedValue({ id: 1, name: 'Developer' });
+      mockPrismaService.languages.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateUserInformation(1, updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('deleteEducation - Edge cases', () => {
+    it('nên throw NotFoundException khi không tìm thấy education', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.education.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteEducation(999, 1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteExperience - Edge cases', () => {
+    it('nên throw NotFoundException khi không tìm thấy experience', async () => {
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+      mockPrismaService.experience.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteExperience(999, 1)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('deleteUserSkill - Edge cases', () => {
+    it('nên throw NotFoundException khi không tìm thấy user skill', async () => {
+      mockPrismaService.user_skills.findFirst.mockResolvedValue(null);
+
+      await expect(service.deleteUserSkill(999, 1)).rejects.toThrow(NotFoundException);
+    });
+
+    it('nên throw ForbiddenException khi không phải owner', async () => {
+      const existingUserSkill = {
+        id: 1,
+        user_info_id: 2,
+      };
+
+      mockPrismaService.user_skills.findFirst.mockResolvedValue(existingUserSkill);
+      mockPrismaService.users.findUnique.mockResolvedValue({
+        id: 1,
+        user_information: { id: 1 },
+      });
+
+      await expect(service.deleteUserSkill(1, 1)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getSkillsByPosition - Edge cases', () => {
+    it('nên trả về mảng rỗng khi không có skills', async () => {
+      mockPrismaService.skills.findMany.mockResolvedValue([]);
+
+      const result = await service.getSkillsByPosition(999);
+
+      expect(result).toEqual([]);
     });
   });
 });

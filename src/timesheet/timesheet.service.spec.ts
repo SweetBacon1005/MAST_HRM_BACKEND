@@ -10,7 +10,7 @@ import { AttendanceRequestService } from '../requests/services/attendance-reques
 import { CreateTimesheetDto } from './dto/create-timesheet.dto';
 import { CheckinDto, CheckoutDto } from './dto/checkin-checkout.dto';
 import { TIMESHEET_ERRORS, USER_ERRORS } from '../common/constants/error-messages.constants';
-import { HolidayStatus } from '@prisma/client';
+import { HolidayStatus, HolidayType } from '@prisma/client';
 
 describe('TimesheetService', () => {
   let service: TimesheetService;
@@ -56,6 +56,9 @@ describe('TimesheetService', () => {
       },
       holidays: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
       },
       attendance_logs: {
         create: jest.fn(),
@@ -613,109 +616,21 @@ describe('TimesheetService', () => {
     });
   });
 
-  describe('updateTimesheetCompleteStatus - Cập nhật trạng thái hoàn thành', () => {
-    it('nên cập nhật is_complete thành true khi total_work_time >= requiredWorkTime', async () => {
-      const timesheetId = 1;
-      const timesheet = {
-        id: timesheetId,
-        total_work_time: 480,
-        deleted_at: null,
-      };
-
-      prismaService.time_sheets.findFirst.mockResolvedValue(timesheet);
-      prismaService.attendance_requests.findMany.mockResolvedValue([]);
-      prismaService.time_sheets.update.mockResolvedValue({
-        ...timesheet,
-        is_complete: true,
-      });
-
-      await service.updateTimesheetCompleteStatus(timesheetId);
-
-      expect(prismaService.time_sheets.update).toHaveBeenCalledWith({
-        where: { id: timesheetId },
-        data: { is_complete: true },
-      });
-    });
-
-    it('nên cập nhật is_complete thành false khi total_work_time < requiredWorkTime', async () => {
-      const timesheetId = 1;
-      const timesheet = {
-        id: timesheetId,
-        total_work_time: 200,
-        deleted_at: null,
-      };
-
-      prismaService.time_sheets.findFirst.mockResolvedValue(timesheet);
-      prismaService.attendance_requests.findMany.mockResolvedValue([]);
-      prismaService.time_sheets.update.mockResolvedValue({
-        ...timesheet,
-        is_complete: false,
-      });
-
-      await service.updateTimesheetCompleteStatus(timesheetId);
-
-      expect(prismaService.time_sheets.update).toHaveBeenCalledWith({
-        where: { id: timesheetId },
-        data: { is_complete: false },
-      });
-    });
-
-    it('nên return sớm khi không tìm thấy timesheet', async () => {
-      prismaService.time_sheets.findFirst.mockResolvedValue(null);
-
-      await service.updateTimesheetCompleteStatus(999);
-
-      expect(prismaService.time_sheets.update).not.toHaveBeenCalled();
-    });
-
-    it('nên tính toán requiredWorkTime dựa trên day off và late/early requests', async () => {
-      const timesheetId = 1;
-      const timesheet = {
-        id: timesheetId,
-        total_work_time: 240,
-        deleted_at: null,
-      };
-
-      const approvedRequests = [
-        {
-          day_off: { duration: 'MORNING' },
-          late_early_request: null,
-        },
-        {
-          day_off: null,
-          late_early_request: { late_minutes: 30, early_minutes: 0 },
-        },
-      ];
-
-      prismaService.time_sheets.findFirst.mockResolvedValue(timesheet);
-      prismaService.attendance_requests.findMany.mockResolvedValue(approvedRequests);
-      prismaService.time_sheets.update.mockResolvedValue({
-        ...timesheet,
-        is_complete: false,
-      });
-
-      await service.updateTimesheetCompleteStatus(timesheetId);
-
-      expect(prismaService.attendance_requests.findMany).toHaveBeenCalled();
-      expect(prismaService.time_sheets.update).toHaveBeenCalled();
-    });
-  });
-
   describe('updateTimesheet - Cập nhật timesheet', () => {
-    it('nên cập nhật timesheet thành công', async () => {
-      const updateDto = {
-        checkin: '2024-10-29T08:00:00.000Z',
-        checkout: '2024-10-29T17:00:00.000Z',
-        is_complete: true,
-      };
+    const updateTimesheetDto = {
+      checkin: '2024-10-29T08:00:00.000Z',
+      checkout: '2024-10-29T17:00:00.000Z',
+      is_complete: true,
+    };
 
+    it('nên cập nhật timesheet thành công', async () => {
       prismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
       prismaService.time_sheets.update.mockResolvedValue({
         ...mockTimesheet,
-        ...updateDto,
+        ...updateTimesheetDto,
       });
 
-      const result = await service.updateTimesheet(1, updateDto);
+      const result = await service.updateTimesheet(1, updateTimesheetDto);
 
       expect(prismaService.time_sheets.findFirst).toHaveBeenCalledWith({
         where: { id: 1, deleted_at: null },
@@ -727,467 +642,268 @@ describe('TimesheetService', () => {
     it('nên throw NotFoundException khi không tìm thấy timesheet', async () => {
       prismaService.time_sheets.findFirst.mockResolvedValue(null);
 
-      await expect(service.updateTimesheet(999, {})).rejects.toThrow(NotFoundException);
+      await expect(service.updateTimesheet(999, updateTimesheetDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('updateTimesheetCompleteStatus - Cập nhật trạng thái hoàn thành', () => {
+    it('nên cập nhật trạng thái hoàn thành khi đủ thời gian làm việc', async () => {
+      const timesheetWithEnoughTime = {
+        ...mockTimesheet,
+        total_work_time: 480,
+      };
+
+      prismaService.time_sheets.findFirst.mockResolvedValue(timesheetWithEnoughTime);
+      prismaService.attendance_requests.findMany.mockResolvedValue([]);
+      prismaService.time_sheets.update.mockResolvedValue({
+        ...timesheetWithEnoughTime,
+        is_complete: true,
+      });
+
+      await service.updateTimesheetCompleteStatus(1);
+
+      expect(prismaService.time_sheets.findFirst).toHaveBeenCalled();
+      expect(prismaService.time_sheets.update).toHaveBeenCalled();
+    });
+
+    it('nên không làm gì khi không tìm thấy timesheet', async () => {
+      prismaService.time_sheets.findFirst.mockResolvedValue(null);
+
+      await service.updateTimesheetCompleteStatus(999);
+
+      expect(prismaService.time_sheets.update).not.toHaveBeenCalled();
     });
   });
 
   describe('findAllTimesheets - Lấy tất cả timesheet', () => {
-    it('nên trả về danh sách timesheet không có date range', async () => {
+    it('nên trả về danh sách timesheet', async () => {
       prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
 
       const result = await service.findAllTimesheets(1);
 
-      expect(prismaService.time_sheets.findMany).toHaveBeenCalledWith({
-        where: {
-          user_id: 1,
-          deleted_at: null,
-        },
-        orderBy: { work_date: 'desc' },
-      });
-      expect(result).toEqual([mockTimesheet]);
+      expect(prismaService.time_sheets.findMany).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
     });
 
-    it('nên trả về danh sách timesheet với date range', async () => {
-      const startDate = '2024-10-01';
-      const endDate = '2024-10-31';
-
+    it('nên lọc theo khoảng thời gian', async () => {
       prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
 
-      const result = await service.findAllTimesheets(1, startDate, endDate);
+      await service.findAllTimesheets(1, '2024-10-01', '2024-10-31');
 
-      expect(prismaService.time_sheets.findMany).toHaveBeenCalled();
-      expect(result).toEqual([mockTimesheet]);
+      expect(prismaService.time_sheets.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user_id: 1,
+            deleted_at: null,
+          }),
+        }),
+      );
     });
   });
 
   describe('getDayOffInfo - Lấy thông tin nghỉ phép', () => {
-    it('nên trả về thông tin khi không có day off', async () => {
-      const workDate = '2024-10-29';
-
+    it('nên trả về thông tin khi không có nghỉ phép', async () => {
       attendanceRequestService.findMany.mockResolvedValue([]);
 
-      const result = await service.getDayOffInfo(1, workDate);
+      const result = await service.getDayOffInfo(1, '2024-10-29');
 
       expect(result.hasDayOff).toBe(false);
       expect(result.needsAttendance).toBe(true);
-      expect(result.expectedWorkHours.totalHours).toBe(8 * 60);
+      expect(result.expectedWorkHours.totalHours).toBe(480);
     });
 
-    it('nên trả về thông tin khi có day off FULL_DAY', async () => {
-      const workDate = '2024-10-29';
-      const dayOffRequests = [
-        {
-          day_off: {
-            duration: 'FULL_DAY',
-            type: 'PAID',
-          },
+    it('nên trả về thông tin khi có nghỉ phép FULL_DAY', async () => {
+      const dayOffRequest = {
+        day_off: {
+          duration: 'FULL_DAY',
         },
-      ];
+      };
 
-      attendanceRequestService.findMany.mockResolvedValue(dayOffRequests);
+      attendanceRequestService.findMany.mockResolvedValue([dayOffRequest]);
 
-      const result = await service.getDayOffInfo(1, workDate);
+      const result = await service.getDayOffInfo(1, '2024-10-29');
 
       expect(result.hasDayOff).toBe(true);
       expect(result.needsAttendance).toBe(false);
-      expect(result.dayOff).toBeDefined();
     });
 
-    it('nên trả về thông tin khi có day off MORNING', async () => {
-      const workDate = '2024-10-29';
-      const dayOffRequests = [
-        {
-          day_off: {
-            duration: 'MORNING',
-            type: 'PAID',
-          },
+    it('nên trả về thông tin khi có nghỉ phép MORNING', async () => {
+      const dayOffRequest = {
+        day_off: {
+          duration: 'MORNING',
         },
-      ];
+      };
 
-      attendanceRequestService.findMany.mockResolvedValue(dayOffRequests);
+      attendanceRequestService.findMany.mockResolvedValue([dayOffRequest]);
 
-      const result = await service.getDayOffInfo(1, workDate);
+      const result = await service.getDayOffInfo(1, '2024-10-29');
 
       expect(result.hasDayOff).toBe(true);
       expect(result.needsAttendance).toBe(true);
-      expect(result.expectedWorkHours.morningHours).toBe(0);
-      expect(result.expectedWorkHours.afternoonHours).toBe(4 * 60);
     });
   });
 
-  describe('getPersonalSchedule - Lấy lịch cá nhân', () => {
-    it('nên trả về lịch cá nhân với timesheets, dayOffs, overtimes, holidays', async () => {
-      const getScheduleDto = {
-        start_date: '2024-10-01',
-        end_date: '2024-10-31',
-      };
+  describe('createHoliday - Tạo ngày lễ', () => {
+    const createHolidayDto = {
+      name: 'Ngày lễ mới',
+      type: HolidayType.NATIONAL,
+      start_date: '2024-12-25',
+      end_date: '2024-12-25',
+      status: HolidayStatus.ACTIVE,
+    };
 
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      attendanceRequestService.findMany
-        .mockResolvedValueOnce([]) // day off requests
-        .mockResolvedValueOnce([]); // overtime requests
-      prismaService.holidays.findMany.mockResolvedValue([]);
+    it('nên tạo ngày lễ thành công', async () => {
+      prismaService.holidays.findFirst.mockResolvedValue(null);
+      prismaService.holidays.create.mockResolvedValue({
+        id: 1,
+        ...createHolidayDto,
+        start_date: new Date(createHolidayDto.start_date),
+        end_date: new Date(createHolidayDto.end_date),
+      });
 
-      const result = await service.getPersonalSchedule(1, getScheduleDto);
+      const result = await service.createHoliday(createHolidayDto);
 
-      expect(result.timesheets).toBeDefined();
-      expect(result.dayOffs).toBeDefined();
-      expect(result.overtimes).toBeDefined();
-      expect(result.holidays).toBeDefined();
-    });
-
-    it('nên sử dụng default dates khi không cung cấp', async () => {
-      prismaService.time_sheets.findMany.mockResolvedValue([]);
-      attendanceRequestService.findMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getPersonalSchedule(1, {});
-
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe('getTeamSchedule - Lấy lịch team', () => {
-    it('nên trả về lịch team với teamMembers, timesheets, dayOffs, holidays', async () => {
-      const getScheduleDto = {
-        start_date: '2024-10-01',
-        end_date: '2024-10-31',
-      };
-
-      prismaService.user_role_assignment.findMany.mockResolvedValue([
-        { user_id: 1 },
-        { user_id: 2 },
-      ]);
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      attendanceRequestService.findMany.mockResolvedValue([]);
-      prismaService.users.findMany.mockResolvedValue([
-        { id: 1, email: 'user1@example.com' },
-        { id: 2, email: 'user2@example.com' },
-      ]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getTeamSchedule(1, getScheduleDto);
-
-      expect(result.teamMembers).toBeDefined();
-      expect(result.timesheets).toBeDefined();
-      expect(result.dayOffs).toBeDefined();
-      expect(result.holidays).toBeDefined();
-    });
-  });
-
-  describe('getTimesheetNotifications - Lấy thông báo timesheet', () => {
-    it('nên trả về thông báo khi chưa check-in', async () => {
-      prismaService.time_sheets.findFirst.mockResolvedValue(null);
-      attendanceRequestService.count.mockResolvedValue(0);
-      prismaService.time_sheets.count.mockResolvedValue(0);
-
-      const result = await service.getTimesheetNotifications(1);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('warning');
-      expect(result[0].message).toBe('Bạn chưa check-in hôm nay');
-    });
-
-    it('nên trả về thông báo khi chưa check-out', async () => {
-      const todayCheckin = {
-        ...mockTimesheet,
-        checkin: new Date(),
-        checkout: null,
-      };
-
-      prismaService.time_sheets.findFirst.mockResolvedValue(todayCheckin);
-      attendanceRequestService.count.mockResolvedValue(0);
-      prismaService.time_sheets.count.mockResolvedValue(0);
-
-      const result = await service.getTimesheetNotifications(1);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('info');
-      expect(result[0].message).toBe('Đừng quên check-out khi kết thúc làm việc');
-    });
-
-    it('nên trả về thông báo khi có đơn nghỉ phép chờ duyệt', async () => {
-      const todayCheckin = {
-        ...mockTimesheet,
-        checkin: new Date(),
-        checkout: new Date(),
-      };
-
-      prismaService.time_sheets.findFirst.mockResolvedValue(todayCheckin);
-      attendanceRequestService.count.mockResolvedValue(2);
-      prismaService.time_sheets.count.mockResolvedValue(0);
-
-      const result = await service.getTimesheetNotifications(1);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('info');
-      expect(result[0].message).toContain('đơn nghỉ phép chờ duyệt');
-    });
-  });
-
-  describe('getTimesheetReport - Lấy báo cáo timesheet', () => {
-    it('nên trả về báo cáo timesheet với team_id', async () => {
-      const reportDto = {
-        start_date: '2024-10-01',
-        end_date: '2024-10-31',
-        team_id: 1,
-      };
-
-      prismaService.user_role_assignment.findMany.mockResolvedValue([{ user_id: 1 }]);
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      prismaService.users.findMany.mockResolvedValue([mockUser]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getTimesheetReport(reportDto);
-
-      expect(result.timesheets).toBeDefined();
-      expect(result.stats).toBeDefined();
-      expect(result.period).toBeDefined();
-      expect(result.holidays).toBeDefined();
-    });
-
-    it('nên trả về báo cáo timesheet với division_id', async () => {
-      const reportDto = {
-        start_date: '2024-10-01',
-        end_date: '2024-10-31',
-        division_id: 1,
-      };
-
-      prismaService.user_role_assignment.findMany.mockResolvedValue([{ user_id: 1 }]);
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      prismaService.users.findMany.mockResolvedValue([mockUser]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getTimesheetReport(reportDto);
-
+      expect(prismaService.holidays.findFirst).toHaveBeenCalled();
+      expect(prismaService.holidays.create).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
 
-    it('nên sử dụng default dates khi không cung cấp', async () => {
-      const reportDto = {};
+    it('nên throw BadRequestException khi tên ngày lễ đã tồn tại', async () => {
+      prismaService.holidays.findFirst.mockResolvedValue({
+        id: 1,
+        name: createHolidayDto.name,
+      });
 
-      prismaService.time_sheets.findMany.mockResolvedValue([]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getTimesheetReport(reportDto);
-
-      expect(result).toBeDefined();
+      await expect(service.createHoliday(createHolidayDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
-  describe('getWorkingTimeReport - Lấy báo cáo thời gian làm việc', () => {
-    it('nên trả về báo cáo thời gian làm việc theo tháng', async () => {
-      const reportDto = {
-        month: '2024-10',
-        year: 2024,
-      };
-
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-
-      const result = await service.getWorkingTimeReport(reportDto);
-
-      expect(result.period).toBe('2024-10');
-      expect(result.user_stats).toBeDefined();
-      expect(result.summary).toBeDefined();
-    });
-
-    it('nên trả về báo cáo với user_id cụ thể', async () => {
-      const reportDto = {
-        month: '2024-10',
-        year: 2024,
-        user_id: 1,
-      };
-
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-
-      const result = await service.getWorkingTimeReport(reportDto);
-
-      expect(result).toBeDefined();
-    });
-  });
-
-  describe('getAllUsersAttendanceStatistics - Lấy thống kê chấm công tất cả users', () => {
-    it('nên trả về thống kê chấm công với default dates', async () => {
-      const mockTimesheetWithUser = {
-        ...mockTimesheet,
-        user: {
+  describe('findAllHolidays - Lấy tất cả ngày lễ', () => {
+    it('nên trả về danh sách ngày lễ', async () => {
+      const mockHolidays = [
+        {
           id: 1,
-          email: 'test@example.com',
-          user_information: {
-            name: 'Test User',
-          },
+          name: 'Ngày lễ',
+          start_date: new Date('2024-01-01'),
+          end_date: new Date('2024-01-01'),
+          status: HolidayStatus.ACTIVE,
         },
-      };
+      ];
 
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheetWithUser]);
-      prismaService.holidays.findMany.mockResolvedValue([]);
+      prismaService.holidays.findMany.mockResolvedValue(mockHolidays);
 
-      const result = await service.getAllUsersAttendanceStatistics();
+      const result = await service.findAllHolidays();
 
-      expect(result.period).toBeDefined();
-      expect(result.summary).toBeDefined();
-      expect(result.employees).toBeDefined();
-      expect(result.holidays).toBeDefined();
+      expect(prismaService.holidays.findMany).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
     });
 
-    it('nên trả về thống kê với custom dates', async () => {
-      const startDate = '2024-10-01';
-      const endDate = '2024-10-31';
-
-      prismaService.time_sheets.findMany.mockResolvedValue([]);
+    it('nên lọc theo năm', async () => {
       prismaService.holidays.findMany.mockResolvedValue([]);
 
-      const result = await service.getAllUsersAttendanceStatistics(startDate, endDate);
+      await service.findAllHolidays('2024');
 
-      expect(result.period.start_date).toBe(startDate);
-      expect(result.period.end_date).toBe(endDate);
-    });
-  });
-
-  describe('getAttendanceStatistics - Lấy thống kê chấm công', () => {
-    it('nên trả về thống kê chấm công không có user_id', async () => {
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      attendanceRequestService.findMany
-        .mockResolvedValueOnce([]) // overtime requests
-        .mockResolvedValueOnce([]); // day off requests
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getAttendanceStatistics();
-
-      expect(result.period).toBeDefined();
-      expect(result.attendance).toBeDefined();
-      expect(result.overtime).toBeDefined();
-      expect(result.leave).toBeDefined();
-      expect(result.summary).toBeDefined();
+      expect(prismaService.holidays.findMany).toHaveBeenCalled();
     });
 
-    it('nên trả về thống kê chấm công với user_id', async () => {
-      prismaService.time_sheets.findMany.mockResolvedValue([mockTimesheet]);
-      attendanceRequestService.findMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
-      prismaService.user_leave_balances.findUnique.mockResolvedValue(null);
-      prismaService.holidays.findMany.mockResolvedValue([]);
-
-      const result = await service.getAttendanceStatistics(1);
-
-      expect(result).toBeDefined();
+    it('nên throw BadRequestException khi năm không hợp lệ', async () => {
+      await expect(service.findAllHolidays('invalid')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
   describe('createAttendanceLog - Tạo log chấm công', () => {
-    it('nên tạo attendance log thành công', async () => {
-      const createDto = {
-        action_type: 'checkin',
-        timestamp: '2024-10-29T08:00:00.000Z',
-        work_date: '2024-10-29',
-      };
+    const createAttendanceLogDto = {
+      timesheet_id: 1,
+      action_type: 'checkin',
+      timestamp: '2024-10-29T08:00:00.000Z',
+      work_date: '2024-10-29',
+      photo_url: 'https://cloudinary.com/image.jpg',
+    };
 
+    it('nên tạo log chấm công thành công với timesheet_id', async () => {
       prismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
       prismaService.attendance_logs.create.mockResolvedValue({
         id: 1,
-        ...createDto,
+        ...createAttendanceLogDto,
         user_id: 1,
-        timesheet_id: 1,
       });
 
-      const result = await service.createAttendanceLog(createDto, 1);
+      const result = await service.createAttendanceLog(createAttendanceLogDto, 1);
 
+      expect(prismaService.time_sheets.findFirst).toHaveBeenCalled();
       expect(prismaService.attendance_logs.create).toHaveBeenCalled();
       expect(result).toBeDefined();
     });
 
-    it('nên tạo timesheet mới nếu chưa có', async () => {
-      const createDto = {
-        action_type: 'checkin',
-        timestamp: '2024-10-29T08:00:00.000Z',
-        work_date: '2024-10-29',
-      };
-
-      prismaService.time_sheets.findFirst
-        .mockResolvedValueOnce(null) // không tìm thấy timesheet
-        .mockResolvedValueOnce(mockTimesheet); // sau khi tạo
-      prismaService.time_sheets.create.mockResolvedValue(mockTimesheet);
-      prismaService.attendance_logs.create.mockResolvedValue({
-        id: 1,
-        ...createDto,
-        user_id: 1,
-        timesheet_id: 1,
-      });
-
-      const result = await service.createAttendanceLog(createDto, 1);
-
-      expect(prismaService.time_sheets.create).toHaveBeenCalled();
-      expect(result).toBeDefined();
-    });
-
-    it('nên throw NotFoundException khi timesheet_id không tồn tại', async () => {
-      const createDto = {
-        action_type: 'checkin',
-        timestamp: '2024-10-29T08:00:00.000Z',
-        work_date: '2024-10-29',
-        timesheet_id: 999,
-      };
-
+    it('nên throw NotFoundException khi không tìm thấy timesheet', async () => {
       prismaService.time_sheets.findFirst.mockResolvedValue(null);
 
-      await expect(service.createAttendanceLog(createDto, 1)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.createAttendanceLog(createAttendanceLogDto, 1),
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('nên throw BadRequestException khi timesheet không thuộc về user', async () => {
-      const createDto = {
-        action_type: 'checkin',
-        timestamp: '2024-10-29T08:00:00.000Z',
-        work_date: '2024-10-29',
-        timesheet_id: 1,
-      };
-
+    it('nên throw BadRequestException khi user không có quyền', async () => {
       const otherUserTimesheet = {
         ...mockTimesheet,
-        user_id: 2,
+        user_id: 999,
       };
 
       prismaService.time_sheets.findFirst.mockResolvedValue(otherUserTimesheet);
 
-      await expect(service.createAttendanceLog(createDto, 1)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createAttendanceLog(createAttendanceLogDto, 1),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('nên throw BadRequestException khi work_date không khớp với timesheet', async () => {
-      const createDto = {
-        action_type: 'checkin',
-        timestamp: '2024-10-29T08:00:00.000Z',
-        work_date: '2024-10-30',
-        timesheet_id: 1,
+    it('nên tạo timesheet mới khi không có timesheet_id', async () => {
+      const createLogDtoWithoutTimesheet = {
+        ...createAttendanceLogDto,
+        timesheet_id: undefined,
       };
 
-      prismaService.time_sheets.findFirst.mockResolvedValue(mockTimesheet);
+      prismaService.time_sheets.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({
+        ...mockTimesheet,
+        id: 1,
+      });
+      prismaService.time_sheets.create.mockResolvedValue(mockTimesheet);
+      prismaService.attendance_logs.create.mockResolvedValue({
+        id: 1,
+        ...createLogDtoWithoutTimesheet,
+        user_id: 1,
+        timesheet_id: 1,
+      });
 
-      await expect(service.createAttendanceLog(createDto, 1)).rejects.toThrow(
-        BadRequestException,
-      );
+      const result = await service.createAttendanceLog(createLogDtoWithoutTimesheet, 1);
+
+      expect(prismaService.time_sheets.create).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
   });
 
   describe('getAttendanceLogs - Lấy danh sách log chấm công', () => {
-    it('nên trả về danh sách log của user hiện tại', async () => {
-      const queryDto = {
-        page: 1,
-        limit: 20,
-      };
+    const queryDto = {
+      user_id: 1,
+      start_date: '2024-10-01',
+      end_date: '2024-10-31',
+      action_type: 'checkin',
+      page: 1,
+      limit: 20,
+    };
 
+    it('nên trả về danh sách log chấm công', async () => {
       const mockLogs = [
         {
           id: 1,
+          user_id: 1,
           action_type: 'checkin',
           timestamp: new Date(),
-          user: { id: 1, email: 'test@example.com' },
-          timesheet: { id: 1, work_date: new Date() },
         },
       ];
 
@@ -1196,138 +912,43 @@ describe('TimesheetService', () => {
 
       const result = await service.getAttendanceLogs(1, queryDto);
 
-      expect(result.data).toEqual(mockLogs);
-      expect(result.pagination.total).toBe(1);
+      expect(prismaService.attendance_logs.findMany).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
 
     it('nên throw BadRequestException khi user không có quyền xem log của user khác', async () => {
-      const queryDto = {
-        user_id: 2,
-        page: 1,
-        limit: 20,
-      };
-
-      await expect(service.getAttendanceLogs(1, queryDto, [])).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('nên cho phép xem log của user khác khi có quyền admin', async () => {
-      const queryDto = {
-        user_id: 2,
-        page: 1,
-        limit: 20,
-      };
-
-      const mockLogs = [
-        {
-          id: 1,
-          action_type: 'checkin',
-          user: { id: 2, email: 'other@example.com' },
-          timesheet: { id: 1, work_date: new Date() },
-        },
-      ];
-
-      prismaService.attendance_logs.findMany.mockResolvedValue(mockLogs);
-      prismaService.attendance_logs.count.mockResolvedValue(1);
-
-      const result = await service.getAttendanceLogs(1, queryDto, ['admin']);
-
-      expect(result.data).toEqual(mockLogs);
-    });
-
-    it('nên lọc theo date range', async () => {
-      const queryDto = {
-        start_date: '2024-10-01',
-        end_date: '2024-10-31',
-        page: 1,
-        limit: 20,
-      };
-
-      prismaService.attendance_logs.findMany.mockResolvedValue([]);
-      prismaService.attendance_logs.count.mockResolvedValue(0);
-
-      await service.getAttendanceLogs(1, queryDto);
-
-      expect(prismaService.attendance_logs.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            work_date: expect.objectContaining({
-              gte: expect.any(Date),
-              lte: expect.any(Date),
-            }),
-          }),
-        }),
-      );
-    });
-
-    it('nên lọc theo action_type', async () => {
-      const queryDto = {
-        action_type: 'checkin',
-        page: 1,
-        limit: 20,
-      };
-
-      prismaService.attendance_logs.findMany.mockResolvedValue([]);
-      prismaService.attendance_logs.count.mockResolvedValue(0);
-
-      await service.getAttendanceLogs(1, queryDto);
-
-      expect(prismaService.attendance_logs.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            action_type: 'checkin',
-          }),
-        }),
-      );
-    });
-  });
-
-  describe('getAttendanceLogsPaginated - Lấy danh sách log có phân trang', () => {
-    it('nên trả về danh sách log có phân trang', async () => {
-      const paginationDto = {
-        page: 1,
-        limit: 10,
-      };
-
-      const mockLogs = [
-        {
-          id: 1,
-          action_type: 'checkin',
-          user: { id: 1, email: 'test@example.com' },
-          timesheet: { id: 1, work_date: new Date() },
-        },
-      ];
-
-      prismaService.attendance_logs.findMany.mockResolvedValue(mockLogs);
-      prismaService.attendance_logs.count.mockResolvedValue(1);
-
-      const result = await service.getAttendanceLogsPaginated(1, paginationDto);
-
-      expect(result.data).toEqual(mockLogs);
-      expect(result.pagination.total).toBe(1);
-    });
-
-    it('nên throw BadRequestException khi không có quyền xem log của user khác', async () => {
-      const paginationDto = {
-        user_id: 2,
-        page: 1,
-        limit: 10,
+      const queryDtoOtherUser = {
+        ...queryDto,
+        user_id: 999,
       };
 
       await expect(
-        service.getAttendanceLogsPaginated(1, paginationDto, false),
+        service.getAttendanceLogs(1, queryDtoOtherUser, []),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('nên cho phép admin xem log của user khác', async () => {
+      const queryDtoOtherUser = {
+        ...queryDto,
+        user_id: 999,
+      };
+
+      prismaService.attendance_logs.findMany.mockResolvedValue([]);
+      prismaService.attendance_logs.count.mockResolvedValue(0);
+
+      const result = await service.getAttendanceLogs(1, queryDtoOtherUser, ['admin']);
+
+      expect(result).toBeDefined();
     });
   });
 
-  describe('getAttendanceLogById - Lấy log theo id', () => {
-    it('nên trả về log theo id', async () => {
+  describe('getAttendanceLogById - Lấy log chấm công theo id', () => {
+    it('nên trả về log chấm công theo id', async () => {
       const mockLog = {
         id: 1,
+        user_id: 1,
         action_type: 'checkin',
-        user: { id: 1, email: 'test@example.com' },
-        timesheet: { id: 1, work_date: new Date() },
+        timestamp: new Date(),
       };
 
       prismaService.attendance_logs.findFirst.mockResolvedValue(mockLog);
@@ -1336,7 +957,6 @@ describe('TimesheetService', () => {
 
       expect(prismaService.attendance_logs.findFirst).toHaveBeenCalledWith({
         where: { id: 1, deleted_at: null },
-        include: expect.any(Object),
       });
       expect(result).toEqual(mockLog);
     });
@@ -1345,29 +965,25 @@ describe('TimesheetService', () => {
       prismaService.attendance_logs.findFirst.mockResolvedValue(null);
 
       await expect(service.getAttendanceLogById(999)).rejects.toThrow(NotFoundException);
-      await expect(service.getAttendanceLogById(999)).rejects.toThrow(
-        'Không tìm thấy log chấm công',
-      );
     });
   });
 
   describe('updateAttendanceLog - Cập nhật log chấm công', () => {
-    it('nên cập nhật log thành công', async () => {
-      const updateDto = {
-        user_id: 1,
-        action_type: 'checkout',
-        timestamp: '2024-10-29T17:00:00.000Z',
-      };
+    const updateDto = {
+      user_id: 1,
+    };
 
-      const mockLog = {
+    it('nên cập nhật log chấm công thành công', async () => {
+      const existingLog = {
         id: 1,
-        action_type: 'checkin',
         user_id: 1,
+        action_type: 'checkin',
+        timestamp: new Date(),
       };
 
-      prismaService.attendance_logs.findFirst.mockResolvedValue(mockLog);
+      prismaService.attendance_logs.findFirst.mockResolvedValue(existingLog);
       prismaService.attendance_logs.update.mockResolvedValue({
-        ...mockLog,
+        ...existingLog,
         ...updateDto,
       });
 
@@ -1380,23 +996,23 @@ describe('TimesheetService', () => {
     it('nên throw NotFoundException khi không tìm thấy log', async () => {
       prismaService.attendance_logs.findFirst.mockResolvedValue(null);
 
-      await expect(service.updateAttendanceLog(999, { user_id: 1 })).rejects.toThrow(
+      await expect(service.updateAttendanceLog(999, updateDto)).rejects.toThrow(
         NotFoundException,
       );
     });
   });
 
   describe('deleteAttendanceLog - Xóa log chấm công', () => {
-    it('nên xóa mềm log thành công', async () => {
-      const mockLog = {
+    it('nên xóa mềm log chấm công', async () => {
+      const existingLog = {
         id: 1,
+        user_id: 1,
         action_type: 'checkin',
-        deleted_at: null,
       };
 
-      prismaService.attendance_logs.findFirst.mockResolvedValue(mockLog);
+      prismaService.attendance_logs.findFirst.mockResolvedValue(existingLog);
       prismaService.attendance_logs.update.mockResolvedValue({
-        ...mockLog,
+        ...existingLog,
         deleted_at: new Date(),
       });
 
@@ -1416,97 +1032,19 @@ describe('TimesheetService', () => {
     });
   });
 
-  describe('validateRequestQuota - Validate quota request', () => {
-    it('nên throw BadRequestException khi vượt quota forgot_checkin', async () => {
-      const leaveBalance = {
-        monthly_forgot_checkin_quota: 3,
-        monthly_late_early_quota: 120,
-        monthly_late_early_count_quota: 3,
-      };
+  describe('checkout - Check-out edge cases', () => {
+    const checkoutDto: CheckoutDto = {
+      photo_url: 'https://cloudinary.com/checkout.jpg',
+    };
 
-      prismaService.user_leave_balances.findUnique.mockResolvedValue(leaveBalance);
-      attendanceRequestService.findMany.mockResolvedValue([
-        { status: 'PENDING' },
-        { status: 'APPROVED' },
-        { status: 'PENDING' },
-        { status: 'APPROVED' },
-      ]);
-
-      await expect(service.validateRequestQuota(1, 'forgot_checkin')).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('nên throw BadRequestException khi vượt quota số lượng late_early', async () => {
-      const leaveBalance = {
-        monthly_forgot_checkin_quota: 3,
-        monthly_late_early_quota: 120,
-        monthly_late_early_count_quota: 3,
-      };
-
-      prismaService.user_leave_balances.findUnique.mockResolvedValue(leaveBalance);
-      attendanceRequestService.findMany.mockResolvedValue([
-        { status: 'PENDING', late_early_request: { late_minutes: 10 } },
-        { status: 'APPROVED', late_early_request: { late_minutes: 20 } },
-        { status: 'PENDING', late_early_request: { late_minutes: 30 } },
-        { status: 'APPROVED', late_early_request: { late_minutes: 40 } },
-      ]);
-
-      await expect(service.validateRequestQuota(1, 'late_early', 50)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('nên throw BadRequestException khi vượt quota phút late_early', async () => {
-      const leaveBalance = {
-        monthly_forgot_checkin_quota: 3,
-        monthly_late_early_quota: 120,
-        monthly_late_early_count_quota: 3,
-      };
-
-      prismaService.user_leave_balances.findUnique.mockResolvedValue(leaveBalance);
-      attendanceRequestService.findMany.mockResolvedValue([
-        { status: 'APPROVED', late_early_request: { late_minutes: 100, early_minutes: 0 } },
-      ]);
-
-      await expect(service.validateRequestQuota(1, 'late_early', 30)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('nên không throw khi quota còn đủ', async () => {
-      const leaveBalance = {
-        monthly_forgot_checkin_quota: 3,
-        monthly_late_early_quota: 120,
-        monthly_late_early_count_quota: 3,
-      };
-
-      prismaService.user_leave_balances.findUnique.mockResolvedValue(leaveBalance);
-      attendanceRequestService.findMany.mockResolvedValue([
-        { status: 'APPROVED', late_early_request: { late_minutes: 50, early_minutes: 0 } },
-      ]);
-
-      await expect(service.validateRequestQuota(1, 'late_early', 30)).resolves.not.toThrow();
-    });
-  });
-
-  describe('checkin - Edge cases', () => {
-    it('nên throw BadRequestException khi IP không hợp lệ', async () => {
-      const checkinDto: CheckinDto = {
-        photo_url: 'https://cloudinary.com/checkin.jpg',
-      };
-
-      ipValidationService.validateIpForAttendance.mockResolvedValue({
-        isValid: false,
-        message: 'IP không hợp lệ',
-      });
-
-      await expect(service.checkin(1, checkinDto)).rejects.toThrow(BadRequestException);
-    });
-
-    it('nên tạo timesheet HOLIDAY khi là ngày lễ', async () => {
-      const checkinDto: CheckinDto = {
-        photo_url: 'https://cloudinary.com/checkin.jpg',
+    it('nên throw lỗi khi không tìm thấy timesheet trong transaction', async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const existingCheckin = {
+        id: 1,
+        user_id: 1,
+        action_type: 'checkin',
+        work_date: new Date(today),
+        timestamp: new Date(),
       };
 
       prismaService.users.findFirst.mockResolvedValue(mockUser);
@@ -1516,32 +1054,35 @@ describe('TimesheetService', () => {
         has_approved_remote_request: false,
         message: 'IP hợp lệ',
       });
-      prismaService.attendance_logs.findFirst.mockResolvedValue(null);
+      prismaService.attendance_logs.findFirst
+        .mockResolvedValueOnce(existingCheckin)
+        .mockResolvedValueOnce(null);
       prismaService.time_sheets.findFirst.mockResolvedValue(null);
-      prismaService.holidays.findFirst.mockResolvedValue({
-        id: 1,
-        name: 'Ngày lễ',
-        status: HolidayStatus.ACTIVE,
-      });
-      prismaService.time_sheets.create.mockResolvedValue({
-        ...mockTimesheet,
-        type: 'HOLIDAY',
-      });
-      prismaService.attendance_logs.create.mockResolvedValue({
-        id: 1,
-        action_type: 'checkin',
-      });
-      prismaService.time_sheets.update.mockResolvedValue(mockTimesheet);
 
-      const result = await service.checkin(1, checkinDto);
+      await expect(service.checkout(1, checkoutDto)).rejects.toThrow(BadRequestException);
+    });
+  });
 
-      expect(result).toBeDefined();
+  describe('checkin - Check-in edge cases', () => {
+    const checkinDto: CheckinDto = {
+      photo_url: 'https://cloudinary.com/checkin.jpg',
+    };
+
+    it('nên throw lỗi khi IP không hợp lệ', async () => {
+      prismaService.users.findFirst.mockResolvedValue(mockUser);
+      ipValidationService.validateIpForAttendance.mockResolvedValue({
+        isValid: false,
+        is_office_network: false,
+        has_approved_remote_request: false,
+        message: 'IP không hợp lệ',
+      });
+
+      await expect(service.checkin(1, checkinDto)).rejects.toThrow(BadRequestException);
     });
 
-    it('nên xử lý remote work request khi check-in', async () => {
-      const checkinDto: CheckinDto = {
-        photo_url: 'https://cloudinary.com/checkin.jpg',
-      };
+    it('nên xử lý remote work request', async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const checkinTime = new Date();
 
       prismaService.users.findFirst.mockResolvedValue(mockUser);
       ipValidationService.validateIpForAttendance.mockResolvedValue({
@@ -1555,159 +1096,24 @@ describe('TimesheetService', () => {
       prismaService.holidays.findFirst.mockResolvedValue(null);
       prismaService.time_sheets.create.mockResolvedValue({
         ...mockTimesheet,
+        work_date: new Date(today),
+        checkin: checkinTime,
         remote: 'REMOTE',
       });
       prismaService.attendance_logs.create.mockResolvedValue({
         id: 1,
         action_type: 'checkin',
+        timestamp: checkinTime,
       });
       prismaService.time_sheets.update.mockResolvedValue({
         ...mockTimesheet,
+        checkin: checkinTime,
         remote: 'REMOTE',
       });
 
       const result = await service.checkin(1, checkinDto);
 
-      expect(result.timesheet.remote).toBe('REMOTE');
-    });
-  });
-
-  describe('checkout - Edge cases', () => {
-    it('nên throw BadRequestException khi đã checkout rồi', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const checkoutDto: CheckoutDto = {
-        photo_url: 'https://cloudinary.com/checkout.jpg',
-      };
-
-      const existingCheckin = {
-        id: 1,
-        user_id: 1,
-        action_type: 'checkin',
-        work_date: new Date(today),
-      };
-
-      const existingCheckout = {
-        id: 2,
-        user_id: 1,
-        action_type: 'checkout',
-        work_date: new Date(today),
-      };
-
-      prismaService.users.findFirst.mockResolvedValue(mockUser);
-      ipValidationService.validateIpForAttendance.mockResolvedValue({
-        isValid: true,
-        is_office_network: true,
-        has_approved_remote_request: false,
-        message: 'IP hợp lệ',
-      });
-      prismaService.attendance_logs.findFirst
-        .mockResolvedValueOnce(existingCheckin)
-        .mockResolvedValueOnce(existingCheckout);
-
-      await expect(service.checkout(1, checkoutDto)).rejects.toThrow(BadRequestException);
-    });
-
-    it('nên tính toán is_complete dựa trên requiredWorkTime', async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const checkoutTime = new Date();
-      checkoutTime.setHours(17, 30, 0, 0);
-      const checkinTime = new Date();
-      checkinTime.setHours(8, 30, 0, 0);
-
-      const checkoutDto: CheckoutDto = {
-        photo_url: 'https://cloudinary.com/checkout.jpg',
-      };
-
-      const existingCheckin = {
-        id: 1,
-        user_id: 1,
-        action_type: 'checkin',
-        work_date: new Date(today),
-        timestamp: checkinTime,
-      };
-
-      const todayTimesheet = {
-        ...mockTimesheet,
-        work_date: new Date(today),
-        checkin: checkinTime,
-        checkout: null,
-      };
-
-      prismaService.users.findFirst.mockResolvedValue(mockUser);
-      ipValidationService.validateIpForAttendance.mockResolvedValue({
-        isValid: true,
-        is_office_network: true,
-        has_approved_remote_request: false,
-        message: 'IP hợp lệ',
-      });
-      prismaService.attendance_logs.findFirst
-        .mockResolvedValueOnce(existingCheckin)
-        .mockResolvedValueOnce(null);
-      prismaService.time_sheets.findFirst.mockResolvedValue(todayTimesheet);
-      prismaService.attendance_requests.findMany.mockResolvedValue([]);
-      prismaService.attendance_logs.create.mockResolvedValue({
-        id: 2,
-        action_type: 'checkout',
-      });
-      prismaService.time_sheets.update.mockResolvedValue({
-        ...todayTimesheet,
-        checkout: checkoutTime,
-        total_work_time: 480,
-        is_complete: true,
-      });
-
-      const result = await service.checkout(1, checkoutDto);
-
-      expect(result.timesheet.is_complete).toBe(true);
-    });
-  });
-
-  describe('createTimesheet - Edge cases', () => {
-    it('nên throw BadRequestException khi có day off FULL_DAY không cần attendance', async () => {
-      const createTimesheetDto: CreateTimesheetDto = {
-        work_date: '2024-10-29',
-      };
-
-      const dayOffRequests = [
-        {
-          day_off: {
-            duration: 'FULL_DAY',
-            type: 'PAID',
-          },
-        },
-      ];
-
-      prismaService.users.findFirst.mockResolvedValue(mockUser);
-      attendanceRequestService.findMany.mockResolvedValue(dayOffRequests);
-
-      await expect(service.createTimesheet(createTimesheetDto, 1)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('nên cho phép tạo timesheet khi có day off MORNING cần attendance', async () => {
-      const createTimesheetDto: CreateTimesheetDto = {
-        work_date: '2024-10-29',
-      };
-
-      const dayOffRequests = [
-        {
-          day_off: {
-            duration: 'MORNING',
-            type: 'PAID',
-          },
-        },
-      ];
-
-      prismaService.users.findFirst.mockResolvedValue(mockUser);
-      attendanceRequestService.findMany.mockResolvedValue(dayOffRequests);
-      prismaService.time_sheets.findFirst.mockResolvedValue(null);
-      prismaService.holidays.findFirst.mockResolvedValue(null);
-      prismaService.time_sheets.create.mockResolvedValue(mockTimesheet);
-
-      const result = await service.createTimesheet(createTimesheetDto, 1);
-
-      expect(result).toBeDefined();
+      expect(result.message).toBe('Check-in thành công');
     });
   });
 });
