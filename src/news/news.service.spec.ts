@@ -210,6 +210,44 @@ describe('NewsService', () => {
         }),
       );
     });
+
+    it('nên sắp xếp theo updated_at', async () => {
+      const paginationDto: NewsPaginationDto = {
+        page: 1,
+        limit: 10,
+        sort_by: 'updated_at',
+        sort_order: 'desc',
+      };
+
+      mockPrismaService.news.findMany.mockResolvedValue([]);
+      mockPrismaService.news.count.mockResolvedValue(0);
+
+      await service.findAll(paginationDto);
+
+      expect(mockPrismaService.news.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { updated_at: 'desc' },
+        }),
+      );
+    });
+
+    it('nên sắp xếp theo created_at mặc định', async () => {
+      const paginationDto: NewsPaginationDto = {
+        page: 1,
+        limit: 10,
+      };
+
+      mockPrismaService.news.findMany.mockResolvedValue([]);
+      mockPrismaService.news.count.mockResolvedValue(0);
+
+      await service.findAll(paginationDto);
+
+      expect(mockPrismaService.news.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: { created_at: 'desc' },
+        }),
+      );
+    });
   });
 
   describe('findOne', () => {
@@ -243,6 +281,75 @@ describe('NewsService', () => {
 
       await expect(service.findOne(999)).rejects.toThrow(NotFoundException);
       await expect(service.findOne(999)).rejects.toThrow(NEWS_ERRORS.NEWS_NOT_FOUND);
+    });
+
+    it('nên trả về tin tức với reviewer name', async () => {
+      const id = 1;
+      const mockNews = {
+        id,
+        title: 'Tin tức',
+        content: 'Nội dung',
+        author: {
+          id: 1,
+          email: 'author@example.com',
+          user_information: { name: 'Author', avatar: null },
+        },
+        reviewer: {
+          id: 2,
+          email: 'reviewer@example.com',
+          user_information: { name: 'Reviewer', avatar: null },
+        },
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(mockNews);
+
+      const result = await service.findOne(id);
+
+      expect(result.reviewerName).toBe('Reviewer');
+    });
+
+    it('nên trả về email khi không có user_information', async () => {
+      const id = 1;
+      const mockNews = {
+        id,
+        title: 'Tin tức',
+        content: 'Nội dung',
+        author: {
+          id: 1,
+          email: 'author@example.com',
+          user_information: null,
+        },
+        reviewer: null,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(mockNews);
+
+      const result = await service.findOne(id);
+
+      expect(result.authorName).toBe('author@example.com');
+    });
+
+    it('nên xử lý viewerId khi khác author_id', async () => {
+      const id = 1;
+      const viewerId = 2;
+      const mockNews = {
+        id,
+        title: 'Tin tức',
+        content: 'Nội dung',
+        author_id: 1,
+        author: {
+          id: 1,
+          email: 'author@example.com',
+          user_information: { name: 'Author', avatar: null },
+        },
+        reviewer: null,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(mockNews);
+
+      const result = await service.findOne(id, viewerId);
+
+      expect(result).toBeDefined();
     });
   });
 
@@ -344,6 +451,62 @@ describe('NewsService', () => {
         }),
       );
     });
+
+    it('nên cập nhật thành công khi status là REJECTED', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateNewsDto: UpdateNewsDto = {
+        title: 'Tiêu đề mới',
+      };
+      const existingNews = {
+        id,
+        author_id: user_id,
+        status: NewsStatus.REJECTED,
+        content: 'Nội dung cũ',
+      };
+      const updatedNews = {
+        ...existingNews,
+        ...updateNewsDto,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(existingNews);
+      mockPrismaService.news.update.mockResolvedValue(updatedNews);
+
+      const result = await service.update(id, updateNewsDto, user_id);
+
+      expect(result).toEqual(updatedNews);
+    });
+
+    it('nên giữ nguyên content khi không cập nhật content', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateNewsDto: UpdateNewsDto = {
+        title: 'Tiêu đề mới',
+      };
+      const existingNews = {
+        id,
+        author_id: user_id,
+        status: NewsStatus.DRAFT,
+        content: 'Nội dung cũ',
+      };
+      const updatedNews = {
+        ...existingNews,
+        ...updateNewsDto,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(existingNews);
+      mockPrismaService.news.update.mockResolvedValue(updatedNews);
+
+      await service.update(id, updateNewsDto, user_id);
+
+      expect(mockPrismaService.news.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            content: 'Nội dung cũ',
+          }),
+        }),
+      );
+    });
   });
 
   describe('submitForReview', () => {
@@ -404,6 +567,29 @@ describe('NewsService', () => {
       await expect(
         service.submitForReview(1, 1),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('nên gửi để duyệt thành công khi status là REJECTED', async () => {
+      const id = 1;
+      const user_id = 1;
+      const existingNews = {
+        id,
+        author_id: user_id,
+        status: NewsStatus.REJECTED,
+      };
+      const updatedNews = {
+        ...existingNews,
+        status: NewsStatus.PENDING,
+        reviewer_id: null,
+        approved_at: null,
+      };
+
+      mockPrismaService.news.findUnique.mockResolvedValue(existingNews);
+      mockPrismaService.news.update.mockResolvedValue(updatedNews);
+
+      const result = await service.submitForReview(id, user_id);
+
+      expect(result.status).toBe(NewsStatus.PENDING);
     });
   });
 

@@ -214,6 +214,54 @@ describe('MeetingRoomsService', () => {
         NotFoundException,
       );
     });
+
+    it('nên throw BadRequestException khi tên phòng đã tồn tại', async () => {
+      const id = 1;
+      const updateRoomDto: UpdateRoomDto = {
+        name: 'Phòng họp B',
+      };
+      const existingRoom = {
+        id,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+      const existingRoomWithSameName = {
+        id: 2,
+        name: 'Phòng họp B',
+      };
+
+      mockPrismaService.rooms.findFirst
+        .mockResolvedValueOnce(existingRoom)
+        .mockResolvedValueOnce(existingRoomWithSameName);
+
+      await expect(service.updateRoom(id, updateRoomDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên cập nhật thành công khi không đổi tên', async () => {
+      const id = 1;
+      const updateRoomDto: UpdateRoomDto = {
+        is_active: false,
+      };
+      const existingRoom = {
+        id,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+      const updatedRoom = {
+        ...existingRoom,
+        ...updateRoomDto,
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(existingRoom);
+      mockPrismaService.rooms.update.mockResolvedValue(updatedRoom);
+
+      const result = await service.updateRoom(id, updateRoomDto);
+
+      expect(result).toEqual(updatedRoom);
+      expect(mockPrismaService.rooms.findFirst).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('removeRoom', () => {
@@ -233,6 +281,12 @@ describe('MeetingRoomsService', () => {
       const result = await service.removeRoom(id);
 
       expect(result.deleted_at).toBeDefined();
+    });
+
+    it('nên throw NotFoundException khi không tìm thấy phòng họp', async () => {
+      mockPrismaService.rooms.findFirst.mockResolvedValue(null);
+
+      await expect(service.removeRoom(999)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -329,6 +383,82 @@ describe('MeetingRoomsService', () => {
         booking_date: bookingDate,
         start_hour: '09:00',
         end_hour: '14:00', // 5 giờ
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.createBooking(1, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi đặt phòng trong quá khứ', async () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const bookingDate = yesterday.toISOString().split('T')[0];
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.createBooking(1, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi đặt phòng hôm nay nhưng thời gian đã qua', async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: today,
+        start_hour: '08:00',
+        end_hour: '09:00',
+      };
+      const mockRoom = {
+        id: 1,
+        name: 'Phòng họp A',
+        is_active: true,
+      };
+
+      // Mock thời gian hiện tại là 10:00
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date(`${today}T10:00:00`));
+
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.createBooking(1, createBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      jest.useRealTimers();
+    });
+
+    it('nên throw BadRequestException khi thời gian không hợp lệ', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const createBookingDto: CreateBookingDto = {
+        room_id: 1,
+        title: 'Họp team',
+        booking_date: 'invalid-date',
+        start_hour: '09:00',
+        end_hour: '11:00',
       };
       const mockRoom = {
         id: 1,
@@ -449,6 +579,94 @@ describe('MeetingRoomsService', () => {
       expect(result.data).toHaveLength(1);
       expect(result.pagination.total).toBe(total);
     });
+
+    it('nên lọc theo room_id', async () => {
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        room_id: 1,
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findAllBookings(query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            room_id: 1,
+          }),
+        }),
+      );
+    });
+
+    it('nên lọc theo organizer_id', async () => {
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        organizer_id: 1,
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findAllBookings(query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizer_id: 1,
+          }),
+        }),
+      );
+    });
+
+    it('nên lọc theo from_date', async () => {
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        from_date: '2024-12-01',
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findAllBookings(query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            start_time: expect.objectContaining({
+              gte: expect.any(Date),
+            }),
+          }),
+        }),
+      );
+    });
+
+    it('nên lọc theo to_date', async () => {
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        to_date: '2024-12-31',
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findAllBookings(query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            end_time: expect.objectContaining({
+              lte: expect.any(Date),
+            }),
+          }),
+        }),
+      );
+    });
   });
 
   describe('findMyBookings', () => {
@@ -475,6 +693,58 @@ describe('MeetingRoomsService', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.pagination.total).toBe(total);
+    });
+
+    it('nên lọc theo room_id', async () => {
+      const user_id = 1;
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        room_id: 1,
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findMyBookings(user_id, query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizer_id: user_id,
+            room_id: 1,
+          }),
+        }),
+      );
+    });
+
+    it('nên lọc theo from_date và to_date', async () => {
+      const user_id = 1;
+      const query: BookingPaginationDto = {
+        page: 1,
+        limit: 10,
+        from_date: '2024-12-01',
+        to_date: '2024-12-31',
+      };
+
+      mockPrismaService.room_bookings.findMany.mockResolvedValue([]);
+      mockPrismaService.room_bookings.count.mockResolvedValue(0);
+
+      await service.findMyBookings(user_id, query);
+
+      expect(mockPrismaService.room_bookings.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organizer_id: user_id,
+            start_time: expect.objectContaining({
+              gte: expect.any(Date),
+            }),
+            end_time: expect.objectContaining({
+              lte: expect.any(Date),
+            }),
+          }),
+        }),
+      );
     });
   });
 
@@ -595,6 +865,238 @@ describe('MeetingRoomsService', () => {
         BadRequestException,
       );
     });
+
+    it('nên throw BadRequestException khi cập nhật với organizer conflict', async () => {
+      const id = 1;
+      const user_id = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const updateBookingDto: UpdateBookingDto = {
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date(`${bookingDate}T08:00:00`),
+        end_time: new Date(`${bookingDate}T09:00:00`),
+      };
+      const mockRoom = {
+        id: 1,
+        is_active: true,
+      };
+      const conflictingBooking = {
+        id: 2,
+        organizer_id: user_id,
+        start_time: new Date(`${bookingDate}T09:30:00`),
+        end_time: new Date(`${bookingDate}T10:30:00`),
+      };
+
+      mockPrismaService.room_bookings.findFirst
+        .mockResolvedValueOnce(existingBooking)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(conflictingBooking);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.updateBooking(id, user_id, updateBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi thời gian không hợp lệ', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateBookingDto: UpdateBookingDto = {
+        booking_date: 'invalid-date',
+        start_hour: '09:00',
+        end_hour: '11:00',
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date('2024-12-20T08:00:00'),
+        end_time: new Date('2024-12-20T09:00:00'),
+      };
+
+      mockPrismaService.room_bookings.findFirst.mockResolvedValue(existingBooking);
+
+      await expect(service.updateBooking(id, user_id, updateBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên throw BadRequestException khi duration vượt quá 4 giờ', async () => {
+      const id = 1;
+      const user_id = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const updateBookingDto: UpdateBookingDto = {
+        booking_date: bookingDate,
+        start_hour: '09:00',
+        end_hour: '14:00', // 5 giờ
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date(`${bookingDate}T08:00:00`),
+        end_time: new Date(`${bookingDate}T09:00:00`),
+      };
+      const mockRoom = {
+        id: 1,
+        is_active: true,
+      };
+
+      mockPrismaService.room_bookings.findFirst.mockResolvedValue(existingBooking);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+
+      await expect(service.updateBooking(id, user_id, updateBookingDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('nên cập nhật thành công khi chỉ thay đổi title', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateBookingDto: UpdateBookingDto = {
+        title: 'Họp team (cập nhật)',
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date('2024-12-20T09:00:00'),
+        end_time: new Date('2024-12-20T11:00:00'),
+      };
+      const mockRoom = {
+        id: 1,
+        is_active: true,
+      };
+      const updatedBooking = {
+        ...existingBooking,
+        ...updateBookingDto,
+        room: mockRoom,
+      };
+
+      mockPrismaService.room_bookings.findFirst
+        .mockResolvedValueOnce(existingBooking)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+      mockPrismaService.room_bookings.update.mockResolvedValue(updatedBooking);
+
+      const result = await service.updateBooking(id, user_id, updateBookingDto);
+
+      expect(result).toEqual(updatedBooking);
+    });
+
+    it('nên cập nhật thành công khi chỉ thay đổi room_id', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateBookingDto: UpdateBookingDto = {
+        room_id: 2,
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date('2024-12-20T09:00:00'),
+        end_time: new Date('2024-12-20T11:00:00'),
+      };
+      const mockRoom = {
+        id: 2,
+        is_active: true,
+      };
+      const updatedBooking = {
+        ...existingBooking,
+        room_id: 2,
+        room: mockRoom,
+      };
+
+      mockPrismaService.room_bookings.findFirst
+        .mockResolvedValueOnce(existingBooking)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+      mockPrismaService.room_bookings.update.mockResolvedValue(updatedBooking);
+
+      const result = await service.updateBooking(id, user_id, updateBookingDto);
+
+      expect(result).toEqual(updatedBooking);
+    });
+
+    it('nên cập nhật thành công khi chỉ thay đổi start_hour', async () => {
+      const id = 1;
+      const user_id = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const bookingDate = tomorrow.toISOString().split('T')[0];
+      const updateBookingDto: UpdateBookingDto = {
+        start_hour: '10:00',
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date(`${bookingDate}T09:00:00`),
+        end_time: new Date(`${bookingDate}T11:00:00`),
+      };
+      const mockRoom = {
+        id: 1,
+        is_active: true,
+      };
+      const updatedBooking = {
+        ...existingBooking,
+        start_time: new Date(`${bookingDate}T10:00:00`),
+        room: mockRoom,
+      };
+
+      mockPrismaService.room_bookings.findFirst
+        .mockResolvedValueOnce(existingBooking)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(mockRoom);
+      mockPrismaService.room_bookings.update.mockResolvedValue(updatedBooking);
+
+      const result = await service.updateBooking(id, user_id, updateBookingDto);
+
+      expect(result).toEqual(updatedBooking);
+    });
+
+    it('nên throw NotFoundException khi room không active', async () => {
+      const id = 1;
+      const user_id = 1;
+      const updateBookingDto: UpdateBookingDto = {
+        room_id: 2,
+      };
+      const existingBooking = {
+        id,
+        organizer_id: user_id,
+        room_id: 1,
+        title: 'Họp team',
+        start_time: new Date('2024-12-20T09:00:00'),
+        end_time: new Date('2024-12-20T11:00:00'),
+      };
+
+      mockPrismaService.room_bookings.findFirst.mockResolvedValue(existingBooking);
+      mockPrismaService.rooms.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateBooking(id, user_id, updateBookingDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 
   describe('removeBooking', () => {
@@ -627,6 +1129,12 @@ describe('MeetingRoomsService', () => {
       mockPrismaService.room_bookings.findFirst.mockResolvedValue(existingBooking);
 
       await expect(service.removeBooking(1, 1)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('nên throw NotFoundException khi không tìm thấy booking', async () => {
+      mockPrismaService.room_bookings.findFirst.mockResolvedValue(null);
+
+      await expect(service.removeBooking(999, 1)).rejects.toThrow(NotFoundException);
     });
   });
 });

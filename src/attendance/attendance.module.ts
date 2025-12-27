@@ -8,7 +8,6 @@ import { CsvExportService } from '../common/services/csv-export.service';
 import { TimesheetModule } from '../timesheet/timesheet.module';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
-import { AttendanceExportService } from './services/attendance-export.service';
 
 @Module({
   imports: [TimesheetModule],
@@ -16,7 +15,6 @@ import { AttendanceExportService } from './services/attendance-export.service';
   providers: [
     AttendanceService,
     AttendanceRequestService,
-    AttendanceExportService,
     DayOffDetailService,
     OvertimeDetailService,
     LateEarlyDetailService,

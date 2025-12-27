@@ -9,6 +9,7 @@ import {
   ApprovalStatus,
   DayOffDuration,
   DayOffType,
+  Prisma,
   RemoteType,
   ScopeType,
 } from '@prisma/client';
@@ -39,12 +40,6 @@ import { LateEarlyRequestResponseDto } from './dto/response/late-early-request-r
 import { OvertimeRequestResponseDto } from './dto/response/overtime-request-response.dto';
 import { RemoteWorkRequestResponseDto } from './dto/response/remote-work-request-response.dto';
 import { ApprovalResult, RequestType } from './interfaces/request.interface';
-import { AttendanceRequestService } from './services/attendance-request.service';
-import { DayOffDetailService } from './services/day-off-detail.service';
-import { ForgotCheckinDetailService } from './services/forgot-checkin-detail.service';
-import { LateEarlyDetailService } from './services/late-early-detail.service';
-import { OvertimeDetailService } from './services/overtime-detail.service';
-import { RemoteWorkDetailService } from './services/remote-work-detail.service';
 
 @Injectable()
 export class RequestsService {
@@ -53,12 +48,6 @@ export class RequestsService {
     private readonly leaveBalanceService: LeaveBalanceService,
     private readonly timesheetService: TimesheetService,
     private readonly roleAssignmentService: RoleAssignmentService,
-    private readonly attendanceRequestService: AttendanceRequestService,
-    private readonly dayOffDetailService: DayOffDetailService,
-    private readonly remoteWorkDetailService: RemoteWorkDetailService,
-    private readonly lateEarlyDetailService: LateEarlyDetailService,
-    private readonly forgotCheckinDetailService: ForgotCheckinDetailService,
-    private readonly overtimeDetailService: OvertimeDetailService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -72,10 +61,223 @@ export class RequestsService {
     }
   }
 
-  private validateDateRange(startDate: Date, endDate: Date): void {
-    if (startDate > endDate) {
-      throw new BadRequestException(REQUEST_ERRORS.INVALID_TIME_RANGE);
+  private mapRequestTypeStringToEnum(requestType: string): string {
+    switch (requestType) {
+      case 'remote_work':
+      case 'remote-work':
+        return 'REMOTE_WORK';
+      case 'day_off':
+      case 'day-off':
+        return 'DAY_OFF';
+      case 'overtime':
+        return 'OVERTIME';
+      case 'late_early':
+      case 'late-early':
+        return 'LATE_EARLY';
+      case 'forgot_checkin':
+      case 'forgot-checkin':
+        return 'FORGOT_CHECKIN';
+      default:
+        throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
     }
+  }
+
+  /**
+   * Map attendance request to response DTO based on request type
+   */
+  private mapRequestToResponse(req: any): any {
+    switch (req.request_type) {
+      case 'REMOTE_WORK':
+        return {
+          ...this.mapToRemoteWorkRequestResponse(req),
+          type: 'remote_work' as const,
+        };
+      case 'DAY_OFF':
+        return {
+          ...this.mapToDayOffRequestResponse(req),
+          type: 'day_off' as const,
+        };
+      case 'OVERTIME':
+        return {
+          ...this.mapToOvertimeRequestResponse(req),
+          type: 'overtime' as const,
+        };
+      case 'LATE_EARLY':
+        return {
+          ...this.mapToLateEarlyRequestResponse(req),
+          type: 'late_early' as const,
+        };
+      case 'FORGOT_CHECKIN':
+        return {
+          ...this.mapToForgotCheckinRequestResponse(req),
+          type: 'forgot_checkin' as const,
+        };
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Map attendance request to response DTO with request_type field (for getAllMyRequests)
+   */
+  private mapRequestToResponseWithType(req: any): any {
+    switch (req.request_type) {
+      case 'REMOTE_WORK':
+        return {
+          ...this.mapToRemoteWorkRequestResponse(req),
+          request_type: 'REMOTE_WORK' as const,
+        };
+      case 'DAY_OFF':
+        return {
+          ...this.mapToDayOffRequestResponse(req),
+          request_type: 'DAY_OFF' as const,
+        };
+      case 'OVERTIME':
+        return {
+          ...this.mapToOvertimeRequestResponse(req),
+          request_type: 'OVERTIME' as const,
+        };
+      case 'LATE_EARLY':
+        return {
+          ...this.mapToLateEarlyRequestResponse(req),
+          request_type: 'LATE_EARLY' as const,
+        };
+      case 'FORGOT_CHECKIN':
+        return {
+          ...this.mapToForgotCheckinRequestResponse(req),
+          request_type: 'FORGOT_CHECKIN' as const,
+        };
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Filter requests by remote_type if applicable
+   */
+  private filterRequestsByRemoteType(
+    requests: any[],
+    requestType?: string,
+    remoteType?: RemoteType,
+  ): any[] {
+    if (requestType === 'REMOTE_WORK' && remoteType) {
+      return requests.filter(
+        (r) => r.remote_work_request?.remote_type === remoteType,
+      );
+    }
+    return requests;
+  }
+
+  /**
+   * Calculate work hours for day off based on duration
+   */
+  private calculateDayOffWorkHours(
+    duration: DayOffDuration,
+    morningWorkMinutes: number,
+    afternoonWorkMinutes: number,
+  ): { morningHours: number; afternoonHours: number; totalHours: number } {
+    if (duration === 'FULL_DAY') {
+      return { morningHours: 0, afternoonHours: 0, totalHours: 0 };
+    }
+    if (duration === 'MORNING') {
+      return {
+        morningHours: 0,
+        afternoonHours: afternoonWorkMinutes,
+        totalHours: afternoonWorkMinutes,
+      };
+    }
+    // AFTERNOON
+    return {
+      morningHours: morningWorkMinutes,
+      afternoonHours: 0,
+      totalHours: morningWorkMinutes,
+    };
+  }
+
+  /**
+   * Get user IDs based on access scope
+   */
+  private async getUserIdsFromAccessScope(
+    accessScope: any,
+    paginationDto: RequestPaginationDto,
+    requesterId: number,
+  ): Promise<number[] | undefined> {
+    if (accessScope.type === 'DIVISION_ONLY') {
+      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
+        return await this.getDivisionUserIds(accessScope.division_ids);
+      }
+      return [];
+    }
+
+    if (accessScope.type === 'ADMIN_ACCESS') {
+      const divisionHeaduser_ids = await this.getUserIdsByRole(
+        ROLE_NAMES.DIVISION_HEAD,
+      );
+      return [accessScope.user_id!, ...divisionHeaduser_ids];
+    }
+
+    if (accessScope.type === 'ALL_ACCESS') {
+      if (paginationDto.division_id) {
+        return await this.getDivisionUserIds([paginationDto.division_id]);
+      }
+      return undefined;
+    }
+
+    if (accessScope.type === 'TEAM_ONLY') {
+      if (accessScope.team_ids && accessScope.team_ids.length > 0) {
+        return await this.getTeamuser_ids(accessScope.team_ids);
+      }
+      return [requesterId];
+    }
+
+    if (accessScope.type === 'PROJECT_ONLY') {
+      if (accessScope.projectIds && accessScope.projectIds.length > 0) {
+        return await this.getProjectUserIds(accessScope.projectIds);
+      }
+      return [requesterId];
+    }
+
+    return [requesterId];
+  }
+
+  /**
+   * Build metadata for getAllRequests response
+   */
+  private buildRequestMetadata(
+    accessScope: any,
+    paginationDto: RequestPaginationDto,
+  ) {
+    return {
+      access_scope: accessScope.type,
+      managed_divisions: accessScope.division_ids,
+      managed_teams: accessScope.team_ids,
+      managed_projects: accessScope.projectIds,
+      filters_applied: {
+        division_restriction: accessScope.type === 'DIVISION_ONLY',
+        team_restriction: accessScope.type === 'TEAM_ONLY',
+        project_restriction: accessScope.type === 'PROJECT_ONLY',
+        division_id: paginationDto.division_id,
+      },
+    };
+  }
+
+  /**
+   * Get status counts for requests
+   */
+  private getStatusCounts(requests: any[]): {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  } {
+    const result = { total: 0, pending: 0, approved: 0, rejected: 0 };
+    requests.forEach((req) => {
+      result.total += 1;
+      if (req.status === 'PENDING') result.pending += 1;
+      if (req.status === 'APPROVED') result.approved += 1;
+      if (req.status === 'REJECTED') result.rejected += 1;
+    });
+    return result;
   }
 
   async createRemoteWorkRequest(
@@ -84,22 +286,26 @@ export class RequestsService {
     await this.validateUser(dto.user_id);
     const workDate = new Date(dto.work_date);
 
-    const isDuplicate =
-      await this.attendanceRequestService.checkDuplicateRequest(
-        dto.user_id,
-        workDate,
-        'REMOTE_WORK',
-      );
-    if (isDuplicate) {
+    const existing = await this.prisma.attendance_requests.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'REMOTE_WORK',
+        deleted_at: null,
+      },
+    });
+    if (existing) {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
-    const conflictingDayOff = await this.attendanceRequestService.findMany({
-      user_id: dto.user_id,
-      work_date: workDate,
-      request_type: 'DAY_OFF',
-      status: ApprovalStatus.APPROVED,
-      deleted_at: null,
+    const conflictingDayOff = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.APPROVED,
+        deleted_at: null,
+      },
     });
     if (conflictingDayOff.length > 0) {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
@@ -125,23 +331,27 @@ export class RequestsService {
       });
     }
 
-    const attendanceRequest =
-      await this.attendanceRequestService.createAttendanceRequest({
+    const attendanceRequest = await this.prisma.attendance_requests.create({
+      data: {
         user_id: dto.user_id,
         timesheet_id: timesheet.id,
         work_date: workDate,
         request_type: 'REMOTE_WORK',
         title: dto.title,
         reason: dto.reason,
-      });
-
-    await this.remoteWorkDetailService.createRemoteWorkDetail({
-      request_id: attendanceRequest.id,
-      remote_type: dto.remote_type,
-      duration: dto.duration,
+        status: ApprovalStatus.PENDING,
+      },
     });
 
-    const fullRequest = await this.attendanceRequestService.findOne(
+    await this.prisma.remote_work_requests.create({
+      data: {
+        request_id: attendanceRequest.id,
+        remote_type: dto.remote_type,
+        duration: dto.duration,
+      },
+    });
+
+    const fullRequest = await this.findOneAttendanceRequest(
       attendanceRequest.id,
     );
     return this.mapToRemoteWorkRequestResponse(fullRequest);
@@ -153,13 +363,15 @@ export class RequestsService {
     await this.validateUser(dto.user_id);
     const workDate = new Date(dto.work_date);
 
-    const isDuplicate =
-      await this.attendanceRequestService.checkDuplicateRequest(
-        dto.user_id,
-        workDate,
-        'DAY_OFF',
-      );
-    if (isDuplicate)
+    const existing = await this.prisma.attendance_requests.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'DAY_OFF',
+        deleted_at: null,
+      },
+    });
+    if (existing)
       throw new BadRequestException(REQUEST_ERRORS.DAY_OFF_ALREADY_EXISTS);
 
     const dayOffAmount = dto.duration === DayOffDuration.FULL_DAY ? 1 : 0.5;
@@ -186,23 +398,27 @@ export class RequestsService {
       });
     }
 
-    const attendanceRequest =
-      await this.attendanceRequestService.createAttendanceRequest({
+    const attendanceRequest = await this.prisma.attendance_requests.create({
+      data: {
         user_id: dto.user_id,
         timesheet_id: timesheet.id,
         work_date: workDate,
         request_type: 'DAY_OFF',
         title: dto.title,
         reason: dto.reason,
-      });
-
-    await this.dayOffDetailService.createDayOffDetail({
-      request_id: attendanceRequest.id,
-      duration: dto.duration,
-      type: dto.type,
+        status: ApprovalStatus.PENDING,
+      },
     });
 
-    const fullRequest = await this.attendanceRequestService.findOne(
+    await this.prisma.day_offs.create({
+      data: {
+        request_id: attendanceRequest.id,
+        duration: dto.duration,
+        type: dto.type,
+      },
+    });
+
+    const fullRequest = await this.findOneAttendanceRequest(
       attendanceRequest.id,
     );
     return this.mapToDayOffRequestResponse(fullRequest);
@@ -216,13 +432,15 @@ export class RequestsService {
     const workDate = new Date(dto.work_date);
 
     // 2. Check duplicate
-    const isDuplicate =
-      await this.attendanceRequestService.checkDuplicateRequest(
-        dto.user_id,
-        workDate,
-        'OVERTIME',
-      );
-    if (isDuplicate) {
+    const existing = await this.prisma.attendance_requests.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'OVERTIME',
+        deleted_at: null,
+      },
+    });
+    if (existing) {
       throw new BadRequestException(REQUEST_ERRORS.OVERTIME_ALREADY_EXISTS);
     }
 
@@ -254,52 +472,34 @@ export class RequestsService {
     }
 
     // 5. Create attendance_request
-    const attendanceRequest =
-      await this.attendanceRequestService.createAttendanceRequest({
+    const attendanceRequest = await this.prisma.attendance_requests.create({
+      data: {
         user_id: dto.user_id,
         timesheet_id: timesheet.id,
         work_date: workDate,
         request_type: 'OVERTIME',
         title: dto.title,
         reason: dto.reason,
-      });
+        status: ApprovalStatus.PENDING,
+      },
+    });
 
     // 6. Create overtime detail
     const startTime = new Date(`1970-01-01T${dto.start_time}:00Z`);
     const endTime = new Date(`1970-01-01T${dto.end_time}:00Z`);
 
-    await this.overtimeDetailService.createOvertimeDetail({
-      request_id: attendanceRequest.id,
-      start_time: startTime,
-      end_time: endTime,
+    await this.prisma.over_times_history.create({
+      data: {
+        request_id: attendanceRequest.id,
+        start_time: startTime,
+        end_time: endTime,
+      },
     });
 
-    const fullRequest = await this.attendanceRequestService.findOne(
+    const fullRequest = await this.findOneAttendanceRequest(
       attendanceRequest.id,
     );
     return this.mapToOvertimeRequestResponse(fullRequest);
-  }
-
-  async getDivisionRequests(
-    divisionHeadId: number,
-    paginationDto: RequestPaginationDto = {},
-  ) {
-    await this.validateDivisionHead(divisionHeadId);
-
-    const division_ids = await this.getUserDivisions(divisionHeadId);
-
-    if (division_ids.length === 0) {
-      return buildPaginationResponse(
-        [],
-        0,
-        paginationDto.page || 1,
-        paginationDto.limit || 10,
-      );
-    }
-
-    const divisionUserIds = await this.getDivisionUserIds(division_ids);
-
-    return await this.getRequestsByUserIds(divisionUserIds, paginationDto);
   }
 
   async getRequestsByUserIds(
@@ -338,51 +538,17 @@ export class RequestsService {
       };
     }
 
-    const allAttendanceRequests =
-      await this.attendanceRequestService.findMany(where);
+    const allAttendanceRequests = await this.findManyAttendanceRequests(where);
 
-    let filteredRequests = allAttendanceRequests;
+    const filteredRequests = this.filterRequestsByRemoteType(
+      allAttendanceRequests,
+      paginationDto.request_type,
+      paginationDto.remote_type,
+    );
 
-    if (
-      paginationDto.request_type === 'REMOTE_WORK' &&
-      paginationDto.remote_type
-    ) {
-      filteredRequests = allAttendanceRequests.filter(
-        (r) => r.remote_work_request?.remote_type === paginationDto.remote_type,
-      );
-    }
-
-    const allRequests = filteredRequests.map((req) => {
-      switch (req.request_type) {
-        case 'REMOTE_WORK':
-          return {
-            ...this.mapToRemoteWorkRequestResponse(req),
-            type: 'remote_work' as const,
-          };
-        case 'DAY_OFF':
-          return {
-            ...this.mapToDayOffRequestResponse(req),
-            type: 'day_off' as const,
-          };
-        case 'OVERTIME':
-          return {
-            ...this.mapToOvertimeRequestResponse(req),
-            type: 'overtime' as const,
-          };
-        case 'LATE_EARLY':
-          return {
-            ...this.mapToLateEarlyRequestResponse(req),
-            type: 'late_early' as const,
-          };
-        case 'FORGOT_CHECKIN':
-          return {
-            ...this.mapToForgotCheckinRequestResponse(req),
-            type: 'forgot_checkin' as const,
-          };
-        default:
-          return null;
-      }
-    }).filter((req) => req !== null);
+    const allRequests = filteredRequests
+      .map((req) => this.mapRequestToResponse(req))
+      .filter((req) => req !== null);
 
     allRequests.sort(
       (a, b) =>
@@ -404,33 +570,9 @@ export class RequestsService {
     requestType: string,
     authContext: AuthorizationContext,
   ) {
-    // Map request type strings to AttendanceRequestType
-    let requestTypeEnum: string;
-    switch (requestType) {
-      case 'remote_work':
-      case 'remote-work':
-        requestTypeEnum = 'REMOTE_WORK';
-        break;
-      case 'day_off':
-      case 'day-off':
-        requestTypeEnum = 'DAY_OFF';
-        break;
-      case 'overtime':
-        requestTypeEnum = 'OVERTIME';
-        break;
-      case 'late_early':
-      case 'late-early':
-        requestTypeEnum = 'LATE_EARLY';
-        break;
-      case 'forgot_checkin':
-      case 'forgot-checkin':
-        requestTypeEnum = 'FORGOT_CHECKIN';
-        break;
-      default:
-        throw new BadRequestException(REQUEST_ERRORS.INVALID_REQUEST_TYPE);
-    }
+    this.mapRequestTypeStringToEnum(requestType); // Validate request type
 
-    const request = await this.attendanceRequestService.findOne(requestId);
+    const request = await this.findOneAttendanceRequest(requestId);
 
     if (!request) {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
@@ -463,79 +605,17 @@ export class RequestsService {
 
     const accessScope = await this.determineAccessScope(requesterId!);
 
-    const roleBasedConditions = await this.buildRoleBasedWhereConditions(
+    await this.buildRoleBasedWhereConditions(accessScope, paginationDto);
+
+    const user_ids = await this.getUserIdsFromAccessScope(
       accessScope,
       paginationDto,
+      requesterId!,
     );
 
-    let user_ids: number[] | undefined;
+    const metadata = this.buildRequestMetadata(accessScope, paginationDto);
 
-    if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        const divisionuser_ids = await this.getDivisionUserIds(
-          accessScope.division_ids,
-        );
-        user_ids = divisionuser_ids;
-      } else {
-        return buildPaginationResponse(
-          [],
-          0,
-          paginationDto.page || 1,
-          paginationDto.limit || 10,
-        );
-      }
-    } else if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getUserIdsByRole(
-        ROLE_NAMES.DIVISION_HEAD,
-      );
-
-      user_ids = [accessScope.user_id!, ...divisionHeaduser_ids];
-    } else if (accessScope.type === 'ALL_ACCESS') {
-      if (paginationDto.division_id) {
-        const divisionuser_ids = await this.getDivisionUserIds([
-          paginationDto.division_id,
-        ]);
-        user_ids = divisionuser_ids;
-      }
-    } else if (accessScope.type === 'TEAM_ONLY') {
-      if (accessScope.team_ids && accessScope.team_ids.length > 0) {
-        const teamuser_ids = await this.getTeamuser_ids(accessScope.team_ids);
-        user_ids = teamuser_ids;
-      } else {
-        user_ids = [requesterId!];
-      }
-    } else if (accessScope.type === 'PROJECT_ONLY') {
-      if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        const projectuser_ids = await this.getProjectUserIds(
-          accessScope.projectIds,
-        );
-        user_ids = projectuser_ids;
-      } else {
-        user_ids = [requesterId!];
-      }
-    } else {
-      user_ids = [requesterId!];
-    }
-
-    if (user_ids && user_ids.length > 0) {
-      const result = await this.getRequestsByUserIds(user_ids, paginationDto);
-
-      return {
-        ...result,
-        metadata: {
-          access_scope: accessScope.type,
-          managed_divisions: accessScope.division_ids,
-          managed_teams: accessScope.team_ids,
-          managed_projects: accessScope.projectIds,
-          filters_applied: {
-            division_restriction: accessScope.type === 'DIVISION_ONLY',
-            team_restriction: accessScope.type === 'TEAM_ONLY',
-            project_restriction: accessScope.type === 'PROJECT_ONLY',
-            division_id: paginationDto.division_id,
-          },
-        },
-      };
-    } else if (user_ids && user_ids.length === 0) {
+    if (user_ids === undefined) {
       return {
         ...buildPaginationResponse(
           [],
@@ -543,38 +623,27 @@ export class RequestsService {
           paginationDto.page || 1,
           paginationDto.limit || 10,
         ),
-        metadata: {
-          access_scope: accessScope.type,
-          managed_divisions: accessScope.division_ids,
-          managed_teams: accessScope.team_ids,
-          managed_projects: accessScope.projectIds,
-          filters_applied: {
-            division_restriction: accessScope.type === 'DIVISION_ONLY',
-            team_restriction: accessScope.type === 'TEAM_ONLY',
-            project_restriction: accessScope.type === 'PROJECT_ONLY',
-          },
-        },
+        metadata,
       };
     }
 
+    if (user_ids.length === 0) {
+      return {
+        ...buildPaginationResponse(
+          [],
+          0,
+          paginationDto.page || 1,
+          paginationDto.limit || 10,
+        ),
+        metadata,
+      };
+    }
+
+    const result = await this.getRequestsByUserIds(user_ids, paginationDto);
+
     return {
-      ...buildPaginationResponse(
-        [],
-        0,
-        paginationDto.page || 1,
-        paginationDto.limit || 10,
-      ),
-      metadata: {
-        access_scope: accessScope.type,
-        managed_divisions: accessScope.division_ids,
-        managed_teams: accessScope.team_ids,
-        managed_projects: accessScope.projectIds,
-        filters_applied: {
-          division_restriction: accessScope.type === 'DIVISION_ONLY',
-          team_restriction: accessScope.type === 'TEAM_ONLY',
-          project_restriction: accessScope.type === 'PROJECT_ONLY',
-        },
-      },
+      ...result,
+      metadata,
     };
   }
 
@@ -602,50 +671,17 @@ export class RequestsService {
     }
 
     const allAttendanceRequests =
-      await this.attendanceRequestService.findMany(whereConditions);
+      await this.findManyAttendanceRequests(whereConditions);
 
-    let filteredRequests = allAttendanceRequests;
+    const filteredRequests = this.filterRequestsByRemoteType(
+      allAttendanceRequests,
+      paginationDto.request_type,
+      paginationDto.remote_type,
+    );
 
-    if (
-      paginationDto.request_type === 'REMOTE_WORK' &&
-      paginationDto.remote_type
-    ) {
-      filteredRequests = allAttendanceRequests.filter(
-        (r) => r.remote_work_request?.remote_type === paginationDto.remote_type,
-      );
-    }
-
-    const allRequests = filteredRequests.map((req) => {
-      switch (req.request_type) {
-        case 'REMOTE_WORK':
-          return {
-            ...this.mapToRemoteWorkRequestResponse(req),
-            request_type: 'REMOTE_WORK' as const,
-          };
-        case 'DAY_OFF':
-          return {
-            ...this.mapToDayOffRequestResponse(req),
-            request_type: 'DAY_OFF' as const,
-          };
-        case 'OVERTIME':
-          return {
-            ...this.mapToOvertimeRequestResponse(req),
-            request_type: 'OVERTIME' as const,
-          };
-        case 'LATE_EARLY':
-          return {
-            ...this.mapToLateEarlyRequestResponse(req),
-            request_type: 'LATE_EARLY' as const,
-          };
-        case 'FORGOT_CHECKIN':
-          return {
-            ...this.mapToForgotCheckinRequestResponse(req),
-            request_type: 'FORGOT_CHECKIN' as const,
-          };
-        default:
-          return null;
-      }
-    }).filter((req) => req !== null);
+    const allRequests = filteredRequests
+      .map((req) => this.mapRequestToResponseWithType(req))
+      .filter((req) => req !== null);
 
     const sortField =
       orderBy && typeof orderBy === 'object' && orderBy.created_at
@@ -674,35 +710,24 @@ export class RequestsService {
   }
 
   async getMyRequestsStats(user_id: number) {
-    const allRequests = await this.attendanceRequestService.findMany({
+    const allRequests = await this.findManyAttendanceRequests({
       user_id: user_id,
       deleted_at: null,
     });
 
-    const getStatusCounts = (requests: any[]) => {
-      const result = { total: 0, pending: 0, approved: 0, rejected: 0 };
-      requests.forEach((req) => {
-        result.total += 1;
-        if (req.status === 'PENDING') result.pending += 1;
-        if (req.status === 'APPROVED') result.approved += 1;
-        if (req.status === 'REJECTED') result.rejected += 1;
-      });
-      return result;
-    };
-
-    const remoteWorkStats = getStatusCounts(
+    const remoteWorkStats = this.getStatusCounts(
       allRequests.filter((r) => r.request_type === 'REMOTE_WORK'),
     );
-    const dayOffStats = getStatusCounts(
+    const dayOffStats = this.getStatusCounts(
       allRequests.filter((r) => r.request_type === 'DAY_OFF'),
     );
-    const overtimeStats = getStatusCounts(
+    const overtimeStats = this.getStatusCounts(
       allRequests.filter((r) => r.request_type === 'OVERTIME'),
     );
-    const lateEarlyStats = getStatusCounts(
+    const lateEarlyStats = this.getStatusCounts(
       allRequests.filter((r) => r.request_type === 'LATE_EARLY'),
     );
-    const forgotCheckinStats = getStatusCounts(
+    const forgotCheckinStats = this.getStatusCounts(
       allRequests.filter((r) => r.request_type === 'FORGOT_CHECKIN'),
     );
 
@@ -745,7 +770,7 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
@@ -766,9 +791,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.approve(id, authContext.userId);
+    await this.approveAttendanceRequest(id, authContext.userId);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
     await this.updateTimesheetRemoteType(updatedRequest);
 
     return {
@@ -783,7 +808,7 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
@@ -804,9 +829,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.reject(id, authContext.userId, reason);
+    await this.rejectAttendanceRequest(id, authContext.userId, reason);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     return {
       success: true,
@@ -819,7 +844,7 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
@@ -841,7 +866,7 @@ export class RequestsService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      await this.attendanceRequestService.approve(id, authContext.userId);
+      await this.approveAttendanceRequest(id, authContext.userId);
 
       if (request.day_off?.type === DayOffType.PAID) {
         const dayOffAmount = request.day_off.duration === 'FULL_DAY' ? 1 : 0.5;
@@ -854,7 +879,7 @@ export class RequestsService {
         );
       }
 
-      const updatedRequest = await this.attendanceRequestService.findOne(id);
+      const updatedRequest = await this.findOneAttendanceRequest(id);
       await this.createTimesheetsForDayOff(updatedRequest);
 
       if (updatedRequest?.timesheet_id) {
@@ -876,7 +901,7 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
@@ -901,11 +926,7 @@ export class RequestsService {
     }
 
     return await this.prisma.$transaction(async (tx) => {
-      await this.attendanceRequestService.reject(
-        id,
-        authContext.userId,
-        reason,
-      );
+      await this.rejectAttendanceRequest(id, authContext.userId, reason);
 
       if (
         request.status === ApprovalStatus.APPROVED &&
@@ -921,7 +942,7 @@ export class RequestsService {
         );
       }
 
-      const updatedRequest = await this.attendanceRequestService.findOne(id);
+      const updatedRequest = await this.findOneAttendanceRequest(id);
 
       // Cập nhật is_complete sau khi reject day_off
       if (updatedRequest?.timesheet_id) {
@@ -942,7 +963,7 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
@@ -963,9 +984,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.approve(id, authContext.userId);
+    await this.approveAttendanceRequest(id, authContext.userId);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     return {
       success: true,
@@ -979,7 +1000,7 @@ export class RequestsService {
     authContext: AuthorizationContext,
     reason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
@@ -1000,9 +1021,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.reject(id, authContext.userId, reason);
+    await this.rejectAttendanceRequest(id, authContext.userId, reason);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     return {
       success: true,
@@ -1096,22 +1117,11 @@ export class RequestsService {
     const totalWorkMinutes = morningWorkMinutes + afternoonWorkMinutes;
 
     const duration = dayOff.day_off?.duration || dayOff.duration;
-    const workHours =
-      duration === 'FULL_DAY'
-        ? { morningHours: 0, afternoonHours: 0, totalHours: 0 }
-        : duration === 'MORNING'
-          ? 
-            {
-              morningHours: 0,
-              afternoonHours: afternoonWorkMinutes,
-              totalHours: afternoonWorkMinutes,
-            }
-            : 
-            {
-              morningHours: morningWorkMinutes,
-              afternoonHours: 0,
-              totalHours: morningWorkMinutes,
-            };
+    const workHours = this.calculateDayOffWorkHours(
+      duration,
+      morningWorkMinutes,
+      afternoonWorkMinutes,
+    );
 
     if (!existingTimesheet) {
       const newTimesheet = await this.prisma.time_sheets.create({
@@ -1120,7 +1130,7 @@ export class RequestsService {
           work_date: workDate,
           type: 'NORMAL',
           total_work_time: workHours.totalHours,
-          is_complete: false, 
+          is_complete: false,
         },
       });
 
@@ -1204,7 +1214,7 @@ export class RequestsService {
       },
     });
 
-    const allRequests = await this.attendanceRequestService.findMany({
+    const allRequests = await this.findManyAttendanceRequests({
       user_id,
       work_date: { gte: startOfMonth, lte: endOfMonth },
       request_type: { in: ['FORGOT_CHECKIN', 'LATE_EARLY'] },
@@ -1316,13 +1326,15 @@ export class RequestsService {
     );
     const workDate = new Date(dto.work_date);
 
-    const isDuplicate =
-      await this.attendanceRequestService.checkDuplicateRequest(
-        dto.user_id,
-        workDate,
-        'LATE_EARLY',
-      );
-    if (isDuplicate)
+    const existing = await this.prisma.attendance_requests.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'LATE_EARLY',
+        deleted_at: null,
+      },
+    });
+    if (existing)
       throw new BadRequestException(
         'Đã có request đi muộn/về sớm cho ngày này',
       );
@@ -1353,24 +1365,28 @@ export class RequestsService {
       });
     }
 
-    const attendanceRequest =
-      await this.attendanceRequestService.createAttendanceRequest({
+    const attendanceRequest = await this.prisma.attendance_requests.create({
+      data: {
         user_id: dto.user_id,
         timesheet_id: timesheet.id,
         work_date: workDate,
         request_type: 'LATE_EARLY',
         title: dto.title,
         reason: dto.reason,
-      });
-
-    await this.lateEarlyDetailService.createLateEarlyDetail({
-      request_id: attendanceRequest.id,
-      request_type: dto.request_type,
-      late_minutes: dto.late_minutes,
-      early_minutes: dto.early_minutes,
+        status: ApprovalStatus.PENDING,
+      },
     });
 
-    const fullRequest = await this.attendanceRequestService.findOne(
+    await this.prisma.late_early_requests.create({
+      data: {
+        request_id: attendanceRequest.id,
+        request_type: dto.request_type,
+        late_minutes: dto.late_minutes,
+        early_minutes: dto.early_minutes,
+      },
+    });
+
+    const fullRequest = await this.findOneAttendanceRequest(
       attendanceRequest.id,
     );
     return this.mapToLateEarlyRequestResponse(fullRequest);
@@ -1380,7 +1396,7 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'LATE_EARLY') {
       throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
@@ -1397,9 +1413,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.approve(id, authContext.userId);
+    await this.approveAttendanceRequest(id, authContext.userId);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
     await this.updateTimesheetWithApprovedLateEarly(updatedRequest);
 
     // Cập nhật is_complete sau khi approve late_early
@@ -1421,7 +1437,7 @@ export class RequestsService {
     authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'LATE_EARLY') {
       throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
@@ -1438,13 +1454,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.reject(
-      id,
-      authContext.userId,
-      rejectedReason,
-    );
+    await this.rejectAttendanceRequest(id, authContext.userId, rejectedReason);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     // Cập nhật is_complete sau khi reject late_early
     if (updatedRequest?.timesheet_id) {
@@ -1578,13 +1590,15 @@ export class RequestsService {
     const workDate = new Date(dto.work_date);
     this.validatePastOrCurrentDate(workDate);
 
-    const isDuplicate =
-      await this.attendanceRequestService.checkDuplicateRequest(
-        dto.user_id,
-        workDate,
-        'FORGOT_CHECKIN',
-      );
-    if (isDuplicate)
+    const existing = await this.prisma.attendance_requests.findFirst({
+      where: {
+        user_id: dto.user_id,
+        work_date: workDate,
+        request_type: 'FORGOT_CHECKIN',
+        deleted_at: null,
+      },
+    });
+    if (existing)
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
 
     if (dto.checkin_time && dto.checkout_time) {
@@ -1611,15 +1625,17 @@ export class RequestsService {
       });
     }
 
-    const attendanceRequest =
-      await this.attendanceRequestService.createAttendanceRequest({
+    const attendanceRequest = await this.prisma.attendance_requests.create({
+      data: {
         user_id: dto.user_id,
         timesheet_id: timesheet.id,
         work_date: workDate,
         request_type: 'FORGOT_CHECKIN',
         title: dto.title,
         reason: dto.reason,
-      });
+        status: ApprovalStatus.PENDING,
+      },
+    });
 
     const checkinDateTime = dto.checkin_time
       ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkin_time}`)
@@ -1628,13 +1644,15 @@ export class RequestsService {
       ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
       : undefined;
 
-    await this.forgotCheckinDetailService.createForgotCheckinDetail({
-      request_id: attendanceRequest.id,
-      checkin_time: checkinDateTime,
-      checkout_time: checkoutDateTime,
+    await this.prisma.forgot_checkin_requests.create({
+      data: {
+        request_id: attendanceRequest.id,
+        checkin_time: checkinDateTime || null,
+        checkout_time: checkoutDateTime || null,
+      },
     });
 
-    const fullRequest = await this.attendanceRequestService.findOne(
+    const fullRequest = await this.findOneAttendanceRequest(
       attendanceRequest.id,
     );
     return this.mapToForgotCheckinRequestResponse(fullRequest);
@@ -1644,7 +1662,7 @@ export class RequestsService {
     id: number,
     authContext: AuthorizationContext,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'FORGOT_CHECKIN') {
       throw new NotFoundException(
@@ -1668,7 +1686,7 @@ export class RequestsService {
     }
 
     await this.prisma.$transaction(async (prisma) => {
-      await this.attendanceRequestService.approve(id, authContext.userId);
+      await this.approveAttendanceRequest(id, authContext.userId);
 
       if (
         request.timesheet_id &&
@@ -1694,7 +1712,7 @@ export class RequestsService {
       }
     });
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     return {
       success: true,
@@ -1708,7 +1726,7 @@ export class RequestsService {
     authContext: AuthorizationContext,
     rejectedReason: string,
   ): Promise<ApprovalResult> {
-    const request = await this.attendanceRequestService.findOne(id);
+    const request = await this.findOneAttendanceRequest(id);
 
     if (!request || request.request_type !== 'FORGOT_CHECKIN') {
       throw new NotFoundException(
@@ -1731,13 +1749,9 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.reject(
-      id,
-      authContext.userId,
-      rejectedReason,
-    );
+    await this.rejectAttendanceRequest(id, authContext.userId, rejectedReason);
 
-    const updatedRequest = await this.attendanceRequestService.findOne(id);
+    const updatedRequest = await this.findOneAttendanceRequest(id);
 
     return {
       success: true,
@@ -1816,46 +1830,6 @@ export class RequestsService {
     return assignments.map((a) => a.user_id);
   }
 
-  private async getLeaduser_ids(division_id?: number): Promise<number[]> {
-    const leadRoles = [
-      ROLE_NAMES.TEAM_LEADER,
-      ROLE_NAMES.DIVISION_HEAD,
-      ROLE_NAMES.PROJECT_MANAGER,
-    ];
-
-    const whereConditions: any = {
-      deleted_at: null,
-      user: {
-        deleted_at: null,
-      },
-    };
-
-    if (division_id) {
-      const assignments = await this.prisma.user_role_assignment.findMany({
-        where: {
-          scope_type: ScopeType.DIVISION,
-          scope_id: division_id,
-          deleted_at: null,
-        },
-        select: { user_id: true },
-        distinct: ['user_id'],
-      });
-      const user_ids = assignments.map((a) => a.user_id);
-      whereConditions.user_id = { in: user_ids };
-    }
-
-    const leadUsers = await this.prisma.users.findMany({
-      where: {
-        user_information: whereConditions,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return [...new Set(leadUsers.map((lu) => lu.id))];
-  }
-
   private async getUserIdsByRole(role_name: string): Promise<number[]> {
     const roleUsers = await this.prisma.user_role_assignment.findMany({
       where: {
@@ -1883,141 +1857,6 @@ export class RequestsService {
     return whereConditions;
   }
 
-  private async getUserIdsFilterByRole(
-    user_id: number,
-  ): Promise<number[] | undefined> {
-    const accessScope = await this.determineAccessScope(user_id);
-
-    if (accessScope.type === 'DIVISION_ONLY') {
-      if (accessScope.division_ids && accessScope.division_ids.length > 0) {
-        return await this.getDivisionUserIds(accessScope.division_ids);
-      }
-      return [];
-    }
-
-    if (accessScope.type === 'ADMIN_ACCESS') {
-      const divisionHeaduser_ids = await this.getUserIdsByRole(
-        ROLE_NAMES.DIVISION_HEAD,
-      );
-      return [user_id, ...divisionHeaduser_ids];
-    }
-
-    if (accessScope.type === 'TEAM_ONLY') {
-      if (accessScope.team_ids && accessScope.team_ids.length > 0) {
-        return await this.getTeamuser_ids(accessScope.team_ids);
-      }
-      return [user_id];
-    }
-
-    if (accessScope.type === 'PROJECT_ONLY') {
-      if (accessScope.projectIds && accessScope.projectIds.length > 0) {
-        return await this.getProjectUserIds(accessScope.projectIds);
-      }
-      return [user_id];
-    }
-
-    if (accessScope.type === 'SELF_ONLY') {
-      return [user_id];
-    }
-
-    return undefined;
-  }
-
-  // DEPRECATED: Replaced by AuthorizationContext.canApproveRequest()
-  // Kept temporarily for backward compatibility with old code paths
-  // TODO: Remove after verifying all endpoints migrated
-  private async canApproveRequest(
-    approverId: number,
-    requestUserId: number,
-  ): Promise<boolean> {
-    const [approverRoles, ownerRoles] = await Promise.all([
-      this.roleAssignmentService.getUserRoles(approverId),
-      this.roleAssignmentService.getUserRoles(requestUserId),
-    ]);
-
-    const isAdmin = approverRoles.roles.some(
-      (r) => r.name === ROLE_NAMES.ADMIN && r.scope_type === ScopeType.COMPANY,
-    );
-
-    if (isAdmin) {
-      return true;
-    }
-
-    if (approverId === requestUserId) {
-      return false;
-    }
-
-    const approverDivisions = approverRoles.roles
-      .filter(
-        (r) =>
-          r.name === ROLE_NAMES.DIVISION_HEAD && r.scope_type === 'DIVISION',
-      )
-      .map((r) => r.scope_id);
-
-    if (approverDivisions.length > 0) {
-      const ownerInSameDivision = ownerRoles.roles.some(
-        (r) =>
-          r.scope_type === 'DIVISION' && approverDivisions.includes(r.scope_id),
-      );
-      if (ownerInSameDivision) {
-        return true;
-      }
-    }
-
-    const approverTeams = approverRoles.roles
-      .filter(
-        (r) => r.name === ROLE_NAMES.TEAM_LEADER && r.scope_type === 'TEAM',
-      )
-      .map((r) => r.scope_id);
-
-    if (approverTeams.length > 0) {
-      const ownerInSameTeam = ownerRoles.roles.some(
-        (r) => r.scope_type === 'TEAM' && approverTeams.includes(r.scope_id),
-      );
-      if (ownerInSameTeam) {
-        return true;
-      }
-    }
-
-    const approverProjects = approverRoles.roles
-      .filter(
-        (r) =>
-          r.name === ROLE_NAMES.PROJECT_MANAGER && r.scope_type === 'PROJECT',
-      )
-      .map((r) => r.scope_id)
-      .filter((id): id is number => id !== undefined);
-
-    if (approverProjects.length > 0) {
-      const projects = await this.prisma.projects.findMany({
-        where: {
-          id: { in: approverProjects },
-          deleted_at: null,
-        },
-        select: { team_id: true },
-      });
-
-      const projectTeamIds = projects
-        .map((p) => p.team_id)
-        .filter((id): id is number => id !== null);
-
-      if (projectTeamIds.length > 0) {
-        const ownerInProjectTeam = ownerRoles.roles.some(
-          (r) =>
-            r.scope_type === 'TEAM' &&
-            r.scope_id !== undefined &&
-            projectTeamIds.includes(r.scope_id),
-        );
-        if (ownerInProjectTeam) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   */
   private async determineAccessScope(user_id: number): Promise<{
     type:
       | 'DIVISION_ONLY'
@@ -2071,7 +1910,7 @@ export class RequestsService {
       return {
         type: 'DIVISION_ONLY',
         division_ids: managedDivisions,
-        team_ids: managedTeams, 
+        team_ids: managedTeams,
         projectIds: managedProjects,
       };
     }
@@ -2182,32 +2021,6 @@ export class RequestsService {
 
     return whereConditions;
   }
-  private isHighPriorityRequest(request: any): boolean {
-    if (
-      this.getLeadershipRoles().includes(
-        request.user?.role_assignments.map((role) => role.name?.toLowerCase()),
-      )
-    ) {
-      return true;
-    }
-
-    if (request.type === 'day_off' && request.duration_days >= 3) {
-      return true;
-    }
-
-    if (request.type === 'overtime' && request.duration_hours >= 4) {
-      return true;
-    }
-
-    if (request.status === 'PENDING') {
-      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-      if (new Date(request.created_at) <= threeDaysAgo) {
-        return true;
-      }
-    }
-
-    return false;
-  }
 
   /**
    * Lấy danh sách user IDs trong teams
@@ -2279,7 +2092,7 @@ export class RequestsService {
     dto: CreateRemoteWorkRequestDto,
     user_id: number,
   ) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing || existing.request_type !== 'REMOTE_WORK') {
       throw new NotFoundException(REQUEST_ERRORS.REMOTE_WORK_REQUEST_NOT_FOUND);
@@ -2329,26 +2142,32 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.REQUEST_ALREADY_EXISTS);
     }
 
-    await this.attendanceRequestService.update(id, {
-      work_date: workDate,
-      title: dto.title,
-      reason: dto.reason,
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        title: dto.title,
+        reason: dto.reason,
+      },
     });
 
     if (existing.remote_work_request) {
-      await this.remoteWorkDetailService.updateRemoteWorkDetail(id, {
-        remote_type: dto.remote_type,
-        duration: dto.duration,
+      await this.prisma.remote_work_requests.update({
+        where: { request_id: id },
+        data: {
+          remote_type: dto.remote_type,
+          duration: dto.duration,
+        },
       });
     }
 
-    const updated = await this.attendanceRequestService.findOne(id);
+    const updated = await this.findOneAttendanceRequest(id);
 
     return this.mapToRemoteWorkRequestResponse(updated);
   }
 
   async deleteRequest(id: number, user_id: number) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing) {
       throw new NotFoundException(REQUEST_ERRORS.REQUEST_NOT_FOUND);
@@ -2362,7 +2181,12 @@ export class RequestsService {
       throw new BadRequestException(REQUEST_ERRORS.ONLY_DELETE_PENDING);
     }
 
-    await this.attendanceRequestService.softDelete(id);
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        deleted_at: new Date(),
+      },
+    });
 
     const logTypeMap = {
       REMOTE_WORK: 'remote_work',
@@ -2380,7 +2204,7 @@ export class RequestsService {
     dto: CreateDayOffRequestDto,
     user_id: number,
   ) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing || existing.request_type !== 'DAY_OFF') {
       throw new NotFoundException(REQUEST_ERRORS.DAY_OFF_REQUEST_NOT_FOUND);
@@ -2426,20 +2250,26 @@ export class RequestsService {
       }
     }
 
-    await this.attendanceRequestService.update(id, {
-      work_date: workDate,
-      title: dto.title,
-      reason: dto.reason,
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        title: dto.title,
+        reason: dto.reason,
+      },
     });
 
     if (existing.day_off) {
-      await this.dayOffDetailService.updateDayOffDetail(id, {
-        duration: dto.duration,
-        type: dto.type,
+      await this.prisma.day_offs.update({
+        where: { request_id: id },
+        data: {
+          duration: dto.duration,
+          type: dto.type,
+        },
       });
     }
 
-    const updated = await this.attendanceRequestService.findOne(id);
+    const updated = await this.findOneAttendanceRequest(id);
 
     return this.mapToDayOffRequestResponse(updated);
   }
@@ -2449,7 +2279,7 @@ export class RequestsService {
     dto: CreateOvertimeRequestDto,
     user_id: number,
   ) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing || existing.request_type !== 'OVERTIME') {
       throw new NotFoundException(REQUEST_ERRORS.OVERTIME_REQUEST_NOT_FOUND);
@@ -2507,20 +2337,26 @@ export class RequestsService {
       `${workDate.toISOString().split('T')[0]} ${dto.end_time}`,
     );
 
-    await this.attendanceRequestService.update(id, {
-      work_date: workDate,
-      title: dto.title,
-      reason: dto.reason,
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        title: dto.title,
+        reason: dto.reason,
+      },
     });
 
     if (existing.overtime) {
-      await this.overtimeDetailService.updateOvertimeDetail(id, {
-        start_time: startTime,
-        end_time: endTime,
+      await this.prisma.over_times_history.update({
+        where: { request_id: id },
+        data: {
+          start_time: startTime,
+          end_time: endTime,
+        },
       });
     }
 
-    const updated = await this.attendanceRequestService.findOne(id);
+    const updated = await this.findOneAttendanceRequest(id);
 
     return this.mapToOvertimeRequestResponse(updated);
   }
@@ -2530,7 +2366,7 @@ export class RequestsService {
     dto: CreateLateEarlyRequestDto,
     user_id: number,
   ) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing || existing.request_type !== 'LATE_EARLY') {
       throw new NotFoundException(REQUEST_ERRORS.LATE_EARLY_REQUEST_NOT_FOUND);
@@ -2581,21 +2417,27 @@ export class RequestsService {
       );
     }
 
-    await this.attendanceRequestService.update(id, {
-      work_date: workDate,
-      title: dto.title,
-      reason: dto.reason,
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        title: dto.title,
+        reason: dto.reason,
+      },
     });
 
     if (existing.late_early_request) {
-      await this.lateEarlyDetailService.updateLateEarlyDetail(id, {
-        request_type: dto.request_type,
-        late_minutes: dto.late_minutes ?? null,
-        early_minutes: dto.early_minutes ?? null,
+      await this.prisma.late_early_requests.update({
+        where: { request_id: id },
+        data: {
+          request_type: dto.request_type,
+          late_minutes: dto.late_minutes ?? null,
+          early_minutes: dto.early_minutes ?? null,
+        },
       });
     }
 
-    const updated = await this.attendanceRequestService.findOne(id);
+    const updated = await this.findOneAttendanceRequest(id);
 
     return this.mapToLateEarlyRequestResponse(updated);
   }
@@ -2605,7 +2447,7 @@ export class RequestsService {
     dto: CreateForgotCheckinRequestDto,
     user_id: number,
   ) {
-    const existing = await this.attendanceRequestService.findOne(id);
+    const existing = await this.findOneAttendanceRequest(id);
 
     if (!existing || existing.request_type !== 'FORGOT_CHECKIN') {
       throw new NotFoundException(
@@ -2660,22 +2502,139 @@ export class RequestsService {
       ? new Date(`${workDate.toISOString().split('T')[0]} ${dto.checkout_time}`)
       : null;
 
-    await this.attendanceRequestService.update(id, {
-      work_date: workDate,
-      title: dto.title,
-      reason: dto.reason,
+    await this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        work_date: workDate,
+        title: dto.title,
+        reason: dto.reason,
+      },
     });
 
     if (existing.forgot_checkin_request) {
-      await this.forgotCheckinDetailService.updateForgotCheckinDetail(id, {
-        checkin_time: checkinDateTime ?? null,
-        checkout_time: checkoutDateTime ?? null,
+      await this.prisma.forgot_checkin_requests.update({
+        where: { request_id: id },
+        data: {
+          checkin_time: checkinDateTime ?? null,
+          checkout_time: checkoutDateTime ?? null,
+        },
       });
     }
 
-    const updated = await this.attendanceRequestService.findOne(id);
+    const updated = await this.findOneAttendanceRequest(id);
 
     return this.mapToForgotCheckinRequestResponse(updated);
+  }
+
+  // Helper methods - thay thế các service con
+  private async findOneAttendanceRequest(id: number) {
+    return this.prisma.attendance_requests.findFirst({
+      where: { id, deleted_at: null },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                code: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        approved_by_user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        timesheet: true,
+        day_off: true,
+        overtime: true,
+        remote_work_request: true,
+        late_early_request: true,
+        forgot_checkin_request: true,
+      },
+    });
+  }
+
+  private async findManyAttendanceRequests(
+    where: Prisma.attendance_requestsWhereInput,
+  ) {
+    return this.prisma.attendance_requests.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                code: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        approved_by_user: {
+          select: {
+            id: true,
+            email: true,
+            user_information: {
+              select: {
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        timesheet: true,
+        day_off: true,
+        overtime: true,
+        remote_work_request: true,
+        late_early_request: true,
+        forgot_checkin_request: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+  }
+
+  private async approveAttendanceRequest(id: number, approved_by: number) {
+    return this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        status: ApprovalStatus.APPROVED,
+        approved_by,
+        approved_at: new Date(),
+      },
+    });
+  }
+
+  private async rejectAttendanceRequest(
+    id: number,
+    approved_by: number,
+    rejected_reason: string,
+  ) {
+    return this.prisma.attendance_requests.update({
+      where: { id },
+      data: {
+        status: ApprovalStatus.REJECTED,
+        approved_by,
+        approved_at: new Date(),
+        rejected_reason,
+      },
+    });
   }
 
   private mapToRemoteWorkRequestResponse(
@@ -2701,7 +2660,10 @@ export class RequestsService {
   /**
    * Tính tổng số giờ từ start_time và end_time
    */
-  private calculateTotalHours(startTime: Date | null, endTime: Date | null): number | null {
+  private calculateTotalHours(
+    startTime: Date | null,
+    endTime: Date | null,
+  ): number | null {
     if (!startTime || !endTime) {
       return null;
     }

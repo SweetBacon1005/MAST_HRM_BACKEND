@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import {
   BadRequestException,
   Inject,
@@ -9,7 +8,6 @@ import { ConfigService } from '@nestjs/config';
 import { REQUEST } from '@nestjs/core';
 import {
   ApprovalStatus,
-  AttendanceRequestType,
   DayOffDuration,
   HolidayStatus,
   LocationType,
@@ -29,7 +27,6 @@ import {
   buildPaginationResponse,
 } from '../common/utils/pagination.util';
 import { PrismaService } from '../database/prisma.service';
-import { AttendanceRequestService } from '../requests/services/attendance-request.service';
 import { UploadService } from '../upload/upload.service';
 import {
   AttendanceLogQueryDto,
@@ -60,7 +57,6 @@ export class TimesheetService {
     private prisma: PrismaService,
     private ip_validationService: ip_validationService,
     private uploadService: UploadService,
-    private attendanceRequestService: AttendanceRequestService,
     private configService: ConfigService,
     @Inject(REQUEST) private request: Request,
   ) {}
@@ -218,13 +214,18 @@ export class TimesheetService {
       throw new NotFoundException(USER_ERRORS.USER_NOT_FOUND);
     }
 
-    const approvedDayOffRequests = await this.attendanceRequestService.findMany(
+    const approvedDayOffRequests = await this.prisma.attendance_requests.findMany(
       {
-        user_id: user_id,
-        work_date: new Date(createTimesheetDto.work_date),
-        request_type: 'DAY_OFF',
-        status: ApprovalStatus.APPROVED,
-        deleted_at: null,
+        where: {
+          user_id: user_id,
+          work_date: new Date(createTimesheetDto.work_date),
+          request_type: 'DAY_OFF',
+          status: ApprovalStatus.APPROVED,
+          deleted_at: null,
+        },
+        include: {
+          day_off: true,
+        },
       },
     );
     const approvedDayOff = approvedDayOffRequests[0]?.day_off;
@@ -977,12 +978,17 @@ export class TimesheetService {
   }> {
     const targetDate = new Date(workDate);
 
-    const dayOffRequests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      work_date: targetDate,
-      request_type: 'DAY_OFF',
-      status: 'APPROVED',
-      deleted_at: null,
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: user_id,
+        work_date: targetDate,
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.APPROVED,
+        deleted_at: null,
+      },
+      include: {
+        day_off: true,
+      },
     });
     const dayOff = dayOffRequests[0]?.day_off;
 
@@ -1184,21 +1190,31 @@ export class TimesheetService {
       orderBy: { work_date: 'asc' },
     });
 
-    const dayOffRequests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      request_type: 'DAY_OFF',
-      status: 'APPROVED',
-      deleted_at: null,
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: user_id,
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.APPROVED,
+        deleted_at: null,
+      },
+      include: {
+        day_off: true,
+      },
     });
     const dayOffs = dayOffRequests
       .map((r) => r.day_off)
       .filter((d): d is NonNullable<typeof d> => d !== null && d !== undefined);
 
-    const overtimeRequests = await this.attendanceRequestService.findMany({
-      user_id: user_id,
-      request_type: 'OVERTIME',
-      work_date: { gte: new Date(startDate), lte: new Date(endDate) },
-      deleted_at: null,
+    const overtimeRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: user_id,
+        request_type: 'OVERTIME',
+        work_date: { gte: new Date(startDate), lte: new Date(endDate) },
+        deleted_at: null,
+      },
+      include: {
+        overtime: true,
+      },
     });
     const overtimes = overtimeRequests
       .map((r) => r.overtime)
@@ -1258,11 +1274,16 @@ export class TimesheetService {
       orderBy: { work_date: 'asc' },
     });
 
-    const dayOffRequests = await this.attendanceRequestService.findMany({
-      user_id: { in: user_ids },
-      request_type: 'DAY_OFF',
-      status: ApprovalStatus.APPROVED,
-      deleted_at: null,
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id: { in: user_ids },
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.APPROVED,
+        deleted_at: null,
+      },
+      include: {
+        day_off: true,
+      },
     });
     const dayOffs = dayOffRequests
       .map((r) => r.day_off)
@@ -1330,11 +1351,13 @@ export class TimesheetService {
       });
     }
 
-    const pendingDayOffs = await this.attendanceRequestService.count({
-      user_id: user_id,
-      request_type: 'DAY_OFF',
-      status: ApprovalStatus.PENDING,
-      deleted_at: null,
+    const pendingDayOffs = await this.prisma.attendance_requests.count({
+      where: {
+        user_id: user_id,
+        request_type: 'DAY_OFF',
+        status: ApprovalStatus.PENDING,
+        deleted_at: null,
+      },
     });
 
     if (pendingDayOffs > 0) {
@@ -1777,14 +1800,24 @@ export class TimesheetService {
       whereAttendance.user_id = Number(user_id);
     }
 
-    const overtimeRequests = await this.attendanceRequestService.findMany({
-      ...whereAttendance,
-      request_type: 'OVERTIME',
+    const overtimeRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        ...whereAttendance,
+        request_type: 'OVERTIME',
+      },
+      include: {
+        overtime: true,
+      },
     });
 
-    const dayOffRequests = await this.attendanceRequestService.findMany({
-      ...whereAttendance,
-      request_type: 'DAY_OFF',
+    const dayOffRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        ...whereAttendance,
+        request_type: 'DAY_OFF',
+      },
+      include: {
+        day_off: true,
+      },
     });
 
     let currentLeaveBalance: any = null;
@@ -2242,97 +2275,6 @@ export class TimesheetService {
     });
   }
 
-  private async getRequestsForDate(user_id: number, workDate: Date) {
-    const dateStr = workDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-
-    const [
-      remoteWorkRequests,
-      dayOffRequests,
-      overtimeRequests,
-      lateEarlyRequests,
-      forgotCheckinRequests,
-    ] = await Promise.all([
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: new Date(dateStr),
-        request_type: AttendanceRequestType.REMOTE_WORK,
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: new Date(dateStr),
-        request_type: AttendanceRequestType.DAY_OFF,
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: new Date(dateStr),
-        request_type: AttendanceRequestType.OVERTIME,
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: new Date(dateStr),
-        request_type: AttendanceRequestType.LATE_EARLY,
-        deleted_at: null,
-      }),
-
-      this.attendanceRequestService.findMany({
-        user_id: user_id,
-        work_date: new Date(dateStr),
-        request_type: AttendanceRequestType.FORGOT_CHECKIN,
-        deleted_at: null,
-      }),
-    ]);
-
-    const allRequests = [
-      ...remoteWorkRequests.map((req) => ({
-        ...req,
-        type: req.request_type,
-        request_type: AttendanceRequestType.REMOTE_WORK,
-      })),
-      ...dayOffRequests.map((req) => ({
-        ...req,
-        request_type: AttendanceRequestType.DAY_OFF,
-      })),
-      ...overtimeRequests.map((req) => ({
-        ...req,
-        duration_hours: req.overtime?.start_time && req.overtime?.end_time
-          ? ((req.overtime.end_time.getHours() * 60 + req.overtime.end_time.getMinutes()) - 
-             (req.overtime.start_time.getHours() * 60 + req.overtime.start_time.getMinutes())) / 60
-          : 0,
-        request_type: AttendanceRequestType.OVERTIME,
-        start_time: req.overtime?.start_time?.toTimeString().slice(0, 5),
-        end_time: req.overtime?.end_time?.toTimeString().slice(0, 5),
-      })),
-      ...lateEarlyRequests.map((req) => ({
-        ...req,
-        type: req.request_type,
-        request_type: AttendanceRequestType.LATE_EARLY,
-      })),
-      ...forgotCheckinRequests.map((req) => ({
-        ...req,
-        request_type: AttendanceRequestType.FORGOT_CHECKIN,
-        checkin_time:
-          req.forgot_checkin_request?.checkin_time
-            ?.toTimeString()
-            .slice(0, 5) || null,
-        checkout_time:
-          req.forgot_checkin_request?.checkout_time
-            ?.toTimeString()
-            .slice(0, 5) || null,
-      })),
-    ];
-
-    return allRequests.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    );
-  }
-
   async getRequestQuota(user_id: number) {
     const leaveBalance = await this.prisma.user_leave_balances.findUnique({
       where: { user_id },
@@ -2355,22 +2297,32 @@ export class TimesheetService {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     // Đếm số lượng forgot checkin requests (KHÔNG tính REJECTED)
-    const forgotCheckinRequests = await this.attendanceRequestService.findMany({
-      user_id,
-      work_date: { gte: startOfMonth, lte: endOfMonth },
-      request_type: 'FORGOT_CHECKIN',
-      deleted_at: null,
+    const forgotCheckinRequests = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id,
+        work_date: { gte: startOfMonth, lte: endOfMonth },
+        request_type: 'FORGOT_CHECKIN',
+        deleted_at: null,
+      },
+      include: {
+        forgot_checkin_request: true,
+      },
     });
     const forgotCheckinCount = forgotCheckinRequests.filter(
       (r) => r.status !== 'REJECTED',
     ).length;
 
     // Tính TỔNG SỐ PHÚT và SỐ LƯỢNG late/early requests (KHÔNG tính REJECTED)
-    const lateEarlyRequestsAll = await this.attendanceRequestService.findMany({
-      user_id,
-      work_date: { gte: startOfMonth, lte: endOfMonth },
-      request_type: 'LATE_EARLY',
-      deleted_at: null,
+    const lateEarlyRequestsAll = await this.prisma.attendance_requests.findMany({
+      where: {
+        user_id,
+        work_date: { gte: startOfMonth, lte: endOfMonth },
+        request_type: 'LATE_EARLY',
+        deleted_at: null,
+      },
+      include: {
+        late_early_request: true,
+      },
     });
     const lateEarlyRequests = lateEarlyRequestsAll.filter(
       (r) => r.status !== 'REJECTED',
@@ -2459,12 +2411,17 @@ export class TimesheetService {
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     const approvedLateEarlyRequests =
-      await this.attendanceRequestService.findMany({
-        user_id,
-        work_date: { gte: startOfMonth, lte: endOfMonth },
-        request_type: 'LATE_EARLY',
-        status: ApprovalStatus.APPROVED,
-        deleted_at: null,
+      await this.prisma.attendance_requests.findMany({
+        where: {
+          user_id,
+          work_date: { gte: startOfMonth, lte: endOfMonth },
+          request_type: 'LATE_EARLY',
+          status: ApprovalStatus.APPROVED,
+          deleted_at: null,
+        },
+        include: {
+          late_early_request: true,
+        },
       });
 
     const usedLateMinutes = approvedLateEarlyRequests.reduce((total, req) => {

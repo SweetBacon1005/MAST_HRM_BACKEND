@@ -278,19 +278,6 @@ export class UserProfileService {
     });
   }
 
-  async getEducations(user_id: number) {
-    const userInfoId = await this.getUserInfoId(user_id);
-    if (!userInfoId) return [];
-
-    return await this.prisma.education.findMany({
-      where: {
-        user_info_id: userInfoId,
-        ...{ deleted_at: null },
-      },
-      orderBy: { start_date: 'desc' },
-    });
-  }
-
   async getEducationsPaginated(
     user_id: number,
     paginationDto: EducationPaginationDto,
@@ -417,19 +404,6 @@ export class UserProfileService {
     });
   }
 
-  async getExperiences(user_id: number) {
-    const userInfoId = await this.getUserInfoId(user_id);
-    if (!userInfoId) return [];
-
-    return await this.prisma.experience.findMany({
-      where: {
-        user_info_id: userInfoId,
-        deleted_at: null,
-      },
-      orderBy: { start_date: 'desc' },
-    });
-  }
-
   async updateExperience(experienceId: number, updateDto: UpdateExperienceDto) {
     const userInfoId = await this.getUserInfoId(updateDto.user_id);
     if (!userInfoId) {
@@ -520,25 +494,6 @@ export class UserProfileService {
     });
   }
 
-  async getUserSkills(user_id: number) {
-    const userInfoId = await this.getUserInfoId(user_id);
-    if (!userInfoId) return [];
-    return await this.prisma.user_skills.findMany({
-      where: {
-        user_info_id: userInfoId,
-        ...{ deleted_at: null },
-      },
-      include: {
-        skill: {
-          include: {
-            position: true,
-          },
-        },
-      },
-      orderBy: { is_main: 'desc' },
-    });
-  }
-
   async updateUserSkill(userskill_id: number, updateDto: UpdateUserSkillDto) {
     const userSkill = await this.prisma.user_skills.findFirst({
       where: { id: userskill_id, deleted_at: null },
@@ -611,18 +566,6 @@ export class UserProfileService {
       include: {
         position: true,
       },
-    });
-  }
-
-  async getPositions() {
-    return await this.prisma.positions.findMany({
-      where: { deleted_at: null },
-    });
-  }
-
-  async getLanguages() {
-    return await this.prisma.languages.findMany({
-      where: { deleted_at: null },
     });
   }
 
